@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   `;
 
   const { error } = await resend.emails.send({
-    from: "Werzio <onboarding@resend.dev>",
+    from: "Werzio <noreply@werzio.com>",
     to: [to],
     subject,
     html,
