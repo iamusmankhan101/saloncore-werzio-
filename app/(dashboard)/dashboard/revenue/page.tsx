@@ -285,7 +285,7 @@ export default function RevenuePage() {
 <html>
 <head>
   <meta charset="UTF-8"/>
-  <title>GlowBook ${pdfTitle}</title>
+  <title>Werzio ${pdfTitle}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -343,7 +343,7 @@ export default function RevenuePage() {
     <div class="logo">
       <div class="logo-icon">G</div>
       <div>
-        <div class="logo-text">GlowBook</div>
+        <div class="logo-text">Werzio</div>
         <div class="logo-sub">Salon Management Platform</div>
       </div>
     </div>
@@ -454,7 +454,7 @@ export default function RevenuePage() {
   </div>
 
   <div class="footer">
-    <div class="footer-txt">GlowBook · Salon Management Platform</div>
+    <div class="footer-txt">Werzio · Salon Management Platform</div>
     <div class="footer-txt">Confidential · For internal use only</div>
   </div>
 </div>

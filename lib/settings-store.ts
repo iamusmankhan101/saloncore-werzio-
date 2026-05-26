@@ -1,7 +1,7 @@
 // Settings persisted to localStorage so changes survive page refreshes
 
-const STORAGE_KEY = "glowbook_settings";
-export const SETTINGS_CHANGED_EVENT = "glowbook_settings_changed";
+const STORAGE_KEY = "werzio_settings";
+export const SETTINGS_CHANGED_EVENT = "werzio_settings_changed";
 
 const defaults = {
   replicate: {
@@ -13,7 +13,7 @@ const defaults = {
   salon: {
     name: "Amna's Salon",
     phone: "0300-1234567",
-    email: "amna@glowbook.pk",
+    email: "amna@werzio.pk",
     address: "Block 5, Gulshan-e-Iqbal, Karachi",
     city: "Karachi",
     currency: "PKR",

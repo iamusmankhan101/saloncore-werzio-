@@ -40,13 +40,13 @@ export async function POST(req: NextRequest) {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e8e8f0">
       <div style="background:linear-gradient(135deg,#5B21B6,#9333EA);padding:28px">
-        <div style="color:#fff;font-size:22px;font-weight:900;letter-spacing:-0.5px">SalonCore</div>
+        <div style="color:#fff;font-size:22px;font-weight:900;letter-spacing:-0.5px">Werzio</div>
         <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:2px">Salon Management Platform</div>
       </div>
       <div style="padding:32px">
         <div style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:8px">Verify your email address</div>
         <p style="color:#6b6b8a;font-size:14px;line-height:1.7;margin:0 0 24px">
-          Hi ${name || "there"}, thanks for signing up for SalonCore! Click the button below to verify your email and activate your account.
+          Hi ${name || "there"}, thanks for signing up for Werzio! Click the button below to verify your email and activate your account.
         </p>
         <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#5B21B6,#9333EA);color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:10px">
           Verify my email
@@ -59,15 +59,15 @@ export async function POST(req: NextRequest) {
         </div>
       </div>
       <div style="background:#f8f8fc;padding:14px 28px;text-align:center;color:#b0b0c8;font-size:11px">
-        SalonCore — Automated account verification
+        Werzio — Automated account verification
       </div>
     </div>
   `;
 
   const { error } = await resend.emails.send({
-    from: "SalonCore <onboarding@resend.dev>",
+    from: "Werzio <onboarding@resend.dev>",
     to: [email],
-    subject: "Verify your SalonCore account",
+    subject: "Verify your Werzio account",
     html,
   });
 

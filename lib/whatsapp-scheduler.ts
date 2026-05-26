@@ -31,9 +31,9 @@ export interface WaLogEntry {
   templateId: string;
 }
 
-const LOG_KEY = "glowbook_wa_logs";
+const LOG_KEY = "werzio_wa_logs";
 const MAX_LOG = 200;
-const LOW_STOCK_SENT_KEY = "glowbook_wa_lowstock_sent";
+const LOW_STOCK_SENT_KEY = "werzio_wa_lowstock_sent";
 
 export function getWaLogs(): WaLogEntry[] {
   if (typeof window === "undefined") return [];
@@ -47,9 +47,9 @@ export function appendLog(entry: Omit<WaLogEntry, "id" | "timestamp">) {
   localStorage.setItem(LOG_KEY, JSON.stringify(logs));
 }
 
-const SENT_KEY = "glowbook_wa_sent";
-const CONFIRM_QUEUE_KEY = "glowbook_wa_confirm_queue";
-const FOLLOWUP_QUEUE_KEY = "glowbook_wa_followup_queue";
+const SENT_KEY = "werzio_wa_sent";
+const CONFIRM_QUEUE_KEY = "werzio_wa_confirm_queue";
+const FOLLOWUP_QUEUE_KEY = "werzio_wa_followup_queue";
 
 function getSentLog(): Record<string, number> {
   try { return JSON.parse(localStorage.getItem(SENT_KEY) || "{}"); } catch { return {}; }

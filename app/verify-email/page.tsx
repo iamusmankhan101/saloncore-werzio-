@@ -42,7 +42,7 @@ function VerifyEmailInner() {
       <div style={{ background: "#fff", borderRadius: 20, padding: "40px 36px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.08)", border: "1px solid #ebebf0" }}>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 28, fontWeight: 900, fontSize: 16, color: "#1a1a2e" }}>
-          <Sparkles size={16} color="#7C3AED" /> SALONCORE
+          <Sparkles size={16} color="#7C3AED" /> WERZIO
         </div>
 
         {state === "loading" && (

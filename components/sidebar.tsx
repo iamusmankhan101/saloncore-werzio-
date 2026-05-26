@@ -30,12 +30,12 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [salonName, setSalonName] = useState("GlowBook Salon");
+  const [salonName, setSalonName] = useState("Werzio Salon");
 
   useEffect(() => {
     function syncAccountChrome() {
       setUser(getCurrentUser());
-      setSalonName(settingsStore.salon.name || getCurrentUser()?.salonName || "GlowBook Salon");
+      setSalonName(settingsStore.salon.name || getCurrentUser()?.salonName || "Werzio Salon");
     }
 
     const timer = window.setTimeout(syncAccountChrome, 0);

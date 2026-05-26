@@ -252,8 +252,8 @@ export default function MessagesPage() {
   const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
   const weekCount = logs.filter((l) => l.timestamp >= weekAgo).length;
   const failCount = logs.filter((l) => l.status === "failed").length;
-  const confirmQueue = (() => { try { return JSON.parse(localStorage.getItem("glowbook_wa_confirm_queue") || "[]").length; } catch { return 0; } })();
-  const followupQueue = (() => { try { return JSON.parse(localStorage.getItem("glowbook_wa_followup_queue") || "[]").length; } catch { return 0; } })();
+  const confirmQueue = (() => { try { return JSON.parse(localStorage.getItem("werzio_wa_confirm_queue") || "[]").length; } catch { return 0; } })();
+  const followupQueue = (() => { try { return JSON.parse(localStorage.getItem("werzio_wa_followup_queue") || "[]").length; } catch { return 0; } })();
 
   async function sendManual() {
     if (!selClientId) return;

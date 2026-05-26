@@ -19,8 +19,8 @@ export interface PaymentRequest {
   reviewNote: string | null;
 }
 
-const KEY = "glowbook_payment_requests";
-const ACTIVE_PLAN_KEY = "glowbook_active_plan";
+const KEY = "werzio_payment_requests";
+const ACTIVE_PLAN_KEY = "werzio_active_plan";
 
 export function getPaymentRequests(): PaymentRequest[] {
   if (typeof window === "undefined") return [];

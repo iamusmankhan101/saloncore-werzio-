@@ -209,7 +209,7 @@ export default function OnlineBookingPage() {
         <div className="brandLogoArea">
           <div className="brandLogoText" suppressHydrationWarning>{settingsStore.salon.name}</div>
           <div className="brandPoweredBy">
-            powered by <span className="brandPoweredByName">glowbook</span>
+            powered by <span className="brandPoweredByName">werzio</span>
           </div>
         </div>
         <nav className="topNavLinks">

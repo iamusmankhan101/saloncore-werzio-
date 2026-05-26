@@ -14,7 +14,7 @@ const STATUS_STYLE: Record<string, { color: string; bg: string; border: string; 
   overdue: { color: "#dc2626", bg: "#fef2f2", border: "#fecaca", label: "OVERDUE" },
 };
 
-function GlowBookLogo({ size = 36 }: { size?: number }) {
+function WerzioLogo({ size = 36 }: { size?: number }) {
   return (
     <svg width={size * 3.2} height={size} viewBox="0 0 128 40" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Icon mark */}
@@ -90,7 +90,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
             {/* Header row */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 40 }}>
               <div>
-                <GlowBookLogo size={38} />
+                <WerzioLogo size={38} />
                 <div style={{ marginTop: 10, fontSize: 12, color: "#9898b0", lineHeight: 1.7 }}>
                   Salon Management Software<br />
                   iamusmankhan101@gmail.com<br />
@@ -124,7 +124,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 36 }}>
               <div style={{ padding: "20px 22px", borderRadius: 12, border: "1px solid #ebebf0", background: "#fafafd" }}>
                 <div style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 12 }}>Billed From</div>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", marginBottom: 4 }}>GlowBook</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", marginBottom: 4 }}>Werzio</div>
                 <div style={{ fontSize: 12, color: "#6b6b8a", lineHeight: 1.8 }}>
                   Salon Management Software<br />
                   iamusmankhan101@gmail.com<br />
@@ -218,7 +218,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
             {/* Footer */}
             <div style={{ textAlign: "center", paddingTop: 20, borderTop: "1px solid #f0f0f8" }}>
               <div style={{ fontSize: 12, color: "#9898b0", lineHeight: 1.7 }}>
-                Thank you for choosing <strong style={{ color: "#7C3AED" }}>GlowBook</strong> — powering your salon's success.<br />
+                Thank you for choosing <strong style={{ color: "#7C3AED" }}>Werzio</strong> — powering your salon's success.<br />
                 Questions? Contact us at iamusmankhan101@gmail.com
               </div>
             </div>

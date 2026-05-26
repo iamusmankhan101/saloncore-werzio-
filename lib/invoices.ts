@@ -27,7 +27,7 @@ export interface Invoice {
   paidDate: string | null;
 }
 
-const KEY = "glowbook_invoices";
+const KEY = "werzio_invoices";
 
 export function getInvoices(): Invoice[] {
   if (typeof window === "undefined") return [];

@@ -10,7 +10,7 @@ export async function syncFromDB(): Promise<void> {
         if (!res.ok) return;
         const data = await res.json() as unknown[];
         if (Array.isArray(data) && data.length > 0) {
-          localStorage.setItem(`glowbook_${entity}`, JSON.stringify(data));
+          localStorage.setItem(`werzio_${entity}`, JSON.stringify(data));
         }
       } catch {
         // network error — keep whatever is in localStorage

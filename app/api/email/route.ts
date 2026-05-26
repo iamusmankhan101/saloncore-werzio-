@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e8e8f0">
       <div style="background:${isOverdue ? "#dc2626" : "#7C3AED"};padding:24px 28px">
-        <div style="color:#fff;font-size:20px;font-weight:800">SalonCore</div>
+        <div style="color:#fff;font-size:20px;font-weight:800">Werzio</div>
         <div style="color:rgba(255,255,255,0.8);font-size:12px;margin-top:2px">Salon Management Platform</div>
       </div>
       <div style="padding:28px">
@@ -51,18 +51,18 @@ export async function POST(req: NextRequest) {
           </div>
         </div>
         <p style="color:#6b6b8a;font-size:12px;margin:0">
-          Please log in to your SalonCore dashboard and go to <strong>Billing</strong> to submit your payment.
+          Please log in to your Werzio dashboard and go to <strong>Billing</strong> to submit your payment.
           ${isOverdue ? "Continued non-payment may result in service suspension." : ""}
         </p>
       </div>
       <div style="background:#f8f8fc;padding:14px 28px;text-align:center;color:#b0b0c8;font-size:11px">
-        SalonCore — Automated invoice notification
+        Werzio — Automated invoice notification
       </div>
     </div>
   `;
 
   const { error } = await resend.emails.send({
-    from: "SalonCore <onboarding@resend.dev>",
+    from: "Werzio <onboarding@resend.dev>",
     to: [to],
     subject,
     html,

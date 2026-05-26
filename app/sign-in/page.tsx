@@ -9,8 +9,8 @@ import styles from "../auth.module.css";
 
 export default function SignInPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("owner@glowbook.pk");
-  const [password, setPassword] = useState("Glowbook123");
+  const [email, setEmail] = useState("owner@werzio.pk");
+  const [password, setPassword] = useState("Werzio123");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
@@ -43,7 +43,7 @@ export default function SignInPage() {
             <div className={styles.brandMark}>
               <Sparkles size={17} />
             </div>
-            GLOWBOOK
+            WERZIO
           </div>
 
           <div className={styles.brandContent}>
@@ -59,7 +59,7 @@ export default function SignInPage() {
 
           <div className={styles.brandBottom}>
             <div>
-              Demo account: owner@glowbook.pk / Glowbook123
+              Demo account: owner@werzio.pk / Werzio123
             </div>
             <div className={styles.miniCard}>
               <div className={styles.miniCardTitle}>Today at a glance</div>
@@ -104,7 +104,7 @@ export default function SignInPage() {
             </button>
 
             <p className={styles.footerText}>
-              New to GlowBook? <Link href="/sign-up" className={styles.footerLink}>Create an account</Link>
+              New to Werzio? <Link href="/sign-up" className={styles.footerLink}>Create an account</Link>
             </p>
           </form>
         </section>

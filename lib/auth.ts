@@ -13,25 +13,25 @@ interface StoredUser extends AuthUser {
   emailVerified: boolean;
 }
 
-const USERS_KEY = "glowbook_auth_users";
-const SESSION_KEY = "glowbook_auth_session";
+const USERS_KEY = "werzio_auth_users";
+const SESSION_KEY = "werzio_auth_session";
 
 const demoUser: StoredUser = {
   id: "demo-owner",
   ownerName: "Amna Khan",
   salonName: "Amna's Salon",
-  email: "owner@glowbook.pk",
+  email: "owner@werzio.pk",
   phone: "+92 300 1234567",
   role: "owner",
   createdAt: "2026-03-19",
-  password: "Glowbook123",
+  password: "Werzio123",
   emailVerified: true,
 };
 
 const adminUser: StoredUser = {
-  id: "glowbook-admin",
+  id: "werzio-admin",
   ownerName: "Muhammad Usman Khan",
-  salonName: "GlowBook",
+  salonName: "Werzio",
   email: "iamusmankhan101@gmail.com",
   phone: "+92 305 8562523",
   role: "admin",

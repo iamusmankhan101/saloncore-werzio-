@@ -1,7 +1,7 @@
 import { getInvoices } from "./invoices";
 import { getCurrentUser } from "./auth";
 
-const NOTIFIED_KEY = "glowbook_invoice_notified";
+const NOTIFIED_KEY = "werzio_invoice_notified";
 
 function getNotified(): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(NOTIFIED_KEY) || "{}"); } catch { return {}; }

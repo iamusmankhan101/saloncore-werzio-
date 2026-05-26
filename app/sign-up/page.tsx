@@ -86,7 +86,7 @@ export default function SignUpPage() {
         <section className={styles.brandPanel}>
           <div className={styles.brandTop}>
             <div className={styles.brandMark}><Sparkles size={17} /></div>
-            SALONCORE
+            WERZIO
           </div>
           <div className={styles.brandContent}>
             <div className={styles.eyebrow}>Start organized</div>
@@ -235,7 +235,7 @@ export default function SignUpPage() {
                       placeholder="Enter admin access code" required
                       style={{ flex: 1, padding: "10px 12px", border: "none", outline: "none", fontSize: 13, color: "#1a1a2e", background: "transparent", fontFamily: "inherit" }} />
                   </div>
-                  {codeValid === false && <div style={{ fontSize: 11, color: "#dc2626", marginTop: 5, fontWeight: 600 }}>Invalid access code. Contact SalonCore support.</div>}
+                  {codeValid === false && <div style={{ fontSize: 11, color: "#dc2626", marginTop: 5, fontWeight: 600 }}>Invalid access code. Contact Werzio support.</div>}
                 </div>
 
                 {error && <div className={`${styles.error} ${styles.signupError}`}>{error}</div>}

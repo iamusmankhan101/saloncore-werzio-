@@ -9,7 +9,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "GlowBook — Salon Management",
+  title: "Werzio — Salon Management",
   description: "WhatsApp-native salon booking & client management platform",
 };
 

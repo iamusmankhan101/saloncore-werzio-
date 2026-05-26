@@ -32,7 +32,7 @@ export function downloadPDF() {
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>GlowBook Daily Report — ${TODAY}</title>
+  <title>Werzio Daily Report — ${TODAY}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -104,7 +104,7 @@ export function downloadPDF() {
     <div class="logo">
       <div class="logo-icon">G</div>
       <div>
-        <div class="logo-text">GlowBook</div>
+        <div class="logo-text">Werzio</div>
         <div class="logo-sub">Amna's Salon · DHA Lahore</div>
       </div>
     </div>
@@ -197,7 +197,7 @@ export function downloadPDF() {
 
   <!-- Footer -->
   <div class="footer">
-    <div class="footer-left">GlowBook · Salon Management Platform</div>
+    <div class="footer-left">Werzio · Salon Management Platform</div>
     <div class="footer-right">Confidential · For internal use only</div>
   </div>
 
