@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Building2, Check, Crown, LockKeyhole, Mail, Phone, Shield, Sparkles, User, Zap } from "lucide-react";
+import { ArrowRight, Building2, Check, Crown, LockKeyhole, Mail, MailCheck, Phone, Shield, Sparkles, User, Zap } from "lucide-react";
 import { signUp } from "@/lib/auth";
 import { setActivePlan } from "@/lib/payment-requests";
 import styles from "../auth.module.css";
@@ -35,27 +35,41 @@ type PlanId = typeof PLANS[number]["id"];
 
 export default function SignUpPage() {
   const router = useRouter();
-  const [step, setStep] = useState<"plan" | "details">("plan");
+  const [step, setStep] = useState<"plan" | "details" | "verify">("plan");
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("basic");
   const [form, setForm] = useState({ ownerName: "", salonName: "", email: "", phone: "", password: "" });
   const [adminCode, setAdminCode] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
   const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
 
   function setField(field: keyof typeof form, value: string) {
     setForm((c) => ({ ...c, [field]: value }));
   }
 
-  function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     if (form.password.length < 8) { setError("Password must be at least 8 characters."); return; }
     try {
       signUp({ ...form, adminCode: showAdmin && adminCode ? adminCode : undefined });
-      if (!showAdmin) setActivePlan(selectedPlan);
-      router.replace("/dashboard");
+      if (showAdmin) {
+        // Admin auto-login (skips email verification)
+        router.replace("/dashboard");
+        return;
+      }
+      setActivePlan(selectedPlan);
+      setSending(true);
+      await fetch("/api/send-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, name: form.ownerName }),
+      });
+      setSending(false);
+      setStep("verify");
     } catch (err) {
+      setSending(false);
       const msg = err instanceof Error ? err.message : "Unable to create account.";
       if (msg.toLowerCase().includes("admin")) setCodeValid(false);
       setError(msg);
@@ -101,10 +115,10 @@ export default function SignUpPage() {
             <div className={styles.formHeader}>
               <div className={styles.formIcon}><Sparkles size={16} /></div>
               <h1 className={styles.formTitle} style={{ marginTop: 14 }}>
-                {step === "plan" ? "Choose your plan" : showAdmin ? "Admin registration" : `${plan.name} plan — details`}
+                {step === "verify" ? "Check your email" : step === "plan" ? "Choose your plan" : showAdmin ? "Admin registration" : `${plan.name} plan — details`}
               </h1>
               <p className={styles.formSubtitle}>
-                {step === "plan" ? "14-day free trial on both plans. Cancel anytime." : "Fill in your salon details to get started."}
+                {step === "verify" ? `We sent a verification link to ${form.email}` : step === "plan" ? "14-day free trial on both plans. Cancel anytime." : "Fill in your salon details to get started."}
               </p>
             </div>
 
@@ -285,14 +299,40 @@ export default function SignUpPage() {
                     style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1.5px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: "pointer" }}>
                     Back
                   </button>
-                  <button type="submit" className={styles.primaryButton} style={{ flex: 2, marginTop: 0 }}>
-                    Create account <ArrowRight size={14} />
+                  <button type="submit" className={styles.primaryButton} style={{ flex: 2, marginTop: 0 }} disabled={sending}>
+                    {sending ? "Sending…" : <>Create account <ArrowRight size={14} /></>}
                   </button>
                 </div>
               </>
             )}
 
-            <p className={styles.footerText} style={{ marginTop: 16 }}>
+            {/* ── STEP 3: Email verification sent ── */}
+            {step === "verify" && (
+              <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
+                <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+                  <MailCheck size={32} color="#7C3AED" />
+                </div>
+                <p style={{ fontSize: 13, color: "#6b6b8a", lineHeight: 1.7, marginBottom: 20 }}>
+                  Click the link in the email to activate your account. The link expires in 24 hours.
+                </p>
+                <div style={{ padding: "12px 14px", borderRadius: 10, background: "#f8f8fc", border: "1px solid #ebebf0", fontSize: 12, color: "#9898b0", marginBottom: 16 }}>
+                  Didn't receive it? Check your spam folder or{" "}
+                  <button type="button"
+                    onClick={async () => {
+                      setSending(true);
+                      await fetch("/api/send-verification", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.email, name: form.ownerName }) });
+                      setSending(false);
+                    }}
+                    style={{ background: "none", border: "none", color: "#7C3AED", fontWeight: 700, cursor: "pointer", fontSize: 12, padding: 0 }}
+                    disabled={sending}
+                  >
+                    {sending ? "Sending…" : "resend the email"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <p className={styles.footerText} style={{ marginTop: step === "verify" ? 0 : 16 }}>
               Already have an account? <Link href="/sign-in" className={styles.footerLink}>Sign in</Link>
             </p>
           </form>

@@ -10,6 +10,7 @@ export interface AuthUser {
 
 interface StoredUser extends AuthUser {
   password: string;
+  emailVerified: boolean;
 }
 
 const USERS_KEY = "glowbook_auth_users";
@@ -24,6 +25,7 @@ const demoUser: StoredUser = {
   role: "owner",
   createdAt: "2026-03-19",
   password: "Glowbook123",
+  emailVerified: true,
 };
 
 const adminUser: StoredUser = {
@@ -35,6 +37,7 @@ const adminUser: StoredUser = {
   role: "admin",
   createdAt: "2026-01-01",
   password: "Babarthegoat12@_",
+  emailVerified: true,
 };
 
 function canUseStorage() {
@@ -99,6 +102,10 @@ export function signIn(email: string, password: string): AuthUser {
     throw new Error("Invalid email or password.");
   }
 
+  if (!user.emailVerified) {
+    throw new Error("EMAIL_NOT_VERIFIED");
+  }
+
   localStorage.setItem(SESSION_KEY, user.id);
   return withoutPassword(user);
 }
@@ -124,20 +131,33 @@ export function signUp(input: {
     throw new Error("Invalid admin access code.");
   }
 
+  const isAdmin = input.adminCode === ADMIN_ACCESS_CODE;
   const user: StoredUser = {
     id: "user_" + Date.now(),
     ownerName: input.ownerName.trim(),
-    salonName: input.salonName.trim(),
+    salonName: input.salonName?.trim() || input.ownerName.trim(),
     email: normalizedEmail,
     phone: input.phone.trim(),
-    role: input.adminCode === ADMIN_ACCESS_CODE ? "admin" : "owner",
+    role: isAdmin ? "admin" : "owner",
     createdAt: new Date().toISOString().split("T")[0],
     password: input.password,
+    emailVerified: isAdmin, // admin skips email verification
   };
 
   localStorage.setItem(USERS_KEY, JSON.stringify([user, ...users]));
-  localStorage.setItem(SESSION_KEY, user.id);
+  if (isAdmin) localStorage.setItem(SESSION_KEY, user.id); // auto-login only for admin
   return withoutPassword(user);
+}
+
+export function markEmailVerified(email: string): AuthUser {
+  const normalizedEmail = email.trim().toLowerCase();
+  const users = getUsers();
+  const idx = users.findIndex((u) => u.email.toLowerCase() === normalizedEmail);
+  if (idx === -1) throw new Error("Account not found.");
+  users[idx] = { ...users[idx], emailVerified: true };
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  localStorage.setItem(SESSION_KEY, users[idx].id);
+  return withoutPassword(users[idx]);
 }
 
 export function updateCurrentUser(input: Partial<Pick<AuthUser, "ownerName" | "salonName" | "phone">>): AuthUser {

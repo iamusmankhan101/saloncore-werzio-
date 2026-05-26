@@ -18,7 +18,7 @@ export default function SignInPage() {
     if (getCurrentUser()) router.replace("/dashboard");
   }, [router]);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -26,7 +26,12 @@ export default function SignInPage() {
       signIn(email, password);
       router.replace("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to sign in.");
+      const msg = err instanceof Error ? err.message : "Unable to sign in.";
+      if (msg === "EMAIL_NOT_VERIFIED") {
+        setError("Please verify your email before signing in. Check your inbox for the verification link.");
+      } else {
+        setError(msg);
+      }
     }
   }
 
