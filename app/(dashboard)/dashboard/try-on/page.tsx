@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Upload, Wand2, RefreshCw, Download, ChevronRight, Sparkles, ImagePlus, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { settingsStore } from "@/lib/settings-store";
 import { generateHairMask, compositeWithMask } from "@/lib/hair-mask";
+import { getCurrentUser } from "@/lib/auth";
+import { getActivePlan } from "@/lib/payment-requests";
 
 // ── Service catalogue ────────────────────────────────────────────────────────
 
@@ -84,7 +86,42 @@ function resizeImageToBase64(file: File, maxSize = 768): Promise<string> {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+function ComingSoon() {
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f7fb", padding: 32 }}>
+      <div style={{ textAlign: "center", maxWidth: 440 }}>
+        <div style={{ width: 80, height: 80, borderRadius: 24, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", boxShadow: "0 8px 32px rgba(124,58,237,0.25)" }}>
+          <Sparkles size={36} color="#fff" />
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#9333EA", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Coming Soon</div>
+        <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a2e", margin: "0 0 12px" }}>Virtual Try-On</h1>
+        <p style={{ fontSize: 14, color: "#6b6b8a", lineHeight: 1.7, margin: "0 0 28px" }}>
+          Our AI-powered virtual try-on feature lets clients preview hair colors and styles before their appointment. We're putting the finishing touches on it — stay tuned!
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {["AI hair color preview", "Hairstyle simulation", "Nail & skin try-on"].map((f) => (
+            <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 12, background: "#fff", border: "1px solid #ede9fe" }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#9333EA", flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: "#1a1a2e", fontWeight: 600 }}>{f}</span>
+              <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, color: "#9333EA", background: "#ede9fe", borderRadius: 20, padding: "2px 10px" }}>Soon</span>
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: 11, color: "#b0b0c8", marginTop: 24 }}>You'll be notified when this feature goes live.</p>
+      </div>
+    </div>
+  );
+}
+
 export default function TryOnPage() {
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const user = getCurrentUser();
+    const plan = getActivePlan();
+    setIsAdmin(user?.role === "admin" || plan === "premium");
+  }, []);
+
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [hairMask, setHairMask] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
@@ -209,6 +246,9 @@ export default function TryOnPage() {
   }
 
   const category = CATEGORIES[activeCategory];
+
+  if (isAdmin === null) return null;
+  if (!isAdmin) return <ComingSoon />;
 
   return (
     <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>

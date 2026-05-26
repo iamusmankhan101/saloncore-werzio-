@@ -10,9 +10,9 @@ import styles from "../auth.module.css";
 
 const PLANS = [
   {
-    id: "standard",
-    name: "Standard",
-    price: "PKR 6,500",
+    id: "basic",
+    name: "Basic",
+    price: "PKR 5,500",
     icon: Zap,
     color: "#0369a1",
     bg: "#e0f2fe",
@@ -27,7 +27,7 @@ const PLANS = [
     color: "#7C3AED",
     bg: "#EDE9FE",
     badge: "Most Popular",
-    features: ["Everything in Standard", "WhatsApp confirmations", "WhatsApp reminders", "Follow-up messages", "Low stock alerts"],
+    features: ["Everything in Basic", "WhatsApp confirmations", "WhatsApp reminders", "Follow-up messages", "Low stock alerts", "Virtual Try-On (AI)"],
   },
 ] as const;
 
@@ -36,7 +36,7 @@ type PlanId = typeof PLANS[number]["id"];
 export default function SignUpPage() {
   const router = useRouter();
   const [step, setStep] = useState<"plan" | "details">("plan");
-  const [selectedPlan, setSelectedPlan] = useState<PlanId>("premium");
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>("basic");
   const [form, setForm] = useState({ ownerName: "", salonName: "", email: "", phone: "", password: "" });
   const [adminCode, setAdminCode] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);

@@ -9,9 +9,9 @@ import InvoiceViewer from "@/components/invoice-viewer";
 
 const PLANS = [
   {
-    id: "standard",
-    name: "Standard",
-    price: 6500,
+    id: "basic",
+    name: "Basic",
+    price: 5500,
     icon: Zap,
     color: "#0369a1",
     bg: "#e0f2fe",
@@ -35,11 +35,12 @@ const PLANS = [
     color: "#7C3AED",
     bg: "#EDE9FE",
     features: [
-      "Everything in Standard",
+      "Everything in Basic",
       "WhatsApp booking confirmations",
       "WhatsApp appointment reminders",
       "WhatsApp follow-up messages",
       "WhatsApp low stock alerts",
+      "Virtual Try-On (AI)",
     ],
     whatsapp: true,
   },
