@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server";
+import { Resend } from "resend";
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return Response.json({ ok: false, error: "RESEND_API_KEY not configured" }, { status: 500 });
   }
+  const resend = new Resend(apiKey);
 
   const { to, invoiceNumber, dueDate, total, planName, salonName, status } = await req.json() as {
     to: string;
@@ -59,23 +61,13 @@ export async function POST(req: NextRequest) {
     </div>
   `;
 
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "SalonCore <invoices@saloncore.app>",
-        to: [to],
-        subject,
-        html,
-      }),
-    });
-    const data = await res.json();
-    return Response.json({ ok: res.ok, data });
-  } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
-  }
+  const { error } = await resend.emails.send({
+    from: "SalonCore <onboarding@resend.dev>",
+    to: [to],
+    subject,
+    html,
+  });
+
+  if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
+  return Response.json({ ok: true });
 }

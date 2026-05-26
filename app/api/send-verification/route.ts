@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { randomBytes } from "crypto";
+import { Resend } from "resend";
 
 async function ensureTable() {
   await db.execute(`
@@ -31,9 +32,10 @@ export async function POST(req: NextRequest) {
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    // Dev mode — no email sent, return the link directly
     return Response.json({ ok: true, devUrl: verifyUrl });
   }
+
+  const resend = new Resend(apiKey);
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e8e8f0">
@@ -62,22 +64,13 @@ export async function POST(req: NextRequest) {
     </div>
   `;
 
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "SalonCore <noreply@saloncore.app>",
-        to: [email],
-        subject: "Verify your SalonCore account",
-        html,
-      }),
-    });
-    return Response.json({ ok: res.ok });
-  } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
-  }
+  const { error } = await resend.emails.send({
+    from: "SalonCore <onboarding@resend.dev>",
+    to: [email],
+    subject: "Verify your SalonCore account",
+    html,
+  });
+
+  if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
+  return Response.json({ ok: true });
 }
