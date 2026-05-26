@@ -9,8 +9,8 @@ import styles from "../auth.module.css";
 
 export default function SignInPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("owner@werzio.pk");
-  const [password, setPassword] = useState("Werzio123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
