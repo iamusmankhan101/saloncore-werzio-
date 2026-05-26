@@ -64,13 +64,17 @@ export async function POST(req: NextRequest) {
     </div>
   `;
 
-  const { error } = await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: "Werzio <onboarding@resend.dev>",
     to: [email],
     subject: "Verify your Werzio account",
     html,
   });
 
-  if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[send-verification] Resend error:", error);
+    return Response.json({ ok: false, error: error.message }, { status: 500 });
+  }
+  console.log("[send-verification] Sent:", data?.id, "→", email);
   return Response.json({ ok: true });
 }

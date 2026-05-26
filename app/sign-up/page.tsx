@@ -61,12 +61,20 @@ export default function SignUpPage() {
       }
       setActivePlan(selectedPlan);
       setSending(true);
-      await fetch("/api/send-verification", {
+      const res = await fetch("/api/send-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: form.email, name: form.ownerName }),
       });
+      const result = await res.json() as { ok: boolean; error?: string; devUrl?: string };
       setSending(false);
+      if (!result.ok) {
+        setError(result.error || "Failed to send verification email. Please try again.");
+        return;
+      }
+      if (result.devUrl) {
+        console.log("[dev] Verify URL:", result.devUrl);
+      }
       setStep("verify");
     } catch (err) {
       setSending(false);
