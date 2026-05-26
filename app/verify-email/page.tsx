@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, XCircle, Loader2, Sparkles } from "lucide-react";
 import { markEmailVerified } from "@/lib/auth";
 
-export default function VerifyEmailPage() {
+function VerifyEmailInner() {
   const router = useRouter();
   const params = useSearchParams();
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
@@ -87,5 +87,13 @@ export default function VerifyEmailPage() {
         @keyframes shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } transform-origin: left; }
       `}</style>
     </main>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense>
+      <VerifyEmailInner />
+    </Suspense>
   );
 }
