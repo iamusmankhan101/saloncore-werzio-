@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Zap, Crown, AlertTriangle, Smartphone, Building2, X, Copy, BadgeCheck, ImagePlus, Clock, Eye, CheckCircle, AlertCircle } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { addPaymentRequest, getActivePlan, getPaymentRequests, type PaymentMethod } from "@/lib/payment-requests";
-import { syncInvoices, type Invoice, type InvoiceStatus } from "@/lib/invoices";
+import { syncInvoices, isInTrial, trialDaysLeft, type Invoice, type InvoiceStatus } from "@/lib/invoices";
 import InvoiceViewer from "@/components/invoice-viewer";
 
 const PLANS = [
@@ -99,6 +99,8 @@ export default function BillingPage() {
   const [hasPending, setHasPending] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+  const [trialActive, setTrialActive] = useState(false);
+  const [daysLeft, setDaysLeft] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -109,6 +111,9 @@ export default function BillingPage() {
 
     const planId = ap ?? DEFAULT_PLAN_ID;
     const plan = PLANS.find((p) => p.id === planId) ?? PLANS[1];
+
+    setTrialActive(isInTrial(user.createdAt));
+    setDaysLeft(trialDaysLeft(user.createdAt));
 
     const synced = syncInvoices(
       { id: user.id, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
@@ -168,6 +173,24 @@ export default function BillingPage() {
 
       {/* Invoice viewer overlay */}
       {viewingInvoice && <InvoiceViewer invoice={viewingInvoice} onClose={() => setViewingInvoice(null)} />}
+
+      {/* Free trial banner */}
+      {trialActive && (
+        <div style={{ background: "linear-gradient(135deg,#7C3AED,#9333EA)", borderRadius: 14, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", color: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎉</div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 15 }}>14-Day Free Trial Active</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>
+                {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — enjoy full access, no charge yet.` : "Trial ends today — your first invoice will be generated soon."}
+              </div>
+            </div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 16px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+            {daysLeft} days left
+          </div>
+        </div>
+      )}
 
       {/* Switch plan modal */}
       {showUpgrade && upgradePlan && (

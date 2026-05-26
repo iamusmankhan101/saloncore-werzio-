@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
 import { syncFromDB } from "@/lib/turso-sync";
+import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!isReady) return;
     syncFromDB();
+    checkInvoiceNotifications();
   }, [isReady]);
 
   // WhatsApp scheduler — runs every 60 seconds while dashboard is open

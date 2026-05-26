@@ -85,8 +85,29 @@ function buildInvoice(
   };
 }
 
+export const TRIAL_DAYS = 14;
+
+/** Returns the date when the free trial ends (exclusive — first billable day). */
+export function trialEndDate(startDate: string): string {
+  return addDays(startDate, TRIAL_DAYS);
+}
+
+/** True if still within the 14-day free trial. */
+export function isInTrial(startDate: string): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  return today < trialEndDate(startDate);
+}
+
+/** Days remaining in trial (0 if expired). */
+export function trialDaysLeft(startDate: string): number {
+  const end = new Date(trialEndDate(startDate));
+  const now = new Date();
+  const diff = Math.ceil((end.getTime() - now.getTime()) / 86_400_000);
+  return Math.max(0, diff);
+}
+
 /**
- * Auto-generate monthly invoices from startDate to today for a user.
+ * Auto-generate monthly invoices starting after the 14-day free trial.
  * Skips months that already have an invoice. Marks past unpaid as "overdue".
  */
 export function syncInvoices(
@@ -95,11 +116,18 @@ export function syncInvoices(
   startDate: string,   // account creation / plan activation date YYYY-MM-DD
 ): Invoice[] {
   const existing = getInvoices();
+
+  // Still in trial — no invoices yet
+  if (isInTrial(startDate)) return existing;
+
   const existingIds = new Set(existing.map((i) => i.id));
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const start = new Date(startDate);
+
+  // Billing starts after trial ends
+  const billingStart = trialEndDate(startDate);
+  const start = new Date(billingStart);
 
   const newInvoices: Invoice[] = [];
 
