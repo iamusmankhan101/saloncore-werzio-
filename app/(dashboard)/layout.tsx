@@ -6,6 +6,7 @@ import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
 import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
+import { syncFromDB } from "@/lib/turso-sync";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -29,6 +30,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     window.addEventListener(SETTINGS_CHANGED_EVENT, applyAppearanceSettings);
     return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, applyAppearanceSettings);
   }, []);
+
+  // Pull latest data from Turso into localStorage on login
+  useEffect(() => {
+    if (!isReady) return;
+    syncFromDB();
+  }, [isReady]);
 
   // WhatsApp scheduler — runs every 60 seconds while dashboard is open
   useEffect(() => {

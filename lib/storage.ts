@@ -1,5 +1,6 @@
 import { APPOINTMENTS as mockAppointments, CLIENTS as mockClients, STAFF as mockStaff, SERVICES as mockServices, INVENTORY as mockInventory } from "./mock-data";
 import type { Appointment, Client, Staff, Service, InventoryItem } from "./types";
+import { saveToDB } from "./turso-sync";
 
 const SCHEMA_VERSION = "v6";
 
@@ -31,6 +32,7 @@ export function saveAppointments(appts: Appointment[]) {
   if (typeof window !== "undefined") {
     checkSchema();
     localStorage.setItem("glowbook_appointments", JSON.stringify(appts));
+    saveToDB("appointments", appts);
   }
 }
 
@@ -49,6 +51,7 @@ export function saveClients(clients: Client[]) {
   if (typeof window !== "undefined") {
     checkSchema();
     localStorage.setItem("glowbook_clients", JSON.stringify(clients));
+    saveToDB("clients", clients);
   }
 }
 
@@ -67,6 +70,7 @@ export function saveStaff(staffList: Staff[]) {
   if (typeof window !== "undefined") {
     checkSchema();
     localStorage.setItem("glowbook_staff", JSON.stringify(staffList));
+    saveToDB("staff", staffList);
   }
 }
 
@@ -85,6 +89,7 @@ export function saveServices(servicesList: Service[]) {
   if (typeof window !== "undefined") {
     checkSchema();
     localStorage.setItem("glowbook_services", JSON.stringify(servicesList));
+    saveToDB("services", servicesList);
   }
 }
 
@@ -103,5 +108,6 @@ export function saveInventory(items: InventoryItem[]) {
   if (typeof window !== "undefined") {
     checkSchema();
     localStorage.setItem("glowbook_inventory", JSON.stringify(items));
+    saveToDB("inventory", items);
   }
 }
