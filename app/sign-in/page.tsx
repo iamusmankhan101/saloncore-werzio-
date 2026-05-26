@@ -58,9 +58,6 @@ export default function SignInPage() {
           </div>
 
           <div className={styles.brandBottom}>
-            <div>
-              Demo account: owner@werzio.pk / Werzio123
-            </div>
             <div className={styles.miniCard}>
               <div className={styles.miniCardTitle}>Today at a glance</div>
               <div className={styles.miniCardText}>Appointments, stylists, and payments stay in sync.</div>
