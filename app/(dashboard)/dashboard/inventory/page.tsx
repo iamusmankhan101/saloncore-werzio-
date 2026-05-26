@@ -1,0 +1,727 @@
+"use client";
+
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { getStoredInventory, saveInventory } from "@/lib/storage";
+import { checkLowStockAlerts } from "@/lib/whatsapp-scheduler";
+import { settingsStore } from "@/lib/settings-store";
+import type { InventoryItem, InventoryCategory, InventoryUnit } from "@/lib/types";
+import DashboardHeader from "@/components/dashboard-header";
+import {
+  Search, X, Plus, AlertTriangle, Package, ChevronDown,
+  Edit2, Trash2, Bell, Copy, CheckCircle, TrendingDown,
+  MessageCircle, DollarSign,
+} from "lucide-react";
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+const CATEGORY_CONFIG: Record<InventoryCategory, { label: string; color: string; bg: string }> = {
+  "hair-color":  { label: "Hair Color",   color: "#7C3AED", bg: "#EDE9FE" },
+  "skin-care":   { label: "Skin Care",    color: "#db2777", bg: "#fdf2f8" },
+  "nail":        { label: "Nail",         color: "#0369a1", bg: "#e0f2fe" },
+  "tools":       { label: "Tools",        color: "#d97706", bg: "#fffbeb" },
+  "consumables": { label: "Consumables",  color: "#059669", bg: "#ecfdf5" },
+  "retail":      { label: "Retail",       color: "#6b7280", bg: "#f9fafb" },
+};
+
+const UNITS: InventoryUnit[]      = ["ml", "g", "pcs", "box", "bottle", "tube"];
+const CATEGORIES = Object.keys(CATEGORY_CONFIG) as InventoryCategory[];
+
+const fmt  = (n: number) => "PKR " + Math.round(n).toLocaleString("en-PK");
+const fmtV = (n: number) =>
+  n >= 1_000_000 ? `PKR ${(n / 1_000_000).toFixed(1)}M`
+  : n >= 1_000   ? `PKR ${Math.round(n / 1_000)}K`
+  : fmt(n);
+
+function stockStatus(item: InventoryItem): "out" | "low" | "ok" {
+  if (item.currentStock === 0)              return "out";
+  if (item.currentStock <= item.minStock)   return "low";
+  return "ok";
+}
+
+const STATUS_BADGE = {
+  out: { label: "Out of Stock", color: "#dc2626", bg: "#fef2f2" },
+  low: { label: "Low Stock",    color: "#d97706", bg: "#fffbeb" },
+  ok:  { label: "In Stock",     color: "#059669", bg: "#ecfdf5" },
+};
+
+// ── Demo data ─────────────────────────────────────────────────────────────────
+
+// ── Shared styles ─────────────────────────────────────────────────────────────
+const INP: React.CSSProperties = {
+  width: "100%", padding: "9px 12px", borderRadius: 8,
+  border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e",
+  outline: "none", background: "#fff",
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+// ── Item Form (shared by Add + Edit modals) ───────────────────────────────────
+type ItemForm = {
+  name: string; brand: string; category: InventoryCategory | "";
+  unit: InventoryUnit; currentStock: string; minStock: string;
+  costPrice: string; retailPrice: string; supplier: string; notes: string;
+};
+
+const EMPTY_FORM: ItemForm = {
+  name: "", brand: "", category: "", unit: "pcs",
+  currentStock: "", minStock: "", costPrice: "",
+  retailPrice: "", supplier: "", notes: "",
+};
+
+function itemToForm(item: InventoryItem): ItemForm {
+  return {
+    name: item.name, brand: item.brand, category: item.category,
+    unit: item.unit,
+    currentStock: String(item.currentStock), minStock: String(item.minStock),
+    costPrice: String(item.costPrice), retailPrice: item.retailPrice ? String(item.retailPrice) : "",
+    supplier: item.supplier ?? "", notes: item.notes ?? "",
+  };
+}
+
+function formToItem(form: ItemForm, existing?: InventoryItem): InventoryItem {
+  return {
+    id: existing?.id ?? "i_" + Date.now(),
+    name: form.name, brand: form.brand,
+    category: form.category as InventoryCategory,
+    unit: form.unit,
+    currentStock: Number(form.currentStock),
+    minStock: Number(form.minStock),
+    costPrice: Number(form.costPrice),
+    retailPrice: form.retailPrice ? Number(form.retailPrice) : undefined,
+    supplier: form.supplier || undefined,
+    notes: form.notes || undefined,
+    lastRestocked: existing?.lastRestocked ?? new Date().toLocaleDateString("en-CA"),
+  };
+}
+
+function ItemFormFields({ form, set }: { form: ItemForm; set: (k: keyof ItemForm, v: string) => void }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Field label="Item Name *"><input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Wella Koleston 8/0" style={INP} /></Field>
+        <Field label="Brand *"><input value={form.brand} onChange={(e) => set("brand", e.target.value)} placeholder="e.g. Wella" style={INP} /></Field>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Field label="Category *">
+          <select value={form.category} onChange={(e) => set("category", e.target.value)} style={INP}>
+            <option value="">Select…</option>
+            {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>)}
+          </select>
+        </Field>
+        <Field label="Unit *">
+          <select value={form.unit} onChange={(e) => set("unit", e.target.value)} style={INP}>
+            {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </Field>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Field label="Current Stock *"><input type="number" min="0" value={form.currentStock} onChange={(e) => set("currentStock", e.target.value)} placeholder="0" style={INP} /></Field>
+        <Field label="Min Stock (alert threshold) *"><input type="number" min="0" value={form.minStock} onChange={(e) => set("minStock", e.target.value)} placeholder="0" style={INP} /></Field>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Field label="Cost Price (PKR) *"><input type="number" min="0" value={form.costPrice} onChange={(e) => set("costPrice", e.target.value)} placeholder="0" style={INP} /></Field>
+        <Field label="Retail Price (PKR)"><input type="number" min="0" value={form.retailPrice} onChange={(e) => set("retailPrice", e.target.value)} placeholder="0" style={INP} /></Field>
+      </div>
+      <Field label="Supplier"><input value={form.supplier} onChange={(e) => set("supplier", e.target.value)} placeholder="e.g. Wella Pakistan" style={INP} /></Field>
+      <Field label="Notes"><textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Any notes…" rows={2} style={{ ...INP, resize: "none", lineHeight: 1.5 }} /></Field>
+    </div>
+  );
+}
+
+// ── Add Modal ─────────────────────────────────────────────────────────────────
+function AddModal({ onClose, onAdd }: { onClose: () => void; onAdd: (item: InventoryItem) => void }) {
+  const [form, setForm] = useState<ItemForm>(EMPTY_FORM);
+  const [done, setDone] = useState(false);
+  const set = useCallback((k: keyof ItemForm, v: string) => setForm((f) => ({ ...f, [k]: v })), []);
+  const canSubmit = form.name && form.brand && form.category && form.currentStock && form.minStock && form.costPrice;
+
+  if (done) return (
+    <Overlay onClose={onClose}>
+      <div style={{ textAlign: "center", padding: "16px 0" }}>
+        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
+        <div style={{ fontWeight: 700, fontSize: 17, color: "#1a1a2e", marginBottom: 6 }}>Item Added!</div>
+        <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 24 }}>Inventory updated successfully.</div>
+        <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, background: "linear-gradient(135deg, #5B21B6, #9333EA)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button>
+      </div>
+    </Overlay>
+  );
+
+  return (
+    <Overlay onClose={onClose}>
+      <ModalHeader title="Add Inventory Item" onClose={onClose} />
+      <div style={{ padding: "22px 24px" }}>
+        <ItemFormFields form={form} set={set} />
+        <div style={{ display: "flex", gap: 10, paddingTop: 18, marginTop: 6, borderTop: "1px solid #f0f0f8" }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
+          <button onClick={() => { if (canSubmit) { onAdd(formToItem(form)); setDone(true); } }} style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit ? "linear-gradient(135deg, #5B21B6, #9333EA)" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit ? "#fff" : "#b0b0c8", cursor: canSubmit ? "pointer" : "not-allowed" }}>
+            Add Item
+          </button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
+// ── Edit Modal ────────────────────────────────────────────────────────────────
+function EditModal({ item, onClose, onSave }: { item: InventoryItem; onClose: () => void; onSave: (updated: InventoryItem) => void }) {
+  const [form, setForm] = useState<ItemForm>(() => itemToForm(item));
+  const [saved, setSaved] = useState(false);
+  const set = useCallback((k: keyof ItemForm, v: string) => setForm((f) => ({ ...f, [k]: v })), []);
+  const canSubmit = form.name && form.brand && form.category && form.currentStock && form.minStock && form.costPrice;
+
+  if (saved) return (
+    <Overlay onClose={onClose}>
+      <div style={{ textAlign: "center", padding: "16px 0" }}>
+        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
+        <div style={{ fontWeight: 700, fontSize: 17, color: "#1a1a2e", marginBottom: 6 }}>Changes Saved!</div>
+        <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 24 }}>{item.name} has been updated.</div>
+        <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, background: "linear-gradient(135deg, #5B21B6, #9333EA)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button>
+      </div>
+    </Overlay>
+  );
+
+  return (
+    <Overlay onClose={onClose}>
+      <ModalHeader title={`Edit — ${item.name}`} onClose={onClose} />
+      <div style={{ padding: "22px 24px" }}>
+        <ItemFormFields form={form} set={set} />
+        <div style={{ display: "flex", gap: 10, paddingTop: 18, marginTop: 6, borderTop: "1px solid #f0f0f8" }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
+          <button
+            onClick={() => { if (canSubmit) { onSave(formToItem(form, item)); setSaved(true); } }}
+            style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit ? "linear-gradient(135deg, #5B21B6, #9333EA)" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit ? "#fff" : "#b0b0c8", cursor: canSubmit ? "pointer" : "not-allowed" }}
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
+// ── Delete Confirm Modal ──────────────────────────────────────────────────────
+function DeleteModal({ item, onClose, onDelete }: { item: InventoryItem; onClose: () => void; onDelete: () => void }) {
+  return (
+    <Overlay onClose={onClose}>
+      <div style={{ padding: "32px 28px", textAlign: "center" }}>
+        <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <Trash2 size={22} color="#dc2626" />
+        </div>
+        <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e", marginBottom: 8 }}>Remove Item?</div>
+        <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 24, lineHeight: 1.6 }}>
+          <strong style={{ color: "#1a1a2e" }}>{item.name}</strong> will be permanently removed from inventory.
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
+          <button onClick={() => { onDelete(); onClose(); }} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: "#dc2626", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>Delete</button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
+// ── Restock Reminder Modal ────────────────────────────────────────────────────
+function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [apiResult, setApiResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const bs = settingsStore.botsailor as { ownerPhone: string; lowStockTemplateId: string };
+  const salonName = settingsStore.salon.name as string;
+
+  const message = [
+    `🔔 *Salon Inventory Restock Alert*`,
+    `Date: ${new Date().toLocaleDateString("en-PK", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`,
+    ``,
+    `The following items need restocking:`,
+    ``,
+    ...alertItems.map((item) => {
+      const st = stockStatus(item);
+      const icon = st === "out" ? "🔴" : "🟡";
+      return `${icon} *${item.name}* (${item.brand})\n   Current: ${item.currentStock} ${item.unit} | Min: ${item.minStock} ${item.unit}${item.supplier ? `\n   Supplier: ${item.supplier}` : ""}`;
+    }),
+    ``,
+    `Please reorder ASAP. — ${salonName || "GlowBook Salon"}`,
+  ].join("\n");
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(message).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const openWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+  };
+
+  const sendViaApi = async () => {
+    if (!bs.lowStockTemplateId) {
+      setApiResult({ ok: false, msg: "Low Stock template name not set in Account → WhatsApp Settings" });
+      return;
+    }
+    if (!bs.ownerPhone) {
+      setApiResult({ ok: false, msg: "Owner WhatsApp number not set in Account → WhatsApp Settings" });
+      return;
+    }
+    setSending(true);
+    setApiResult(null);
+    try {
+      const itemList = alertItems.map((i) => `${i.name} (${i.currentStock} ${i.unit} left)`).join(", ");
+      const phone = bs.ownerPhone.replace(/\D/g, "");
+      const res = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          templateId: bs.lowStockTemplateId,
+          phone,
+          variables: { items: itemList, count: String(alertItems.length), salon_name: salonName },
+        }),
+      });
+      const data = await res.json() as { ok: boolean; data?: unknown };
+      setApiResult(data.ok
+        ? { ok: true, msg: `Sent to ${phone}` }
+        : { ok: false, msg: `Failed: ${JSON.stringify(data.data || "").slice(0, 120)}` });
+    } catch (err) {
+      setApiResult({ ok: false, msg: String(err) });
+    }
+    setSending(false);
+  };
+
+  return (
+    <Overlay onClose={onClose}>
+      <ModalHeader title="Low Stock Reminder" onClose={onClose} />
+      <div style={{ padding: "20px 24px 24px" }}>
+        <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 14 }}>
+          {alertItems.length} item{alertItems.length !== 1 ? "s" : ""} need restocking. Send a reminder message:
+        </div>
+
+        {/* Alert items list */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+          {alertItems.map((item) => {
+            const st = stockStatus(item);
+            return (
+              <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: st === "out" ? "#fef2f2" : "#fffbeb", borderRadius: 10, border: `1px solid ${st === "out" ? "#fecaca" : "#fed7aa"}` }}>
+                <AlertTriangle size={14} color={st === "out" ? "#dc2626" : "#d97706"} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{item.name}</div>
+                  <div style={{ fontSize: 11, color: "#9898b0" }}>{item.brand} · {item.currentStock}/{item.minStock} {item.unit}{item.supplier ? ` · ${item.supplier}` : ""}</div>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: st === "out" ? "#dc2626" : "#d97706", background: st === "out" ? "#fef2f2" : "#fffbeb", padding: "2px 8px", borderRadius: 20, border: `1px solid ${st === "out" ? "#fecaca" : "#fed7aa"}` }}>
+                  {st === "out" ? "Out" : "Low"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Message preview */}
+        <div style={{ background: "#f8f8fc", border: "1px solid #e8e8f0", borderRadius: 10, padding: "12px 14px", fontSize: 12, color: "#6b6b8a", fontFamily: "monospace", whiteSpace: "pre-wrap", maxHeight: 160, overflowY: "auto", marginBottom: 18, lineHeight: 1.7 }}>
+          {message}
+        </div>
+
+        {/* API result */}
+        {apiResult && (
+          <div style={{ marginBottom: 12, padding: "9px 14px", borderRadius: 9, fontSize: 12, fontWeight: 600, color: apiResult.ok ? "#059669" : "#dc2626", background: apiResult.ok ? "#ecfdf5" : "#fef2f2" }}>
+            {apiResult.msg}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={copyToClipboard}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: copied ? "#059669" : "#6b6b8a", cursor: "pointer" }}
+          >
+            {copied ? <CheckCircle size={15} /> : <Copy size={15} />}
+            {copied ? "Copied!" : "Copy Text"}
+          </button>
+          <button
+            onClick={openWhatsApp}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 0", borderRadius: 10, border: "none", background: "#25D366", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}
+          >
+            <MessageCircle size={14} /> WhatsApp Web
+          </button>
+          <button
+            onClick={sendViaApi}
+            disabled={sending}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 0", borderRadius: 10, border: "none", background: sending ? "#e8e8f0" : "linear-gradient(135deg,#5B21B6,#9333EA)", fontSize: 12, fontWeight: 700, color: sending ? "#aaaabc" : "#fff", cursor: sending ? "not-allowed" : "pointer" }}
+          >
+            <Bell size={14} /> {sending ? "Sending..." : "Send via API"}
+          </button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
+// ── Shared modal helpers ──────────────────────────────────────────────────────
+function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,10,35,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 500, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.22)" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ModalHeader({ title, onClose }: { title: string; onClose: () => void }) {
+  return (
+    <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>{title}</div>
+      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 4 }}><X size={18} color="#9898b0" /></button>
+    </div>
+  );
+}
+
+// ── Item Table Row ─────────────────────────────────────────────────────────────
+function ItemRow({ item, isLast, onEdit, onDelete }: {
+  item: InventoryItem; isLast: boolean;
+  onEdit: () => void; onDelete: () => void;
+}) {
+  const status = stockStatus(item);
+  const badge  = STATUS_BADGE[status];
+  const cat    = CATEGORY_CONFIG[item.category];
+  const rowBg  = status === "out" ? "#fff8f8" : status === "low" ? "#fffdf6" : "transparent";
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "2.2fr 110px 130px 100px 130px 110px 90px",
+      padding: "13px 20px",
+      borderBottom: isLast ? "none" : "1px solid #f4f4f8",
+      alignItems: "center",
+      background: rowBg,
+      transition: "background 0.15s",
+    }}>
+      {/* Name + brand */}
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 6 }}>
+          {item.name}
+          {status !== "ok" && <AlertTriangle size={12} color={badge.color} />}
+        </div>
+        <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>
+          {item.brand}{item.supplier ? ` · ${item.supplier}` : ""}
+        </div>
+      </div>
+
+      {/* Category */}
+      <span style={{ fontSize: 11, fontWeight: 600, color: cat.color, background: cat.bg, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", width: "fit-content" }}>
+        {cat.label}
+      </span>
+
+      {/* Stock */}
+      <div>
+        <span style={{ fontSize: 13, fontWeight: 700, color: status === "out" ? "#dc2626" : status === "low" ? "#d97706" : "#1a1a2e" }}>
+          {item.currentStock} {item.unit}
+        </span>
+        <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 1 }}>
+          Min: {item.minStock} {item.unit}
+        </div>
+      </div>
+
+      {/* Last restocked */}
+      <div style={{ fontSize: 11, color: "#9898b0" }}>
+        {item.lastRestocked ? new Date(item.lastRestocked + "T12:00:00").toLocaleDateString("en-PK", { day: "numeric", month: "short" }) : "—"}
+      </div>
+
+      {/* Cost / retail */}
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{fmt(item.costPrice)}</div>
+        {item.retailPrice && <div style={{ fontSize: 10, color: "#9898b0" }}>Retail: {fmt(item.retailPrice)}</div>}
+      </div>
+
+      {/* Status badge */}
+      <span style={{ fontSize: 11, fontWeight: 600, color: badge.color, background: badge.bg, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", width: "fit-content" }}>
+        {badge.label}
+      </span>
+
+      {/* Actions */}
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <button onClick={onEdit} title="Edit" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Edit2 size={13} color="#7C3AED" />
+        </button>
+        <button onClick={onDelete} title="Delete" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #fecaca", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Trash2 size={13} color="#dc2626" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ──────────────────────────────────────────────────────────────────
+export default function InventoryPage() {
+  const [items, setItems]             = useState<InventoryItem[]>([]);
+  const [search, setSearch]           = useState("");
+  const [catFilter, setCatFilter]     = useState<InventoryCategory | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "low" | "out" | "ok">("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [showAdd, setShowAdd]         = useState(false);
+  const [editItem, setEditItem]       = useState<InventoryItem | null>(null);
+  const [deleteItem, setDeleteItem]   = useState<InventoryItem | null>(null);
+  const [showReminder, setShowReminder] = useState(false);
+  const [alertDismissed, setAlertDismissed] = useState(false);
+
+  useEffect(() => {
+    setItems(getStoredInventory());
+    checkLowStockAlerts();
+  }, []);
+
+  const persist = useCallback((updated: InventoryItem[]) => {
+    setItems(updated);
+    saveInventory(updated);
+    checkLowStockAlerts();
+  }, []);
+
+  // Derived stats
+  const totalValue = useMemo(() => items.reduce((s, i) => s + i.costPrice * i.currentStock, 0), [items]);
+  const alertItems = useMemo(() => items.filter((i) => stockStatus(i) !== "ok"), [items]);
+  const lowCount   = alertItems.filter((i) => stockStatus(i) === "low").length;
+  const outCount   = alertItems.filter((i) => stockStatus(i) === "out").length;
+
+  const filtered = useMemo(() => {
+    return items.filter((item) => {
+      if (catFilter !== "all" && item.category !== catFilter) return false;
+      if (statusFilter !== "all" && stockStatus(item) !== statusFilter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          item.name.toLowerCase().includes(q) ||
+          item.brand.toLowerCase().includes(q) ||
+          (item.supplier ?? "").toLowerCase().includes(q) ||
+          CATEGORY_CONFIG[item.category].label.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [items, search, catFilter, statusFilter]);
+
+  const activeFilters = [catFilter !== "all", statusFilter !== "all"].filter(Boolean).length;
+
+  return (
+    <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px" }}>
+      <DashboardHeader />
+
+      {/* Modals */}
+      {showAdd    && <AddModal    onClose={() => setShowAdd(false)}    onAdd={(item) => persist([item, ...items])} />}
+      {editItem   && <EditModal   item={editItem} onClose={() => setEditItem(null)} onSave={(updated) => persist(items.map((i) => i.id === updated.id ? updated : i))} />}
+      {deleteItem && <DeleteModal item={deleteItem} onClose={() => setDeleteItem(null)} onDelete={() => persist(items.filter((i) => i.id !== deleteItem.id))} />}
+      {showReminder && <ReminderModal alertItems={alertItems} onClose={() => setShowReminder(false)} />}
+
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 10 }}>
+            Inventory
+            {alertItems.length > 0 && (
+              <span style={{ fontSize: 12, fontWeight: 700, background: outCount > 0 ? "#fef2f2" : "#fffbeb", color: outCount > 0 ? "#dc2626" : "#d97706", border: `1px solid ${outCount > 0 ? "#fecaca" : "#fed7aa"}`, borderRadius: 20, padding: "2px 10px" }}>
+                {alertItems.length} alert{alertItems.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 3 }}>
+            {items.length} items · {fmtV(totalValue)} total value
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {alertItems.length > 0 && (
+            <button
+              onClick={() => setShowReminder(true)}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "1px solid #fed7aa", background: "#fffbeb", fontSize: 13, fontWeight: 600, color: "#d97706", cursor: "pointer" }}
+            >
+              <Bell size={14} /> Send Reminder
+            </button>
+          )}
+          <button
+            onClick={() => setShowAdd(true)}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #5B21B6, #9333EA)", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", boxShadow: "0 2px 10px rgba(91,33,182,0.3)" }}
+          >
+            <Plus size={15} /> Add Item
+          </button>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
+        {[
+          { label: "Total Items",   value: items.length,  icon: Package,      iconColor: "#7C3AED", bg: "#EDE9FE", valColor: "#7C3AED" },
+          { label: "Total Value",   value: fmtV(totalValue), icon: DollarSign, iconColor: "#059669", bg: "#ecfdf5", valColor: "#059669", small: true },
+          { label: "Low Stock",     value: lowCount,      icon: TrendingDown, iconColor: "#d97706", bg: "#fffbeb", valColor: "#d97706" },
+          { label: "Out of Stock",  value: outCount,      icon: AlertTriangle,iconColor: "#dc2626", bg: "#fef2f2", valColor: "#dc2626" },
+        ].map(({ label, value, icon: Icon, iconColor, bg, valColor, small }) => (
+          <div key={label} style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 11, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon size={20} color={iconColor} />
+            </div>
+            <div>
+              <div style={{ fontSize: small ? 16 : 22, fontWeight: 800, color: valColor, lineHeight: 1.1 }}>{value}</div>
+              <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3 }}>{label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Low stock alert banner */}
+      {alertItems.length > 0 && !alertDismissed && (
+        <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #fed7aa", marginBottom: 20, overflow: "hidden" }}>
+          {/* Banner header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "linear-gradient(135deg, #fffbeb, #fff7ed)", borderBottom: "1px solid #fed7aa" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Bell size={16} color="#d97706" />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
+                  Stock Alert — {outCount > 0 ? `${outCount} out of stock` : ""}{outCount > 0 && lowCount > 0 ? ", " : ""}{lowCount > 0 ? `${lowCount} running low` : ""}
+                </div>
+                <div style={{ fontSize: 12, color: "#9898b0", marginTop: 1 }}>Restock these items to avoid service disruptions</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setShowReminder(true)}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "none", background: "#25D366", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}
+              >
+                <MessageCircle size={13} /> WhatsApp Reminder
+              </button>
+              <button
+                onClick={() => setAlertDismissed(true)}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 6, display: "flex", alignItems: "center", color: "#9898b0" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+          {/* Alert items grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
+            {alertItems.slice(0, 6).map((item, i) => {
+              const st = stockStatus(item);
+              return (
+                <div
+                  key={item.id}
+                  style={{ padding: "12px 16px", borderRight: (i + 1) % 3 !== 0 ? "1px solid #fef3c7" : "none", borderBottom: i < 3 && alertItems.length > 3 ? "1px solid #fef3c7" : "none", display: "flex", alignItems: "center", gap: 10 }}
+                >
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: st === "out" ? "#dc2626" : "#d97706", flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1a2e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0" }}>{item.currentStock}/{item.minStock} {item.unit}</div>
+                  </div>
+                  <button onClick={() => setEditItem(item)} style={{ fontSize: 10, fontWeight: 700, color: "#7C3AED", background: "#F5F3FF", border: "none", borderRadius: 6, padding: "3px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                    Restock
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {alertItems.length > 6 && (
+            <div style={{ padding: "10px 18px", borderTop: "1px solid #fef3c7", fontSize: 12, color: "#9898b0", textAlign: "center" }}>
+              +{alertItems.length - 6} more items need attention —{" "}
+              <button onClick={() => setStatusFilter("low")} style={{ background: "none", border: "none", color: "#7C3AED", fontWeight: 600, fontSize: 12, cursor: "pointer", padding: 0 }}>View all</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Search + filter bar */}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: "9px 14px" }}>
+          <Search size={15} color="#b0b0c8" />
+          <input
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, brand, or supplier…"
+            style={{ flex: 1, border: "none", outline: "none", fontSize: 13, color: "#1a1a2e", background: "transparent" }}
+          />
+          {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}><X size={14} color="#b0b0c8" /></button>}
+        </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `1px solid ${activeFilters > 0 ? "#7C3AED" : "#e8e8f0"}`, background: activeFilters > 0 ? "#F5F3FF" : "#fff", fontSize: 13, fontWeight: 500, color: activeFilters > 0 ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}
+        >
+          Filters
+          {activeFilters > 0 && (
+            <span style={{ background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {activeFilters}
+            </span>
+          )}
+          <ChevronDown size={13} style={{ transform: showFilters ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+        </button>
+      </div>
+
+      {showFilters && (
+        <div style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, padding: "16px 20px", display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 14 }}>
+          {[
+            {
+              label: "Category", value: catFilter,
+              onChange: (v: string) => setCatFilter(v as InventoryCategory | "all"),
+              options: [["all", "All Categories"], ...CATEGORIES.map((c) => [c, CATEGORY_CONFIG[c].label])] as [string, string][],
+            },
+            {
+              label: "Stock Status", value: statusFilter,
+              onChange: (v: string) => setStatusFilter(v as "all" | "low" | "out" | "ok"),
+              options: [["all", "All"], ["ok", "In Stock"], ["low", "Low Stock"], ["out", "Out of Stock"]] as [string, string][],
+            },
+          ].map(({ label, value, onChange, options }) => (
+            <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
+              <select value={value} onChange={(e) => onChange(e.target.value)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff", cursor: "pointer" }}>
+                {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+          ))}
+          {activeFilters > 0 && (
+            <button onClick={() => { setCatFilter("all"); setStatusFilter("all"); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 600, color: "#dc2626", cursor: "pointer" }}>
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Table */}
+      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+        {/* Column headers */}
+        <div style={{ display: "grid", gridTemplateColumns: "2.2fr 110px 130px 100px 130px 110px 90px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+          {["ITEM", "CATEGORY", "STOCK", "RESTOCKED", "COST PRICE", "STATUS", "ACTIONS"].map((h) => (
+            <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+          ))}
+        </div>
+
+        {filtered.length === 0 ? (
+          <div style={{ padding: "56px 20px", textAlign: "center" }}>
+            <Package size={32} color="#e0e0f0" style={{ marginBottom: 12 }} />
+            <div style={{ fontSize: 14, color: "#b0b0c8", fontWeight: 600 }}>No items match your filters</div>
+            <div style={{ fontSize: 12, color: "#c8c8d8", marginTop: 4 }}>Try adjusting your search or filter</div>
+          </div>
+        ) : (
+          filtered.map((item, i) => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              isLast={i === filtered.length - 1}
+              onEdit={() => setEditItem(item)}
+              onDelete={() => setDeleteItem(item)}
+            />
+          ))
+        )}
+
+        {/* Footer */}
+        {filtered.length > 0 && (
+          <div style={{ padding: "12px 20px", borderTop: "1px solid #f0f0f8", background: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: "#9898b0" }}>
+              Showing {filtered.length} of {items.length} items
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>
+              Total value: {fmtV(filtered.reduce((s, i) => s + i.costPrice * i.currentStock, 0))}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

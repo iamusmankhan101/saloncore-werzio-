@@ -1,0 +1,815 @@
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import { getStoredAppointments } from "@/lib/storage";
+import type { Appointment } from "@/lib/types";
+import DashboardHeader from "@/components/dashboard-header";
+import {
+  Download, ArrowUpRight, ArrowDownRight,
+  TrendingUp, CalendarDays, CreditCard, Wallet, ChevronLeft,
+} from "lucide-react";
+
+const fmt  = (n: number) => "PKR " + Math.round(n).toLocaleString("en-PK");
+const fmtK = (n: number) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
+  : n >= 1_000   ? `${Math.round(n / 1_000)}K`
+  : String(Math.round(n));
+
+type Period = "7d" | "14d" | "30d" | "1y";
+
+const PERIODS: { key: Period; label: string; days: number }[] = [
+  { key: "7d",  label: "7 Days",  days: 7   },
+  { key: "14d", label: "14 Days", days: 14  },
+  { key: "30d", label: "Month",   days: 30  },
+  { key: "1y",  label: "1 Year",  days: 365 },
+];
+
+const METHOD_COLORS: Record<string, string> = {
+  cash: "#22c55e", jazzcash: "#f97316", easypaisa: "#10b981",
+  raast: "#3b82f6", card: "#6366f1", bank: "#9333EA",
+};
+const METHOD_LABELS: Record<string, string> = {
+  cash: "Cash", jazzcash: "JazzCash", easypaisa: "EasyPaisa",
+  raast: "Raast", card: "Card", bank: "Bank Transfer",
+};
+const METHOD_SPLITS = [
+  { method: "cash",      pct: 0.45 },
+  { method: "jazzcash",  pct: 0.25 },
+  { method: "easypaisa", pct: 0.15 },
+  { method: "card",      pct: 0.10 },
+  { method: "raast",     pct: 0.05 },
+];
+
+function toDateStr(d: Date) { return d.toLocaleDateString("en-CA"); }
+
+function getDaysArray(count: number): string[] {
+  const arr: string[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    arr.push(toDateStr(d));
+  }
+  return arr;
+}
+
+function seeded(n: number) { const x = Math.sin(n + 1) * 10000; return x - Math.floor(x); }
+
+function buildDemoData(): Appointment[] {
+  const svcs: [string, number][] = [
+    ["Haircut & Style", 3500], ["Hair Color", 8500], ["Facial", 5000],
+    ["Manicure", 2500], ["Pedicure", 3000], ["Bridal Package", 28000],
+    ["Blow Dry", 2000], ["Waxing", 3500], ["Highlights", 13000],
+    ["Deep Conditioning", 4000], ["Keratin Treatment", 12000],
+    ["Nail Art", 4500], ["Eyebrows", 800], ["Skin Whitening", 7000],
+  ];
+  const clients = [
+    "Fatima Ali", "Sara Khan", "Amna Sheikh", "Zara Ahmed", "Hina Malik",
+    "Nadia Raza", "Bushra Iqbal", "Maria Hassan", "Sana Butt", "Layla Chaudhry",
+    "Rabia Nasir", "Aisha Tariq", "Mehwish Qureshi", "Saba Farooq", "Neha Siddiqui",
+  ];
+  const staff = ["Amna", "Sara", "Hina", "Rania", "Faiqa"];
+  const appts: Appointment[] = [];
+  let id = 0;
+  for (let i = 364; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const dow = d.getDay();
+    const s = i * 7;
+    const isWknd = dow === 4 || dow === 5;
+    const isLow  = dow === 0 || dow === 1;
+    const cnt = isWknd ? 6 + Math.floor(seeded(s) * 5) : isLow ? 2 + Math.floor(seeded(s) * 3) : 4 + Math.floor(seeded(s) * 4);
+    for (let j = 0; j < cnt; j++) {
+      const [sn, sp] = svcs[Math.floor(seeded(s + j * 3) * svcs.length)];
+      appts.push({
+        id: `d${id++}`,
+        clientId: `c${Math.floor(seeded(s + j * 5) * 15)}`,
+        clientName: clients[Math.floor(seeded(s + j * 5) * clients.length)],
+        staffId: `st${Math.floor(seeded(s + j * 7) * 5)}`,
+        staffName: staff[Math.floor(seeded(s + j * 7) * staff.length)],
+        serviceIds: [`sv${Math.floor(seeded(s + j * 3) * svcs.length)}`],
+        serviceNames: [sn],
+        date: toDateStr(d),
+        startTime: "10:00",
+        endTime: "11:00",
+        status: "completed",
+        totalAmount: Math.max(800, sp + Math.floor((seeded(s + j * 11) - 0.3) * 1000)),
+        source: "walk-in",
+      });
+    }
+  }
+  return appts;
+}
+
+interface ChartBar {
+  label: string;
+  value: number;
+  isCurrentPeriod: boolean;
+  monthKey: string; // "YYYY-MM" for 1y, "YYYY-MM-DD" for daily views
+}
+
+export default function RevenuePage() {
+  const [period, setPeriod]             = useState<Period>("30d");
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isDemo, setIsDemo]             = useState(false);
+  const [today, setToday]               = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null); // "YYYY-MM" drill-down
+  const [hoveredBar, setHoveredBar]     = useState<number | null>(null);
+
+  useEffect(() => {
+    const t = toDateStr(new Date());
+    setToday(t);
+    const stored = getStoredAppointments();
+    if (stored.filter(a => a.status === "completed").length === 0) {
+      setAppointments(buildDemoData());
+      setIsDemo(true);
+    } else {
+      setAppointments(stored);
+    }
+  }, []);
+
+  // Reset drill-down when period changes
+  useEffect(() => { setSelectedMonth(null); }, [period]);
+
+  const cfg = PERIODS.find(p => p.key === period)!;
+
+  const rangeStart = useMemo(() => {
+    if (!today) return "";
+    const d = new Date(today); d.setDate(d.getDate() - (cfg.days - 1));
+    return toDateStr(d);
+  }, [period, today]);
+
+  const prevEnd = useMemo(() => {
+    if (!today) return "";
+    const d = new Date(today); d.setDate(d.getDate() - cfg.days);
+    return toDateStr(d);
+  }, [period, today]);
+
+  const prevStart = useMemo(() => {
+    if (!today) return "";
+    const d = new Date(today); d.setDate(d.getDate() - cfg.days * 2 + 1);
+    return toDateStr(d);
+  }, [period, today]);
+
+  const currentAppts = useMemo(() =>
+    appointments.filter(a => a.status === "completed" && a.date >= rangeStart && a.date <= today),
+    [appointments, rangeStart, today]);
+
+  const prevAppts = useMemo(() =>
+    appointments.filter(a => a.status === "completed" && a.date >= prevStart && a.date <= prevEnd),
+    [appointments, prevStart, prevEnd]);
+
+  const totalRevenue = useMemo(() => currentAppts.reduce((s, a) => s + a.totalAmount, 0), [currentAppts]);
+  const prevRevenue  = useMemo(() => prevAppts.reduce((s, a) => s + a.totalAmount, 0), [prevAppts]);
+  const totalCount   = currentAppts.length;
+  const prevCount    = prevAppts.length;
+  const avgTicket    = totalCount ? totalRevenue / totalCount : 0;
+  const prevAvg      = prevCount  ? prevRevenue  / prevCount  : 0;
+  const tipsTotal    = Math.round(totalRevenue * 0.08);
+
+  const revChange = prevRevenue ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
+  const cntChange = prevCount   ? ((totalCount   - prevCount)   / prevCount)   * 100 : 0;
+  const avgChange = prevAvg     ? ((avgTicket    - prevAvg)     / prevAvg)     * 100 : 0;
+
+  // ── Chart data (1y = 12 monthly bars, else daily) ──────────────────────────
+  const chartData = useMemo((): ChartBar[] => {
+    if (!today) return [];
+    if (period === "1y") {
+      const months: ChartBar[] = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(today); d.setDate(1); d.setMonth(d.getMonth() - i);
+        const key = toDateStr(d).substring(0, 7);
+        const label = d.toLocaleDateString("en-PK", { month: "short" });
+        const value = appointments
+          .filter(a => a.status === "completed" && a.date.startsWith(key))
+          .reduce((s, a) => s + a.totalAmount, 0);
+        months.push({ label, value, isCurrentPeriod: i === 0, monthKey: key });
+      }
+      return months;
+    }
+    const days = getDaysArray(cfg.days);
+    const byDay: Record<string, number> = {};
+    days.forEach(d => { byDay[d] = 0; });
+    appointments.forEach(a => {
+      if (a.status === "completed" && a.date in byDay) byDay[a.date] += a.totalAmount;
+    });
+    return days.map((date, idx) => {
+      const d = new Date(date + "T12:00:00");
+      const label = period === "30d" ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
+      return { label, value: byDay[date], isCurrentPeriod: idx === days.length - 1, monthKey: date };
+    });
+  }, [appointments, period, today]);
+
+  // ── Drill-down: daily rows for the selected month ─────────────────────────
+  const drillRows = useMemo(() => {
+    if (!selectedMonth) return null;
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const rows: { date: string; dow: string; count: number; revenue: number }[] = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const appts = appointments.filter(a => a.status === "completed" && a.date === date);
+      const dow = new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" });
+      rows.push({ date, dow, count: appts.length, revenue: appts.reduce((s, a) => s + a.totalAmount, 0) });
+    }
+    return rows.reverse();
+  }, [selectedMonth, appointments]);
+
+  // Drill-down totals
+  const drillTotal   = drillRows ? drillRows.reduce((s, r) => s + r.revenue, 0) : 0;
+  const drillCount   = drillRows ? drillRows.reduce((s, r) => s + r.count, 0) : 0;
+  const drillAvg     = drillCount ? drillTotal / drillCount : 0;
+
+  // ── Default daily rows (no drill-down) ────────────────────────────────────
+  const dailyRows = useMemo(() => {
+    if (!today) return [] as { date: string; dow: string; count: number; revenue: number }[];
+    const days = getDaysArray(Math.min(cfg.days, 31));
+    const byDay: Record<string, { count: number; revenue: number }> = {};
+    days.forEach(d => { byDay[d] = { count: 0, revenue: 0 }; });
+    currentAppts.forEach(a => {
+      if (a.date in byDay) { byDay[a.date].count++; byDay[a.date].revenue += a.totalAmount; }
+    });
+    return days.map(date => ({
+      date,
+      dow: new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" }),
+      ...byDay[date],
+    })).reverse();
+  }, [currentAppts, period, today]);
+
+  const methodBreakdown = useMemo(() =>
+    METHOD_SPLITS.map(m => ({ method: m.method, amount: Math.round(totalRevenue * m.pct), pct: m.pct * 100 })),
+    [totalRevenue]);
+
+  const topServices = useMemo(() => {
+    const map: Record<string, { name: string; count: number; revenue: number }> = {};
+    currentAppts.forEach(a => {
+      const k = a.serviceNames[0] ?? "Other";
+      if (!map[k]) map[k] = { name: k, count: 0, revenue: 0 };
+      map[k].count++; map[k].revenue += a.totalAmount;
+    });
+    return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 6);
+  }, [currentAppts]);
+
+  const maxChart = Math.max(...chartData.map(d => d.value), 1);
+
+  const yLabels = useMemo(() => {
+    const step = maxChart <= 10_000 ? 2_500 : maxChart <= 50_000 ? 10_000 : maxChart <= 200_000 ? 50_000 : maxChart <= 1_000_000 ? 250_000 : 500_000;
+    const top = Math.ceil(maxChart / step) * step || step;
+    return [top, top * 0.75, top * 0.5, top * 0.25, 0].map(v => fmtK(v));
+  }, [maxChart]);
+
+  // Selected month label e.g. "November 2025"
+  const selectedMonthLabel = selectedMonth
+    ? new Date(selectedMonth + "-01T12:00:00").toLocaleDateString("en-PK", { month: "long", year: "numeric" })
+    : "";
+
+  function Trend({ change }: { change: number }) {
+    const up = change >= 0;
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 600, color: up ? "#22c55e" : "#ef4444" }}>
+        {up ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+        {Math.abs(change).toFixed(1)}% vs prev period
+      </div>
+    );
+  }
+
+  // ── PDF Export ─────────────────────────────────────────────────────────────
+  function exportPDF() {
+    const now = new Date();
+    const isYearDrill = !!selectedMonth;
+    const tableRows  = isYearDrill ? (drillRows ?? []) : dailyRows.slice(0, 60);
+    const pdfTotal   = isYearDrill ? drillTotal   : totalRevenue;
+    const pdfCount   = isYearDrill ? drillCount   : totalCount;
+    const pdfAvg     = isYearDrill ? drillAvg     : avgTicket;
+    const pdfTitle   = isYearDrill ? `${selectedMonthLabel} — Daily Detail` : `Revenue Report — ${cfg.label}`;
+    const pdfRange   = isYearDrill ? selectedMonthLabel : `${rangeStart} to ${today}`;
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>GlowBook ${pdfTitle}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Montserrat', sans-serif; background: #fff; color: #1a1a2e; font-size: 13px; }
+    .page { max-width: 820px; margin: 0 auto; padding: 40px 48px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid #f0f0f8; }
+    .logo-icon { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #5B21B6, #9333EA); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 800; }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-text { font-size: 22px; font-weight: 800; }
+    .logo-sub  { font-size: 12px; color: #a0a0b8; margin-top: 2px; }
+    .report-meta { text-align: right; }
+    .report-title { font-size: 16px; font-weight: 800; color: #7C3AED; }
+    .report-sub   { font-size: 12px; color: #6b6b8a; margin-top: 4px; }
+    .report-gen   { font-size: 11px; color: #c0c0d0; margin-top: 2px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+    .stat-card  { background: #F5F3FF; border-radius: 12px; padding: 16px; border: 1px solid #EDE9FE; }
+    .stat-label { font-size: 10px; font-weight: 700; color: #a0a0b8; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+    .stat-value { font-size: 20px; font-weight: 800; color: #7C3AED; }
+    .stat-sub   { font-size: 10px; color: #a0a0b8; margin-top: 4px; }
+    .section { margin-bottom: 28px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .section-sub   { font-size: 11px; color: #a0a0b8; margin-bottom: 16px; }
+    .chart-area   { display: flex; align-items: flex-end; gap: 5px; height: 130px; border-bottom: 2px solid #f0f0f8; padding: 0 2px; }
+    .bar-wrap     { flex: 1; display: flex; align-items: flex-end; height: 100%; }
+    .bar          { width: 100%; border-radius: 4px 4px 0 0; min-height: 2px; }
+    .bar-labels   { display: flex; gap: 5px; padding-top: 6px; }
+    .bar-lbl      { flex: 1; text-align: center; font-size: 9px; color: #c0c0d0; overflow: hidden; }
+    .methods-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .method-row   { border: 1px solid #f0f0f8; border-radius: 10px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+    .method-dot   { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; flex-shrink: 0; }
+    .method-name  { font-weight: 600; font-size: 13px; display: flex; align-items: center; }
+    .method-pct   { font-size: 11px; color: #a0a0b8; margin-top: 2px; }
+    .method-amount{ font-weight: 700; color: #7C3AED; font-size: 13px; }
+    .svc-grid     { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .svc-card     { border: 1px solid #f0f0f8; border-radius: 10px; padding: 12px 14px; }
+    .svc-name     { font-weight: 600; font-size: 12px; color: #1a1a2e; margin-bottom: 4px; }
+    .svc-count    { font-size: 10px; color: #a0a0b8; }
+    .svc-rev      { font-weight: 700; color: #7C3AED; font-size: 13px; margin-top: 6px; }
+    table         { width: 100%; border-collapse: collapse; }
+    thead tr      { background: #F5F3FF; }
+    th { font-size: 10px; font-weight: 700; color: #a0a0b8; letter-spacing: 0.07em; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 1px solid #f0f0f8; }
+    td { padding: 10px 14px; font-size: 12px; border-bottom: 1px solid #f8f8fc; }
+    tr:last-child td { border-bottom: none; }
+    .total-row td { font-weight: 700; background: #F5F3FF; color: #7C3AED; border-top: 1px solid #f0f0f8; }
+    .amount { font-weight: 700; color: #7C3AED; }
+    .muted  { color: #a0a0b8; }
+    .footer { margin-top: 36px; padding-top: 20px; border-top: 1px solid #f0f0f8; display: flex; justify-content: space-between; }
+    .footer-txt { font-size: 11px; color: #c0c0d0; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page { padding: 24px 32px; } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">G</div>
+      <div>
+        <div class="logo-text">GlowBook</div>
+        <div class="logo-sub">Salon Management Platform</div>
+      </div>
+    </div>
+    <div class="report-meta">
+      <div class="report-title">${pdfTitle}</div>
+      <div class="report-sub">${pdfRange}</div>
+      <div class="report-gen">Generated ${now.toLocaleDateString("en-PK", { weekday: "long", year: "numeric", month: "long", day: "numeric" })} · ${now.toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" })}</div>
+      ${isDemo ? '<div style="font-size:10px;color:#f97316;margin-top:2px;">⚠ Demo Data</div>' : ""}
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Revenue</div>
+      <div class="stat-value">${fmt(pdfTotal)}</div>
+      <div class="stat-sub">${!isYearDrill ? (revChange >= 0 ? "▲" : "▼") + " " + Math.abs(revChange).toFixed(1) + "% vs prev" : pdfRange}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Appointments</div>
+      <div class="stat-value">${pdfCount}</div>
+      <div class="stat-sub">Completed services</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Ticket</div>
+      <div class="stat-value">${fmt(pdfAvg)}</div>
+      <div class="stat-sub">Per appointment</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Est. Tips</div>
+      <div class="stat-value">${fmt(Math.round(pdfTotal * 0.08))}</div>
+      <div class="stat-sub">~8% of revenue</div>
+    </div>
+  </div>
+
+  ${!isYearDrill ? `
+  <div class="section">
+    <div class="section-title">Revenue Trend</div>
+    <div class="section-sub">${period === "1y" ? "Monthly" : "Daily"} breakdown · ${pdfRange}</div>
+    <div class="chart-area">
+      ${chartData.map(d => {
+        const h = maxChart > 0 ? Math.max(2, Math.round((d.value / maxChart) * 100)) : 2;
+        return `<div class="bar-wrap"><div class="bar" style="height:${h}%;background:${d.isCurrentPeriod ? "#7C3AED" : "#DDD6FE"}"></div></div>`;
+      }).join("")}
+    </div>
+    <div class="bar-labels">${chartData.map(d => `<div class="bar-lbl">${d.label}</div>`).join("")}</div>
+  </div>
+  <div class="section">
+    <div class="section-title">Payment Methods</div>
+    <div class="section-sub">Revenue by channel</div>
+    <div class="methods-grid">
+      ${methodBreakdown.map(m => `
+      <div class="method-row">
+        <div>
+          <div class="method-name"><span class="method-dot" style="background:${METHOD_COLORS[m.method] ?? "#888"}"></span>${METHOD_LABELS[m.method] ?? m.method}</div>
+          <div class="method-pct">${m.pct.toFixed(0)}% of total</div>
+        </div>
+        <div class="method-amount">${fmt(m.amount)}</div>
+      </div>`).join("")}
+    </div>
+  </div>
+  ${topServices.length > 0 ? `
+  <div class="section">
+    <div class="section-title">Top Services by Revenue</div>
+    <div class="section-sub">Most profitable this period</div>
+    <div class="svc-grid">
+      ${topServices.map(s => `
+      <div class="svc-card">
+        <div class="svc-name">${s.name}</div>
+        <div class="svc-count">${s.count} appointment${s.count !== 1 ? "s" : ""}</div>
+        <div class="svc-rev">${fmt(s.revenue)}</div>
+      </div>`).join("")}
+    </div>
+  </div>` : ""}` : ""}
+
+  <div class="section">
+    <div class="section-title">${isYearDrill ? selectedMonthLabel + " — Daily Breakdown" : (period === "1y" ? "Monthly Breakdown" : "Daily Breakdown")}</div>
+    <div class="section-sub">${tableRows.length < (isYearDrill ? (drillRows?.length ?? 0) : dailyRows.length) ? "Most recent rows shown" : "Complete breakdown"}</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Day</th>
+          <th style="text-align:center">Appts</th>
+          <th style="text-align:right">Revenue</th>
+          <th style="text-align:right">Avg Ticket</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableRows.map(row => {
+          const avg = row.count ? row.revenue / row.count : 0;
+          return `
+          <tr>
+            <td>${row.date}</td>
+            <td class="muted">${row.dow ?? ""}</td>
+            <td style="text-align:center">${row.count}</td>
+            <td class="amount" style="text-align:right">${fmt(row.revenue)}</td>
+            <td style="text-align:right" class="muted">${avg ? fmt(avg) : "—"}</td>
+          </tr>`;
+        }).join("")}
+        <tr class="total-row">
+          <td colspan="2"><strong>Total</strong></td>
+          <td style="text-align:center"><strong>${pdfCount}</strong></td>
+          <td style="text-align:right"><strong>${fmt(pdfTotal)}</strong></td>
+          <td style="text-align:right"><strong>${fmt(pdfAvg)}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <div class="footer-txt">GlowBook · Salon Management Platform</div>
+    <div class="footer-txt">Confidential · For internal use only</div>
+  </div>
+</div>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank", "width=920,height=750");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.onload = () => { win.focus(); win.print(); };
+  }
+
+  // ── Table rows to display ──────────────────────────────────────────────────
+  const tableRows    = selectedMonth ? (drillRows ?? []) : dailyRows;
+  const tableTotal   = selectedMonth ? drillTotal   : totalRevenue;
+  const tableCount   = selectedMonth ? drillCount   : totalCount;
+  const tableAvg     = selectedMonth ? drillAvg     : avgTicket;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <div style={{ background: "#f8f8fc", minHeight: "100vh", padding: "28px 32px" }}>
+      <DashboardHeader />
+
+      {/* Title + controls */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1a1a2e", margin: 0 }}>Revenue</h1>
+          <p style={{ fontSize: 13, color: "#a0a0b8", margin: "4px 0 0" }}>Track your salon&apos;s financial performance</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: 4, gap: 2 }}>
+            {PERIODS.map(p => (
+              <button
+                key={p.key}
+                onClick={() => setPeriod(p.key)}
+                style={{
+                  padding: "7px 16px", borderRadius: 7, border: "none", cursor: "pointer",
+                  fontSize: 13, fontWeight: period === p.key ? 700 : 500,
+                  background: period === p.key ? "linear-gradient(135deg, #5B21B6, #9333EA)" : "transparent",
+                  color: period === p.key ? "#fff" : "#6b6b8a",
+                  transition: "all 0.15s",
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={exportPDF}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 20px", borderRadius: 10, border: "none", cursor: "pointer", background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff", fontSize: 13, fontWeight: 600, boxShadow: "0 2px 8px rgba(91, 33, 182, 0.35)" }}
+          >
+            <Download size={15} /> Export PDF
+          </button>
+        </div>
+      </div>
+
+      {/* Demo banner */}
+      {isDemo && (
+        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "10px 16px", marginBottom: 20, fontSize: 13, color: "#9a3412", fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
+          <span>ℹ️</span> Showing demo data — add appointments to see your real revenue figures
+        </div>
+      )}
+
+      {/* Stat cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
+        {[
+          { label: "Total Revenue", value: fmt(totalRevenue), change: revChange, icon: TrendingUp,   color: "#7C3AED", bg: "#F5F3FF", showTrend: true  },
+          { label: "Appointments",  value: String(totalCount), change: cntChange, icon: CalendarDays, color: "#3b82f6", bg: "#eff6ff", showTrend: true  },
+          { label: "Avg Ticket",    value: fmt(avgTicket),     change: avgChange, icon: CreditCard,   color: "#059669", bg: "#f0fdf4", showTrend: true  },
+          { label: "Est. Tips",     value: fmt(tipsTotal),     change: 0,         icon: Wallet,       color: "#d97706", bg: "#fffbeb", showTrend: false },
+        ].map(({ label, value, change, icon: Icon, color, bg, showTrend }) => (
+          <div key={label} style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "18px 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</span>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon size={16} color={color} />
+              </div>
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#1a1a2e", marginBottom: 6 }}>{value}</div>
+            {showTrend && <Trend change={change} />}
+          </div>
+        ))}
+      </div>
+
+      {/* Revenue bar chart */}
+      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "22px 26px", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>Revenue Trend</div>
+            <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>
+              {period === "1y" ? "Monthly breakdown" : "Daily breakdown"} · {rangeStart} → {today}
+              {period === "1y" && (
+                <span style={{ marginLeft: 8, fontSize: 11, color: "#9333EA", fontWeight: 600 }}>
+                  Click a bar to drill into that month
+                </span>
+              )}
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#7C3AED" }}>{fmt(totalRevenue)}</div>
+            <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 2 }}>{cfg.label} total</div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 14 }}>
+          {/* Y-axis */}
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", paddingBottom: 26, minWidth: 40 }}>
+            {yLabels.map(l => (
+              <div key={l} style={{ fontSize: 10, color: "#c0c0d0", textAlign: "right" }}>{l}</div>
+            ))}
+          </div>
+
+          {/* Bars */}
+          <div style={{ flex: 1 }}>
+            <div style={{ position: "relative", height: 230 }}>
+              {[0, 25, 50, 75, 100].map(pct => (
+                <div key={pct} style={{ position: "absolute", bottom: `${pct}%`, left: 0, right: 0, height: 1, background: "#f0f0f8" }} />
+              ))}
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: period === "30d" ? 4 : period === "1y" ? 7 : 10 }}>
+                {chartData.map((bar, i) => {
+                  const h = maxChart > 0 ? (bar.value / maxChart) * 100 : 0;
+                  const isHovered = hoveredBar === i;
+                  const isSelected = period === "1y" && selectedMonth === bar.monthKey;
+                  const isClickable = period === "1y";
+                  const barBg = isSelected
+                    ? "linear-gradient(135deg, #5B21B6 0%, #350e7a 100%)"
+                    : bar.isCurrentPeriod
+                    ? "#7C3AED"
+                    : isHovered
+                    ? "#8B5CF6"
+                    : "linear-gradient(180deg, #A78BFA 0%, #DDD6FE 100%)";
+
+                  return (
+                    <div
+                      key={i}
+                      style={{ flex: 1, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", cursor: isClickable ? "pointer" : "default", position: "relative" }}
+                      onClick={() => { if (isClickable) setSelectedMonth(isSelected ? null : bar.monthKey); }}
+                      onMouseEnter={() => setHoveredBar(i)}
+                      onMouseLeave={() => setHoveredBar(null)}
+                    >
+                      {/* Tooltip */}
+                      {isHovered && (
+                        <div style={{
+                          position: "absolute", bottom: `${h + 2}%`, left: "50%", transform: "translateX(-50%)",
+                          background: "#1a1a2e", color: "#fff", fontSize: 11, fontWeight: 700,
+                          padding: "5px 9px", borderRadius: 7, whiteSpace: "nowrap", zIndex: 10,
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                          pointerEvents: "none",
+                        }}>
+                          {fmt(bar.value)}
+                          {isClickable && (
+                            <div style={{ fontSize: 9, fontWeight: 500, color: "#8B5CF6", textAlign: "center", marginTop: 1 }}>
+                              {isSelected ? "Click to close" : "Click to expand"}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div style={{
+                        width: "100%",
+                        height: `${Math.max(h, 0.4)}%`,
+                        background: barBg,
+                        borderRadius: "5px 5px 0 0",
+                        transition: "height 0.4s ease, background 0.15s",
+                        outline: isSelected ? "2px solid #5B21B6" : "none",
+                        outlineOffset: 1,
+                      }} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {/* X-axis labels */}
+            <div style={{ display: "flex", gap: period === "30d" ? 4 : period === "1y" ? 7 : 10, paddingTop: 8 }}>
+              {chartData.map((bar, i) => {
+                const isSelected = period === "1y" && selectedMonth === bar.monthKey;
+                return (
+                  <div
+                    key={i}
+                    onClick={() => { if (period === "1y") setSelectedMonth(isSelected ? null : bar.monthKey); }}
+                    style={{
+                      flex: 1, textAlign: "center",
+                      fontSize: period === "30d" ? 9 : 11,
+                      color: isSelected ? "#5B21B6" : bar.isCurrentPeriod ? "#7C3AED" : "#c0c0d0",
+                      fontWeight: (isSelected || bar.isCurrentPeriod) ? 700 : 400,
+                      overflow: "hidden",
+                      cursor: period === "1y" ? "pointer" : "default",
+                    }}
+                  >
+                    {bar.label}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment methods + Top services */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+        {/* Payment Methods */}
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "22px 24px" }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e", marginBottom: 4 }}>Payment Methods</div>
+          <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>Revenue by channel</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {methodBreakdown.map(m => (
+              <div key={m.method}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: METHOD_COLORS[m.method] ?? "#888", flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{METHOD_LABELS[m.method]}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 11, color: "#a0a0b8", fontWeight: 500 }}>{m.pct.toFixed(0)}%</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(m.amount)}</span>
+                  </div>
+                </div>
+                <div style={{ height: 6, background: "#f0f0f8", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${m.pct}%`, background: METHOD_COLORS[m.method] ?? "#888", borderRadius: 4, transition: "width 0.6s ease" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Top Services */}
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "22px 24px" }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e", marginBottom: 4 }}>Top Services</div>
+          <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>Most profitable this period</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {topServices.length === 0 ? (
+              <div style={{ fontSize: 13, color: "#c0c0d0", textAlign: "center", padding: "24px 0" }}>No data for this period</div>
+            ) : topServices.map((s, i) => {
+              const pct = topServices[0].revenue > 0 ? (s.revenue / topServices[0].revenue) * 100 : 0;
+              const barColors = ["#7C3AED", "#9333EA", "#A78BFA", "#d8b4fe", "#EDE9FE", "#F5F3FF"];
+              return (
+                <div key={s.name}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#c0c0d0", width: 16, textAlign: "center" }}>{i + 1}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{s.name}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 11, color: "#a0a0b8" }}>{s.count}×</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(s.revenue)}</span>
+                    </div>
+                  </div>
+                  <div style={{ height: 5, background: "#f0f0f8", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${pct}%`, background: barColors[i] ?? "#DDD6FE", borderRadius: 3, transition: "width 0.6s ease" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Daily / Monthly breakdown table */}
+      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", overflow: "hidden" }}>
+        {/* Table header */}
+        <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            {selectedMonth ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  onClick={() => setSelectedMonth(null)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, background: "#f0f0f8", border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#6b6b8a" }}
+                >
+                  <ChevronLeft size={14} /> All months
+                </button>
+                <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e" }}>{selectedMonthLabel}</div>
+                <span style={{ fontSize: 11, background: "#F5F3FF", border: "1px solid #EDE9FE", color: "#5B21B6", padding: "3px 10px", borderRadius: 20, fontWeight: 600 }}>
+                  Daily detail
+                </span>
+              </div>
+            ) : (
+              <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e" }}>
+                {period === "1y" ? "Daily Breakdown" : "Daily Breakdown"}
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 4 }}>
+              {selectedMonth
+                ? `${drillRows?.length ?? 0} days · ${fmt(drillTotal)} total`
+                : period === "1y" ? "Last 31 days shown — click a chart bar to drill into a month" : `Last ${Math.min(cfg.days, 31)} days`}
+            </div>
+          </div>
+
+          {/* Drill mini stats */}
+          {selectedMonth && drillRows && (
+            <div style={{ display: "flex", gap: 20 }}>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 11, color: "#a0a0b8", fontWeight: 600 }}>APPOINTMENTS</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#3b82f6" }}>{drillCount}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 11, color: "#a0a0b8", fontWeight: 600 }}>AVG TICKET</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#059669" }}>{fmt(drillAvg)}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 11, color: "#a0a0b8", fontWeight: 600 }}>TOTAL</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#7C3AED" }}>{fmt(drillTotal)}</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Column headers */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 100px 1.2fr 1.2fr", padding: "10px 24px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+          {["DATE", "DAY", "APPTS", "REVENUE", "AVG TICKET"].map(h => (
+            <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+          ))}
+        </div>
+
+        {/* Rows */}
+        {tableRows.length === 0 ? (
+          <div style={{ padding: "32px 24px", textAlign: "center", fontSize: 13, color: "#c0c0d0" }}>
+            No data for this period
+          </div>
+        ) : tableRows.map((row, i) => {
+          const isToday = row.date === today;
+          const avg = row.count ? row.revenue / row.count : 0;
+          return (
+            <div
+              key={row.date}
+              style={{
+                display: "grid", gridTemplateColumns: "1.6fr 1fr 100px 1.2fr 1.2fr",
+                padding: "11px 24px",
+                borderBottom: i === tableRows.length - 1 ? "none" : "1px solid #f8f8fc",
+                alignItems: "center",
+                background: isToday ? "#fdf8ff" : "transparent",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, color: isToday ? "#7C3AED" : "#1a1a2e" }}>{row.date}</span>
+                {isToday && <span style={{ fontSize: 10, background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff", padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>Today</span>}
+              </div>
+              <div style={{ fontSize: 13, color: "#6b6b8a" }}>{row.dow}</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "#1a1a2e" }}>{row.count}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: row.revenue > 0 ? "#7C3AED" : "#c0c0d0" }}>{fmt(row.revenue)}</div>
+              <div style={{ fontSize: 13, color: "#6b6b8a" }}>{avg ? fmt(avg) : "—"}</div>
+            </div>
+          );
+        })}
+
+        {/* Footer totals */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 100px 1.2fr 1.2fr", padding: "13px 24px", background: "#fafafa", borderTop: "1px solid #f0f0f8" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
+            {selectedMonth ? selectedMonthLabel : `Total (${cfg.label})`}
+          </div>
+          <div />
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{tableCount}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(tableTotal)}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#6b6b8a" }}>{tableAvg ? fmt(tableAvg) : "—"}</div>
+        </div>
+      </div>
+    </div>
+  );
+}

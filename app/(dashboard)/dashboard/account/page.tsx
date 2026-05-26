@@ -1,0 +1,607 @@
+"use client";
+
+import { useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { Check, ChevronRight, Clock, LogOut, Save, Shield, Smartphone, Store, Wand2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
+import { saveSettings, settingsStore } from "@/lib/settings-store";
+
+type SectionId = "salon" | "hours" | "security" | "whatsapp" | "tryon";
+
+interface SalonSettings {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  currency: string;
+  timezone: string;
+}
+
+interface BusinessHour {
+  day: string;
+  open: boolean;
+  from: string;
+  to: string;
+}
+
+const BASE_SECTIONS: { id: SectionId; label: string; icon: React.ElementType }[] = [
+  { id: "salon", label: "Salon Profile", icon: Store },
+  { id: "hours", label: "Business Hours", icon: Clock },
+  { id: "security", label: "Security", icon: Shield },
+  { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
+];
+
+const inputStyle: CSSProperties = {
+  width: "100%",
+  height: 42,
+  padding: "0 14px",
+  borderRadius: 10,
+  border: "1px solid #e4e4ee",
+  fontSize: 13,
+  color: "#29293d",
+  outline: "none",
+  background: "#fff",
+};
+
+function Field({ label, children, full = false, hint }: { label: string; children: ReactNode; full?: boolean; hint?: string }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 8, gridColumn: full ? "1 / -1" : undefined }}>
+      <span style={{ color: "#242438", fontSize: 13, fontWeight: 800 }}>{label}</span>
+      {children}
+      {hint && <span style={{ color: "#9999b0", fontSize: 11 }}>{hint}</span>}
+    </label>
+  );
+}
+
+function SavedBanner({ text = "Changes saved successfully." }: { text?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "#ecfdf5", borderRadius: 10, fontSize: 12, color: "#059669", fontWeight: 700 }}>
+      <Check size={14} /> {text}
+    </div>
+  );
+}
+
+function SaveButton({ label = "Save Changes", onClick, disabled = false }: { label?: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 18, borderTop: "1px solid #eeeeF6", marginTop: 22 }}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onClick}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          border: "none",
+          borderRadius: 10,
+          padding: "12px 24px",
+          background: disabled ? "#e8e8f0" : "var(--accent)",
+          color: disabled ? "#aaaabc" : "#fff",
+          fontSize: 13,
+          fontWeight: 800,
+          cursor: disabled ? "not-allowed" : "pointer",
+        }}
+      >
+        <Save size={15} /> {label}
+      </button>
+    </div>
+  );
+}
+
+function Toggle({ value, onChange }: { value: boolean; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      aria-pressed={value}
+      style={{ width: 44, height: 24, border: "none", borderRadius: 999, background: value ? "var(--accent)" : "#dedeea", position: "relative", cursor: "pointer" }}
+    >
+      <span style={{ position: "absolute", top: 3, left: value ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.2)", transition: "left 0.15s" }} />
+    </button>
+  );
+}
+
+function SalonProfile() {
+  const [form, setForm] = useState<SalonSettings>({ ...(settingsStore.salon as SalonSettings) });
+  const [saved, setSaved] = useState(false);
+
+  function setField(field: keyof SalonSettings, value: string) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function save() {
+    Object.assign(settingsStore.salon, form);
+    saveSettings();
+    updateCurrentUser({ salonName: form.name, phone: form.phone });
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  }
+
+  return (
+    <section>
+      <h2 style={{ margin: "0 0 26px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Salon Profile</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px 18px" }}>
+        <Field label="Salon Name"><input style={inputStyle} value={form.name} onChange={(event) => setField("name", event.target.value)} /></Field>
+        <Field label="Phone"><input style={inputStyle} value={form.phone} onChange={(event) => setField("phone", event.target.value)} /></Field>
+        <Field label="Email"><input style={inputStyle} value={form.email} onChange={(event) => setField("email", event.target.value)} /></Field>
+        <Field label="City"><input style={inputStyle} value={form.city} onChange={(event) => setField("city", event.target.value)} /></Field>
+        <Field label="Address" full><input style={inputStyle} value={form.address} onChange={(event) => setField("address", event.target.value)} /></Field>
+        <Field label="Currency">
+          <select style={inputStyle} value={form.currency} onChange={(event) => setField("currency", event.target.value)}>
+            <option value="PKR">PKR — Pakistani Rupee</option>
+            <option value="USD">USD — US Dollar</option>
+            <option value="AED">AED — UAE Dirham</option>
+          </select>
+        </Field>
+        <Field label="Timezone">
+          <select style={inputStyle} value={form.timezone} onChange={(event) => setField("timezone", event.target.value)}>
+            <option value="Asia/Karachi">Asia/Karachi (PKT +5:00)</option>
+            <option value="Asia/Dubai">Asia/Dubai (GST +4:00)</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </Field>
+      </div>
+      {saved && <div style={{ marginTop: 16 }}><SavedBanner /></div>}
+      <SaveButton onClick={save} />
+    </section>
+  );
+}
+
+function BusinessHours() {
+  const [hours, setHours] = useState<BusinessHour[]>(() => (settingsStore.hours as BusinessHour[]).map((hour) => ({ ...hour })));
+  const [saved, setSaved] = useState(false);
+
+  function updateHour(index: number, patch: Partial<BusinessHour>) {
+    setHours((current) => current.map((hour, i) => (i === index ? { ...hour, ...patch } : hour)));
+  }
+
+  function save() {
+    hours.forEach((hour, index) => Object.assign(settingsStore.hours[index], hour));
+    saveSettings();
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  }
+
+  return (
+    <section>
+      <h2 style={{ margin: "0 0 24px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Business Hours</h2>
+      <div style={{ display: "grid", gap: 10 }}>
+        {hours.map((hour, index) => (
+          <div key={hour.day} style={{ display: "grid", gridTemplateColumns: "140px 56px 1fr", alignItems: "center", gap: 14, padding: "12px 14px", background: "#fafafd", border: "1px solid #eeeeF6", borderRadius: 12 }}>
+            <strong style={{ fontSize: 13, color: "#242438" }}>{hour.day}</strong>
+            <Toggle value={hour.open} onChange={() => updateHour(index, { open: !hour.open })} />
+            {hour.open ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <input type="time" style={{ ...inputStyle, width: 132 }} value={hour.from} onChange={(event) => updateHour(index, { from: event.target.value })} />
+                <span style={{ fontSize: 12, color: "#9999b0" }}>to</span>
+                <input type="time" style={{ ...inputStyle, width: 132 }} value={hour.to} onChange={(event) => updateHour(index, { to: event.target.value })} />
+              </div>
+            ) : (
+              <span style={{ color: "#aaaabc", fontSize: 12, fontStyle: "italic" }}>Closed</span>
+            )}
+          </div>
+        ))}
+      </div>
+      {saved && <div style={{ marginTop: 16 }}><SavedBanner /></div>}
+      <SaveButton onClick={save} />
+    </section>
+  );
+}
+
+function Security() {
+  const [form, setForm] = useState({ current: "", next: "", confirm: "" });
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const canSave = form.current.length > 0 && form.next.length >= 8 && form.next === form.confirm;
+
+  function save() {
+    if (!canSave) return;
+    setError("");
+    try {
+      updateCurrentPassword(form.current, form.next);
+      setForm({ current: "", next: "", confirm: "" });
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Password could not be updated.");
+    }
+  }
+
+  return (
+    <section>
+      <h2 style={{ margin: "0 0 24px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Security</h2>
+      <div style={{ display: "grid", gap: 18 }}>
+        <Field label="Current Password"><input type="password" style={inputStyle} value={form.current} onChange={(event) => setForm((current) => ({ ...current, current: event.target.value }))} placeholder="••••••••" /></Field>
+        <Field label="New Password" hint="Use at least 8 characters."><input type="password" style={inputStyle} value={form.next} onChange={(event) => setForm((current) => ({ ...current, next: event.target.value }))} placeholder="••••••••" /></Field>
+        <Field label="Confirm New Password"><input type="password" style={{ ...inputStyle, borderColor: form.confirm && form.confirm !== form.next ? "#dc2626" : "#e4e4ee" }} value={form.confirm} onChange={(event) => setForm((current) => ({ ...current, confirm: event.target.value }))} placeholder="••••••••" /></Field>
+      </div>
+      {error && <div style={{ marginTop: 16, background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", fontSize: 12, fontWeight: 700 }}>{error}</div>}
+      {saved && <div style={{ marginTop: 16 }}><SavedBanner text="Password updated successfully." /></div>}
+      <SaveButton label="Update Password" onClick={save} disabled={!canSave} />
+    </section>
+  );
+}
+
+interface BotSailorSettings {
+  apiToken: string;
+  phoneNumberId: string;
+  ownerPhone: string;
+  autoReminder: boolean;
+  reminderHours: number;
+  reminderTemplateId: string;
+  autoConfirmation: boolean;
+  confirmationTemplateId: string;
+  autoFollowup: boolean;
+  followupTemplateId: string;
+  autoLowStock: boolean;
+  lowStockTemplateId: string;
+}
+
+function ReminderRow({
+  label,
+  hint,
+  enabled,
+  onToggle,
+  templateId,
+  onTemplateId,
+  extra,
+}: {
+  label: string;
+  hint: string;
+  enabled: boolean;
+  onToggle: () => void;
+  templateId: string;
+  onTemplateId: (v: string) => void;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <div style={{ border: "1px solid #e8e8f4", borderRadius: 12, padding: "16px 18px", background: enabled ? "#faf9ff" : "#fafafd" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enabled ? 14 : 0 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#1d1d2f" }}>{label}</div>
+          <div style={{ fontSize: 11, color: "#9999b0", marginTop: 2 }}>{hint}</div>
+        </div>
+        <Toggle value={enabled} onChange={onToggle} />
+      </div>
+      {enabled && (
+        <div style={{ display: "grid", gap: 10 }}>
+          <Field label="WhatsApp Template Name" hint="Enter the exact template name from Meta (e.g. reminder, confirmm)">
+            <input
+              style={inputStyle}
+              value={templateId}
+              onChange={(e) => onTemplateId(e.target.value)}
+              placeholder="e.g. reminder"
+            />
+          </Field>
+          {extra}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WhatsAppSection() {
+  const [form, setForm] = useState<BotSailorSettings>({ ...(settingsStore.botsailor as BotSailorSettings) });
+  const [saved, setSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  function set<K extends keyof BotSailorSettings>(key: K, value: BotSailorSettings[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function save() {
+    Object.assign(settingsStore.botsailor, form);
+    saveSettings();
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  }
+
+  async function testConnection() {
+    if (!form.apiToken || !form.phoneNumberId) {
+      setTestResult({ ok: false, msg: "Enter API Token and Phone Number ID first." });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch(`/api/whatsapp/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiToken: form.apiToken,
+          phoneNumberId: form.phoneNumberId,
+          templateId: "test",
+          phone: form.ownerPhone || "0000000000",
+          variables: {},
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.status !== 422 && data.status !== 401) {
+        setTestResult({ ok: true, msg: "BotSailor API reachable. Check your template IDs next." });
+      } else {
+        setTestResult({ ok: false, msg: `API responded with status ${data.status ?? res.status}. Check your API Token.` });
+      }
+    } catch {
+      setTestResult({ ok: false, msg: "Could not reach BotSailor. Check your internet connection." });
+    }
+    setTesting(false);
+  }
+
+  const isConnected = !!(form.apiToken && form.phoneNumberId);
+
+  return (
+    <section>
+      <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>WhatsApp Automation</h2>
+      <p style={{ margin: "0 0 24px", color: "#9999b0", fontSize: 12 }}>
+        Powered by BotSailor — connect your WhatsApp number at{" "}
+        <span style={{ color: "var(--accent)", fontWeight: 700 }}>botsailor.com</span>, then paste your credentials below.
+      </p>
+
+      {/* Connection status banner */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 12, border: `1px solid ${isConnected ? "#c4b5fd" : "#e8e8f4"}`, background: isConnected ? "rgba(124,58,237,0.06)" : "#fafafd", marginBottom: 22 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: isConnected ? "var(--accent)" : "#d1d1e0" }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: isConnected ? "var(--accent)" : "#9999b0" }}>
+            {isConnected ? "BotSailor Connected" : "Not configured"}
+          </span>
+        </div>
+        {isConnected && (
+          <span style={{ fontSize: 11, color: "#9999b0" }}>Scheduler runs every 60 seconds</span>
+        )}
+      </div>
+
+      {/* API Credentials */}
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#7c7c9a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
+          BotSailor Credentials
+        </div>
+        <div style={{ display: "grid", gap: 14 }}>
+          <Field label="API Token" hint="BotSailor dashboard → Settings → API Token">
+            <input
+              style={inputStyle}
+              type="password"
+              value={form.apiToken}
+              onChange={(e) => set("apiToken", e.target.value)}
+              placeholder="1|xxxxxxxxxxxxxxxxxxxxxxxx"
+            />
+          </Field>
+          <Field label="Phone Number ID" hint="BotSailor dashboard → WhatsApp → Phone Number ID">
+            <input
+              style={inputStyle}
+              value={form.phoneNumberId}
+              onChange={(e) => set("phoneNumberId", e.target.value)}
+              placeholder="e.g. 123456789"
+            />
+          </Field>
+          <Field label="Your WhatsApp Number (for owner alerts)" hint="International format, e.g. 923001234567">
+            <input
+              style={inputStyle}
+              value={form.ownerPhone}
+              onChange={(e) => set("ownerPhone", e.target.value)}
+              placeholder="923001234567"
+            />
+          </Field>
+          <div>
+            <button
+              type="button"
+              onClick={testConnection}
+              disabled={testing}
+              style={{ border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", borderRadius: 9, padding: "8px 18px", fontSize: 12, fontWeight: 800, cursor: testing ? "wait" : "pointer" }}
+            >
+              {testing ? "Testing..." : "Test Connection"}
+            </button>
+            {testResult && (
+              <span style={{ marginLeft: 12, fontSize: 12, fontWeight: 700, color: testResult.ok ? "#059669" : "#dc2626" }}>
+                {testResult.msg}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Automation rules */}
+      <div style={{ fontSize: 11, fontWeight: 800, color: "#7c7c9a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
+        Automatic Messages
+      </div>
+      <div style={{ display: "grid", gap: 12, marginBottom: 22 }}>
+        <ReminderRow
+          label="Appointment Reminder"
+          hint="Sent automatically X hours before appointment"
+          enabled={form.autoReminder}
+          onToggle={() => set("autoReminder", !form.autoReminder)}
+          templateId={form.reminderTemplateId}
+          onTemplateId={(v) => set("reminderTemplateId", v)}
+          extra={
+            <Field label="Hours before appointment">
+              <select style={inputStyle} value={form.reminderHours} onChange={(e) => set("reminderHours", Number(e.target.value))}>
+                <option value={1}>1 hour before</option>
+                <option value={2}>2 hours before</option>
+                <option value={4}>4 hours before</option>
+                <option value={12}>12 hours before</option>
+                <option value={24}>24 hours before</option>
+                <option value={48}>48 hours before</option>
+              </select>
+            </Field>
+          }
+        />
+        <ReminderRow
+          label="Booking Confirmation"
+          hint="Sent when a new appointment is booked"
+          enabled={form.autoConfirmation}
+          onToggle={() => set("autoConfirmation", !form.autoConfirmation)}
+          templateId={form.confirmationTemplateId}
+          onTemplateId={(v) => set("confirmationTemplateId", v)}
+        />
+        <ReminderRow
+          label="Follow-up Message"
+          hint="Sent after appointment is marked completed"
+          enabled={form.autoFollowup}
+          onToggle={() => set("autoFollowup", !form.autoFollowup)}
+          templateId={form.followupTemplateId}
+          onTemplateId={(v) => set("followupTemplateId", v)}
+        />
+        <ReminderRow
+          label="Low Stock Alert"
+          hint="Sent to owner once daily when items are running low"
+          enabled={form.autoLowStock}
+          onToggle={() => set("autoLowStock", !form.autoLowStock)}
+          templateId={form.lowStockTemplateId}
+          onTemplateId={(v) => set("lowStockTemplateId", v)}
+        />
+      </div>
+
+      {/* Template names guide */}
+      <div style={{ background: "#f5f4ff", border: "1px solid #ddd6fe", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", marginBottom: 6 }}>How it works</div>
+        <div style={{ fontSize: 12, color: "#5a5a78", lineHeight: 1.6 }}>
+          Messages are sent directly via <strong>Meta WhatsApp Business API</strong>. Enter the exact template name from your Meta Business Manager (e.g. <code style={{ background: "#ede9fe", borderRadius: 4, padding: "1px 5px", color: "#5B21B6" }}>reminder</code>, <code style={{ background: "#ede9fe", borderRadius: 4, padding: "1px 5px", color: "#5B21B6" }}>confirmm</code>). Variables like client name, service, date and time are filled in automatically.
+        </div>
+      </div>
+
+      {saved && <SavedBanner />}
+      <SaveButton onClick={save} />
+    </section>
+  );
+}
+
+function VirtualTryOnSection() {
+  const [token, setToken] = useState(() => (settingsStore.huggingface as { apiToken: string }).apiToken || "");
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    (settingsStore.huggingface as { apiToken: string }).apiToken = token.trim();
+    saveSettings();
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  }
+
+  return (
+    <section>
+      <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Virtual Try-On</h2>
+      <p style={{ margin: "0 0 24px", color: "#9999b0", fontSize: 12 }}>
+        Powered by Qwen Image Edit AI — edits your actual photo directly. Free to use, token optional for higher rate limits.
+      </p>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 12, border: `1px solid ${token ? "#c4b5fd" : "#bbf7d0"}`, background: token ? "rgba(124,58,237,0.06)" : "#ecfdf5", marginBottom: 22 }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: token ? "var(--accent)" : "#059669" }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: token ? "var(--accent)" : "#059669" }}>
+          {token ? "✨ Hugging Face connected — higher rate limits active" : "✅ Free tier active — no token needed"}
+        </span>
+      </div>
+
+      <div style={{ display: "grid", gap: 14 }}>
+        <Field label="Hugging Face API Token (Optional)" hint="huggingface.co/settings/tokens — Gives higher rate limits and shorter queue times">
+          <input
+            type="password"
+            style={inputStyle}
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="hf_••••••••••••••••••••••••••••••••••••"
+          />
+        </Field>
+        <div style={{ background: "#f5f4ff", border: "1px solid #ddd6fe", borderRadius: 10, padding: "12px 14px", fontSize: 12, color: "#5a5a78", lineHeight: 1.6 }}>
+          <strong style={{ color: "var(--accent)", display: "block", marginBottom: 6 }}>🎨 Qwen Image Edit — Real Photo Editing</strong>
+          <ul style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 4 }}>
+            <li><strong>Edits your actual photo</strong> — Not a generated image</li>
+            <li><strong>Hair color, style, makeup</strong> — Instruction-based editing</li>
+            <li><strong>Face preserved</strong> — Only the requested area changes</li>
+            <li><strong>Model:</strong> Qwen/Qwen-Image-Edit-2511</li>
+          </ul>
+        </div>
+        <div style={{ background: "#ecfdf5", border: "1px solid #bbf7d0", borderRadius: 10, padding: "12px 14px", fontSize: 12, color: "#047857", lineHeight: 1.6 }}>
+          <strong>How to get your Hugging Face token:</strong>
+          <ol style={{ margin: "6px 0 0 0", paddingLeft: 20, display: "grid", gap: 4 }}>
+            <li>Go to <strong>huggingface.co</strong> and sign up / log in</li>
+            <li>Go to <strong>Settings → Access Tokens</strong></li>
+            <li>Click <strong>New token</strong> → select <strong>Read</strong> or <strong>Write</strong></li>
+            <li>Copy the token (starts with <strong>hf_</strong>)</li>
+            <li>Paste it above and save</li>
+          </ol>
+        </div>
+      </div>
+
+      {saved && <div style={{ marginTop: 16 }}><SavedBanner text="Hugging Face token saved successfully." /></div>}
+      <SaveButton label="Save Token" onClick={save} />
+    </section>
+  );
+}
+
+function SectionContent({ active }: { active: SectionId }) {
+  if (active === "salon") return <SalonProfile />;
+  if (active === "hours") return <BusinessHours />;
+  if (active === "security") return <Security />;
+  if (active === "tryon") return <VirtualTryOnSection />;
+  return <WhatsAppSection />;
+}
+
+export default function AccountPage() {
+  const router = useRouter();
+  const currentUser = getCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
+  const SECTIONS = isAdmin
+    ? [...BASE_SECTIONS, { id: "tryon" as SectionId, label: "Virtual Try-On", icon: Wand2 }]
+    : BASE_SECTIONS;
+  const [active, setActive] = useState<SectionId>("salon");
+
+  function handleSignOut() {
+    signOut();
+    router.replace("/sign-in");
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f5f6f9", padding: "28px 32px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+        <div>
+          <h1 style={{ margin: 0, color: "#1d1d2f", fontSize: 22, fontWeight: 900 }}>Account</h1>
+          <p style={{ margin: "5px 0 0", color: "#9393aa", fontSize: 12 }}>Manage your salon profile, operations, and account preferences.</p>
+        </div>
+        <button onClick={handleSignOut} style={{ display: "flex", alignItems: "center", gap: 7, border: "1px solid #fecaca", background: "#fff", color: "#dc2626", borderRadius: 20, padding: "8px 14px", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+          <LogOut size={14} /> Sign out
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 22 }}>
+        <aside style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 16, overflow: "hidden", alignSelf: "start", boxShadow: "0 1px 4px rgba(20,20,40,0.03)" }}>
+          {SECTIONS.map((section) => {
+            const Icon = section.icon;
+            const isActive = active === section.id;
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => setActive(section.id)}
+                style={{
+                  width: "100%",
+                  height: 56,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "0 20px",
+                  border: "none",
+                  borderLeft: isActive ? "4px solid var(--accent)" : "4px solid transparent",
+                  background: isActive ? "var(--accent-dim)" : "#fff",
+                  color: isActive ? "var(--accent)" : "#8989a6",
+                  fontSize: 15,
+                  fontWeight: isActive ? 900 : 600,
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <Icon size={18} />
+                <span style={{ flex: 1 }}>{section.label}</span>
+                <ChevronRight size={17} color={isActive ? "var(--accent)" : "#b8b8c8"} />
+              </button>
+            );
+          })}
+        </aside>
+
+        <main style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 16, padding: "32px 34px", minHeight: 520, boxShadow: "0 1px 4px rgba(20,20,40,0.03)" }}>
+          <SectionContent active={active} />
+        </main>
+      </div>
+    </div>
+  );
+}

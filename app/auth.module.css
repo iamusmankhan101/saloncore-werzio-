@@ -1,0 +1,378 @@
+.authPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #fff;
+  color: #19192b;
+}
+
+.authPage::before {
+  content: none;
+}
+
+.authShell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  align-items: center;
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.brandPanel {
+  position: relative;
+  height: 100vh;
+  min-height: 0;
+  border-radius: 0;
+  padding: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  color: #fff;
+  background-image:
+    linear-gradient(180deg, rgba(13, 13, 20, 0.04), rgba(13, 13, 20, 0.76)),
+    linear-gradient(90deg, rgba(82, 43, 230, 0.8), rgba(192, 168, 255, 0.18)),
+    url("/booking-hero.png");
+  background-size: cover;
+  background-position: center;
+}
+
+.brandPanel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 16% 23%, rgba(50, 118, 255, 0.42), transparent 28%),
+    radial-gradient(circle at 82% 18%, rgba(230, 188, 255, 0.58), transparent 34%),
+    linear-gradient(180deg, transparent 0%, rgba(18, 14, 54, 0.64) 100%);
+  pointer-events: none;
+}
+
+.brandContent,
+.brandTop,
+.brandBottom {
+  position: relative;
+  z-index: 1;
+}
+
+.brandTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.brandMark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.18);
+  display: grid;
+  place-items: center;
+  box-shadow: none;
+  backdrop-filter: blur(12px);
+}
+
+.eyebrow {
+  color: #d8ccff;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  margin-bottom: 12px;
+}
+
+.headline {
+  max-width: 390px;
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.supportingText {
+  max-width: 380px;
+  margin: 14px 0 0;
+  color: #ddd9ea;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.brandStats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.statPill {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.1);
+  color: #f6f2ff;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  backdrop-filter: blur(10px);
+}
+
+.brandBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+}
+
+.miniCard {
+  width: min(260px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 11px 12px;
+  backdrop-filter: blur(16px);
+}
+
+.miniCardTitle {
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.miniCardText {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 10px;
+}
+
+.formPanel {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px;
+  background: transparent;
+}
+
+.formCard {
+  width: 100%;
+  max-width: 360px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.formCardWide {
+  max-width: 430px;
+}
+
+.formHeader {
+  margin-bottom: 22px;
+}
+
+.formHeaderWithIcon {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.formIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #7C3AED;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 12px 22px rgba(124, 58, 237, 0.2);
+}
+
+.formTitle {
+  margin: 0;
+  color: #1a1a2e;
+  font-size: 24px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.formSubtitle {
+  margin: 7px 0 0;
+  color: #8a8aa2;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.fullField {
+  grid-column: 1 / -1;
+}
+
+.field {
+  display: block;
+  margin-bottom: 13px;
+}
+
+.label {
+  display: block;
+  color: #3b3b52;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 7px;
+}
+
+.inputWrap {
+  position: relative;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 15px;
+  top: 10px;
+  color: #9a9ab4;
+}
+
+.input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #d9d9e3;
+  border-radius: 8px;
+  padding: 0 14px 0 43px;
+  font-size: 11px;
+  color: #1a1a2e;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:focus {
+  border-color: #9b72f2;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.passwordInput {
+  padding-right: 48px;
+}
+
+.iconButton {
+  position: absolute;
+  right: 11px;
+  top: 4px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #7C3AED;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 11px;
+  margin-bottom: 12px;
+}
+
+.signupError {
+  margin-top: 16px;
+  margin-bottom: 0;
+}
+
+.primaryButton {
+  width: 100%;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  background: #7C3AED;
+  color: #fff;
+  font-weight: 800;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 12px 24px rgba(124, 58, 237, 0.26);
+}
+
+.footerText {
+  margin: 18px 0 0;
+  color: #8b8ba3;
+  font-size: 11px;
+  text-align: center;
+}
+
+.footerLink {
+  color: #7C3AED;
+  font-weight: 800;
+}
+
+@media (max-width: 980px) {
+  .authShell {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .brandPanel {
+    height: 420px;
+    padding: 24px;
+  }
+
+  .formPanel {
+    min-height: auto;
+    padding: 28px 18px 42px;
+  }
+
+  .brandBottom {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .brandPanel {
+    height: 320px;
+    padding: 24px;
+  }
+
+  .headline {
+    font-size: 27px;
+  }
+
+  .supportingText {
+    font-size: 11px;
+  }
+
+  .authPage {
+    padding: 0;
+  }
+
+  .fieldGrid {
+    grid-template-columns: 1fr;
+  }
+}
