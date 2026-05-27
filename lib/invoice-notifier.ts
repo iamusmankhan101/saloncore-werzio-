@@ -1,10 +1,10 @@
 import { getInvoices } from "./invoices";
-import { getCurrentUser } from "./auth";
+import { getCurrentUser, userKey } from "./auth";
 
-const NOTIFIED_KEY = "werzio_invoice_notified";
+const NOTIFIED_BASE = "werzio_invoice_notified";
 
 function getNotified(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem(NOTIFIED_KEY) || "{}"); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(userKey(NOTIFIED_BASE)) || "{}"); } catch { return {}; }
 }
 
 /** Sends email for any due/overdue invoices not yet notified today. */
@@ -45,5 +45,5 @@ export async function checkInvoiceNotifications(): Promise<void> {
     } catch { /* ignore network errors */ }
   }
 
-  localStorage.setItem(NOTIFIED_KEY, JSON.stringify(notified));
+  localStorage.setItem(userKey(NOTIFIED_BASE), JSON.stringify(notified));
 }

@@ -1,5 +1,7 @@
 // Settings persisted to localStorage so changes survive page refreshes
 
+import { userKey } from "./auth";
+
 const STORAGE_KEY = "werzio_settings";
 export const SETTINGS_CHANGED_EVENT = "werzio_settings_changed";
 
@@ -69,7 +71,7 @@ const defaults = {
 function load() {
   if (typeof window === "undefined") return structuredClone(defaults);
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(userKey(STORAGE_KEY));
     if (!raw) return structuredClone(defaults);
     // Deep merge so new default keys are always present
     const saved = JSON.parse(raw);
@@ -90,7 +92,7 @@ function load() {
 
 function persist() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settingsStore));
+  localStorage.setItem(userKey(STORAGE_KEY), JSON.stringify(settingsStore));
 }
 
 export const settingsStore = load();

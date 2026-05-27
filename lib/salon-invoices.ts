@@ -4,6 +4,7 @@
 // TO the salon owner).
 
 import type { PaymentMethod } from "@/lib/types";
+import { userKey } from "@/lib/auth";
 
 export type SalonInvoiceStatus = "paid" | "unpaid";
 
@@ -41,22 +42,22 @@ export interface SalonInvoice {
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
-const KEY = "werzio_salon_invoices";
-const COUNTER_KEY = "werzio_salon_invoice_counter";
+const BASE_KEY     = "werzio_salon_invoices";
+const BASE_COUNTER = "werzio_salon_invoice_counter";
 
 export function getSalonInvoices(): SalonInvoice[] {
   if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(userKey(BASE_KEY)) || "[]"); } catch { return []; }
 }
 
 export function saveSalonInvoices(list: SalonInvoice[]): void {
-  if (typeof window !== "undefined") localStorage.setItem(KEY, JSON.stringify(list));
+  if (typeof window !== "undefined") localStorage.setItem(userKey(BASE_KEY), JSON.stringify(list));
 }
 
 function nextInvoiceNumber(): string {
   if (typeof window === "undefined") return "SI-0001";
-  const n = parseInt(localStorage.getItem(COUNTER_KEY) || "0", 10) + 1;
-  localStorage.setItem(COUNTER_KEY, String(n));
+  const n = parseInt(localStorage.getItem(userKey(BASE_COUNTER)) || "0", 10) + 1;
+  localStorage.setItem(userKey(BASE_COUNTER), String(n));
   const year = new Date().getFullYear();
   return `SI-${year}-${String(n).padStart(4, "0")}`;
 }

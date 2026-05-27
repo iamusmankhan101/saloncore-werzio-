@@ -19,8 +19,12 @@ export interface PaymentRequest {
   reviewNote: string | null;
 }
 
+import { userKey } from "./auth";
+
+// payment_requests stays GLOBAL (no user prefix) — admin reads all users' requests
 const KEY = "werzio_payment_requests";
-const ACTIVE_PLAN_KEY = "werzio_active_plan";
+// active_plan is per-user
+const ACTIVE_PLAN_BASE = "werzio_active_plan";
 
 export function getPaymentRequests(): PaymentRequest[] {
   if (typeof window === "undefined") return [];
@@ -59,9 +63,9 @@ export function updatePaymentRequest(id: string, status: PaymentStatus, note?: s
 
 export function getActivePlan(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(ACTIVE_PLAN_KEY);
+  return localStorage.getItem(userKey(ACTIVE_PLAN_BASE));
 }
 
 export function setActivePlan(planId: string) {
-  localStorage.setItem(ACTIVE_PLAN_KEY, planId);
+  if (typeof window !== "undefined") localStorage.setItem(userKey(ACTIVE_PLAN_BASE), planId);
 }

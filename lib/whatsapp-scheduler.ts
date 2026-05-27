@@ -1,3 +1,4 @@
+import { userKey } from "./auth";
 import { settingsStore } from "./settings-store";
 import { getStoredAppointments, getStoredClients, getStoredInventory } from "./storage";
 
@@ -37,14 +38,14 @@ const LOW_STOCK_SENT_KEY = "werzio_wa_lowstock_sent";
 
 export function getWaLogs(): WaLogEntry[] {
   if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(userKey(LOG_KEY)) || "[]"); } catch { return []; }
 }
 
 export function appendLog(entry: Omit<WaLogEntry, "id" | "timestamp">) {
   const logs = getWaLogs();
   logs.unshift({ ...entry, id: Date.now().toString(36), timestamp: new Date().toISOString() });
   if (logs.length > MAX_LOG) logs.length = MAX_LOG;
-  localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+  localStorage.setItem(userKey(LOG_KEY), JSON.stringify(logs));
 }
 
 const SENT_KEY = "werzio_wa_sent";
@@ -52,13 +53,13 @@ const CONFIRM_QUEUE_KEY = "werzio_wa_confirm_queue";
 const FOLLOWUP_QUEUE_KEY = "werzio_wa_followup_queue";
 
 function getSentLog(): Record<string, number> {
-  try { return JSON.parse(localStorage.getItem(SENT_KEY) || "{}"); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(userKey(SENT_KEY)) || "{}"); } catch { return {}; }
 }
 
 function markSent(key: string) {
   const log = getSentLog();
   log[key] = Date.now();
-  localStorage.setItem(SENT_KEY, JSON.stringify(log));
+  localStorage.setItem(userKey(SENT_KEY), JSON.stringify(log));
 }
 
 function alreadySent(key: string): boolean {
@@ -66,11 +67,11 @@ function alreadySent(key: string): boolean {
 }
 
 function getQueue(storageKey: string): string[] {
-  try { return JSON.parse(localStorage.getItem(storageKey) || "[]"); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(userKey(storageKey)) || "[]"); } catch { return []; }
 }
 
 function setQueue(storageKey: string, ids: string[]) {
-  localStorage.setItem(storageKey, JSON.stringify(ids));
+  localStorage.setItem(userKey(storageKey), JSON.stringify(ids));
 }
 
 /** Call when a new appointment is booked to queue a confirmation message. */
@@ -229,7 +230,7 @@ export async function checkLowStockAlerts(): Promise<void> {
 
   const today = new Date().toISOString().slice(0, 10);
   const sent: Record<string, string> = (() => {
-    try { return JSON.parse(localStorage.getItem(LOW_STOCK_SENT_KEY) || "{}"); } catch { return {}; }
+    try { return JSON.parse(localStorage.getItem(userKey(LOW_STOCK_SENT_KEY)) || "{}"); } catch { return {}; }
   })();
 
   const inventory = getStoredInventory();
@@ -251,6 +252,6 @@ export async function checkLowStockAlerts(): Promise<void> {
 
   if (ok) {
     newlyLow.forEach((i) => { sent[i.id] = today; });
-    localStorage.setItem(LOW_STOCK_SENT_KEY, JSON.stringify(sent));
+    localStorage.setItem(userKey(LOW_STOCK_SENT_KEY), JSON.stringify(sent));
   }
 }

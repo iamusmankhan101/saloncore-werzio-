@@ -27,15 +27,17 @@ export interface Invoice {
   paidDate: string | null;
 }
 
-const KEY = "werzio_invoices";
+import { userKey } from "./auth";
+
+const BASE_KEY = "werzio_invoices";
 
 export function getInvoices(): Invoice[] {
   if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(userKey(BASE_KEY)) || "[]"); } catch { return []; }
 }
 
 export function saveInvoices(list: Invoice[]) {
-  localStorage.setItem(KEY, JSON.stringify(list));
+  if (typeof window !== "undefined") localStorage.setItem(userKey(BASE_KEY), JSON.stringify(list));
 }
 
 function addDays(dateStr: string, days: number): string {

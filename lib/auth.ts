@@ -204,6 +204,18 @@ export function signOut() {
 }
 
 /**
+ * Returns a user-scoped localStorage key.
+ * e.g. userKey("werzio_appointments") → "werzio_appointments_user_1234567890"
+ * Falls back to the base key if no user is logged in (SSR / unauthenticated).
+ */
+export function userKey(base: string): string {
+  if (!canUseStorage()) return base;
+  const sessionId = localStorage.getItem(SESSION_KEY);
+  if (!sessionId) return base;
+  return `${base}_${sessionId}`;
+}
+
+/**
  * Returns the user if the email exists in storage but is NOT yet verified.
  * Returns null if the email doesn't exist, or if it exists and IS already verified.
  * Used by the sign-up page to resend verification instead of showing a hard error.
