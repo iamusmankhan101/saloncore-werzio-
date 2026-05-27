@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/billing?mode=monthly",
+      "schedule": "0 9 1 * *"
+    },
+    {
+      "path": "/api/cron/billing?mode=daily",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}

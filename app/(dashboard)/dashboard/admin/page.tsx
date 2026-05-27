@@ -45,11 +45,17 @@ function RequestCard({ req, onUpdate }: { req: PaymentRequest; onUpdate: () => v
     updatePaymentRequest(req.id, status, note || undefined);
     if (status === "approved") {
       setActivePlan(req.planId);
-      // Mark the current month's invoice as paid
+      // Mark the current month's invoice as paid in localStorage
       const now = new Date();
       const invId = `${req.userId}_${now.getFullYear()}_${now.getMonth() + 1}`;
       const inv = getInvoices().find((i) => i.id === invId);
       if (inv) markInvoicePaid(invId);
+      // Unsuspend in Turso + send "account restored" email (server-side)
+      fetch("/api/billing/unsuspend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: req.userId }),
+      }).catch((e) => console.warn("[billing/unsuspend] failed:", e));
     }
     setTimeout(() => { setLoading(false); onUpdate(); }, 400);
   }
