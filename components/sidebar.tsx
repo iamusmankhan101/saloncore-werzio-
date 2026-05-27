@@ -78,7 +78,7 @@ export default function Sidebar() {
         <img
           src="/werzio logo.png"
           alt="Werzio"
-          style={{ height: 32, width: "auto", filter: "brightness(0) invert(1)", userSelect: "none", pointerEvents: "none" }}
+          style={{ height: 60, width: "auto", filter: "brightness(0) invert(1)", userSelect: "none", pointerEvents: "none" }}
         />
         <div style={{
           display: "flex", alignItems: "center", gap: 5,

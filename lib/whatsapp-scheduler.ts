@@ -1,4 +1,4 @@
-import { userKey } from "./auth";
+import { userKey, getCurrentUser } from "./auth";
 import { settingsStore } from "./settings-store";
 import { getStoredAppointments, getStoredClients, getStoredInventory } from "./storage";
 
@@ -42,10 +42,25 @@ export function getWaLogs(): WaLogEntry[] {
 }
 
 export function appendLog(entry: Omit<WaLogEntry, "id" | "timestamp">) {
+  const fullEntry: WaLogEntry = {
+    ...entry,
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+    timestamp: new Date().toISOString(),
+  };
   const logs = getWaLogs();
-  logs.unshift({ ...entry, id: Date.now().toString(36), timestamp: new Date().toISOString() });
+  logs.unshift(fullEntry);
   if (logs.length > MAX_LOG) logs.length = MAX_LOG;
   localStorage.setItem(userKey(LOG_KEY), JSON.stringify(logs));
+
+  // Persist to Turso so message history survives across devices / localStorage clears
+  const user = getCurrentUser();
+  if (user) {
+    fetch("/api/wa/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id, entry: fullEntry }),
+    }).catch(() => { /* fire-and-forget — non-critical */ });
+  }
 }
 
 const SENT_KEY = "werzio_wa_sent";
