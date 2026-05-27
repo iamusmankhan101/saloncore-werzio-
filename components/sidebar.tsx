@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare, UserCog, BarChart3, Package, Globe, Sparkles, Search, CreditCard, Scissors, CircleUserRound, LogOut, Shield, Wand2, ReceiptText } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare, UserCog, BarChart3, Package, Globe, Sparkles, Search, CreditCard, Scissors, CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart } from "lucide-react";
 import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 
@@ -18,6 +18,7 @@ const APP_NAV = [
   { href: "/dashboard/revenue", icon: BarChart3, label: "Revenue" },
   { href: "/dashboard/inventory", icon: Package, label: "Inventory" },
   { href: "/dashboard/invoices", icon: ReceiptText, label: "Invoices" },
+  { href: "/dashboard/pos", icon: ShoppingCart, label: "POS" },
   { href: "/online-booking", icon: Globe, label: "Online Booking" },
   { href: "/dashboard/try-on", icon: Wand2, label: "Virtual Try-On" },
 ];
