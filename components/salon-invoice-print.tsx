@@ -42,27 +42,6 @@ const STATUS_STYLE = {
   unpaid: { color: "#d97706", bg: "#fffbeb", border: "#fde68a", label: "UNPAID" },
 };
 
-// ─── Werzio "Powered by" SVG mark ─────────────────────────────────────────────
-
-function WerzioMark() {
-  return (
-    <svg width="72" height="20" viewBox="0 0 72 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="20" height="20" rx="5" fill="url(#wg)" />
-      <circle cx="10" cy="10" r="4" fill="none" stroke="white" strokeWidth="1.6" />
-      <circle cx="10" cy="10" r="1.8" fill="white" />
-      <path d="M10 6 L10 3.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <path d="M13.2 7.5 L15 5.7" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
-      <text x="24" y="14" fontFamily="system-ui,-apple-system,sans-serif" fontSize="11" fontWeight="800" fill="#5B21B6">Werzio</text>
-      <defs>
-        <linearGradient id="wg" x1="0" y1="0" x2="20" y2="20" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#5B21B6" />
-          <stop offset="1" stopColor="#9333EA" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
-}
-
 // ─── Salon Logo (initials + name) ─────────────────────────────────────────────
 
 function SalonLogo({ name }: { name: string }) {
@@ -397,7 +376,7 @@ export default function SalonInvoicePrint({
               borderTop: "1px solid #f0f0f0",
             }}>
               <span style={{ fontSize: 10, color: "#c0c0d0", fontWeight: 500, letterSpacing: "0.04em" }}>Powered by</span>
-              <WerzioMark />
+              <img src="/werzio logo.png" alt="Werzio" style={{ height: 20, width: "auto", display: "block" }} />
             </div>
           </div>
         </div>
