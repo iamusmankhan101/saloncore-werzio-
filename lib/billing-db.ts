@@ -1,7 +1,17 @@
 /**
  * lib/billing-db.ts
  * Server-side billing state stored in Turso (SQLite).
- * This is the source of truth for the cron engine — independent of localStorage.
+ *
+ * Billing model — 30-day rolling cycles (not calendar months):
+ *   • billing_anchor  = trial_start + 14 days  (when paid billing begins)
+ *   • cycle_index     = floor((today − anchor) / 30)  starting at 0
+ *   • period_start    = anchor + cycle_index × 30 days
+ *   • due_date        = period_start + 10 days  (10 days to pay)
+ *   • overdue after   due_date
+ *   • suspended after due_date + 10 days  (20 days total from invoice)
+ *
+ * Invoice ID format : {userId}_{period_start}   e.g.  user_123_2026-05-15
+ * Invoice number    : INV-{YYYYMMDD}              e.g.  INV-20260515
  */
 
 import { db } from "@/lib/db";
@@ -9,20 +19,22 @@ import { db } from "@/lib/db";
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 export async function ensureBillingTables(): Promise<void> {
+  // Core tables
   await db.execute(`
     CREATE TABLE IF NOT EXISTS billing_users (
-      id               TEXT PRIMARY KEY,
-      email            TEXT NOT NULL,
-      owner_name       TEXT NOT NULL,
-      salon_name       TEXT NOT NULL,
-      phone            TEXT,
-      plan_id          TEXT NOT NULL,
-      plan_name        TEXT NOT NULL,
-      plan_price       INTEGER NOT NULL,
-      trial_start      TEXT NOT NULL,
-      suspended        INTEGER NOT NULL DEFAULT 0,
+      id                TEXT PRIMARY KEY,
+      email             TEXT NOT NULL,
+      owner_name        TEXT NOT NULL,
+      salon_name        TEXT NOT NULL,
+      phone             TEXT,
+      plan_id           TEXT NOT NULL,
+      plan_name         TEXT NOT NULL,
+      plan_price        INTEGER NOT NULL,
+      trial_start       TEXT NOT NULL,
+      billing_anchor    TEXT,
+      suspended         INTEGER NOT NULL DEFAULT 0,
       suspension_reason TEXT,
-      created_at       TEXT NOT NULL
+      created_at        TEXT NOT NULL
     )
   `);
 
@@ -33,6 +45,7 @@ export async function ensureBillingTables(): Promise<void> {
       number                TEXT NOT NULL,
       amount                INTEGER NOT NULL,
       status                TEXT NOT NULL DEFAULT 'unpaid',
+      period_start          TEXT NOT NULL DEFAULT '',
       issued_date           TEXT NOT NULL,
       due_date              TEXT NOT NULL,
       paid_date             TEXT,
@@ -54,6 +67,15 @@ export async function ensureBillingTables(): Promise<void> {
       users_suspended    INTEGER DEFAULT 0
     )
   `);
+
+  // ── Migrations: add columns that may not exist in older deployments ──────────
+  for (const [table, column, def] of [
+    ["billing_users",    "billing_anchor",    "TEXT"],
+    ["billing_invoices", "period_start",      "TEXT NOT NULL DEFAULT ''"],
+  ] as const) {
+    await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`)
+      .catch(() => { /* column already exists — ignore */ });
+  }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -67,7 +89,8 @@ export interface BillingUser {
   planId: string;
   planName: string;
   planPrice: number;
-  trialStart: string;   // YYYY-MM-DD
+  trialStart: string;     // YYYY-MM-DD
+  billingAnchor: string | null; // YYYY-MM-DD — set on first invoice, null until then
   suspended: boolean;
   suspensionReason: string | null;
   createdAt: string;
@@ -79,6 +102,7 @@ export interface BillingInvoice {
   number: string;
   amount: number;
   status: "unpaid" | "paid" | "overdue";
+  periodStart: string;    // YYYY-MM-DD — start of the 30-day period
   issuedDate: string;
   dueDate: string;
   paidDate: string | null;
@@ -88,7 +112,7 @@ export interface BillingInvoice {
   createdAt: string;
 }
 
-// ─── Row → typed object ───────────────────────────────────────────────────────
+// ─── Row → typed objects ──────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToUser(r: any): BillingUser {
@@ -102,6 +126,7 @@ function rowToUser(r: any): BillingUser {
     planName:         r.plan_name as string,
     planPrice:        r.plan_price as number,
     trialStart:       r.trial_start as string,
+    billingAnchor:    (r.billing_anchor as string) ?? null,
     suspended:        (r.suspended as number) === 1,
     suspensionReason: (r.suspension_reason as string) ?? null,
     createdAt:        r.created_at as string,
@@ -116,6 +141,7 @@ function rowToInvoice(r: any): BillingInvoice {
     number:               r.number as string,
     amount:               r.amount as number,
     status:               r.status as BillingInvoice["status"],
+    periodStart:          (r.period_start as string) ?? "",
     issuedDate:           r.issued_date as string,
     dueDate:              r.due_date as string,
     paidDate:             (r.paid_date as string) ?? null,
@@ -126,9 +152,53 @@ function rowToInvoice(r: any): BillingInvoice {
   };
 }
 
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+/** Add N days to a YYYY-MM-DD string, returns YYYY-MM-DD. */
+export function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Difference in whole days (a − b). Positive if a is later. */
+function daysDiff(a: string, b: string): number {
+  const ms = new Date(a + "T00:00:00Z").getTime() - new Date(b + "T00:00:00Z").getTime();
+  return Math.floor(ms / 86_400_000);
+}
+
+/**
+ * Compute the billing anchor: trial_start + 14 days.
+ * This is the date the very first invoice is issued.
+ */
+export function computeBillingAnchor(trialStart: string): string {
+  return addDays(trialStart, 14);
+}
+
+/** Returns true if today is still within the 14-day trial. */
+export function isInTrial(trialStart: string): boolean {
+  const today  = new Date().toISOString().slice(0, 10);
+  const anchor = computeBillingAnchor(trialStart);
+  return today < anchor;
+}
+
+/**
+ * Given a billing anchor, return the period_start for the 30-day cycle that
+ * contains `today`.  Returns null if today is still before the anchor.
+ */
+export function currentPeriodStart(anchor: string, today?: string): string | null {
+  const t = today ?? new Date().toISOString().slice(0, 10);
+  const elapsed = daysDiff(t, anchor);
+  if (elapsed < 0) return null;                        // still in trial
+  const cycleIndex = Math.floor(elapsed / 30);
+  return addDays(anchor, cycleIndex * 30);
+}
+
 // ─── Billing Users ─────────────────────────────────────────────────────────────
 
-export async function upsertBillingUser(user: Omit<BillingUser, "suspended" | "suspensionReason" | "createdAt">): Promise<void> {
+export async function upsertBillingUser(
+  user: Omit<BillingUser, "billingAnchor" | "suspended" | "suspensionReason" | "createdAt">
+): Promise<void> {
   await db.execute({
     sql: `
       INSERT INTO billing_users (id, email, owner_name, salon_name, phone, plan_id, plan_name, plan_price, trial_start, created_at)
@@ -174,51 +244,95 @@ export async function unsuspendUser(userId: string): Promise<void> {
   });
 }
 
-// ─── Billing Invoices ─────────────────────────────────────────────────────────
-
-function invoiceId(userId: string, year: number, month: number): string {
-  return `${userId}_${year}_${month}`;
+/** Persist the billing_anchor once it's computed for the first time. */
+async function setBillingAnchor(userId: string, anchor: string): Promise<void> {
+  await db.execute({
+    sql: "UPDATE billing_users SET billing_anchor = ? WHERE id = ? AND (billing_anchor IS NULL OR billing_anchor = '')",
+    args: [anchor, userId],
+  });
 }
 
-function invoiceNumber(year: number, month: number): string {
-  return `INV-${year}-${String(month).padStart(2, "0")}`;
+// ─── Billing Invoices — 30-day cycles ─────────────────────────────────────────
+
+function invoiceId(userId: string, periodStart: string): string {
+  return `${userId}_${periodStart}`;
 }
 
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+function invoiceNumber(periodStart: string): string {
+  // INV-YYYYMMDD  e.g. INV-20260515
+  return "INV-" + periodStart.replace(/-/g, "");
 }
 
-export async function getOrCreateMonthlyInvoice(
-  user: BillingUser, year: number, month: number
-): Promise<{ invoice: BillingInvoice; created: boolean }> {
-  const id = invoiceId(user.id, year, month);
+/**
+ * Idempotently create the invoice for the 30-day period that contains today.
+ * Returns null if still in trial.
+ */
+export async function getOrCreate30DayInvoice(
+  user: BillingUser
+): Promise<{ invoice: BillingInvoice; created: boolean } | null> {
+  const anchor = user.billingAnchor ?? computeBillingAnchor(user.trialStart);
+  const periodStart = currentPeriodStart(anchor);
+  if (!periodStart) return null;  // still in trial
+
+  // Persist the anchor if not yet saved
+  if (!user.billingAnchor) await setBillingAnchor(user.id, anchor);
+
+  const id = invoiceId(user.id, periodStart);
+
+  // Return existing invoice if already created for this period
   const existing = await db.execute({ sql: "SELECT * FROM billing_invoices WHERE id = ?", args: [id] });
   if (existing.rows.length) {
     return { invoice: rowToInvoice(existing.rows[0]), created: false };
   }
 
-  const issuedDate = `${year}-${String(month).padStart(2, "0")}-01`;
-  const dueDate    = addDays(issuedDate, 7);
-  const now        = new Date().toISOString();
+  // Create new invoice
+  const dueDate = addDays(periodStart, 10);   // 10 days to pay
+  const now     = new Date().toISOString();
 
   await db.execute({
-    sql: `INSERT INTO billing_invoices (id, user_id, number, amount, status, issued_date, due_date, created_at)
-          VALUES (?, ?, ?, ?, 'unpaid', ?, ?, ?)`,
-    args: [id, user.id, invoiceNumber(year, month), user.planPrice, issuedDate, dueDate, now],
+    sql: `INSERT INTO billing_invoices
+            (id, user_id, number, amount, status, period_start, issued_date, due_date, created_at)
+          VALUES (?, ?, ?, ?, 'unpaid', ?, ?, ?, ?)`,
+    args: [id, user.id, invoiceNumber(periodStart), user.planPrice, periodStart, periodStart, dueDate, now],
   });
 
   const created = await db.execute({ sql: "SELECT * FROM billing_invoices WHERE id = ?", args: [id] });
   return { invoice: rowToInvoice(created.rows[0]), created: true };
 }
 
-export async function getMonthlyInvoice(userId: string, year: number, month: number): Promise<BillingInvoice | null> {
-  const id = invoiceId(userId, year, month);
+/**
+ * Get the invoice for the current 30-day cycle (if it exists).
+ * Used when approving payments / unsuspending.
+ */
+export async function getCurrentCycleInvoice(userId: string): Promise<BillingInvoice | null> {
+  // Get the user's billing anchor first
+  const user = await getBillingUser(userId);
+  if (!user) return null;
+
+  const anchor = user.billingAnchor ?? computeBillingAnchor(user.trialStart);
+  const periodStart = currentPeriodStart(anchor);
+  if (!periodStart) return null;
+
+  const id = invoiceId(userId, periodStart);
   const res = await db.execute({ sql: "SELECT * FROM billing_invoices WHERE id = ?", args: [id] });
   return res.rows.length ? rowToInvoice(res.rows[0]) : null;
 }
 
+/**
+ * Get all invoices for a user that are unpaid/overdue (any cycle).
+ */
+export async function getAllUnpaidInvoicesForUser(userId: string): Promise<BillingInvoice[]> {
+  const res = await db.execute({
+    sql: "SELECT * FROM billing_invoices WHERE user_id = ? AND status IN ('unpaid', 'overdue') ORDER BY period_start ASC",
+    args: [userId],
+  });
+  return res.rows.map(rowToInvoice);
+}
+
+/**
+ * All invoices that are unpaid/overdue AND past their due_date.
+ * Used by the daily cron to send overdue reminders.
+ */
 export async function getAllUnpaidOverdueInvoices(): Promise<BillingInvoice[]> {
   const today = new Date().toISOString().slice(0, 10);
   const res = await db.execute({
@@ -229,7 +343,10 @@ export async function getAllUnpaidOverdueInvoices(): Promise<BillingInvoice[]> {
 }
 
 export async function markInvoiceOverdue(id: string): Promise<void> {
-  await db.execute({ sql: "UPDATE billing_invoices SET status = 'overdue' WHERE id = ? AND status = 'unpaid'", args: [id] });
+  await db.execute({
+    sql: "UPDATE billing_invoices SET status = 'overdue' WHERE id = ? AND status = 'unpaid'",
+    args: [id],
+  });
 }
 
 export async function markInvoicePaidDB(invoiceId: string): Promise<void> {

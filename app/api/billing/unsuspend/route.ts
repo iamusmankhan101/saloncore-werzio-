@@ -10,7 +10,7 @@ import { Resend } from "resend";
 import {
   ensureBillingTables,
   getBillingUser,
-  getMonthlyInvoice,
+  getCurrentCycleInvoice,
   markInvoicePaidDB,
   unsuspendUser,
 } from "@/lib/billing-db";
@@ -45,11 +45,8 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: true, note: "User not in billing DB — skipping." });
     }
 
-    // Mark current month's invoice as paid
-    const now   = new Date();
-    const year  = now.getUTCFullYear();
-    const month = now.getUTCMonth() + 1;
-    const inv   = await getMonthlyInvoice(userId, year, month);
+    // Mark the current 30-day cycle invoice as paid
+    const inv = await getCurrentCycleInvoice(userId);
     if (inv && inv.status !== "paid") {
       await markInvoicePaidDB(inv.id);
     }

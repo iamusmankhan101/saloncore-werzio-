@@ -1,21 +1,17 @@
 /**
  * /api/cron/billing
  *
- * The automated billing engine. Called by Vercel Cron (see vercel.json).
- * Secured with CRON_SECRET env variable.
+ * Automated 30-day rolling billing engine. Called by Vercel Cron every day at 09:00 UTC.
  *
- * Two modes (via ?mode= query param):
+ * Each user has their own billing cycle:
+ *   billing_anchor = trial_start + 14 days
+ *   Invoice issued on: anchor, anchor+30, anchor+60, ...
+ *   Due date         = issued_date + 10 days
+ *   Overdue after    : due_date
+ *   Suspended after  : due_date + 10 days  (20 days total window from invoice)
  *
- *   monthly  — Run on the 1st of each month
- *              • Generate invoice for each active user (after trial)
- *              • Email: "Invoice INV-YYYY-MM issued — due {date}"
- *
- *   daily    — Run every day (handles overdue + suspension)
- *              • Mark invoices overdue when past due_date
- *              • Email: overdue reminder (once per invoice)
- *              • If today >= 10th AND invoice still unpaid → suspend + email
- *
- * Can also be triggered manually (with CRON_SECRET) for testing.
+ * Secured with Authorization: Bearer {CRON_SECRET}
+ * Can also be triggered manually with the same header.
  */
 
 import { NextRequest } from "next/server";
@@ -23,13 +19,14 @@ import { Resend } from "resend";
 import {
   ensureBillingTables,
   getAllActiveBillingUsers,
-  getOrCreateMonthlyInvoice,
-  getMonthlyInvoice,
+  getOrCreate30DayInvoice,
   getAllUnpaidOverdueInvoices,
   markInvoiceOverdue,
   suspendUser,
   stampInvoiceNotification,
   logBillingRun,
+  addDays,
+  isInTrial,
   type BillingUser,
   type BillingInvoice,
 } from "@/lib/billing-db";
@@ -38,23 +35,12 @@ import {
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return false; // must be set
+  if (!secret) return false;
   const auth = req.headers.get("authorization") ?? "";
   return auth === `Bearer ${secret}`;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function trialEndDate(trialStart: string): string {
-  const d = new Date(trialStart + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + 14);
-  return d.toISOString().slice(0, 10);
-}
-
-function isInTrial(trialStart: string): boolean {
-  const today = new Date().toISOString().slice(0, 10);
-  return today < trialEndDate(trialStart);
-}
+// ─── Formatting helpers ───────────────────────────────────────────────────────
 
 function fmtDate(d: string): string {
   return new Date(d + "T00:00:00Z").toLocaleDateString("en-US", {
@@ -91,71 +77,75 @@ function emailBase(title: string, body: string, accentColor = "#7C3AED"): string
 </html>`;
 }
 
-function invoiceInfoBox(inv: BillingInvoice, accentColor = "#d97706"): string {
+function invoiceBox(inv: BillingInvoice, accentColor = "#7C3AED"): string {
   return `
-    <div style="background:#f8f8fc;border-radius:12px;padding:20px 22px;margin:16px 0;border:1px solid #ebebf0">
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <span style="color:#9898b0;font-size:12px">Invoice #</span>
-        <span style="color:#1a1a2e;font-size:13px;font-weight:700">${inv.number}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <span style="color:#9898b0;font-size:12px">Due Date</span>
-        <span style="color:${accentColor};font-size:13px;font-weight:700">${fmtDate(inv.dueDate)}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding-top:10px;margin-top:4px;border-top:1px solid #e8e8f0">
-        <span style="color:#1a1a2e;font-size:14px;font-weight:700">Total Due</span>
-        <span style="color:#1a1a2e;font-size:16px;font-weight:900">${fmt(inv.amount)}</span>
-      </div>
-    </div>`;
+  <div style="background:#f8f8fc;border-radius:12px;padding:20px 22px;margin:16px 0;border:1px solid #ebebf0">
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="color:#9898b0;font-size:12px">Invoice</span>
+      <span style="color:#1a1a2e;font-size:13px;font-weight:700">${inv.number}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="color:#9898b0;font-size:12px">Billing Period</span>
+      <span style="color:#1a1a2e;font-size:13px;font-weight:600">${fmtDate(inv.periodStart)} – ${fmtDate(addDays(inv.periodStart, 30))}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="color:#9898b0;font-size:12px">Due Date</span>
+      <span style="color:${accentColor};font-size:13px;font-weight:700">${fmtDate(inv.dueDate)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding-top:10px;margin-top:4px;border-top:1px solid #e8e8f0">
+      <span style="color:#1a1a2e;font-size:14px;font-weight:700">Total Due</span>
+      <span style="color:#1a1a2e;font-size:16px;font-weight:900">${fmt(inv.amount)}</span>
+    </div>
+  </div>`;
 }
 
-function issuedEmail(user: BillingUser, inv: BillingInvoice): { subject: string; html: string; text: string } {
+function issuedEmail(user: BillingUser, inv: BillingInvoice) {
   return {
-    subject: `📄 Invoice ${inv.number} issued — ${fmt(inv.amount)} due by ${fmtDate(inv.dueDate)}`,
+    subject: `📄 Invoice ${inv.number} — ${fmt(inv.amount)} due by ${fmtDate(inv.dueDate)}`,
     html: emailBase(
-      "Your monthly invoice is ready",
+      "Your invoice is ready",
       `<p style="color:#6b6b8a;font-size:14px;line-height:1.7;margin:0 0 4px">
         Hi <strong>${user.ownerName}</strong>,<br>
-        Your <strong>${user.planName} Plan</strong> invoice for this month has been generated.
+        Your <strong>${user.planName} Plan</strong> invoice has been generated for the next 30-day billing period.
       </p>
-      ${invoiceInfoBox(inv, "#7C3AED")}
+      ${invoiceBox(inv, "#7C3AED")}
       <p style="color:#6b6b8a;font-size:13px;line-height:1.6;margin:0">
-        Please log in to your <strong>Werzio Dashboard → Billing</strong> and submit your payment before the due date to avoid any interruption in service.
+        Please log in to your <strong>Werzio Dashboard → Billing</strong> and submit your payment within 10 days to avoid any interruption in service.
       </p>`,
     ),
-    text: `Hi ${user.ownerName},\n\nYour ${user.planName} Plan invoice ${inv.number} has been issued.\nAmount: ${fmt(inv.amount)}\nDue: ${fmtDate(inv.dueDate)}\n\nLog in to Werzio → Billing to submit payment.\n\n— Werzio`,
+    text: `Hi ${user.ownerName},\n\nYour ${user.planName} Plan invoice ${inv.number} has been issued.\nPeriod: ${fmtDate(inv.periodStart)} – ${fmtDate(addDays(inv.periodStart, 30))}\nAmount: ${fmt(inv.amount)}\nDue: ${fmtDate(inv.dueDate)}\n\nLog in to Werzio → Billing to submit payment.\n\n— Werzio`,
   };
 }
 
-function overdueEmail(user: BillingUser, inv: BillingInvoice): { subject: string; html: string; text: string } {
+function overdueEmail(user: BillingUser, inv: BillingInvoice) {
   return {
     subject: `⚠️ Invoice ${inv.number} is overdue — ${fmt(inv.amount)} unpaid`,
     html: emailBase(
       "⚠️ Your invoice is overdue",
       `<p style="color:#6b6b8a;font-size:14px;line-height:1.7;margin:0 0 4px">
         Hi <strong>${user.ownerName}</strong>,<br>
-        Your <strong>${user.planName} Plan</strong> invoice is now overdue. Please pay immediately to avoid account suspension on the 10th.
+        Your <strong>${user.planName} Plan</strong> invoice is now overdue. Please pay immediately to avoid account suspension.
       </p>
-      ${invoiceInfoBox(inv, "#dc2626")}
+      ${invoiceBox(inv, "#dc2626")}
       <p style="color:#92400e;font-size:13px;line-height:1.6;margin:0;padding:12px 14px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a">
-        ⚠️ <strong>Your account will be suspended on the 10th of this month</strong> if payment is not received. Submit your payment screenshot in the Billing section to avoid interruption.
+        ⚠️ <strong>Your account will be suspended 10 days after the due date</strong> if payment is not received. Submit your payment screenshot in the Billing section to avoid interruption.
       </p>`,
       "#d97706",
     ),
-    text: `Hi ${user.ownerName},\n\nYour ${user.planName} Plan invoice ${inv.number} is OVERDUE.\nAmount: ${fmt(inv.amount)}\n\nYour account will be suspended on the 10th if not paid. Log in to Werzio → Billing to submit payment.\n\n— Werzio`,
+    text: `Hi ${user.ownerName},\n\nYour ${user.planName} Plan invoice ${inv.number} is OVERDUE.\nAmount: ${fmt(inv.amount)}\n\nPlease pay now to avoid suspension. Log in to Werzio → Billing.\n\n— Werzio`,
   };
 }
 
-function suspendedEmail(user: BillingUser, inv: BillingInvoice): { subject: string; html: string; text: string } {
+function suspendedEmail(user: BillingUser, inv: BillingInvoice) {
   return {
     subject: `🚫 Your Werzio account has been suspended — Invoice ${inv.number} unpaid`,
     html: emailBase(
       "🚫 Account suspended",
       `<p style="color:#6b6b8a;font-size:14px;line-height:1.7;margin:0 0 4px">
         Hi <strong>${user.ownerName}</strong>,<br>
-        Your <strong>${user.planName} Plan</strong> has been suspended because invoice <strong>${inv.number}</strong> (${fmt(inv.amount)}) was not paid by the 10th.
+        Your <strong>${user.planName} Plan</strong> has been suspended because invoice <strong>${inv.number}</strong> (${fmt(inv.amount)}) was not paid within the payment window.
       </p>
-      ${invoiceInfoBox(inv, "#dc2626")}
+      ${invoiceBox(inv, "#dc2626")}
       <p style="color:#991b1b;font-size:13px;line-height:1.6;margin:0;padding:12px 14px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca">
         Your dashboard access is restricted. To restore your account, log in and go to <strong>Billing</strong> to submit your payment screenshot. Access will be restored within minutes of admin approval.
       </p>`,
@@ -165,71 +155,62 @@ function suspendedEmail(user: BillingUser, inv: BillingInvoice): { subject: stri
   };
 }
 
-// ─── Modes ────────────────────────────────────────────────────────────────────
+// ─── Daily billing run ────────────────────────────────────────────────────────
 
-async function runMonthly(resend: Resend): Promise<{ invoicesGenerated: number; emailsSent: number }> {
-  const now   = new Date();
-  const year  = now.getUTCFullYear();
-  const month = now.getUTCMonth() + 1;
-
-  const users = await getAllActiveBillingUsers();
+async function runDaily(resend: Resend): Promise<{ invoicesGenerated: number; emailsSent: number; usersSuspended: number }> {
+  const today = new Date().toISOString().slice(0, 10);
   let invoicesGenerated = 0;
   let emailsSent = 0;
+  let usersSuspended = 0;
+
+  const users = await getAllActiveBillingUsers();
 
   for (const user of users) {
-    if (isInTrial(user.trialStart)) continue; // still in trial
+    // ── Skip trial users ──────────────────────────────────────────────────────
+    if (isInTrial(user.trialStart)) continue;
 
-    const { invoice, created } = await getOrCreateMonthlyInvoice(user, year, month);
-    if (created) invoicesGenerated++;
+    // ── Step 1: Generate invoice for the current 30-day period (idempotent) ──
+    const result = await getOrCreate30DayInvoice(user);
+    if (result) {
+      if (result.created) {
+        invoicesGenerated++;
+        console.log(`[billing] new invoice ${result.invoice.number} → ${user.email} (period: ${result.invoice.periodStart})`);
+      }
 
-    // Send "invoice issued" email if not already sent
-    if (!invoice.notifiedIssuedAt) {
-      const mail = issuedEmail(user, invoice);
-      try {
-        const { error } = await resend.emails.send({
-          from: "Werzio Billing <noreply@werzio.com>",
-          replyTo: "support@werzio.com",
-          to: [user.email],
-          subject: mail.subject,
-          html: mail.html,
-          text: mail.text,
-        });
-        if (!error) {
-          await stampInvoiceNotification(invoice.id, "notified_issued_at");
-          emailsSent++;
-          console.log(`[billing/monthly] issued email → ${user.email} (${invoice.number})`);
-        } else {
-          console.error(`[billing/monthly] Resend error for ${user.email}:`, error.message);
+      // Send "issued" email once per invoice
+      if (!result.invoice.notifiedIssuedAt) {
+        const mail = issuedEmail(user, result.invoice);
+        try {
+          const { error } = await resend.emails.send({
+            from: "Werzio Billing <noreply@werzio.com>",
+            replyTo: "support@werzio.com",
+            to: [user.email],
+            subject: mail.subject,
+            html: mail.html,
+            text: mail.text,
+          });
+          if (!error) {
+            await stampInvoiceNotification(result.invoice.id, "notified_issued_at");
+            emailsSent++;
+            console.log(`[billing] issued email → ${user.email} (${result.invoice.number})`);
+          } else {
+            console.error(`[billing] issued email error for ${user.email}:`, error.message);
+          }
+        } catch (e) {
+          console.error(`[billing] issued email exception for ${user.email}:`, e);
         }
-      } catch (e) {
-        console.error(`[billing/monthly] send error for ${user.email}:`, e);
       }
     }
   }
 
-  return { invoicesGenerated, emailsSent };
-}
-
-async function runDaily(resend: Resend): Promise<{ emailsSent: number; usersSuspended: number }> {
-  const today    = new Date().toISOString().slice(0, 10);
-  const dayOfMonth = new Date().getUTCDate();
-  const now      = new Date();
-  const year     = now.getUTCFullYear();
-  const month    = now.getUTCMonth() + 1;
-
-  let emailsSent = 0;
-  let usersSuspended = 0;
-
-  // ── Step 1: Mark overdue + send reminder emails ────────────────────────────
+  // ── Step 2: Overdue — invoices past their due_date ────────────────────────
   const overdueInvoices = await getAllUnpaidOverdueInvoices();
 
   for (const inv of overdueInvoices) {
     // Mark as overdue (no-op if already)
     await markInvoiceOverdue(inv.id);
 
-    // Find user
-    const users = await getAllActiveBillingUsers();
-    const user  = users.find((u) => u.id === inv.userId);
+    const user = users.find((u) => u.id === inv.userId);
     if (!user) continue;
 
     // Send overdue reminder once
@@ -247,29 +228,19 @@ async function runDaily(resend: Resend): Promise<{ emailsSent: number; usersSusp
         if (!error) {
           await stampInvoiceNotification(inv.id, "notified_overdue_at");
           emailsSent++;
-          console.log(`[billing/daily] overdue email → ${user.email} (${inv.number})`);
+          console.log(`[billing] overdue email → ${user.email} (${inv.number})`);
         }
       } catch (e) {
-        console.error(`[billing/daily] overdue send error for ${user.email}:`, e);
+        console.error(`[billing] overdue email exception for ${user.email}:`, e);
       }
     }
-  }
 
-  // ── Step 2: Suspend users unpaid after the 10th ────────────────────────────
-  if (dayOfMonth >= 10) {
-    const users = await getAllActiveBillingUsers();
-    for (const user of users) {
-      if (user.suspended) continue;           // already suspended
-      if (isInTrial(user.trialStart)) continue; // still in trial
-
-      const inv = await getMonthlyInvoice(user.id, year, month);
-      if (!inv) continue;                     // no invoice yet
-      if (inv.status === "paid") continue;    // paid — all good
-
-      // Invoice exists, is unpaid/overdue, and today >= 10th → suspend
-      await suspendUser(user.id, `Invoice ${inv.number} unpaid past 10th. Suspended on ${today}.`);
+    // ── Step 3: Suspend if unpaid 10+ days after due_date ──────────────────
+    const suspendAfter = addDays(inv.dueDate, 10); // 20 days total from invoice
+    if (today >= suspendAfter && !user.suspended) {
+      await suspendUser(user.id, `Invoice ${inv.number} unpaid for 20+ days. Suspended on ${today}.`);
       usersSuspended++;
-      console.log(`[billing/daily] suspended user ${user.id} (${user.email})`);
+      console.log(`[billing] suspended user ${user.id} (${user.email})`);
 
       // Send suspension email once
       if (!inv.notifiedSuspendedAt) {
@@ -286,16 +257,16 @@ async function runDaily(resend: Resend): Promise<{ emailsSent: number; usersSusp
           if (!error) {
             await stampInvoiceNotification(inv.id, "notified_suspended_at");
             emailsSent++;
-            console.log(`[billing/daily] suspension email → ${user.email}`);
+            console.log(`[billing] suspension email → ${user.email}`);
           }
         } catch (e) {
-          console.error(`[billing/daily] suspension email error for ${user.email}:`, e);
+          console.error(`[billing] suspension email exception for ${user.email}:`, e);
         }
       }
     }
   }
 
-  return { emailsSent, usersSuspended };
+  return { invoicesGenerated, emailsSent, usersSuspended };
 }
 
 // ─── Route handler ────────────────────────────────────────────────────────────
@@ -303,11 +274,6 @@ async function runDaily(resend: Resend): Promise<{ emailsSent: number; usersSusp
 export async function GET(req: NextRequest) {
   if (!authorized(req)) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
-
-  const mode = req.nextUrl.searchParams.get("mode") ?? "daily";
-  if (mode !== "monthly" && mode !== "daily") {
-    return Response.json({ ok: false, error: "Invalid mode. Use ?mode=monthly or ?mode=daily" }, { status: 400 });
   }
 
   const apiKey = process.env.RESEND_API_KEY;
@@ -319,21 +285,14 @@ export async function GET(req: NextRequest) {
     await ensureBillingTables();
     const resend = new Resend(apiKey);
 
-    if (mode === "monthly") {
-      const { invoicesGenerated, emailsSent } = await runMonthly(resend);
-      await logBillingRun("monthly", invoicesGenerated, emailsSent, 0);
-      console.log(`[billing/monthly] done — invoices: ${invoicesGenerated}, emails: ${emailsSent}`);
-      return Response.json({ ok: true, mode, invoicesGenerated, emailsSent });
-    }
+    const { invoicesGenerated, emailsSent, usersSuspended } = await runDaily(resend);
+    await logBillingRun("daily-30d", invoicesGenerated, emailsSent, usersSuspended);
 
-    // daily
-    const { emailsSent, usersSuspended } = await runDaily(resend);
-    await logBillingRun("daily", 0, emailsSent, usersSuspended);
-    console.log(`[billing/daily] done — emails: ${emailsSent}, suspended: ${usersSuspended}`);
-    return Response.json({ ok: true, mode, emailsSent, usersSuspended });
+    console.log(`[billing] run complete — invoices: ${invoicesGenerated}, emails: ${emailsSent}, suspended: ${usersSuspended}`);
+    return Response.json({ ok: true, invoicesGenerated, emailsSent, usersSuspended });
 
   } catch (err) {
-    console.error("[billing/cron] Unexpected error:", err);
+    console.error("[billing] Unexpected error:", err);
     return Response.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
