@@ -40,7 +40,7 @@ export default function SignInPage() {
       <div className={styles.authShell}>
         <section className={styles.brandPanel}>
           <div className={styles.brandTop}>
-            <img src="/werzio logo.png" alt="Werzio" style={{ height: 36, width: "auto", filter: "brightness(0) invert(1)" }} />
+            <img src="/werzio logo.png" alt="Werzio" style={{ height: 85, width: "auto", filter: "brightness(0) invert(1)" }} />
           </div>
 
           <div className={styles.brandContent}>
@@ -65,7 +65,7 @@ export default function SignInPage() {
         <section className={styles.formPanel}>
           <form onSubmit={handleSubmit} className={styles.formCard}>
             <div className={styles.formHeader}>
-              <img src="/werzio logo.png" alt="Werzio" style={{ height: 40, width: "auto", display: "block" }} />
+              <img src="/werzio logo.png" alt="Werzio" style={{ height: 85, width: "auto", display: "block" }} />
               <h2 className={styles.formTitle} style={{ marginTop: 14 }}>Welcome back</h2>
               <p className={styles.formSubtitle}>Sign in to continue managing your salon workspace.</p>
             </div>
