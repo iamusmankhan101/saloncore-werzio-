@@ -39,7 +39,7 @@ export default function Navbar() {
     <>
       <nav className={`${styles.nav} ${scrolled ? styles.scrolled : ""}`}>
         <a href="#home" className={styles.logo}>
-          <Image src="/werzio-logo.png" alt="Werzio" width={110} height={34} priority />
+          <Image src="/werzio-logo.png" alt="Werzio" width={2000} height={2000} style={{ height: '100px', width: 'auto' }} priority />
         </a>
 
         <ul className={styles.links}>

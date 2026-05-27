@@ -13,7 +13,7 @@ export default function Footer() {
       <div className={styles.grid}>
         <div className={styles.brand}>
           <div className={styles.logo}>
-            <Image src="/werzio-logo.png" alt="Werzio" width={110} height={34} />
+            <Image src="/werzio-logo.png" alt="Werzio" width={2000} height={2000} style={{ height: '100px', width: 'auto' }} />
           </div>
           <p>The all-in-one WhatsApp-native operating system for Pakistan&apos;s beauty industry. Built to help salons grow, retain clients, and earn more.</p>
           <div className={styles.waBadge}>
