@@ -62,20 +62,52 @@ export default function Sidebar() {
     );
   };
 
+  // Compute initials from the signed-in owner's name
+  const initials = (user?.ownerName || salonName || "W")
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
     <aside style={{ width: "var(--sidebar-width)", height: "100vh", background: "#13131a", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, zIndex: 50, overflow: "hidden" }}>
 
-      {/* Profile */}
-      <div style={{ padding: "20px 16px 16px", borderBottom: "1px solid #222230", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #5B21B6, #9333EA)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff" }}>A</div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#f0f0f8" }}>{salonName}</div>
-            <div style={{ fontSize: 11, color: "#5a5a78", textTransform: "capitalize" }}>{user?.role || "Owner"}</div>
-          </div>
+      {/* ── Werzio logo badge ─────────────────────────────────────────── */}
+      <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid #1e1e2c", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <img
+          src="/werzio logo.png"
+          alt="Werzio"
+          style={{ height: 32, width: "auto", filter: "brightness(0) invert(1)", userSelect: "none", pointerEvents: "none" }}
+        />
+        <div style={{
+          display: "flex", alignItems: "center", gap: 5,
+          background: "rgba(124,58,237,0.18)",
+          border: "1px solid rgba(124,58,237,0.35)",
+          borderRadius: 20, padding: "3px 10px 3px 7px",
+        }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#a78bfa", boxShadow: "0 0 6px #7C3AED" }} />
+          <span style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa", letterSpacing: "0.05em" }}>LIVE</span>
         </div>
-        <div style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #2a2a3a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Sparkles size={13} color="#5a5a78" />
+      </div>
+
+      {/* ── Profile chip ─────────────────────────────────────────────── */}
+      <div style={{ padding: "14px 16px", borderBottom: "1px solid #1e1e2c", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+          background: "linear-gradient(135deg, #5B21B6, #9333EA)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 13, fontWeight: 800, color: "#fff",
+          boxShadow: "0 2px 8px rgba(91,33,182,0.45)",
+        }}>
+          {initials}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#f0f0f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{salonName}</div>
+          <div style={{ fontSize: 11, color: "#5a5a78", textTransform: "capitalize" }}>{user?.role || "owner"}</div>
+        </div>
+        <div style={{ width: 26, height: 26, borderRadius: 7, border: "1px solid #2a2a3a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Sparkles size={12} color="#5a5a78" />
         </div>
       </div>
 
