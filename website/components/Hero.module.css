@@ -38,8 +38,9 @@
 }
 
 .sub {
+  font-family: 'Montserrat', sans-serif;
   font-size: 1rem;
-  color: #4b3a6e;
+  color: #1a0a2e;
   line-height: 1.7;
   max-width: 440px;
   margin-bottom: 30px;

@@ -79,8 +79,9 @@
 }
 
 .cardDesc {
+  font-family: 'Montserrat', sans-serif;
   font-size: 0.8rem;
-  color: #6b7280;
+  color: #111111;
   line-height: 1.6;
 }
 
