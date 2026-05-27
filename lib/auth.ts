@@ -202,3 +202,15 @@ export function signOut() {
   if (!canUseStorage()) return;
   localStorage.removeItem(SESSION_KEY);
 }
+
+/**
+ * Returns the user if the email exists in storage but is NOT yet verified.
+ * Returns null if the email doesn't exist, or if it exists and IS already verified.
+ * Used by the sign-up page to resend verification instead of showing a hard error.
+ */
+export function getUnverifiedUser(email: string): AuthUser | null {
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = getUsers().find((u) => u.email.toLowerCase() === normalizedEmail);
+  if (!user || user.emailVerified) return null;
+  return withoutPassword(user);
+}

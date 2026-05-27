@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowRight, Building2, Check, Crown, LockKeyhole, Mail, MailCheck, Phone, Shield, Sparkles, User, Zap } from "lucide-react";
-import { signUp } from "@/lib/auth";
+import { signUp, getUnverifiedUser } from "@/lib/auth";
 import { setActivePlan } from "@/lib/payment-requests";
 import styles from "../auth.module.css";
 
@@ -95,6 +95,32 @@ export default function SignUpPage() {
     } catch (err) {
       setSending(false);
       const msg = err instanceof Error ? err.message : "Unable to create account.";
+
+      // ── Email already exists but account is not verified ──────────────────
+      // Instead of a hard error, just resend the verification email so the
+      // user can complete sign-up without having to clear localStorage.
+      if (msg.includes("already exists") && !showAdmin) {
+        const unverified = getUnverifiedUser(form.email);
+        if (unverified) {
+          setSending(true);
+          try {
+            const res = await fetch("/api/send-verification", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: form.email, name: form.ownerName }),
+            });
+            const result = await res.json() as { ok: boolean; devUrl?: string };
+            if (result.devUrl) console.log("[dev] Verify URL:", result.devUrl);
+          } catch { /* ignore — we'll still move to verify step */ }
+          setSending(false);
+          setStep("verify"); // Show verify screen with resend note
+          return;
+        }
+        // Account exists AND is already verified → tell them to sign in
+        setError("An account with this email already exists. Please sign in instead.");
+        return;
+      }
+
       if (msg.toLowerCase().includes("admin")) setCodeValid(false);
       setError(msg);
     }
