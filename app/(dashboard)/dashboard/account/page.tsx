@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Check, ChevronRight, Clock, LogOut, Save, Shield, Smartphone, Store, Wand2 } from "lucide-react";
+import { Check, ChevronRight, Clock, LogOut, Save, Shield, Smartphone, Store, User, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
 
-type SectionId = "salon" | "hours" | "security" | "whatsapp" | "tryon";
+type SectionId = "profile" | "salon" | "hours" | "security" | "whatsapp" | "tryon";
 
 interface SalonSettings {
   name: string;
@@ -27,10 +27,11 @@ interface BusinessHour {
 }
 
 const BASE_SECTIONS: { id: SectionId; label: string; icon: React.ElementType }[] = [
-  { id: "salon", label: "Salon Profile", icon: Store },
-  { id: "hours", label: "Business Hours", icon: Clock },
-  { id: "security", label: "Security", icon: Shield },
-  { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
+  { id: "profile",  label: "My Profile",     icon: User },
+  { id: "salon",    label: "Salon Settings",  icon: Store },
+  { id: "hours",    label: "Business Hours",  icon: Clock },
+  { id: "security", label: "Security",        icon: Shield },
+  { id: "whatsapp", label: "WhatsApp",        icon: Smartphone },
 ];
 
 const inputStyle: CSSProperties = {
@@ -103,8 +104,130 @@ function Toggle({ value, onChange }: { value: boolean; onChange: () => void }) {
   );
 }
 
+// ─── My Profile ───────────────────────────────────────────────────────────────
+
+function ProfileSection() {
+  const user = getCurrentUser();
+  const initials = (user?.ownerName || "?")
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const [form, setForm] = useState({
+    ownerName: user?.ownerName || "",
+    salonName: user?.salonName || "",
+    phone:     user?.phone     || "",
+  });
+  const [saved, setSaved]   = useState(false);
+  const [error, setError]   = useState("");
+
+  function save() {
+    setError("");
+    try {
+      const updated = updateCurrentUser(form);
+      // Sync salon name back to settings store so Salon Settings reflects the change
+      if (form.salonName) {
+        (settingsStore.salon as SalonSettings).name = form.salonName;
+        saveSettings();
+      }
+      // Fire-and-forget: sync to Turso billing_users
+      fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId:    updated.id,
+          ownerName: form.ownerName,
+          salonName: form.salonName,
+          phone:     form.phone,
+        }),
+      }).catch(() => { /* non-critical — billing DB sync */ });
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update profile.");
+    }
+  }
+
+  return (
+    <section>
+      {/* Avatar card */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 18,
+        padding: "22px 24px", marginBottom: 30,
+        background: "linear-gradient(135deg, #5B21B6 0%, #9333EA 100%)",
+        borderRadius: 16,
+      }}>
+        <div style={{
+          width: 60, height: 60, borderRadius: "50%",
+          background: "rgba(255,255,255,0.2)", flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 22, fontWeight: 900, color: "#fff",
+          border: "2px solid rgba(255,255,255,0.35)",
+        }}>
+          {initials}
+        </div>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", lineHeight: 1.2 }}>{user?.ownerName}</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>{user?.email}</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{user?.salonName}</div>
+        </div>
+        <div style={{ marginLeft: "auto", textAlign: "right" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Member since</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 700, marginTop: 2 }}>
+            {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("en-PK", { month: "short", year: "numeric" }) : "—"}
+          </div>
+        </div>
+      </div>
+
+      <h2 style={{ margin: "0 0 22px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>My Profile</h2>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px 18px" }}>
+        <Field label="Owner Name">
+          <input style={inputStyle} value={form.ownerName}
+            onChange={(e) => setForm((f) => ({ ...f, ownerName: e.target.value }))} />
+        </Field>
+        <Field label="Salon Name">
+          <input style={inputStyle} value={form.salonName}
+            onChange={(e) => setForm((f) => ({ ...f, salonName: e.target.value }))} />
+        </Field>
+        <Field label="Phone">
+          <input style={inputStyle} value={form.phone}
+            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+        </Field>
+        <Field label="Email" hint="Email address cannot be changed — used for account login">
+          <input
+            style={{ ...inputStyle, background: "#f8f8fc", color: "#9999b0", cursor: "not-allowed" }}
+            value={user?.email || ""} readOnly />
+        </Field>
+      </div>
+
+      {error && (
+        <div style={{ marginTop: 16, background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", fontSize: 12, fontWeight: 700 }}>
+          {error}
+        </div>
+      )}
+      {saved && <div style={{ marginTop: 16 }}><SavedBanner text="Profile updated successfully." /></div>}
+      <SaveButton onClick={save} />
+    </section>
+  );
+}
+
+// ─── Salon Settings ────────────────────────────────────────────────────────────
+
 function SalonProfile() {
-  const [form, setForm] = useState<SalonSettings>({ ...(settingsStore.salon as SalonSettings) });
+  const user = getCurrentUser();
+
+  // Pre-fill from auth data when the store still has placeholder defaults
+  const [form, setForm] = useState<SalonSettings>(() => {
+    const s = { ...(settingsStore.salon as SalonSettings) };
+    if (user) {
+      if (!s.name || s.name === "Amna's Salon") s.name = user.salonName;
+      if (!s.email || s.email === "amna@werzio.pk") s.email = user.email;
+    }
+    return s;
+  });
   const [saved, setSaved] = useState(false);
 
   function setField(field: keyof SalonSettings, value: string) {
@@ -115,6 +238,15 @@ function SalonProfile() {
     Object.assign(settingsStore.salon, form);
     saveSettings();
     updateCurrentUser({ salonName: form.name, phone: form.phone });
+    // Sync to Turso
+    const u = getCurrentUser();
+    if (u) {
+      fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: u.id, salonName: form.name, phone: form.phone }),
+      }).catch(() => {});
+    }
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2200);
   }
@@ -530,10 +662,11 @@ function VirtualTryOnSection() {
 }
 
 function SectionContent({ active }: { active: SectionId }) {
-  if (active === "salon") return <SalonProfile />;
-  if (active === "hours") return <BusinessHours />;
+  if (active === "profile")  return <ProfileSection />;
+  if (active === "salon")    return <SalonProfile />;
+  if (active === "hours")    return <BusinessHours />;
   if (active === "security") return <Security />;
-  if (active === "tryon") return <VirtualTryOnSection />;
+  if (active === "tryon")    return <VirtualTryOnSection />;
   return <WhatsAppSection />;
 }
 
@@ -544,7 +677,7 @@ export default function AccountPage() {
   const SECTIONS = isAdmin
     ? [...BASE_SECTIONS, { id: "tryon" as SectionId, label: "Virtual Try-On", icon: Wand2 }]
     : BASE_SECTIONS;
-  const [active, setActive] = useState<SectionId>("salon");
+  const [active, setActive] = useState<SectionId>("profile");
 
   function handleSignOut() {
     signOut();
