@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Building2, Check, Crown, LockKeyhole, Mail, MailCheck, Phone, Shield, Sparkles, User, Zap } from "lucide-react";
+import { ArrowRight, Building2, Check, Crown, LockKeyhole, Mail, MailCheck, Phone, Shield, User, Zap } from "lucide-react";
 import { signUp, getUnverifiedUser } from "@/lib/auth";
 import { setActivePlan } from "@/lib/payment-requests";
 import styles from "../auth.module.css";
@@ -135,8 +135,7 @@ export default function SignUpPage() {
         {/* Brand panel */}
         <section className={styles.brandPanel}>
           <div className={styles.brandTop}>
-            <div className={styles.brandMark}><Sparkles size={17} /></div>
-            WERZIO
+            <img src="/werzio logo.png" alt="Werzio" style={{ height: 36, width: "auto", filter: "brightness(0) invert(1)" }} />
           </div>
           <div className={styles.brandContent}>
             <div className={styles.eyebrow}>Start organized</div>
@@ -163,7 +162,7 @@ export default function SignUpPage() {
 
             {/* Header */}
             <div className={styles.formHeader}>
-              <div className={styles.formIcon}><Sparkles size={16} /></div>
+              <img src="/werzio logo.png" alt="Werzio" style={{ height: 40, width: "auto", display: "block" }} />
               <h1 className={styles.formTitle} style={{ marginTop: 14 }}>
                 {step === "verify" ? "Check your email" : step === "plan" ? "Choose your plan" : showAdmin ? "Admin registration" : `${plan.name} plan — details`}
               </h1>
