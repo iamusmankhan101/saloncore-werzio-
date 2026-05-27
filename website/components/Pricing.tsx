@@ -3,18 +3,17 @@ import { Check } from "lucide-react";
 
 const plans = [
   {
-    badge: "Free",
+    badge: "Free Forever",
     badgeStyle: { background: "#f3f4f6", color: "#6b7280" },
-    name: "Starter",
-    desc: "Perfect for home-based stylists and solo salons just getting started.",
+    name: "Werzio Free",
+    desc: "Get started with the essentials — no credit card required.",
     price: "0",
     period: "/month",
     features: [
-      "Up to 30 bookings/month",
-      "WhatsApp booking bot",
-      "Client profiles",
-      "Basic calendar",
-      "1 staff member",
+      "Point of Sale (POS)",
+      "Appointment booking (up to 30/month)",
+      "Branded web booking page",
+      "Invoicing",
     ],
     cta: "Get Started Free",
     ctaClass: "btn btn-outline",
@@ -23,40 +22,37 @@ const plans = [
   {
     badge: "Most Popular",
     badgeStyle: {},
-    name: "Salon Pro",
-    desc: "The complete toolkit for active salons ready to grow revenue and cut no-shows.",
-    price: "2,999",
+    name: "Werzio Pro",
+    desc: "The complete toolkit for growing salons — everything you need to manage and scale.",
+    price: "5,500",
     period: "/month",
     features: [
-      "Unlimited bookings",
-      "WhatsApp reminders & campaigns",
-      "Full revenue reporting + FBR invoices",
-      "Staff commissions & attendance",
+      "Point of Sale (POS)",
+      "Unlimited appointment booking",
+      "Branded online web booking page",
+      "Unlimited staff & client management",
       "Inventory management",
-      "Up to 8 staff members",
-      "Branded web booking page",
+      "Invoicing",
+      "Revenue management",
+      "Services management",
     ],
-    cta: "Start 14-Day Free Trial",
+    cta: "Start Free Trial",
     ctaClass: "btn btn-primary",
     featured: true,
   },
   {
-    badge: "Enterprise",
+    badge: "All Features",
     badgeStyle: { background: "#fef3c7", color: "#d97706" },
-    name: "Salon Plus",
-    desc: "For multi-branch chains and franchise networks that need centralized control.",
-    price: "7,999",
+    name: "Werzio Plus",
+    desc: "Everything in Pro, plus AI-powered tools and automated WhatsApp engagement.",
+    price: "9,500",
     period: "/month",
     features: [
-      "Everything in Salon Pro",
-      "Multi-branch management",
-      "Payroll & HR module",
-      "Custom domain website",
-      "Franchise management tools",
-      "Unlimited staff",
-      "Dedicated onboarding manager",
+      "Everything in Werzio Pro",
+      "WhatsApp notifications & reminders",
+      "Virtual Try-On (AI hair & style preview)",
     ],
-    cta: "Contact Sales",
+    cta: "Get Werzio Plus",
     ctaClass: "btn btn-outline",
     featured: false,
   },
@@ -66,7 +62,7 @@ export default function Pricing() {
   return (
     <section className={styles.section} id="pricing">
       <div className="text-center">
-        <div className="section-label">Pricing</div>
+        <div className="section-label">✦ Pricing</div>
         <h2 className="section-title">Simple, PKR Pricing.<br />No Hidden Fees.</h2>
         <p className="section-sub">Start free. Upgrade when you&apos;re ready. Cancel anytime.</p>
       </div>
@@ -77,9 +73,15 @@ export default function Pricing() {
             <div className={styles.planName}>{p.name}</div>
             <p className={styles.planDesc}>{p.desc}</p>
             <div className={styles.price}>
-              <span className={styles.currency}>₨</span>
-              <span className={styles.amount}>{p.price}</span>
-              <span className={styles.period}>{p.period}</span>
+              {p.price === "0" ? (
+                <span className={styles.amount} style={{ fontSize: "2.4rem" }}>Free</span>
+              ) : (
+                <>
+                  <span className={styles.currency}>₨</span>
+                  <span className={styles.amount}>{p.price}</span>
+                  <span className={styles.period}>{p.period}</span>
+                </>
+              )}
             </div>
             <ul className={styles.features}>
               {p.features.map((f) => (
