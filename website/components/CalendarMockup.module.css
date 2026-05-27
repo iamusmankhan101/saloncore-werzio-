@@ -172,11 +172,23 @@
 
 /* grid body */
 .gridBody {
+  flex: 1;
+  overflow: hidden;
+  background: #fff;
+  position: relative;
+}
+
+/* animated scroll wrapper */
+.scrollContent {
   display: grid;
   grid-template-columns: 48px repeat(6, 1fr);
-  flex: 1;
-  overflow-y: auto;
-  background: #fff;
+  animation: calScroll 8s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes calScroll {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-220px); }
 }
 
 .timesCol { background: #fff; }

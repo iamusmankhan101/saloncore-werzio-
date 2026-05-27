@@ -1,8 +1,39 @@
 "use client";
+import { useEffect, useRef } from "react";
 import styles from "./Hero.module.css";
 import CalendarMockup from "./CalendarMockup";
 
 export default function Hero() {
+  const frameRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+
+    // If already in viewport on load, reveal after short delay
+    const rect = el.getBoundingClientRect();
+    const alreadyVisible = rect.top < window.innerHeight;
+
+    if (alreadyVisible) {
+      const t = setTimeout(() => el.classList.add(styles.frameVisible), 300);
+      return () => clearTimeout(t);
+    }
+
+    // Otherwise reveal on scroll
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add(styles.frameVisible);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.05 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section className={styles.hero} id="home">
 
@@ -39,7 +70,7 @@ export default function Hero() {
           Branch Manager
         </div>
 
-        <div className={styles.frame}>
+        <div ref={frameRef} className={styles.frame}>
           <CalendarMockup />
         </div>
       </div>

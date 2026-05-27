@@ -102,40 +102,42 @@ export default function CalendarMockup() {
 
         {/* Time grid */}
         <div className={styles.gridBody}>
-          {/* time labels column */}
-          <div className={styles.timesCol}>
-            {times.map((t) => (
-              <div key={t} className={styles.timeLabel} style={{ height: SLOT_H }}>{t}</div>
+          <div className={styles.scrollContent}>
+            {/* time labels column */}
+            <div className={styles.timesCol}>
+              {times.map((t) => (
+                <div key={t} className={styles.timeLabel} style={{ height: SLOT_H }}>{t}</div>
+              ))}
+            </div>
+
+            {/* day columns */}
+            {days.map((d, di) => (
+              <div key={d.short} className={`${styles.dayCol} ${d.today ? styles.todayCol : ""}`}
+                style={{ height: times.length * SLOT_H }}>
+                {times.map((_, ti) => (
+                  <div key={ti} className={styles.gridLine} style={{ top: ti * SLOT_H }} />
+                ))}
+                {appts
+                  .filter((a) => a.day === di)
+                  .map((a, ai) => (
+                    <div
+                      key={ai}
+                      className={styles.appt}
+                      style={{
+                        top: a.start * SLOT_H + 4,
+                        height: a.height * SLOT_H - 8,
+                        background: a.color,
+                        borderLeft: `3px solid ${a.border}`,
+                      }}
+                    >
+                      <div className={styles.apptName}>{a.name}</div>
+                      <div className={styles.apptSvc}>{a.service}</div>
+                      <div className={styles.apptTime}>{a.time}</div>
+                    </div>
+                  ))}
+              </div>
             ))}
           </div>
-
-          {/* day columns */}
-          {days.map((d, di) => (
-            <div key={d.short} className={`${styles.dayCol} ${d.today ? styles.todayCol : ""}`}
-              style={{ height: times.length * SLOT_H }}>
-              {times.map((_, ti) => (
-                <div key={ti} className={styles.gridLine} style={{ top: ti * SLOT_H }} />
-              ))}
-              {appts
-                .filter((a) => a.day === di)
-                .map((a, ai) => (
-                  <div
-                    key={ai}
-                    className={styles.appt}
-                    style={{
-                      top: a.start * SLOT_H + 4,
-                      height: a.height * SLOT_H - 8,
-                      background: a.color,
-                      borderLeft: `3px solid ${a.border}`,
-                    }}
-                  >
-                    <div className={styles.apptName}>{a.name}</div>
-                    <div className={styles.apptSvc}>{a.service}</div>
-                    <div className={styles.apptTime}>{a.time}</div>
-                  </div>
-                ))}
-            </div>
-          ))}
         </div>
       </main>
     </div>
