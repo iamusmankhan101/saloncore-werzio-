@@ -1,0 +1,121 @@
+/* ── Clash Display (self-hosted) ── */
+@font-face {
+  font-family: 'Clash Display';
+  src: url('/fonts/ClashDisplay-400.woff2') format('woff2');
+  font-weight: 400; font-display: swap; font-style: normal;
+}
+@font-face {
+  font-family: 'Clash Display';
+  src: url('/fonts/ClashDisplay-500.woff2') format('woff2');
+  font-weight: 500; font-display: swap; font-style: normal;
+}
+@font-face {
+  font-family: 'Clash Display';
+  src: url('/fonts/ClashDisplay-600.woff2') format('woff2');
+  font-weight: 600; font-display: swap; font-style: normal;
+}
+@font-face {
+  font-family: 'Clash Display';
+  src: url('/fonts/ClashDisplay-700.woff2') format('woff2');
+  font-weight: 700; font-display: swap; font-style: normal;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --purple:       #7C3AED;
+  --purple-light: #9061F9;
+  --purple-dark:  #5B21B6;
+  --purple-50:    #F5F3FF;
+  --purple-100:   #EDE9FE;
+  --indigo:       #4F46E5;
+  --text:         #111827;
+  --text-muted:   #6B7280;
+  --border:       #E5E7EB;
+  --white:        #FFFFFF;
+  --bg:           #FAFAFA;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--text);
+  background: var(--white);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Clash Display for all headings */
+h1, h2, h3, h4, h5, h6,
+.section-title {
+  font-family: 'Clash Display', 'Inter', sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+/* ── shared btn ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  text-decoration: none;
+  border: none;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--purple);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124,58,237,.35);
+}
+.btn-primary:hover {
+  background: var(--purple-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(124,58,237,.45);
+}
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border: 1.5px solid var(--border);
+}
+.btn-outline:hover { border-color: var(--purple); color: var(--purple); }
+.btn-lg { padding: 14px 28px; font-size: 1rem; border-radius: 12px; }
+
+/* ── shared section label ── */
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  background: var(--purple-100);
+  color: var(--purple);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  border: 1px solid rgba(124,58,237,.2);
+}
+.section-title {
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 14px;
+}
+.section-sub {
+  font-size: 1rem;
+  color: var(--text-muted);
+  max-width: 500px;
+  line-height: 1.7;
+  margin-bottom: 48px;
+}
+.text-center { text-align: center; }
+.text-center .section-title,
+.text-center .section-sub { margin-left: auto; margin-right: auto; }

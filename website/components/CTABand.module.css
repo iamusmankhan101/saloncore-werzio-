@@ -1,0 +1,36 @@
+.band {
+  background: linear-gradient(135deg, var(--purple) 0%, var(--indigo) 100%);
+  padding: 80px 5%;
+  text-align: center;
+  color: #fff;
+}
+
+.title {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  margin-bottom: 14px;
+}
+
+.sub {
+  font-size: 1rem;
+  color: rgba(255,255,255,.75);
+  max-width: 480px;
+  margin: 0 auto 36px;
+  line-height: 1.7;
+}
+
+.btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+.lightBtn {
+  background: #fff !important;
+  color: var(--purple) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15) !important;
+}
+.lightBtn:hover { background: #f0ebff !important; transform: translateY(-1px); }
+
+.ghostBtn {
+  border-color: rgba(255,255,255,.4) !important;
+  color: #fff !important;
+}
+.ghostBtn:hover { border-color: #fff !important; }

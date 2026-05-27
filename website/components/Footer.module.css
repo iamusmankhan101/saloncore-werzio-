@@ -1,0 +1,71 @@
+.footer {
+  background: #0f0d2e;
+  color: rgba(255,255,255,.6);
+  padding: 60px 5% 32px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 48px;
+}
+
+.brand p {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  margin: 14px 0 20px;
+  max-width: 280px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  filter: brightness(0) invert(1);
+}
+
+.waBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #25D366;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.col h4 {
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.col ul { list-style: none; }
+.col li { margin-bottom: 10px; }
+.col a {
+  color: rgba(255,255,255,.55);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color .2s;
+}
+.col a:hover { color: #c4b5fd; }
+
+.bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  font-size: 0.8rem;
+  color: rgba(255,255,255,.35);
+}
+
+@media (max-width: 1024px) { .grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr; }
+  .bottom { flex-direction: column; gap: 8px; text-align: center; }
+}

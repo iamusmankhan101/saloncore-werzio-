@@ -1,0 +1,280 @@
+.section {
+  padding: 90px 5%;
+  background: #fff;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+
+.title {
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  font-weight: 500;
+  color: #0d0d1a;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 14px;
+}
+
+.sub {
+  font-size: 0.92rem;
+  color: #999;
+  max-width: 420px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+/* ── Two-column layout ── */
+.body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: center;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Left mockup ── */
+.mockupWrap {
+  height: 100%;
+}
+
+.mockupPanel {
+  background: linear-gradient(135deg, #6366f1 0%, #818cf8 50%, #a5b4fc 100%);
+  border-radius: 24px;
+  padding: 28px 24px 0;
+  height: 440px;
+  overflow: hidden;
+  position: relative;
+}
+
+.browser {
+  background: #fff;
+  border-radius: 14px 14px 0 0;
+  overflow: hidden;
+  height: 100%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+
+.browserBar {
+  background: #f3f4f6;
+  padding: 10px 14px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dot1, .dot2, .dot3 {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+}
+.dot1 { background: #f87171; }
+.dot2 { background: #fbbf24; }
+.dot3 { background: #34d399; }
+
+.browserContent {
+  display: flex;
+  height: calc(100% - 32px);
+}
+
+.sidebar {
+  width: 130px;
+  background: #fafafa;
+  border-right: 1px solid #f0f0f0;
+  padding: 14px 10px;
+  flex-shrink: 0;
+}
+
+.sidebarLogo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0d0d1a;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.logoIcon {
+  width: 20px; height: 20px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #6366f1, #818cf8);
+}
+
+.sidebarItem {
+  font-size: 0.7rem;
+  color: #999;
+  padding: 7px 8px;
+  border-radius: 7px;
+  margin-bottom: 2px;
+  cursor: pointer;
+}
+.sidebarItem:first-of-type,
+.sidebarItem:hover {
+  background: #ede9fe;
+  color: #5b21b6;
+  font-weight: 600;
+}
+
+.mainArea {
+  flex: 1;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.mainTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0d0d1a;
+  margin-bottom: 12px;
+}
+
+.cardRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.miniCard {
+  flex: 1;
+  background: #f5f3ff;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.miniCardLabel {
+  font-size: 0.62rem;
+  color: #888;
+  margin-bottom: 3px;
+}
+
+.miniCardVal {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #4c1d95;
+}
+
+.listItem {
+  height: 8px;
+  background: #f0f0f4;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 10px;
+  background: #ede9fe;
+  color: #5b21b6;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 600;
+}
+
+/* ── Right steps ── */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stepCard {
+  background: #f7f7f9;
+  border-radius: 18px;
+  padding: 22px 22px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  transition: box-shadow 0.2s;
+}
+
+.stepCardActive {
+  background: #f0f0f8;
+  box-shadow: 0 4px 20px rgba(99,102,241,0.08);
+}
+
+.stepLeft {
+  flex-shrink: 0;
+}
+
+.numCircle {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: #5b6af0;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.02em;
+}
+
+.stepRight {
+  flex: 1;
+}
+
+.stepTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0d0d1a;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.stepDesc {
+  font-size: 0.82rem;
+  color: #aaa;
+  line-height: 1.6;
+}
+
+/* form preview inside step 1 */
+.formPreview {
+  margin-top: 14px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid #ececf0;
+}
+
+.formRow {
+  display: flex;
+  gap: 12px;
+}
+
+.formBox {
+  flex: 1;
+}
+
+.formLabel {
+  font-size: 0.65rem;
+  color: #bbb;
+  margin-bottom: 5px;
+}
+
+.formInput {
+  height: 28px;
+  background: #f5f5f8;
+  border-radius: 7px;
+  border: 1px solid #e8e8ec;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+  .mockupPanel {
+    height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .title { font-size: 1.75rem; }
+}

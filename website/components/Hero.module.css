@@ -1,0 +1,174 @@
+/* ═══════════════════════════════════════
+   HERO
+═══════════════════════════════════════ */
+
+.hero {
+  padding: 128px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  /* stretch image exactly — white at top, deep purple at bottom */
+  background-image: url('/05f51ef53be2fb71255e54e67ab3e34c.jpg');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+/* ── CONTENT ─────────────────────────── */
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 5%;
+  margin-bottom: 40px;
+}
+
+.title {
+  font-family: 'Clash Display', 'Inter', sans-serif;
+  font-size: clamp(2.6rem, 5.2vw, 4.2rem);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: #150c30;
+  margin-bottom: 16px;
+}
+
+.sub {
+  font-size: 1rem;
+  color: #4b3a6e;
+  line-height: 1.7;
+  max-width: 440px;
+  margin-bottom: 30px;
+}
+
+/* ── BUTTONS ─────────────────────────── */
+.btns {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  padding: 15px 34px;
+  background: #6d28d9;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 8px 28px rgba(109,40,217,.45);
+  transition: all .2s;
+  white-space: nowrap;
+}
+.btnPrimary:hover {
+  background: #5b21b6;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 36px rgba(109,40,217,.55);
+}
+
+.btnOutline {
+  display: inline-flex;
+  align-items: center;
+  padding: 14px 32px;
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(8px);
+  color: #1a0a2e;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1.5px solid rgba(255,255,255,0.9);
+  transition: all .2s;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(0,0,0,.08);
+}
+.btnOutline:hover {
+  background: rgba(255,255,255,0.95);
+  border-color: #7c3aed;
+  color: #7c3aed;
+}
+
+/* ── SCREENSHOT WRAPPER ──────────────── */
+.screenshotWrapper {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1060px;
+  padding: 0 28px;
+}
+
+/* ── FLOATING PILLS ──────────────────── */
+.pill {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px 5px 7px;
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  pointer-events: none;
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow:
+    0 2px 12px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.25);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 5px currentColor;
+}
+
+/* upper-left  – floats just above the frame, left side */
+.pillUL { top: -16px; left: 15%; }
+
+/* upper-right – floats just above the frame, right side */
+.pillUR { top: -16px; right: 11%; }
+
+/* lower-left  – on the left edge ~40% down the frame */
+.pillLL { top: 40%; left: -8px; }
+
+/* lower-right – on the right edge ~40% down the frame */
+.pillLR { top: 40%; right: -8px; }
+
+/* ── APP FRAME ───────────────────────── */
+.frame {
+  width: 100%;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  box-shadow:
+    0 -2px 0 1px rgba(124,58,237,.2),
+    0 20px 60px rgba(0,0,0,.25),
+    0 60px 120px rgba(0,0,0,.15);
+  border: 1px solid rgba(255,255,255,.15);
+  border-bottom: none;
+}
+
+/* ── RESPONSIVE ──────────────────────── */
+@media (max-width: 900px) {
+  .pillLL, .pillLR { display: none; }
+}
+@media (max-width: 640px) {
+  .hero { padding: 110px 0 0; }
+  .pill { display: none; }
+  .btns { flex-direction: column; }
+  .screenshotWrapper { padding: 0 14px; }
+}

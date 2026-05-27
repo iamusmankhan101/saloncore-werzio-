@@ -1,0 +1,614 @@
+/* ═══════════════════════════════════════
+   FEATURES SECTION
+═══════════════════════════════════════ */
+
+.section {
+  padding: 100px 5%;
+  background: #f8f7ff;
+  font-weight: 500;
+}
+
+.header {
+  margin-bottom: 56px;
+}
+
+/* ── BENTO GRID ─────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: minmax(300px, auto);
+  gap: 18px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Row 1: 4 cards */
+/* Row 2: 4 cards */
+/* → 8 total in 4-col grid = 2 rows of 4 */
+
+/* ── CARD ───────────────────────────── */
+.card {
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1.5px solid #ede9fe;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform .25s, box-shadow .25s, border-color .25s;
+  position: relative;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(124,58,237,.04) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 50px rgba(124,58,237,.12);
+  border-color: rgba(124,58,237,.35);
+}
+
+/* top text area */
+.cardTop {
+  padding: 22px 22px 16px;
+}
+
+.iconBox {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.cardTitle {
+  font-family: 'Clash Display', 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #111827;
+  margin-bottom: 7px;
+  line-height: 1.3;
+}
+
+.cardDesc {
+  font-size: 0.8rem;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+/* preview area */
+.cardPreview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+  padding: 0 16px 16px;
+}
+
+/* ── SHARED PREVIEW WRAPPER ─────────── */
+.prev {
+  flex: 1;
+  background: #f5f3ff;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid #ede9fe;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ════════════════════════════════════
+   1. APPOINTMENT BOOKING PREVIEW
+════════════════════════════════════ */
+.prevDateRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.prevDay {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.prevDayActive {
+  background: #7c3aed;
+  color: #fff;
+}
+
+.prevSlots {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.prevSlot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.prevSlotPick {
+  background: #7c3aed;
+  color: #fff;
+  border-color: #7c3aed;
+  font-weight: 600;
+}
+
+.prevSlotBadge {
+  font-size: 0.58rem;
+  background: rgba(255,255,255,.25);
+  padding: 2px 6px;
+  border-radius: 20px;
+}
+
+/* ════════════════════════════════════
+   2. ONLINE BOOKING PREVIEW
+════════════════════════════════════ */
+.obCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.obLogo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #7c3aed;
+  margin-bottom: 2px;
+}
+
+.obField {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 0.68rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.obBtn {
+  background: #7c3aed;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+/* ════════════════════════════════════
+   3. CALENDAR PREVIEW
+════════════════════════════════════ */
+.calHeader {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 6px;
+  background: #fff;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+}
+
+.calCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px;
+}
+
+.calToday { background: #f5f3ff; }
+
+.calDay {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #9ca3af;
+  letter-spacing: .05em;
+}
+
+.calNum {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #111;
+}
+
+.calNumToday { color: #7c3aed; }
+
+.calBody {
+  position: relative;
+  height: 80px;
+  background: #fff;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+.calAppt {
+  position: absolute;
+  left: 22%;
+  width: 26%;
+  border-radius: 5px;
+  padding: 4px 5px;
+}
+
+.calApptName { font-size: 0.58rem; font-weight: 700; color: #1e1b4b; }
+.calApptSvc  { font-size: 0.53rem; color: #6b7280; }
+
+/* ════════════════════════════════════
+   4. WHATSAPP PREVIEW
+════════════════════════════════════ */
+.waHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #075e54;
+  border-radius: 8px 8px 0 0;
+  margin: -12px -12px 8px;
+}
+
+.waAvatar {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.waName   { font-size: 0.65rem; font-weight: 700; color: #fff; }
+.waStatus { font-size: 0.55rem; color: #a7f3d0; }
+
+.waMsgs {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.waMsg {
+  max-width: 85%;
+  padding: 5px 8px;
+  border-radius: 10px;
+  font-size: 0.63rem;
+  line-height: 1.4;
+}
+
+.waMsgIn {
+  background: #fff;
+  color: #111;
+  border-bottom-left-radius: 3px;
+  align-self: flex-start;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.waMsgOut {
+  background: #dcf8c6;
+  color: #075e54;
+  border-bottom-right-radius: 3px;
+  align-self: flex-end;
+}
+
+.waBtn {
+  background: #e8f5e9;
+  color: #075e54;
+  border: 1px solid #a5d6a7;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.waReminder {
+  font-size: 0.58rem;
+  color: #6b7280;
+  text-align: center;
+  background: rgba(255,255,255,.7);
+  border-radius: 20px;
+  padding: 3px 8px;
+  align-self: center;
+}
+
+.waTag {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  text-align: center;
+  align-self: center;
+  background: rgba(255,255,255,.6);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.waStars {
+  display: block;
+  font-size: 0.72rem;
+  margin-top: 3px;
+  letter-spacing: 1px;
+}
+
+/* ════════════════════════════════════
+   5. VIRTUAL TRY-ON PREVIEW
+════════════════════════════════════ */
+.vtFrame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.vtFace {
+  width: 56px;
+  height: 64px;
+  position: relative;
+  margin: 0 auto;
+}
+
+.vtHair {
+  position: absolute;
+  top: 0; left: 4px; right: 4px;
+  height: 28px;
+  background: linear-gradient(135deg, #7c3aed, #db2777);
+  border-radius: 20px 20px 0 0;
+  opacity: .85;
+}
+
+.vtFaceCircle {
+  position: absolute;
+  bottom: 0; left: 6px; right: 6px;
+  height: 42px;
+  background: #fde68a;
+  border-radius: 50% 50% 40% 40%;
+}
+
+.vtScanLine {
+  position: absolute;
+  top: 30%;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #7c3aed, transparent);
+  animation: scan 1.6s ease-in-out infinite;
+}
+
+@keyframes scan {
+  0%   { top: 20%; opacity: .6; }
+  50%  { top: 75%; opacity: 1; }
+  100% { top: 20%; opacity: .6; }
+}
+
+.vtLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #7c3aed;
+  text-align: center;
+}
+
+.vtColors {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+
+.vtColor {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.6);
+  cursor: pointer;
+  transition: transform .15s;
+}
+.vtColor:hover { transform: scale(1.2); }
+
+.vtResult {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #059669;
+  background: #d1fae5;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-align: center;
+}
+
+/* ════════════════════════════════════
+   6. CLIENT MANAGEMENT PREVIEW
+════════════════════════════════════ */
+.clientCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.clientTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.clientAvatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #db2777);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.clientName { font-size: 0.72rem; font-weight: 700; color: #111; }
+.clientSub  { font-size: 0.58rem; color: #9ca3af; }
+
+.clientBadge {
+  margin-left: auto;
+  font-size: 0.55rem;
+  font-weight: 700;
+  background: #fef3c7;
+  color: #d97706;
+  padding: 2px 7px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+
+.clientRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid #f3f4f6;
+  gap: 6px;
+}
+.clientRow:last-child { border-bottom: none; }
+
+.clientLabel { font-size: 0.62rem; color: #9ca3af; flex-shrink: 0; }
+.clientVal   { font-size: 0.63rem; font-weight: 700; color: #111827; text-align: right; }
+
+/* ════════════════════════════════════
+   7. STAFF MANAGEMENT PREVIEW
+════════════════════════════════════ */
+.staffRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.staffRow:last-child { border-bottom: none; }
+
+.staffAvatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.staffInfo { flex: 1; min-width: 0; }
+.staffName { font-size: 0.65rem; font-weight: 700; color: #111; }
+.staffRole { font-size: 0.58rem; color: #9ca3af; }
+
+.staffBar {
+  height: 3px;
+  background: #f3f4f6;
+  border-radius: 99px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.staffFill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width .4s ease;
+}
+
+.staffRev {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #111;
+  flex-shrink: 0;
+}
+
+/* ════════════════════════════════════
+   8. INVENTORY MANAGEMENT PREVIEW
+════════════════════════════════════ */
+.invRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.invRow:last-child { border-bottom: none; }
+
+.invName {
+  font-size: 0.62rem;
+  color: #374151;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.invBar {
+  width: 52px;
+  height: 4px;
+  background: #f3f4f6;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.invFill {
+  height: 100%;
+  border-radius: 99px;
+}
+
+.invCount {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #111;
+  width: 20px;
+  text-align: right;
+}
+
+/* ── RESPONSIVE ─────────────────────── */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+  .section { padding: 70px 4%; }
+}
+
+@media (max-width: 480px) {
+  .grid { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,177 @@
+.mockup {
+  width: 100%;
+  max-width: 920px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.13), 0 0 0 1px rgba(0,0,0,.05);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* topbar */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 18px;
+  background: #f9f9fb;
+  border-bottom: 1px solid #f0f0f4;
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.red    { background: #FF5F57; }
+.yellow { background: #FEBC2E; }
+.green  { background: #28C840; }
+.urlBar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #aaa;
+  font-weight: 500;
+}
+
+/* body layout */
+.body {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  min-height: 400px;
+}
+
+/* sidebar */
+.sidebar {
+  background: #1e1b4b;
+  padding: 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sidebarLogo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.875rem;
+  margin-bottom: 20px;
+  padding: 0 6px;
+}
+.sidebarItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,.55);
+  cursor: pointer;
+  transition: all .15s;
+}
+.sidebarItem:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.85); }
+.sidebarActive { background: rgba(124,58,237,.45) !important; color: #fff !important; }
+
+/* main area */
+.main {
+  padding: 18px;
+  background: #f8f7ff;
+}
+.mainHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.pageTitle { font-size: 0.9rem; font-weight: 700; color: #1e1b4b; }
+.pageDate   { font-size: 0.7rem; color: #aaa; }
+
+/* stat cards */
+.statCards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.statCard {
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px 13px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+.statLabel  { font-size: 0.62rem; color: #aaa; margin-bottom: 5px; }
+.statValue  { font-size: 1.15rem; font-weight: 800; color: #1e1b4b; }
+.statChange { font-size: 0.6rem; font-weight: 600; color: #10b981; margin-top: 2px; }
+
+/* panels */
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.panel {
+  background: #fff;
+  border-radius: 10px;
+  padding: 13px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+.panelTitle { font-size: 0.7rem; font-weight: 700; color: #1e1b4b; margin-bottom: 10px; }
+
+/* booking rows */
+.bookingRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f5f5f8;
+}
+.bookingRow:last-child { border-bottom: none; }
+.avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.bookingInfo { flex: 1; min-width: 0; }
+.bookingName    { font-size: 0.65rem; font-weight: 600; color: #1e1b4b; }
+.bookingService { font-size: 0.58rem; color: #aaa; }
+.statusBadge {
+  font-size: 0.55rem;
+  padding: 2px 6px;
+  border-radius: 20px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.confirmed { background: #dcfce7; color: #16a34a; }
+.pending   { background: #fef9c3; color: #ca8a04; }
+.inprog    { background: #ede9fe; color: #7c3aed; }
+
+/* chart */
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 60px;
+  margin-top: 8px;
+}
+.bar {
+  flex: 1;
+  background: linear-gradient(to top, var(--purple), var(--purple-light));
+  border-radius: 4px 4px 0 0;
+  opacity: .8;
+  transition: opacity .2s;
+}
+.bar:hover { opacity: 1; }
+.chartLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.chartLabels span { font-size: 0.58rem; color: #bbb; }
+
+@media (max-width: 768px) {
+  .body { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .statCards { grid-template-columns: repeat(2, 1fr); }
+  .panels { grid-template-columns: 1fr; }
+}
