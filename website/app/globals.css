@@ -29,8 +29,8 @@
   --purple-50:    #F5F3FF;
   --purple-100:   #EDE9FE;
   --indigo:       #4F46E5;
-  --text:         #111827;
-  --text-muted:   #6B7280;
+  --text:         #111111;
+  --text-muted:   #333333;
   --border:       #E5E7EB;
   --white:        #FFFFFF;
   --bg:           #FAFAFA;
@@ -39,11 +39,16 @@
 html { scroll-behavior: smooth; }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: var(--text);
+  font-family: 'Montserrat', 'Inter', sans-serif;
+  color: #111111;
   background: var(--white);
   line-height: 1.6;
   overflow-x: hidden;
+}
+
+p, li, span, .section-sub, .cardDesc, .desc, .sub {
+  font-family: 'Montserrat', 'Inter', sans-serif;
+  color: #111111;
 }
 
 /* Clash Display for all headings */
