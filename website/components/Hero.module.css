@@ -167,8 +167,14 @@
   .pillLL, .pillLR { display: none; }
 }
 @media (max-width: 640px) {
-  .hero { padding: 110px 0 0; }
+  .hero { padding: 96px 0 0; }
   .pill { display: none; }
-  .btns { flex-direction: column; }
-  .screenshotWrapper { padding: 0 14px; }
+  .btns { flex-direction: column; align-items: center; }
+  .btnPrimary, .btnOutline { width: 100%; max-width: 300px; justify-content: center; }
+  .screenshotWrapper { padding: 0 12px; }
+  .sub { font-size: 0.92rem; }
+}
+@media (max-width: 400px) {
+  .content { padding: 0 4%; }
+  .title { font-size: clamp(2rem, 8vw, 2.8rem); }
 }

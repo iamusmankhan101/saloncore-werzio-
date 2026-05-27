@@ -267,14 +267,15 @@
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
-  .body {
-    grid-template-columns: 1fr;
-  }
-  .mockupPanel {
-    height: 300px;
-  }
+  .body { grid-template-columns: 1fr; }
+  .mockupPanel { height: 280px; }
+  .section { padding: 70px 4%; }
 }
 
 @media (max-width: 480px) {
   .title { font-size: 1.75rem; }
+  .mockupPanel { height: 220px; }
+  .stepCard { padding: 16px; gap: 12px; }
+  .numCircle { width: 36px; height: 36px; font-size: 0.72rem; }
+  .stepTitle { font-size: 0.95rem; }
 }

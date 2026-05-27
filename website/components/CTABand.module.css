@@ -34,3 +34,10 @@
   color: #fff !important;
 }
 .ghostBtn:hover { border-color: #fff !important; }
+
+@media (max-width: 600px) {
+  .band { padding: 64px 4%; }
+  .btns { flex-direction: column; align-items: center; }
+  .btns .btn { width: 100%; max-width: 300px; justify-content: center; }
+  .sub { font-size: 0.9rem; }
+}

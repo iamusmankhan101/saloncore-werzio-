@@ -81,19 +81,15 @@
 }
 
 @media (max-width: 900px) {
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .cardOffset {
-    margin-top: 0;
-  }
+  .grid { grid-template-columns: repeat(2, 1fr); }
+  .cardOffset { margin-top: 0; }
+  .section { padding: 70px 4%; }
+  .header { margin-bottom: 40px; }
 }
 
 @media (max-width: 480px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-  .title {
-    font-size: 1.9rem;
-  }
+  .grid { grid-template-columns: 1fr; }
+  .title { font-size: 1.9rem; }
+  .card { min-height: 180px; padding: 22px 20px; }
+  .value { font-size: 2.4rem; }
 }

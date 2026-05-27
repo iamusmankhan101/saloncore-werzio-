@@ -119,3 +119,9 @@ h1, h2, h3, h4, h5, h6,
 .text-center { text-align: center; }
 .text-center .section-title,
 .text-center .section-sub { margin-left: auto; margin-right: auto; }
+
+/* ── global mobile resets ── */
+@media (max-width: 480px) {
+  .section-sub { font-size: 0.9rem; margin-bottom: 32px; }
+  .btn-lg { padding: 12px 22px; font-size: 0.9rem; }
+}

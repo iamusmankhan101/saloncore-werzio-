@@ -102,4 +102,11 @@
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr; max-width: 420px; }
   .featured { transform: none; }
+  .section { padding: 70px 4%; }
+}
+
+@media (max-width: 480px) {
+  .grid { max-width: 100%; }
+  .card { padding: 24px 20px; }
+  .amount { font-size: 2.2rem; }
 }

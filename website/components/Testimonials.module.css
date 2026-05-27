@@ -39,4 +39,10 @@
 .name { font-size: 0.875rem; font-weight: 700; }
 .role { font-size: 0.775rem; color: var(--text-muted); }
 
-@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+  .grid { grid-template-columns: 1fr; }
+  .section { padding: 64px 4%; }
+}
+@media (max-width: 480px) {
+  .card { padding: 20px; }
+}

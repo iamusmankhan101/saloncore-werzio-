@@ -6,8 +6,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 5%;
-  height: 68px;
-  background: rgba(255,255,255,0.85);
+  height: 64px;
+  background: rgba(255,255,255,0.9);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid transparent;
   transition: border-color .3s, box-shadow .3s;
@@ -27,7 +27,7 @@
 
 .links {
   display: flex;
-  gap: 32px;
+  gap: 28px;
   list-style: none;
 }
 
@@ -37,17 +37,88 @@
   color: var(--text-muted);
   text-decoration: none;
   transition: color .2s;
+  white-space: nowrap;
 }
-
 .link:hover, .active { color: var(--purple); }
 
 .cta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+/* hamburger — hidden on desktop */
+.burger {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  padding: 4px;
+  line-height: 0;
+}
+
+/* ── MOBILE DRAWER ─────────────────── */
+.drawer {
+  position: fixed;
+  top: 64px;
+  left: 0; right: 0;
+  background: #fff;
+  z-index: 99;
+  padding: 20px 5% 28px;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  transform: translateY(-8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.drawerOpen {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: all;
+}
+
+.drawerLinks {
+  list-style: none;
+  margin-bottom: 20px;
+}
+.drawerLink {
+  display: block;
+  padding: 12px 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+.drawerLink:hover { color: var(--purple); }
+
+.drawerCta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 98;
+  background: rgba(0,0,0,.25);
+}
+
+/* ── RESPONSIVE ─────────────────────── */
+@media (max-width: 900px) {
+  .links { gap: 20px; }
 }
 
 @media (max-width: 768px) {
-  .links { display: none; }
+  .links, .loginBtn { display: none; }
+  .burger { display: flex; }
   .nav { padding: 0 4%; }
+}
+
+@media (max-width: 400px) {
+  .cta .btn { font-size: 0.8rem; padding: 8px 14px; }
 }
