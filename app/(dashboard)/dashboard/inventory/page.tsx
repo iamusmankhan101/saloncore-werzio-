@@ -9,7 +9,7 @@ import DashboardHeader from "@/components/dashboard-header";
 import {
   Search, X, Plus, AlertTriangle, Package, ChevronDown,
   Edit2, Trash2, Bell, Copy, CheckCircle, TrendingDown,
-  MessageCircle, DollarSign,
+  MessageCircle, DollarSign, Tag, ToggleLeft, ToggleRight,
 } from "lucide-react";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -456,6 +456,7 @@ function ItemRow({ item, isLast, onEdit, onDelete }: {
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
+  const [tab, setTab]                 = useState<"stock" | "retail">("stock");
   const [items, setItems]             = useState<InventoryItem[]>([]);
   const [search, setSearch]           = useState("");
   const [catFilter, setCatFilter]     = useState<InventoryCategory | "all">("all");
@@ -477,6 +478,17 @@ export default function InventoryPage() {
     saveInventory(updated);
     checkLowStockAlerts();
   }, []);
+
+  const toggleRetail = useCallback((id: string) => {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    persist(items.map(i => i.id === id
+      ? { ...i, retailPrice: i.retailPrice ? undefined : (i.costPrice || 0) }
+      : i
+    ));
+  }, [items, persist]);
+
+  const retailItems = useMemo(() => items.filter(i => (i.retailPrice ?? 0) > 0), [items]);
 
   // Derived stats
   const totalValue = useMemo(() => items.reduce((s, i) => s + i.costPrice * i.currentStock, 0), [items]);
@@ -514,37 +526,164 @@ export default function InventoryPage() {
       {showReminder && <ReminderModal alertItems={alertItems} onClose={() => setShowReminder(false)} />}
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
           <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 10 }}>
             Inventory
-            {alertItems.length > 0 && (
+            {tab === "stock" && alertItems.length > 0 && (
               <span style={{ fontSize: 12, fontWeight: 700, background: outCount > 0 ? "#fef2f2" : "#fffbeb", color: outCount > 0 ? "#dc2626" : "#d97706", border: `1px solid ${outCount > 0 ? "#fecaca" : "#fed7aa"}`, borderRadius: 20, padding: "2px 10px" }}>
                 {alertItems.length} alert{alertItems.length !== 1 ? "s" : ""}
               </span>
             )}
           </div>
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 3 }}>
-            {items.length} items · {fmtV(totalValue)} total value
+            {tab === "stock"
+              ? `${items.length} items · ${fmtV(totalValue)} total value`
+              : `${retailItems.length} products available in POS · ${items.filter(i => !(i.retailPrice ?? 0)).length} not listed`}
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          {alertItems.length > 0 && (
-            <button
-              onClick={() => setShowReminder(true)}
-              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "1px solid #fed7aa", background: "#fffbeb", fontSize: 13, fontWeight: 600, color: "#d97706", cursor: "pointer" }}
-            >
+          {tab === "stock" && alertItems.length > 0 && (
+            <button onClick={() => setShowReminder(true)}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "1px solid #fed7aa", background: "#fffbeb", fontSize: 13, fontWeight: 600, color: "#d97706", cursor: "pointer" }}>
               <Bell size={14} /> Send Reminder
             </button>
           )}
-          <button
-            onClick={() => setShowAdd(true)}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #5B21B6, #9333EA)", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", boxShadow: "0 2px 10px rgba(91,33,182,0.3)" }}
-          >
-            <Plus size={15} /> Add Item
+          <button onClick={() => setShowAdd(true)}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #5B21B6, #9333EA)", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", boxShadow: "0 2px 10px rgba(91,33,182,0.3)" }}>
+            <Plus size={15} /> {tab === "retail" ? "Add Product" : "Add Item"}
           </button>
         </div>
       </div>
+
+      {/* Tab switcher */}
+      <div style={{ display: "flex", gap: 4, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, padding: 4, width: "fit-content", marginBottom: 20 }}>
+        {([
+          { id: "stock",  label: "Stock Management", icon: Package },
+          { id: "retail", label: "Retail Products",  icon: Tag },
+        ] as { id: "stock" | "retail"; label: string; icon: React.ElementType }[]).map(t => {
+          const active = tab === t.id;
+          const Icon = t.icon;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 18px", borderRadius: 9, border: "none", background: active ? "linear-gradient(135deg,#5B21B6,#9333EA)" : "transparent", color: active ? "#fff" : "#6b6b8a", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}>
+              <Icon size={14} />
+              {t.label}
+              {t.id === "retail" && retailItems.length > 0 && (
+                <span style={{ background: active ? "rgba(255,255,255,0.25)" : "#7C3AED", color: "#fff", borderRadius: 20, fontSize: 10, fontWeight: 800, padding: "1px 7px" }}>
+                  {retailItems.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ══════════ RETAIL PRODUCTS TAB ══════════ */}
+      {tab === "retail" && (
+        <>
+          {/* Info banner */}
+          <div style={{ padding: "10px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 13, color: "#92400e", display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <Tag size={14} color="#d97706" />
+            Items with a <strong>retail price</strong> appear in the POS catalog for sale. Toggle the switch to enable/disable an item for POS retail.
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
+            {[
+              { label: "Listed in POS",   value: retailItems.length,  iconColor: "#7C3AED", bg: "#EDE9FE" },
+              { label: "Not Listed",      value: items.filter(i => !(i.retailPrice ?? 0)).length, iconColor: "#9898b0", bg: "#f4f4f8" },
+              { label: "Low/Out Stock",   value: retailItems.filter(i => i.currentStock <= i.minStock).length, iconColor: "#dc2626", bg: "#fef2f2" },
+              { label: "Retail Value",    value: fmtV(retailItems.reduce((s, i) => s + (i.retailPrice ?? 0) * i.currentStock, 0)), iconColor: "#059669", bg: "#ecfdf5" },
+            ].map(({ label, value, iconColor, bg }) => (
+              <div key={label} style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 11, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Tag size={20} color={iconColor} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: iconColor, lineHeight: 1.1 }}>{value}</div>
+                  <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3 }}>{label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Products table */}
+          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", overflow: "hidden" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 90px 110px 120px 110px 100px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+              {["PRODUCT", "CATEGORY", "STOCK", "COST PRICE", "RETAIL PRICE", "MARGIN", "IN POS"].map(h => (
+                <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.07em" }}>{h}</div>
+              ))}
+            </div>
+
+            {items.length === 0 ? (
+              <div style={{ padding: "56px 20px", textAlign: "center" }}>
+                <Package size={32} color="#e0e0f0" style={{ marginBottom: 12 }} />
+                <div style={{ fontSize: 14, color: "#b0b0c8", fontWeight: 600 }}>No items in inventory yet</div>
+                <div style={{ fontSize: 12, color: "#c8c8d8", marginTop: 4 }}>Add items first, then enable them for POS retail</div>
+              </div>
+            ) : (
+              items.map((item, i) => {
+                const isRetail = (item.retailPrice ?? 0) > 0;
+                const margin   = isRetail && item.costPrice ? Math.round(((item.retailPrice! - item.costPrice) / item.retailPrice!) * 100) : null;
+                const isLow    = item.currentStock <= item.minStock;
+                const cat      = CATEGORY_CONFIG[item.category];
+                return (
+                  <div key={item.id}
+                    style={{ display: "grid", gridTemplateColumns: "1fr 110px 90px 110px 120px 110px 100px", padding: "13px 20px", borderBottom: i < items.length - 1 ? "1px solid #f4f4f8" : "none", alignItems: "center", background: isRetail ? "#fafffe" : "transparent" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#fafafa")}
+                    onMouseLeave={e => (e.currentTarget.style.background = isRetail ? "#fafffe" : "transparent")}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 9, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <Package size={15} color={cat.color} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{item.brand ? `${item.brand} ` : ""}{item.name}</div>
+                        <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{item.unit}</div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: cat.color, background: cat.bg, borderRadius: 20, padding: "2px 8px", width: "fit-content" }}>{cat.label}</span>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: isLow ? "#dc2626" : "#1a1a2e" }}>
+                      {item.currentStock} {item.unit}
+                      {isLow && <div style={{ fontSize: 10, color: "#dc2626", fontWeight: 700 }}>Low</div>}
+                    </div>
+                    <div style={{ fontSize: 13, color: "#6b7280" }}>{item.costPrice ? fmt(item.costPrice) : "—"}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: isRetail ? "#7C3AED" : "#c8c8d8" }}>
+                      {isRetail ? fmt(item.retailPrice!) : <span style={{ fontSize: 11, color: "#c8c8d8" }}>Not set</span>}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: margin !== null && margin > 0 ? "#059669" : "#c8c8d8" }}>
+                      {margin !== null ? `${margin}%` : "—"}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <button onClick={() => toggleRetail(item.id)} title={isRetail ? "Remove from POS" : "Enable in POS"}
+                        style={{ border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                        {isRetail
+                          ? <ToggleRight size={26} color="#7C3AED" />
+                          : <ToggleLeft  size={26} color="#c8c8d8" />}
+                      </button>
+                      <button onClick={() => setEditItem(item)}
+                        style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #e8e8f0", background: "#fafafa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                        <Edit2 size={12} color="#9898b0" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+
+            {items.length > 0 && (
+              <div style={{ padding: "12px 20px", borderTop: "1px solid #f0f0f8", background: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "#9898b0" }}>{retailItems.length} of {items.length} items enabled for POS</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>Retail value: {fmtV(retailItems.reduce((s, i) => s + (i.retailPrice ?? 0) * i.currentStock, 0))}</span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ══════════ STOCK MANAGEMENT TAB ══════════ */}
+      {tab === "stock" && <>
 
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
@@ -720,6 +859,8 @@ export default function InventoryPage() {
           </div>
         )}
       </div>
+
+      </>}
     </div>
   );
 }
