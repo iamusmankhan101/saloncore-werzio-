@@ -75,6 +75,12 @@
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.12em;
+  margin-bottom: 28px;
+}
+
+.brandTop img {
+  height: 52px !important;
+  width: auto !important;
 }
 
 .brandMark {
