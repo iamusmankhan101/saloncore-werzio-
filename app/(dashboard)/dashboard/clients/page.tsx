@@ -7,6 +7,13 @@ import type { Client, Appointment } from "@/lib/types";
 import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
+const STATUS_CONFIG = {
+  booked:        { color: "#6366f1", bg: "#eef2ff" },
+  confirmed:     { color: "#059669", bg: "#ecfdf5" },
+  arrived:       { color: "#9333EA", bg: "#f5f3ff" },
+  "in-progress": { color: "#d97706", bg: "#fffbeb" },
+};
+
 const TAG_COLORS: Record<string, { color: string; bg: string }> = {
   VIP:      { color: "#7C3AED", bg: "#EDE9FE" },
   Regular:  { color: "#059669", bg: "#ecfdf5" },
@@ -25,7 +32,13 @@ function fmtDate(s?: string) {
 
 // ── Client Detail Panel ───────────────────────────────────────────────────────
 function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Client; onClose: () => void; appointments: Appointment[]; onUpdate?: (c: Client) => void }) {
-  const appts = appointments.filter((a) => a.clientId === client.id);
+  const allClientAppts   = appointments.filter((a) => a.clientId === client.id);
+  const completedAppts   = allClientAppts.filter((a) => a.status === "completed").sort((a, b) => b.date.localeCompare(a.date));
+  const liveVisits       = completedAppts.length;
+  const liveSpend        = completedAppts.reduce((s, a) => s + a.totalAmount, 0);
+  const liveLastVisit    = completedAppts[0]?.date;
+  const liveAvgTicket    = liveVisits ? Math.round(liveSpend / liveVisits) : 0;
+  const upcomingAppts    = allClientAppts.filter((a) => !["completed","cancelled","no-show"].includes(a.status)).sort((a, b) => a.date.localeCompare(b.date));
   const profile = BEAUTY_PROFILES.find((p) => p.clientId === client.id);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -79,19 +92,64 @@ function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Clie
 
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
 
-          {/* Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {/* Stats — live-computed from appointment history */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
             {[
-              { label: "Total Visits", value: client.totalVisits, icon: <Calendar size={13} color="#9898b0" /> },
-              { label: "Total Spend", value: fmt(client.totalSpend), icon: <TrendingUp size={13} color="#9898b0" /> },
-              { label: "Avg Rating", value: client.averageRating ? `${client.averageRating} ★` : "—", icon: <Star size={13} color="#9898b0" /> },
+              { label: "Visits",     value: liveVisits,            color: "#7C3AED", bg: "#f5f3ff" },
+              { label: "Total Spend",value: fmt(liveSpend),        color: "#059669", bg: "#ecfdf5" },
+              { label: "Avg Ticket", value: liveAvgTicket ? fmt(liveAvgTicket) : "—", color: "#0284c7", bg: "#f0f9ff" },
+              { label: "Upcoming",   value: upcomingAppts.length,  color: "#d97706", bg: "#fffbeb" },
             ].map((s) => (
-              <div key={s.label} style={{ background: "#f9f9fb", borderRadius: 12, padding: "12px 14px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>{s.icon}<span style={{ fontSize: 10, color: "#9898b0", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span></div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>{s.value}</div>
+              <div key={s.label} style={{ background: s.bg, borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 4 }}>{s.label}</div>
               </div>
             ))}
           </div>
+
+          {/* Visit History */}
+          {completedAppts.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Visit History</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 200, overflowY: "auto" }}>
+                {completedAppts.slice(0, 8).map((a) => (
+                  <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 10, background: "#f9f9fb", border: "1px solid #f0f0f8" }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>{a.serviceNames.join(", ")}</div>
+                      <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>{fmtDate(a.date)} · {a.staffName || "—"}</div>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#7C3AED" }}>{fmt(a.totalAmount)}</div>
+                  </div>
+                ))}
+              </div>
+              {liveLastVisit && (
+                <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 6 }}>Last visit: {fmtDate(liveLastVisit)}</div>
+              )}
+            </div>
+          )}
+
+          {/* Upcoming appointments */}
+          {upcomingAppts.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Upcoming</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {upcomingAppts.slice(0, 3).map((a) => {
+                  const sc = STATUS_CONFIG[a.status as keyof typeof STATUS_CONFIG] ?? { color: "#6b7280", bg: "#f9fafb" };
+                  return (
+                    <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 10, background: sc.bg, border: `1px solid ${sc.color}22` }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>{a.serviceNames.join(", ")}</div>
+                        <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>{fmtDate(a.date)} · {a.staffName || "—"}</div>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: sc.color, background: "rgba(255,255,255,0.8)", borderRadius: 20, padding: "2px 8px", border: `1px solid ${sc.color}33` }}>
+                        {a.status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Contact — view or edit */}
           {editing ? (
@@ -156,7 +214,7 @@ function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Clie
                 {displayEmail && <InfoLine icon={<Mail size={13} color="#9898b0" />} label={displayEmail} />}
                 {displayDob && <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`DOB: ${fmtDate(displayDob)}`} />}
                 <InfoLine icon={<Heart size={13} color="#9898b0" />} label={`Source: ${displaySource}`} />
-                <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`Last visit: ${fmtDate(client.lastVisitDate)}`} />
+                <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`Last visit: ${fmtDate(liveLastVisit ?? client.lastVisitDate)}`} />
               </div>
             </PanelSection>
           )}
@@ -190,22 +248,6 @@ function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Clie
             </PanelSection>
           )}
 
-          {/* Appointment history */}
-          {appts.length > 0 && (
-            <PanelSection title="Appointment History">
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {appts.map((a) => (
-                  <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f9f9fb", borderRadius: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{a.serviceNames.join(", ")}</div>
-                      <div style={{ fontSize: 11, color: "#9898b0" }}>{fmtDate(a.date)} · {a.staffName.split(" ")[0]}</div>
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>{fmt(a.totalAmount)}</span>
-                  </div>
-                ))}
-              </div>
-            </PanelSection>
-          )}
         </div>
       </div>
     </div>
@@ -329,8 +371,26 @@ export default function ClientsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
 
   useEffect(() => {
-    setClients(getStoredClients());
-    setAppointments(getStoredAppointments());
+    const storedAppts   = getStoredAppointments();
+    const storedClients = getStoredClients();
+
+    // Recompute each client's stats from completed appointment history
+    const synced = storedClients.map((c) => {
+      const done = storedAppts.filter((a) => a.clientId === c.id && a.status === "completed");
+      if (done.length === 0) return c;
+      const totalVisits   = done.length;
+      const totalSpend    = done.reduce((s, a) => s + a.totalAmount, 0);
+      const lastVisitDate = done.sort((a, b) => b.date.localeCompare(a.date))[0].date;
+      return { ...c, totalVisits, totalSpend, lastVisitDate };
+    });
+
+    // Persist only if something actually changed
+    if (JSON.stringify(synced) !== JSON.stringify(storedClients)) {
+      saveClients(synced);
+    }
+
+    setClients(synced);
+    setAppointments(storedAppts);
   }, []);
 
   const plan          = getCurrentPlan();

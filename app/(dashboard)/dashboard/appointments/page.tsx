@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
-import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays } from "lucide-react";
+import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
 
@@ -88,96 +88,171 @@ function FilterSelect({ label, value, onChange, children }: { label: string; val
 
 // ── Detail Modal ──────────────────────────────────────────────────────────────
 
-function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusChange }: { appt: Appointment; onClose: () => void; clients: Client[]; staffList: Staff[]; allServices: Service[]; onStatusChange: (apptId: string, status: AppointmentStatus) => void }) {
+const FLOW_STEPS: AppointmentStatus[] = ["booked", "confirmed", "arrived", "in-progress", "completed"];
+
+function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusChange }: {
+  appt: Appointment; onClose: () => void; clients: Client[]; staffList: Staff[];
+  allServices: Service[]; onStatusChange: (apptId: string, status: AppointmentStatus) => void;
+}) {
   const [currentStatus, setCurrentStatus] = useState<AppointmentStatus>(appt.status);
-  const cfg = STATUS[currentStatus];
-  const staff = staffList.find((s) => s.id === appt.staffId);
-  const services = allServices.filter((s) => appt.serviceIds.includes(s.id));
-  const client = clients.find((c) => c.id === appt.clientId);
-  const durationMin = toMin(appt.endTime) - toMin(appt.startTime);
+  const cfg          = STATUS[currentStatus];
+  const staff        = staffList.find((s) => s.id === appt.staffId);
+  const services     = allServices.filter((s) => appt.serviceIds.includes(s.id));
+  const client       = clients.find((c) => c.id === appt.clientId);
+  const durationMin  = toMin(appt.endTime) - toMin(appt.startTime);
+  const flowIdx      = FLOW_STEPS.indexOf(currentStatus);
+  const nextStep     = flowIdx !== -1 && flowIdx < FLOW_STEPS.length - 1 ? FLOW_STEPS[flowIdx + 1] : null;
+  const isTerminal   = ["completed", "cancelled", "no-show"].includes(currentStatus);
 
   function changeStatus(newStatus: AppointmentStatus) {
     setCurrentStatus(newStatus);
     onStatusChange(appt.id, newStatus);
   }
 
-  const FLOW: AppointmentStatus[] = ["booked", "confirmed", "arrived", "in-progress", "completed"];
-  const QUICK: AppointmentStatus[] = ["no-show", "cancelled"];
-
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
-        <div style={{ background: cfg.bg, padding: "20px 24px 16px", borderBottom: `3px solid ${cfg.color}33`, position: "relative" }}>
-          <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, display: "flex" }}>
-            <X size={18} color="#6b6b8a" />
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 480, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 70px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+
+        {/* Header */}
+        <div style={{ background: `linear-gradient(135deg, ${cfg.color}18, ${cfg.color}08)`, padding: "20px 24px 18px", borderBottom: `2px solid ${cfg.color}22`, position: "relative" }}>
+          <button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "rgba(0,0,0,0.06)", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}>
+            <X size={16} color="#6b6b8a" />
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: (staff?.color ?? "#7C3AED") + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: staff?.color ?? "#7C3AED" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: `linear-gradient(135deg, ${cfg.color}33, ${cfg.color}18)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, color: cfg.color, flexShrink: 0 }}>
               {appt.clientName.charAt(0)}
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 17, color: "#1a1a2e" }}>{appt.clientName}</div>
-              {client?.phone && <div style={{ fontSize: 12, color: "#9898b0", marginTop: 1 }}>{client.phone}</div>}
+              <div style={{ fontWeight: 800, fontSize: 18, color: "#1a1a2e" }}>{appt.clientName}</div>
+              <div style={{ fontSize: 12, color: "#9898b0", marginTop: 2 }}>
+                {client?.phone && <span>{client.phone} · </span>}
+                {fmtDate(appt.date)} · {fmtTime(appt.startTime)}–{fmtTime(appt.endTime)}
+              </div>
             </div>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 600, color: cfg.color, background: `${cfg.color}18`, padding: "3px 12px", borderRadius: 20 }}>{cfg.label}</span>
+
+          {/* Linear stepper */}
+          <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+            {FLOW_STEPS.map((step, i) => {
+              const stepCfg  = STATUS[step];
+              const isDone   = flowIdx > i || (currentStatus === "completed" && i === FLOW_STEPS.length - 1);
+              const isCurr   = flowIdx === i && !isTerminal;
+              const isPast   = flowIdx > i;
+              return (
+                <div key={step} style={{ display: "flex", alignItems: "center", flex: i < FLOW_STEPS.length - 1 ? 1 : 0 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: "50%",
+                      background: isDone || isCurr ? stepCfg.color : "#e8e8f0",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      border: isCurr ? `2px solid ${stepCfg.color}` : "2px solid transparent",
+                      boxShadow: isCurr ? `0 0 0 3px ${stepCfg.color}28` : "none",
+                      transition: "all 0.2s",
+                    }}>
+                      {isPast || (currentStatus === "completed" && step === "completed")
+                        ? <CheckCircle2 size={14} color="#fff" />
+                        : <div style={{ width: 8, height: 8, borderRadius: "50%", background: isCurr ? "#fff" : "#c8c8d8" }} />
+                      }
+                    </div>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: isCurr ? stepCfg.color : isPast ? "#6b7280" : "#c8c8d8", textTransform: "capitalize", whiteSpace: "nowrap" }}>
+                      {step === "in-progress" ? "In Progress" : step.charAt(0).toUpperCase() + step.slice(1)}
+                    </span>
+                  </div>
+                  {i < FLOW_STEPS.length - 1 && (
+                    <div style={{ flex: 1, height: 2, background: flowIdx > i ? cfg.color : "#e8e8f0", margin: "0 4px", marginBottom: 16, transition: "background 0.2s" }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Terminal badges */}
+          {currentStatus === "no-show" && (
+            <div style={{ marginTop: 8, display: "inline-block", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 700, color: "#dc2626" }}>No Show</div>
+          )}
+          {currentStatus === "cancelled" && (
+            <div style={{ marginTop: 8, display: "inline-block", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 700, color: "#6b7280" }}>Cancelled</div>
+          )}
         </div>
-        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <InfoRow icon={<Clock size={14} color="#9898b0" />} label="Date & Time">
-            {fmtDate(appt.date)} · {fmtTime(appt.startTime)} – {fmtTime(appt.endTime)}
-            <span style={{ marginLeft: 8, fontSize: 11, color: "#9898b0" }}>({durationMin} min)</span>
-          </InfoRow>
+
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* Info rows */}
           <InfoRow icon={<User size={14} color="#9898b0" />} label="Stylist">
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <span style={{ width: 10, height: 10, borderRadius: "50%", background: staff?.color ?? "#ccc", display: "inline-block" }} />
-              {appt.staffName}
+              {appt.staffName || "—"}
             </span>
           </InfoRow>
+
           <InfoRow icon={<Scissors size={14} color="#9898b0" />} label="Services">
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              {services.map((sv) => (
+              {services.length > 0 ? services.map((sv) => (
                 <div key={sv.id} style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>{sv.name}</span>
                   <span style={{ color: "#7C3AED", fontWeight: 600 }}>{fmt(sv.price)}</span>
                 </div>
+              )) : appt.serviceNames.map((name) => (
+                <div key={name} style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>{name}</span>
+                </div>
               ))}
             </div>
           </InfoRow>
-          <InfoRow icon={<Tag size={14} color="#9898b0" />} label="Source">
-            <span style={{ textTransform: "capitalize" }}>{appt.source}</span>
+
+          <InfoRow icon={<Clock size={14} color="#9898b0" />} label="Duration">
+            {fmtTime(appt.startTime)} – {fmtTime(appt.endTime)} <span style={{ color: "#9898b0", fontSize: 11 }}>({durationMin} min)</span>
           </InfoRow>
+
           {appt.notes && (
             <InfoRow icon={<Tag size={14} color="#9898b0" />} label="Notes">{appt.notes}</InfoRow>
           )}
-          <div style={{ borderTop: "1px solid #f0f0f8", paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 13, color: "#6b6b8a", fontWeight: 500 }}>Total</span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: "#7C3AED" }}>{fmt(appt.totalAmount)}</span>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#f9f8ff", borderRadius: 12, border: "1px solid #ede9fe" }}>
+            <span style={{ fontSize: 13, color: "#6b6b8a", fontWeight: 600 }}>Total Amount</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: "#7C3AED" }}>{fmt(appt.totalAmount)}</span>
           </div>
 
-          {/* Status flow */}
-          {!["completed","cancelled","no-show"].includes(currentStatus) && (
-            <div style={{ borderTop: "1px solid #f0f0f8", paddingTop: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Update Status</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                {FLOW.filter((s) => s !== currentStatus).map((s) => (
+          {/* ── Status workflow ── */}
+          {!isTerminal && nextStep && (
+            <div style={{ borderTop: "1px solid #f0f0f8", paddingTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Update Status</div>
+
+              {/* Primary next-step button */}
+              <button type="button" onClick={() => changeStatus(nextStep)}
+                style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${STATUS[nextStep].color}dd, ${STATUS[nextStep].color})`, color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 14px ${STATUS[nextStep].color}44` }}>
+                <ArrowRight size={16} />
+                Mark as {STATUS[nextStep].label}
+              </button>
+
+              {/* Skip / secondary actions */}
+              <div style={{ display: "flex", gap: 8 }}>
+                {FLOW_STEPS.filter(s => s !== currentStatus && s !== nextStep && !["completed"].includes(s)).map(s => (
                   <button key={s} type="button" onClick={() => changeStatus(s)}
-                    style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${STATUS[s].color}44`, background: STATUS[s].bg, color: STATUS[s].color, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                    style={{ flex: 1, padding: "8px 0", borderRadius: 9, border: `1.5px solid ${STATUS[s].color}44`, background: STATUS[s].bg, color: STATUS[s].color, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                     {STATUS[s].label}
                   </button>
                 ))}
-                {QUICK.map((s) => (
-                  <button key={s} type="button" onClick={() => changeStatus(s)}
-                    style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${STATUS[s].color}44`, background: STATUS[s].bg, color: STATUS[s].color, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                    {STATUS[s].label}
-                  </button>
-                ))}
+                <button type="button" onClick={() => changeStatus("no-show")}
+                  style={{ flex: 1, padding: "8px 0", borderRadius: 9, border: "1.5px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  No Show
+                </button>
+                <button type="button" onClick={() => changeStatus("cancelled")}
+                  style={{ flex: 1, padding: "8px 0", borderRadius: 9, border: "1.5px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  Cancel
+                </button>
               </div>
             </div>
           )}
-          {["completed","cancelled","no-show"].includes(currentStatus) && (
-            <div style={{ borderTop: "1px solid #f0f0f8", paddingTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "4px 14px", borderRadius: 20 }}>{cfg.label}</span>
-              {currentStatus === "completed" && <span style={{ fontSize: 11, color: "#9898b0" }}>Follow-up WhatsApp queued ✓</span>}
+
+          {/* Completed state */}
+          {currentStatus === "completed" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#ecfdf5", borderRadius: 12, border: "1px solid #bbf7d0" }}>
+              <CheckCircle2 size={18} color="#059669" />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#065f46" }}>Appointment Completed</div>
+                <div style={{ fontSize: 11, color: "#047857", marginTop: 1 }}>Client stats updated · Follow-up WhatsApp queued</div>
+              </div>
             </div>
           )}
         </div>
@@ -482,7 +557,23 @@ export default function AppointmentsPage() {
               return updated;
             });
             setSelected((prev) => prev ? { ...prev, status: newStatus } : null);
-            if (newStatus === "completed") enqueueWhatsAppFollowup(apptId);
+
+            if (newStatus === "completed") {
+              enqueueWhatsAppFollowup(apptId);
+              // Update client visit count, spend and last visit date
+              const appt = appointments.find((a) => a.id === apptId);
+              if (appt?.clientId) {
+                setClients((prev) => {
+                  const updated = prev.map((c) =>
+                    c.id === appt.clientId
+                      ? { ...c, totalVisits: c.totalVisits + 1, totalSpend: c.totalSpend + appt.totalAmount, lastVisitDate: appt.date }
+                      : c
+                  );
+                  saveClients(updated);
+                  return updated;
+                });
+              }
+            }
           }}
         />
       )}
