@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
-import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight } from "lucide-react";
+import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
 
@@ -708,8 +708,8 @@ export default function AppointmentsPage() {
 
       {/* Table */}
       <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 160px 120px 110px 100px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
-          {["CLIENT", "DATE", "SERVICE", "STYLIST", "STATUS", "AMOUNT"].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 160px 120px 110px 100px 120px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+          {["CLIENT", "DATE", "SERVICE", "STYLIST", "STATUS", "AMOUNT", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
         </div>
@@ -725,7 +725,7 @@ export default function AppointmentsPage() {
               <div
                 key={appt.id}
                 onClick={() => setSelected(appt)}
-                style={{ display: "grid", gridTemplateColumns: "1fr 140px 160px 120px 110px 100px", padding: "13px 20px", borderBottom: isLast ? "none" : "1px solid #f4f4f8", alignItems: "center", cursor: "pointer" }}
+                style={{ display: "grid", gridTemplateColumns: "1fr 140px 160px 120px 110px 100px 120px", padding: "13px 20px", borderBottom: isLast ? "none" : "1px solid #f4f4f8", alignItems: "center", cursor: "pointer" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
@@ -753,6 +753,17 @@ export default function AppointmentsPage() {
                   <span style={{ fontSize: 11, fontWeight: 600, color: cfg.color, background: cfg.bg, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap" }}>{cfg.label}</span>
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(appt.totalAmount)}</div>
+                {/* Checkout button — visible for arrived / in-progress / completed */}
+                <div onClick={(e) => e.stopPropagation()}>
+                  {["arrived", "in-progress", "completed"].includes(appt.status) ? (
+                    <a
+                      href={`/dashboard/pos?appointmentId=${appt.id}`}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 8, background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(91,33,182,0.3)" }}
+                    >
+                      <ShoppingCart size={12} /> Checkout
+                    </a>
+                  ) : <span />}
+                </div>
               </div>
             );
           })

@@ -11,7 +11,7 @@ import {
 import SalonInvoicePrint from "@/components/salon-invoice-print";
 import {
   getStoredServices, getStoredClients, getStoredInventory,
-  getStoredStaff, saveClients, saveInventory,
+  getStoredStaff, getStoredAppointments, saveClients, saveInventory,
 } from "@/lib/storage";
 import {
   createSalonInvoice, calcTotals,
@@ -92,12 +92,58 @@ export default function POSPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [staff,     setStaff]     = useState<Staff[]>([]);
   const [now,       setNow]       = useState(new Date());
+  const [apptBanner, setApptBanner] = useState<string | null>(null);
 
   useEffect(() => {
-    setServices(getStoredServices().filter(s => s.isActive));
-    setClients(getStoredClients());
-    setInventory(getStoredInventory());
-    setStaff(getStoredStaff().filter(s => s.isActive));
+    const allServices  = getStoredServices().filter(s => s.isActive);
+    const allClients   = getStoredClients();
+    const allInventory = getStoredInventory();
+    const allStaff     = getStoredStaff().filter(s => s.isActive);
+
+    setServices(allServices);
+    setClients(allClients);
+    setInventory(allInventory);
+    setStaff(allStaff);
+
+    // Pre-fill from appointment if ?appointmentId= is in the URL
+    const params       = new URLSearchParams(window.location.search);
+    const apptId       = params.get("appointmentId");
+    if (apptId) {
+      const appt = getStoredAppointments().find(a => a.id === apptId);
+      if (appt) {
+        // Set client
+        const client = allClients.find(c => c.id === appt.clientId);
+        if (client) setSelectedClient(client);
+
+        // Set staff
+        if (appt.staffId) setSelectedStaffId(appt.staffId);
+
+        // Build cart from appointment services
+        const cartEntries: CartEntry[] = appt.serviceIds
+          .map((svcId, idx) => {
+            const svc = allServices.find(s => s.id === svcId);
+            const name = svc?.name ?? appt.serviceNames[idx] ?? "Service";
+            const price = svc?.price ?? appt.totalAmount;
+            return {
+              cartId:    crypto.randomUUID(),
+              itemId:    svcId,
+              type:      "service" as const,
+              name,
+              qty:       1,
+              unitPrice: price,
+              total:     price,
+            };
+          })
+          .filter(e => e.unitPrice > 0);
+
+        if (cartEntries.length > 0) setCart(cartEntries);
+
+        // Note the source appointment
+        setSaleNotes(`Appointment checkout${appt.date ? ` · ${appt.date}` : ""}`);
+        setApptBanner(`Checking out: ${appt.clientName} · ${appt.serviceNames.join(", ")} · ${appt.date}`);
+      }
+    }
+
     const t = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
@@ -339,6 +385,17 @@ export default function POSPage() {
           </button>
         )}
       </div>
+
+      {/* ══ APPOINTMENT BANNER ══ */}
+      {apptBanner && !completed && (
+        <div style={{ background: "linear-gradient(135deg,#f5f3ff,#ede9fe)", borderBottom: "1px solid #ddd6fe", display: "flex", alignItems: "center", padding: "10px 24px", gap: 12, flexShrink: 0 }}>
+          <ShoppingCart size={15} color="#7C3AED" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#5B21B6", flex: 1 }}>{apptBanner}</span>
+          <button onClick={() => setApptBanner(null)} style={{ border: "none", background: "none", cursor: "pointer", color: "#9999b0", display: "flex", padding: 2 }}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* ══ SUCCESS BANNER ══ */}
       {completed && lastInvoice && (
