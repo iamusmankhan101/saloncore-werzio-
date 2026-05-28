@@ -81,9 +81,9 @@ export default function Sidebar() {
       {/* ── Werzio logo badge ─────────────────────────────────────────── */}
       <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid #1e1e2c", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <img
-          src="/werzio logo.png"
+          src="/Untitled design (5).png"
           alt="Werzio"
-          style={{ height: 60, width: "auto", filter: "brightness(0) invert(1)", userSelect: "none", pointerEvents: "none" }}
+          style={{ height: 60, width: "auto", userSelect: "none", pointerEvents: "none" }}
         />
         <div style={{
           display: "flex", alignItems: "center", gap: 5,
