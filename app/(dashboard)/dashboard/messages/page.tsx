@@ -11,6 +11,7 @@ import { saveSettings, settingsStore } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
 import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone } from "@/lib/whatsapp-scheduler";
 import { getCurrentUser, userKey } from "@/lib/auth";
+import { getCurrentPlan } from "@/lib/plan-limits";
 import type { Client } from "@/lib/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -209,6 +210,40 @@ function TemplateCard({ cfg }: { cfg: typeof TPL_CONFIG[0] }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function MessagesPage() {
+  const waPlan = getCurrentPlan();
+  if (!waPlan.whatsapp) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f5f6f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ maxWidth: 460, width: "100%", margin: "0 auto", textAlign: "center", padding: "0 24px" }}>
+          <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", boxShadow: "0 8px 28px rgba(91,33,182,0.35)" }}>
+            <span style={{ fontSize: 34 }}>💬</span>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: "#1a1a2e", marginBottom: 10 }}>WhatsApp Automation</div>
+          <div style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.7, marginBottom: 28 }}>
+            Automated WhatsApp reminders, booking confirmations, follow-ups, and low-stock alerts are available on the <strong>Werzio Premium</strong> plan.
+          </div>
+          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", padding: "20px 22px", marginBottom: 24, textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}>
+            {["Appointment reminders sent automatically", "Booking confirmation messages", "Post-visit follow-up messages", "Low inventory stock alerts", "Manual WhatsApp sends with templates"].map(f => (
+              <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 11 }}>✓</span>
+                </div>
+                <span style={{ fontSize: 13, color: "#374151" }}>{f}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 8 }}>
+            <span style={{ fontSize: 13, color: "#9898b0" }}>Current plan:</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: waPlan.color, background: waPlan.bg, borderRadius: 20, padding: "2px 12px", border: `1px solid ${waPlan.color}30` }}>{waPlan.label}</span>
+          </div>
+          <a href="/dashboard/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 32px", borderRadius: 12, background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 16px rgba(91,33,182,0.38)" }}>
+            Upgrade to Premium — PKR 9,000/mo →
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   const [tab, setTab]           = useState<"messages" | "templates">("messages");
   const [logs, setLogs]         = useState<WaLogEntry[]>([]);
   const [clients, setClients]   = useState<Client[]>([]);

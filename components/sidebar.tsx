@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare, UserCog, BarChart3, Package, Globe, Sparkles, Search, CreditCard, Scissors, CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart } from "lucide-react";
 import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
+import { getCurrentPlan } from "@/lib/plan-limits";
 
 const APP_NAV = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -33,11 +34,14 @@ export default function Sidebar() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [salonName, setSalonName] = useState("Werzio Salon");
+  const [planBadge, setPlanBadge] = useState({ badge: "FREE", color: "#6b7280", bg: "#f9fafb" });
 
   useEffect(() => {
     function syncAccountChrome() {
       setUser(getCurrentUser());
       setSalonName(settingsStore.salon.name || getCurrentUser()?.salonName || "Werzio Salon");
+      const plan = getCurrentPlan();
+      setPlanBadge({ badge: plan.badge, color: plan.color, bg: plan.bg });
     }
 
     const timer = window.setTimeout(syncAccountChrome, 0);
@@ -107,8 +111,14 @@ export default function Sidebar() {
           <div style={{ fontWeight: 700, fontSize: 13, color: "#f0f0f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{salonName}</div>
           <div style={{ fontSize: 11, color: "#5a5a78", textTransform: "capitalize" }}>{user?.role || "owner"}</div>
         </div>
-        <div style={{ width: 26, height: 26, borderRadius: 7, border: "1px solid #2a2a3a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Sparkles size={12} color="#5a5a78" />
+        <div style={{
+          borderRadius: 6, padding: "2px 7px", flexShrink: 0,
+          background: planBadge.bg + "22",
+          border: `1px solid ${planBadge.color}44`,
+        }}>
+          <span style={{ fontSize: 9, fontWeight: 800, color: planBadge.color, letterSpacing: "0.06em" }}>
+            {planBadge.badge}
+          </span>
         </div>
       </div>
 
@@ -136,19 +146,31 @@ export default function Sidebar() {
         )}
       </nav>
 
-      {/* Upgrade card */}
+      {/* Plan / Upgrade card */}
       <div style={{ padding: "12px 14px 20px" }}>
-        <div style={{ borderRadius: 12, background: "var(--accent-dim)", border: "1px solid var(--accent-glow)", padding: "14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent-glow)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Sparkles size={13} color="var(--accent-light)" />
+        {planBadge.badge !== "PREMIUM" && (
+          <Link href="/dashboard/billing" style={{ display: "block", textDecoration: "none" }}>
+            <div style={{ borderRadius: 12, background: "rgba(91,33,182,0.12)", border: "1px solid rgba(124,58,237,0.28)", padding: "13px 14px", marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                <div style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(124,58,237,0.22)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Sparkles size={12} color="#a78bfa" />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa" }}>
+                  {planBadge.badge === "FREE" ? "Upgrade to Pro" : "Upgrade to Premium"}
+                </span>
+              </div>
+              <div style={{ fontSize: 10, color: "#5a5a78", marginBottom: 9, lineHeight: 1.5 }}>
+                {planBadge.badge === "FREE"
+                  ? "Remove all limits — unlimited appointments, staff & clients"
+                  : "Unlock WhatsApp automation & Virtual Try-On"}
+              </div>
+              <div style={{ background: "linear-gradient(135deg,#5B21B6,#9333EA)", borderRadius: 7, padding: "6px 0", textAlign: "center", fontSize: 10, fontWeight: 700, color: "#fff", boxShadow: "0 2px 8px rgba(91,33,182,0.35)" }}>
+                View Plans →
+              </div>
             </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent-light)" }}>Upgrade to Premium</div>
-          </div>
-          <div style={{ fontSize: 11, color: "#5a5a78", marginBottom: 10, lineHeight: 1.5 }}>Unlock all features and grow your salon</div>
-          <div style={{ background: "var(--accent-gradient)", borderRadius: 8, padding: "7px 0", textAlign: "center", fontSize: 11, fontWeight: 600, color: "#fff", cursor: "pointer", boxShadow: "0 2px 8px rgba(91, 33, 182, 0.35)" }}>Upgrade Now</div>
-        </div>
-        <button onClick={handleSignOut} style={{ width: "100%", marginTop: 10, border: "1px solid #2a2a3a", background: "#191922", color: "#8d8da8", borderRadius: 10, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          </Link>
+        )}
+        <button onClick={handleSignOut} style={{ width: "100%", border: "1px solid #2a2a3a", background: "#191922", color: "#8d8da8", borderRadius: 10, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
           <LogOut size={14} /> Sign out
         </button>
       </div>

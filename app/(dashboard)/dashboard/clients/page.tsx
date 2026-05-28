@@ -5,6 +5,7 @@ import { CLIENTS, APPOINTMENTS, BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import type { Client, Appointment } from "@/lib/types";
 import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown } from "lucide-react";
+import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
 const TAG_COLORS: Record<string, { color: string; bg: string }> = {
   VIP:      { color: "#7C3AED", bg: "#EDE9FE" },
@@ -332,6 +333,9 @@ export default function ClientsPage() {
     setAppointments(getStoredAppointments());
   }, []);
 
+  const plan          = getCurrentPlan();
+  const clientLimited = isAtLimit(plan.clientLimit, clients.length);
+
   const filtered = useMemo(() => {
     return clients.filter((c) => {
       if (tagFilter !== "all" && !c.tags.includes(tagFilter)) return false;
@@ -383,12 +387,28 @@ export default function ClientsPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 22, color: "#1a1a2e" }}>Clients</div>
-          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>{filtered.length} clients</div>
+          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>
+            {filtered.length} clients
+            {plan.clientLimit !== -1 && <span style={{ marginLeft: 8, color: clientLimited ? "#dc2626" : "#b0b0c8" }}>· {clients.length}/{plan.clientLimit} on Free plan</span>}
+          </div>
         </div>
-        <button onClick={() => setShowAdd(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}>
+        <button
+          onClick={() => !clientLimited && setShowAdd(true)}
+          title={clientLimited ? `Free plan: ${plan.clientLimit} client limit reached. Upgrade to Pro for unlimited.` : ""}
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: clientLimited ? "#e8e8f0" : "#7C3AED", fontSize: 13, fontWeight: 600, color: clientLimited ? "#aaaabc" : "#fff", cursor: clientLimited ? "not-allowed" : "pointer" }}>
           <Plus size={16} /> Add Client
+          {clientLimited && <span style={{ fontSize: 10, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px" }}>Limit reached</span>}
         </button>
       </div>
+
+      {clientLimited && (
+        <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 600 }}>
+            Free plan allows up to {plan.clientLimit} clients. Upgrade to Pro for unlimited client management.
+          </span>
+          <a href="/dashboard/billing" style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", textDecoration: "none", whiteSpace: "nowrap", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 7, padding: "5px 12px" }}>Upgrade →</a>
+        </div>
+      )}
 
       {/* Search + filters */}
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>

@@ -5,6 +5,7 @@ import { getStoredAppointments, saveAppointments, getStoredClients, saveClients,
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
 import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup } from "@/lib/whatsapp-scheduler";
+import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
 
 const STATUS: Record<AppointmentStatus, { label: string; color: string; bg: string }> = {
   booked:        { label: "Booked",      color: "#6366f1", bg: "#EEF2FF" },
@@ -435,6 +436,10 @@ export default function AppointmentsPage() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [services, setServices] = useState<Service[]>([]);
 
+  const plan         = getCurrentPlan();
+  const monthCount   = thisMonthCount(appointments);
+  const apptLimited  = isAtLimit(plan.appointmentsPerMonth, monthCount);
+
   useEffect(() => {
     setAppointments(getStoredAppointments());
     setClients(getStoredClients());
@@ -529,13 +534,32 @@ export default function AppointmentsPage() {
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>{filtered.length} appointments · {fmt(totalRevenue)} total</div>
         </div>
         <button
-          onClick={() => setShowCreate(true)}
-          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}
+          onClick={() => !apptLimited && setShowCreate(true)}
+          title={apptLimited ? `Free plan: 30 appointments/month limit reached. Upgrade to Pro for unlimited.` : ""}
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: apptLimited ? "#e8e8f0" : "#7C3AED", fontSize: 13, fontWeight: 600, color: apptLimited ? "#aaaabc" : "#fff", cursor: apptLimited ? "not-allowed" : "pointer" }}
         >
           <Plus size={16} />
           New Appointment
+          {apptLimited && <span style={{ fontSize: 11, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px", marginLeft: 2 }}>Limit reached</span>}
         </button>
       </div>
+
+      {/* Free-plan usage bar */}
+      {plan.appointmentsPerMonth !== -1 && (
+        <div style={{ padding: "10px 16px", borderRadius: 10, background: apptLimited ? "#fef2f2" : monthCount >= plan.appointmentsPerMonth * 0.8 ? "#fffbeb" : "#f5f3ff", border: `1px solid ${apptLimited ? "#fecaca" : monthCount >= plan.appointmentsPerMonth * 0.8 ? "#fde68a" : "#ddd6fe"}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: apptLimited ? "#dc2626" : "#7C3AED", marginBottom: 5 }}>
+              {apptLimited ? "Monthly limit reached" : `${monthCount} / ${plan.appointmentsPerMonth} appointments this month`}
+            </div>
+            <div style={{ height: 6, borderRadius: 99, background: "#e8e8f0", overflow: "hidden" }}>
+              <div style={{ height: "100%", borderRadius: 99, background: apptLimited ? "#dc2626" : monthCount >= plan.appointmentsPerMonth * 0.8 ? "#d97706" : "#7C3AED", width: `${Math.min(100, (monthCount / plan.appointmentsPerMonth) * 100)}%`, transition: "width 0.3s" }} />
+            </div>
+          </div>
+          <a href="/dashboard/billing" style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED", textDecoration: "none", whiteSpace: "nowrap", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 7, padding: "4px 10px" }}>
+            Upgrade →
+          </a>
+        </div>
+      )}
 
       {/* Search + filter bar */}
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>

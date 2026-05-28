@@ -5,7 +5,7 @@ import { Upload, Wand2, RefreshCw, Download, ChevronRight, Sparkles, ImagePlus, 
 import { settingsStore } from "@/lib/settings-store";
 import { generateHairMask, compositeWithMask } from "@/lib/hair-mask";
 import { getCurrentUser } from "@/lib/auth";
-import { getActivePlan } from "@/lib/payment-requests";
+import { getCurrentPlan } from "@/lib/plan-limits";
 
 // ── Service catalogue ────────────────────────────────────────────────────────
 
@@ -86,28 +86,36 @@ function resizeImageToBase64(file: File, maxSize = 768): Promise<string> {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-function ComingSoon() {
+function UpgradeWall() {
+  const plan = getCurrentPlan();
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f7fb", padding: 32 }}>
-      <div style={{ textAlign: "center", maxWidth: 440 }}>
-        <div style={{ width: 80, height: 80, borderRadius: 24, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", boxShadow: "0 8px 32px rgba(124,58,237,0.25)" }}>
+      <div style={{ textAlign: "center", maxWidth: 460 }}>
+        <div style={{ width: 80, height: 80, borderRadius: 24, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", boxShadow: "0 8px 32px rgba(124,58,237,0.3)" }}>
           <Sparkles size={36} color="#fff" />
         </div>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "#9333EA", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Coming Soon</div>
-        <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a2e", margin: "0 0 12px" }}>Virtual Try-On</h1>
-        <p style={{ fontSize: 14, color: "#6b6b8a", lineHeight: 1.7, margin: "0 0 28px" }}>
-          Our AI-powered virtual try-on feature lets clients preview hair colors and styles before their appointment. We're putting the finishing touches on it — stay tuned!
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#9333EA", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Premium Feature</div>
+        <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a2e", margin: "0 0 12px" }}>Virtual Try-On (AI)</h1>
+        <p style={{ fontSize: 14, color: "#6b6b8a", lineHeight: 1.7, margin: "0 0 24px" }}>
+          Let clients preview hair colors and styles before their appointment using AI. Available exclusively on <strong>Werzio Premium</strong>.
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {["AI hair color preview", "Hairstyle simulation", "Nail & skin try-on"].map((f) => (
-            <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 12, background: "#fff", border: "1px solid #ede9fe" }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#9333EA", flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: "#1a1a2e", fontWeight: 600 }}>{f}</span>
-              <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, color: "#9333EA", background: "#ede9fe", borderRadius: 20, padding: "2px 10px" }}>Soon</span>
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ede9fe", padding: "18px 20px", marginBottom: 24, display: "flex", flexDirection: "column", gap: 10, textAlign: "left" }}>
+          {["AI hair color preview (8 shades)", "Hairstyle simulation (6 styles)", "Nail & skin tone try-on", "Instant client-facing preview link"].map(f => (
+            <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 11, color: "#7C3AED" }}>✓</span>
+              </div>
+              <span style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>{f}</span>
             </div>
           ))}
         </div>
-        <p style={{ fontSize: 11, color: "#b0b0c8", marginTop: 24 }}>You'll be notified when this feature goes live.</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16 }}>
+          <span style={{ fontSize: 13, color: "#9898b0" }}>Current plan:</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: plan.color, background: plan.bg, borderRadius: 20, padding: "2px 12px", border: `1px solid ${plan.color}30` }}>{plan.label}</span>
+        </div>
+        <a href="/dashboard/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 32px", borderRadius: 12, background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 16px rgba(91,33,182,0.38)" }}>
+          Upgrade to Premium — PKR 9,000/mo →
+        </a>
       </div>
     </div>
   );
@@ -118,8 +126,8 @@ export default function TryOnPage() {
 
   useEffect(() => {
     const user = getCurrentUser();
-    const plan = getActivePlan();
-    setIsAdmin(user?.role === "admin" || plan === "premium");
+    const plan = getCurrentPlan();
+    setIsAdmin(user?.role === "admin" || plan.tryOn);
   }, []);
 
   const [originalImage, setOriginalImage] = useState<string | null>(null);
@@ -248,7 +256,7 @@ export default function TryOnPage() {
   const category = CATEGORIES[activeCategory];
 
   if (isAdmin === null) return null;
-  if (!isAdmin) return <ComingSoon />;
+  if (!isAdmin) return <UpgradeWall />;
 
   return (
     <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>

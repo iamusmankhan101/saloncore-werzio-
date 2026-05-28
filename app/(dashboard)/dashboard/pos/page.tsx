@@ -6,7 +6,7 @@ import {
   X, ShoppingCart, ReceiptText, Banknote, CreditCard,
   Smartphone, Zap, Tag, UserPlus, CheckCircle2, Printer,
   MessageSquare, RefreshCw, User, ChevronRight, Sparkles,
-  Clock, Star, AlertCircle,
+  Clock, AlertCircle,
 } from "lucide-react";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
 import {
@@ -19,6 +19,7 @@ import {
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, appendLog } from "@/lib/whatsapp-scheduler";
+import { getCurrentPlan } from "@/lib/plan-limits";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -285,6 +286,17 @@ export default function POSPage() {
 
   const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string };
   const selectedPayMethod = PAY_METHODS.find(p => p.value === payMethod)!;
+
+  const posPlan       = getCurrentPlan();
+  const productLimit  = posPlan.posProductLimit; // -1 = unlimited
+  const allProducts   = catalogItems.filter(i => i.type === "product");
+  const cappedCatalog = productLimit === -1
+    ? catalogItems
+    : [
+        ...catalogItems.filter(i => i.type === "service"),
+        ...allProducts.slice(0, productLimit),
+      ];
+  const hiddenProductCount = productLimit !== -1 ? Math.max(0, allProducts.length - productLimit) : 0;
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -567,7 +579,7 @@ export default function POSPage() {
                 )}
               </div>
               <span style={{ fontSize: 11, fontWeight: 600, color: "#b0b0c8", flexShrink: 0 }}>
-                {catalogItems.length} item{catalogItems.length !== 1 ? "s" : ""}
+                {cappedCatalog.length} item{cappedCatalog.length !== 1 ? "s" : ""}
               </span>
             </div>
 
@@ -592,7 +604,7 @@ export default function POSPage() {
 
           {/* Grid */}
           <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
-            {catalogItems.length === 0 ? (
+            {cappedCatalog.length === 0 ? (
               <div style={{ padding: "80px 24px", textAlign: "center" }}>
                 <div style={{ width: 60, height: 60, borderRadius: 18, background: "#f4f4fc", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                   <Package size={28} color="#d0d0e8" />
@@ -606,7 +618,7 @@ export default function POSPage() {
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 10 }}>
-                {catalogItems.map(item => {
+                {cappedCatalog.map(item => {
                   const inCart  = cart.find(e => e.itemId === item.id);
                   const { fg, bg } = catColor(item.category, item.type);
                   const outOfStock = item.type === "product" && (item.stock ?? 999) === 0;
@@ -665,6 +677,17 @@ export default function POSPage() {
                     </button>
                   );
                 })}
+
+                {/* Locked products card (Free plan) */}
+                {hiddenProductCount > 0 && (
+                  <div style={{ borderRadius: 14, border: "2px dashed #e8e8f4", background: "#fafafe", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "18px 12px", textAlign: "center", gap: 6 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 9, background: "#f4f4fc", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Package size={15} color="#c0c0d8" />
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#9999b0" }}>+{hiddenProductCount} more locked</div>
+                    <a href="/dashboard/billing" style={{ fontSize: 10, fontWeight: 700, color: "#7C3AED", textDecoration: "none", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 6, padding: "3px 8px" }}>Upgrade →</a>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -708,7 +731,6 @@ export default function POSPage() {
               </div>
             ) : (
               cart.map(entry => {
-                const { fg, bg } = catColor(entry.type === "service" ? "other" : "product", entry.type);
                 const c = entry.type === "service" ? "#7C3AED" : "#d97706";
                 return (
                   <div key={entry.cartId}

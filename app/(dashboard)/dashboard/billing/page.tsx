@@ -1,54 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Zap, Crown, AlertTriangle, Smartphone, Building2, X, Copy, BadgeCheck, ImagePlus, Clock, Eye, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  Check, X, Crown, AlertTriangle, Smartphone, Building2, Copy,
+  BadgeCheck, ImagePlus, Clock, Eye, CheckCircle, AlertCircle,
+  Zap, Sparkles, Lock, ArrowRight, Shield,
+} from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { addPaymentRequest, getActivePlan, getPaymentRequests, type PaymentMethod } from "@/lib/payment-requests";
+import { addPaymentRequest, getActivePlan, setActivePlan, getPaymentRequests, type PaymentMethod } from "@/lib/payment-requests";
 import { syncInvoices, isInTrial, trialDaysLeft, type Invoice, type InvoiceStatus } from "@/lib/invoices";
 import InvoiceViewer from "@/components/invoice-viewer";
+import {
+  PLAN_CONFIGS, ORDERED_PLANS, getCurrentPlanId,
+  type PlanId, type PlanConfig,
+} from "@/lib/plan-limits";
 
-const PLANS = [
-  {
-    id: "basic",
-    name: "Basic",
-    price: 5500,
-    icon: Zap,
-    color: "#0369a1",
-    bg: "#e0f2fe",
-    features: [
-      "Unlimited appointments",
-      "Calendar & scheduling",
-      "Client management",
-      "Staff management",
-      "Services management",
-      "Revenue & analytics",
-      "Inventory management",
-      "Online booking page",
-    ],
-    whatsapp: false,
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    price: 8500,
-    icon: Crown,
-    color: "#7C3AED",
-    bg: "#EDE9FE",
-    features: [
-      "Everything in Basic",
-      "WhatsApp booking confirmations",
-      "WhatsApp appointment reminders",
-      "WhatsApp follow-up messages",
-      "WhatsApp low stock alerts",
-      "Virtual Try-On (AI)",
-    ],
-    whatsapp: true,
-  },
-];
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEFAULT_PLAN_ID = "premium";
-
-const EP_DETAILS = { name: "Muhammad Usman Khan", phone: "03058562523" };
+const EP_DETAILS  = { name: "Muhammad Usman Khan", phone: "03058562523" };
 const BANK_DETAILS = { bank: "Meezan Bank", name: "Muhammad Usman Khan", account: "02361019994452" };
 
 const STATUS_META: Record<InvoiceStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
@@ -57,10 +26,20 @@ const STATUS_META: Record<InvoiceStatus, { label: string; color: string; bg: str
   overdue: { label: "Overdue", color: "#dc2626", bg: "#fef2f2", icon: AlertCircle },
 };
 
-function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
+const PLAN_ICONS: Record<PlanId, React.ElementType> = {
+  free:    Sparkles,
+  pro:     Zap,
+  premium: Crown,
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmt(n: number) { return n === 0 ? "Free" : "PKR " + n.toLocaleString("en-PK"); }
 function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-PK", { year: "numeric", month: "short", day: "numeric" });
 }
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function EasypaisaLogo({ size = 28 }: { size?: number }) {
   return (
@@ -90,45 +69,155 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
+// ─── Plan card ────────────────────────────────────────────────────────────────
+
+function PlanCard({
+  plan, isCurrent, isPopular, hasPending,
+  onUpgrade, onDowngrade,
+}: {
+  plan: PlanConfig;
+  isCurrent: boolean;
+  isPopular: boolean;
+  hasPending: boolean;
+  onUpgrade: () => void;
+  onDowngrade: () => void;
+}) {
+  const Icon = PLAN_ICONS[plan.id];
+
+  return (
+    <div style={{
+      background: "#fff",
+      borderRadius: 20,
+      border: `2px solid ${isCurrent ? plan.color : isPopular ? plan.color + "40" : "#ebebf0"}`,
+      padding: 0,
+      display: "flex",
+      flexDirection: "column",
+      position: "relative",
+      overflow: "hidden",
+      boxShadow: isCurrent ? `0 6px 28px ${plan.color}22` : isPopular ? `0 4px 20px ${plan.color}14` : "none",
+      transition: "transform 0.15s",
+    }}>
+      {/* Popular / Current ribbon */}
+      {(isCurrent || isPopular) && (
+        <div style={{
+          position: "absolute", top: 0, right: 0,
+          background: isCurrent ? plan.color : plan.color + "cc",
+          color: "#fff",
+          fontSize: 10, fontWeight: 800,
+          padding: "5px 14px 5px 20px",
+          borderRadius: "0 18px 0 14px",
+          letterSpacing: "0.07em",
+        }}>
+          {isCurrent ? "CURRENT" : "POPULAR"}
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ background: plan.gradient, padding: "22px 24px 20px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 11, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon size={19} color="#fff" />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Werzio</div>
+            <div style={{ fontSize: 19, fontWeight: 900, color: "#fff", lineHeight: 1 }}>{plan.name}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+          {plan.price === 0
+            ? <span style={{ fontSize: 34, fontWeight: 900, color: "#fff" }}>Free</span>
+            : <>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.75)", marginTop: 4 }}>PKR</span>
+                <span style={{ fontSize: 34, fontWeight: 900, color: "#fff", letterSpacing: "-1px" }}>{plan.price.toLocaleString("en-PK")}</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>/month</span>
+              </>
+          }
+        </div>
+      </div>
+
+      {/* Features */}
+      <div style={{ padding: "18px 22px", flex: 1, display: "flex", flexDirection: "column", gap: 0 }}>
+        {plan.features.map(f => (
+          <div key={f} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 0", borderBottom: "1px solid #f8f8fc" }}>
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: plan.color + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Check size={10} color={plan.color} />
+            </div>
+            <span style={{ fontSize: 12, color: "#4a4a6a" }}>{f}</span>
+          </div>
+        ))}
+        {plan.lockedFeatures.map(f => (
+          <div key={f} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 0", borderBottom: "1px solid #f8f8fc", opacity: 0.45 }}>
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#e8e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Lock size={9} color="#9898b0" />
+            </div>
+            <span style={{ fontSize: 12, color: "#9898b0" }}>{f}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* CTA */}
+      <div style={{ padding: "0 22px 20px" }}>
+        {isCurrent ? (
+          <div style={{ padding: "11px 0", borderRadius: 12, border: `1.5px solid ${plan.color}40`, background: plan.bg, fontSize: 13, fontWeight: 700, color: plan.color, textAlign: "center" }}>
+            ✓ Your current plan
+          </div>
+        ) : plan.price === 0 ? (
+          <button onClick={onDowngrade}
+            style={{ width: "100%", padding: "11px 0", borderRadius: 12, border: "1.5px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: "pointer" }}>
+            Downgrade to Free
+          </button>
+        ) : (
+          <button onClick={onUpgrade} disabled={hasPending}
+            style={{ width: "100%", padding: "12px 0", borderRadius: 12, border: "none", background: hasPending ? "#e8e8f0" : plan.gradient, fontSize: 13, fontWeight: 800, color: hasPending ? "#aaaabc" : "#fff", cursor: hasPending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: hasPending ? "none" : `0 4px 16px ${plan.color}40` }}>
+            {hasPending ? "Payment pending…" : <><ArrowRight size={14} /> Upgrade to {plan.name}</>}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 export default function BillingPage() {
-  const [showUpgrade, setShowUpgrade] = useState<string | null>(null);
-  const [payMethod, setPayMethod] = useState<PaymentMethod>("easypaisa");
-  const [screenshot, setScreenshot] = useState<{ base64: string; name: string } | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [activePlanId, setActivePlanId] = useState<string>(DEFAULT_PLAN_ID);
-  const [hasPending, setHasPending] = useState(false);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
-  const [trialActive, setTrialActive] = useState(false);
-  const [daysLeft, setDaysLeft] = useState(0);
+  const [activePlanId, setActivePlanId] = useState<PlanId>("free");
+  const [showModal,    setShowModal]    = useState<PlanId | null>(null);
+  const [payMethod,    setPayMethod]    = useState<PaymentMethod>("easypaisa");
+  const [screenshot,   setScreenshot]  = useState<{ base64: string; name: string } | null>(null);
+  const [submitting,   setSubmitting]  = useState(false);
+  const [submitted,    setSubmitted]   = useState(false);
+  const [hasPending,   setHasPending]  = useState(false);
+  const [invoices,     setInvoices]    = useState<Invoice[]>([]);
+  const [viewInvoice,  setViewInvoice] = useState<Invoice | null>(null);
+  const [trialActive,  setTrialActive] = useState(false);
+  const [daysLeft,     setDaysLeft]    = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const ap = getActivePlan();
-    if (ap) setActivePlanId(ap);
+    setActivePlanId(getCurrentPlanId());
     const user = getCurrentUser();
     if (!user) return;
 
-    const planId = ap ?? DEFAULT_PLAN_ID;
-    const plan = PLANS.find((p) => p.id === planId) ?? PLANS[1];
+    const planId = getCurrentPlanId();
+    const plan   = PLAN_CONFIGS[planId];
 
     setTrialActive(isInTrial(user.createdAt));
     setDaysLeft(trialDaysLeft(user.createdAt));
 
-    const synced = syncInvoices(
-      { id: user.id, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
-      { id: plan.id, name: plan.name, price: plan.price },
-      user.createdAt,
-    );
-    setInvoices(synced.filter((inv) => inv.userId === user.id));
+    if (plan.price > 0) {
+      const synced = syncInvoices(
+        { id: user.id, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
+        { id: plan.id, name: plan.label, price: plan.price },
+        user.createdAt,
+      );
+      setInvoices(synced.filter(inv => inv.userId === user.id));
+    }
 
-    const pending = getPaymentRequests().some((r) => r.userId === user.id && r.status === "pending");
-    setHasPending(pending);
+    setHasPending(getPaymentRequests().some(r => r.userId === user.id && r.status === "pending"));
   }, [submitted]);
 
-  const currentPlan = PLANS.find((p) => p.id === activePlanId) ?? PLANS[1];
-  const upgradePlan = PLANS.find((p) => p.name === showUpgrade);
+  const currentPlan = PLAN_CONFIGS[activePlanId];
+  const upgradePlan = showModal ? PLAN_CONFIGS[showModal] : null;
   const latestInvoice = invoices[0];
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -144,91 +233,74 @@ export default function BillingPage() {
     const user = getCurrentUser();
     setSubmitting(true);
     addPaymentRequest({
-      userId: user?.id ?? "guest",
-      userEmail: user?.email ?? "",
-      userName: user?.ownerName ?? "",
-      salonName: user?.salonName ?? "",
-      planId: upgradePlan.id,
-      planName: upgradePlan.name,
-      amount: upgradePlan.price,
+      userId:            user?.id ?? "guest",
+      userEmail:         user?.email ?? "",
+      userName:          user?.ownerName ?? "",
+      salonName:         user?.salonName ?? "",
+      planId:            upgradePlan.id,
+      planName:          upgradePlan.label,
+      amount:            upgradePlan.price,
       payMethod,
-      screenshotBase64: screenshot?.base64 ?? null,
-      screenshotName: screenshot?.name ?? null,
+      screenshotBase64:  screenshot?.base64 ?? null,
+      screenshotName:    screenshot?.name ?? null,
     });
     setTimeout(() => {
       setSubmitting(false);
       setSubmitted(true);
       setHasPending(true);
-      setTimeout(() => { setSubmitted(false); setShowUpgrade(null); setScreenshot(null); }, 2000);
+      setTimeout(() => { setSubmitted(false); setShowModal(null); setScreenshot(null); }, 2000);
     }, 800);
   }
 
-  function openModal(planName: string) {
-    setShowUpgrade(planName);
-    setScreenshot(null);
-    setPayMethod("easypaisa");
+  function handleDowngrade() {
+    setActivePlan("free");
+    setActivePlanId("free");
   }
 
   return (
     <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
 
       {/* Invoice viewer overlay */}
-      {viewingInvoice && <InvoiceViewer invoice={viewingInvoice} onClose={() => setViewingInvoice(null)} />}
+      {viewInvoice && <InvoiceViewer invoice={viewInvoice} onClose={() => setViewInvoice(null)} />}
 
-      {/* Free trial banner */}
-      {trialActive && (
-        <div style={{ background: "linear-gradient(135deg,#7C3AED,#9333EA)", borderRadius: 14, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", color: "#fff" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎉</div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 15 }}>14-Day Free Trial Active</div>
-              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>
-                {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — enjoy full access, no charge yet.` : "Trial ends today — your first invoice will be generated soon."}
-              </div>
-            </div>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 16px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
-            {daysLeft} days left
-          </div>
-        </div>
-      )}
+      {/* ── Payment modal ── */}
+      {showModal && upgradePlan && (
+        <div onClick={() => setShowModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 22, width: 490, boxShadow: "0 28px 80px rgba(0,0,0,0.25)", overflow: "hidden", maxHeight: "94vh", overflowY: "auto" }}>
 
-      {/* Switch plan modal */}
-      {showUpgrade && upgradePlan && (
-        <div onClick={() => setShowUpgrade(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 480, boxShadow: "0 24px 70px rgba(0,0,0,0.25)", overflow: "hidden", maxHeight: "92vh", overflowY: "auto" }}>
-
-            <div style={{ background: `linear-gradient(135deg, ${upgradePlan.color}dd, ${upgradePlan.color})`, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            {/* Modal header */}
+            <div style={{ background: upgradePlan.gradient, padding: "22px 26px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <upgradePlan.icon size={20} color="#fff" />
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {(() => { const Icon = PLAN_ICONS[upgradePlan.id]; return <Icon size={20} color="#fff" />; })()}
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.75)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Activate Plan</div>
-                  <div style={{ fontSize: 19, fontWeight: 800, color: "#fff" }}>{upgradePlan.name} — {fmt(upgradePlan.price)}<span style={{ fontSize: 12, fontWeight: 400, opacity: 0.8 }}>/mo</span></div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Upgrade to</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: "#fff" }}>
+                    {upgradePlan.label} — PKR {upgradePlan.price.toLocaleString("en-PK")}
+                    <span style={{ fontSize: 12, fontWeight: 400, opacity: 0.75 }}>/mo</span>
+                  </div>
                 </div>
               </div>
-              <button onClick={() => setShowUpgrade(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", cursor: "pointer", display: "flex", padding: 7, borderRadius: 8 }}>
+              <button onClick={() => setShowModal(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", cursor: "pointer", padding: 7, borderRadius: 9, display: "flex" }}>
                 <X size={16} color="#fff" />
               </button>
             </div>
 
-            <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ padding: "11px 14px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 12, color: "#92400e", lineHeight: 1.6 }}>
-                Send <strong>{fmt(upgradePlan.price)}</strong> to either account below, attach your payment screenshot, then click Submit. Your plan will be activated once verified by admin.
+            <div style={{ padding: "22px 26px", display: "flex", flexDirection: "column", gap: 18 }}>
+              <div style={{ padding: "12px 14px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 12, color: "#92400e", lineHeight: 1.6 }}>
+                Send <strong>PKR {upgradePlan.price.toLocaleString("en-PK")}</strong> to either account below, attach your payment screenshot, then click Submit. Your plan will be activated once verified by admin (usually within a few hours).
               </div>
 
-              {/* Method tabs */}
+              {/* Payment method tabs */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {([
                   { id: "easypaisa" as const, label: "EasyPaisa", color: "#2DC84D", bg: "#f0fdf4" },
-                  { id: "bank" as const, label: "Bank Transfer", color: "#0369a1", bg: "#e0f2fe" },
+                  { id: "bank"      as const, label: "Bank Transfer", color: "#0369a1", bg: "#e0f2fe" },
                 ]).map(({ id, label, color, bg }) => (
                   <button key={id} type="button" onClick={() => setPayMethod(id)}
-                    style={{ display: "flex", alignItems: "center", gap: 9, padding: "11px 14px", borderRadius: 11, border: `2px solid ${payMethod === id ? color : "#e8e8f0"}`, background: payMethod === id ? bg : "#fafafd", cursor: "pointer" }}>
-                    {id === "easypaisa" ? (
-                      <EasypaisaLogo size={26} />
-                    ) : (
+                    style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 14px", borderRadius: 12, border: `2px solid ${payMethod === id ? color : "#e8e8f0"}`, background: payMethod === id ? bg : "#fafafd", cursor: "pointer" }}>
+                    {id === "easypaisa" ? <EasypaisaLogo size={26} /> : (
                       <div style={{ width: 26, height: 26, borderRadius: 7, background: payMethod === id ? color + "20" : "#f0f0f8", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <Building2 size={13} color={payMethod === id ? color : "#b0b0c8"} />
                       </div>
@@ -273,7 +345,7 @@ export default function BillingPage() {
 
               {/* Screenshot upload */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Attach Payment Screenshot</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Payment Screenshot</div>
                 <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
                 {screenshot ? (
                   <div style={{ borderRadius: 12, border: "1px solid #d1d5db", overflow: "hidden", position: "relative" }}>
@@ -288,7 +360,7 @@ export default function BillingPage() {
                   </div>
                 ) : (
                   <button onClick={() => fileRef.current?.click()}
-                    style={{ width: "100%", padding: "20px", borderRadius: 12, border: "2px dashed #d1d5db", background: "#fafafa", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    style={{ width: "100%", padding: "22px", borderRadius: 12, border: "2px dashed #d1d5db", background: "#fafafa", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer" }}>
                     <div style={{ width: 40, height: 40, borderRadius: 10, background: "#f0f0f8", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <ImagePlus size={18} color="#9898b0" />
                     </div>
@@ -298,11 +370,11 @@ export default function BillingPage() {
                 )}
               </div>
 
-              <div style={{ display: "flex", gap: 10, paddingTop: 2 }}>
-                <button onClick={() => setShowUpgrade(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setShowModal(null)} style={{ flex: 1, padding: "12px 0", borderRadius: 11, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
                 <button onClick={handleSubmit} disabled={submitting || submitted}
-                  style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: submitted ? "#ecfdf5" : submitting ? "#e8e8f0" : `linear-gradient(135deg,${upgradePlan.color}cc,${upgradePlan.color})`, fontSize: 13, fontWeight: 700, color: submitted ? "#059669" : submitting ? "#aaaabc" : "#fff", cursor: submitting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-                  {submitted ? <><BadgeCheck size={15} /> Request Submitted!</> : submitting ? "Submitting..." : "Submit Payment Request"}
+                  style={{ flex: 2, padding: "12px 0", borderRadius: 11, border: "none", background: submitted ? "#ecfdf5" : submitting ? "#e8e8f0" : upgradePlan.gradient, fontSize: 13, fontWeight: 700, color: submitted ? "#059669" : submitting ? "#aaaabc" : "#fff", cursor: submitting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+                  {submitted ? <><BadgeCheck size={15} /> Submitted!</> : submitting ? "Submitting…" : "Submit Payment Request"}
                 </button>
               </div>
             </div>
@@ -310,139 +382,168 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* Header */}
+      {/* ── Page header ── */}
       <div>
-        <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e" }}>Billing</div>
-        <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>Manage your subscription and invoices</div>
+        <div style={{ fontWeight: 900, fontSize: 24, color: "#1a1a2e" }}>Billing & Plans</div>
+        <div style={{ fontSize: 13, color: "#9898b0", marginTop: 3 }}>Manage your subscription and view invoice history</div>
       </div>
 
-      {/* Pending notice */}
+      {/* ── Trial banner ── */}
+      {trialActive && (
+        <div style={{ background: "linear-gradient(135deg,#7C3AED,#9333EA)", borderRadius: 16, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", color: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 46, height: 46, borderRadius: 13, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎉</div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 15 }}>14-Day Free Trial Active</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>
+                {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — full access, no charge yet.` : "Trial ends today."}
+              </div>
+            </div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 18px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+            {daysLeft}d left
+          </div>
+        </div>
+      )}
+
+      {/* ── Pending notice ── */}
       {hasPending && (
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "#eff6ff", border: "1px solid #bae6fd", borderRadius: 12 }}>
           <Clock size={16} color="#0369a1" />
           <div style={{ fontSize: 13, color: "#0c4a6e" }}>
-            You have a <strong>pending payment request</strong> under admin review. Your plan will be activated once payment is verified.
+            You have a <strong>pending payment request</strong> under admin review. Your plan will be upgraded once payment is verified.
           </div>
         </div>
       )}
 
-      {/* Current plan banner */}
-      <div style={{ background: "linear-gradient(135deg,#5B21B6,#9333EA)", borderRadius: 16, padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      {/* ── Current plan banner ── */}
+      <div style={{ background: currentPlan.gradient, borderRadius: 18, padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <currentPlan.icon size={24} color="#fff" />
+          <div style={{ width: 52, height: 52, borderRadius: 15, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {(() => { const Icon = PLAN_ICONS[activePlanId]; return <Icon size={24} color="#fff" />; })()}
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.09em" }}>Current Plan</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: "#fff", marginTop: 2 }}>{currentPlan.name}</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>Renews 1st of every month · {fmt(currentPlan.price)}/month</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.09em" }}>Active Plan</div>
+            <div style={{ fontSize: 26, fontWeight: 900, color: "#fff", marginTop: 2 }}>{currentPlan.label}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>
+              {currentPlan.price === 0
+                ? "Free forever · no billing"
+                : `PKR ${currentPlan.price.toLocaleString("en-PK")}/month · renews 1st of every month`}
+            </div>
           </div>
         </div>
         {latestInvoice && (
-          <button onClick={() => setViewingInvoice(latestInvoice)}
+          <button onClick={() => setViewInvoice(latestInvoice)}
             style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.15)", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
-            <Eye size={14} /> View Latest Invoice
+            <Eye size={14} /> Latest Invoice
           </button>
         )}
       </div>
 
-      {/* Next invoice alert */}
+      {/* ── Overdue invoice alert ── */}
       {latestInvoice && latestInvoice.status !== "paid" && (
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: latestInvoice.status === "overdue" ? "#fef2f2" : "#fffbeb", border: `1px solid ${latestInvoice.status === "overdue" ? "#fecaca" : "#fde68a"}`, borderRadius: 12 }}>
           <AlertTriangle size={16} color={latestInvoice.status === "overdue" ? "#dc2626" : "#d97706"} />
           <div style={{ fontSize: 13, color: latestInvoice.status === "overdue" ? "#991b1b" : "#92400e" }}>
-            Invoice <strong>{latestInvoice.number}</strong> of <strong>{fmt(latestInvoice.total)}</strong> is{" "}
+            Invoice <strong>{latestInvoice.number}</strong> of <strong>PKR {latestInvoice.total.toLocaleString("en-PK")}</strong> is{" "}
             {latestInvoice.status === "overdue" ? <strong>overdue</strong> : <>due on <strong>{fmtDate(latestInvoice.dueDate)}</strong></>}.{" "}
-            <button onClick={() => setViewingInvoice(latestInvoice)} style={{ background: "none", border: "none", cursor: "pointer", fontWeight: 700, textDecoration: "underline", fontSize: 13, color: "inherit", padding: 0 }}>View invoice</button>
+            <button onClick={() => setViewInvoice(latestInvoice)} style={{ background: "none", border: "none", cursor: "pointer", fontWeight: 700, textDecoration: "underline", fontSize: 13, color: "inherit", padding: 0 }}>View invoice →</button>
           </div>
         </div>
       )}
 
-      {/* Plans */}
+      {/* ── Pricing plans ── */}
       <div>
-        <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 16 }}>Available Plans</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          {PLANS.map((plan) => {
-            const Icon = plan.icon;
-            const isCurrent = plan.id === activePlanId;
-            return (
-              <div key={plan.id} style={{ background: "#fff", borderRadius: 16, border: `2px solid ${isCurrent ? plan.color : "#ebebf0"}`, padding: "24px", display: "flex", flexDirection: "column", gap: 16, position: "relative", boxShadow: isCurrent ? `0 4px 20px ${plan.color}22` : "none" }}>
-                {isCurrent && (
-                  <div style={{ position: "absolute", top: -1, right: 16, background: plan.color, color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 12px", borderRadius: "0 0 8px 8px", letterSpacing: "0.07em" }}>CURRENT</div>
-                )}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: plan.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Icon size={19} color={plan.color} />
-                    </div>
-                    <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a2e" }}>{plan.name}</div>
-                  </div>
-                  {plan.whatsapp && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, background: "#dcfce7", border: "1px solid #86efac" }}>
-                      <Smartphone size={11} color="#16a34a" />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a" }}>WhatsApp</span>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <span style={{ fontSize: 32, fontWeight: 800, color: "#1a1a2e" }}>{fmt(plan.price)}</span>
-                  <span style={{ fontSize: 13, color: "#9898b0" }}>/month</span>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
-                  {plan.features.map((f) => (
-                    <div key={f} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ width: 18, height: 18, borderRadius: "50%", background: plan.color + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <Check size={10} color={plan.color} />
-                      </div>
-                      <span style={{ fontSize: 13, color: "#4a4a6a" }}>{f}</span>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={() => !isCurrent && openModal(plan.name)}
-                  style={{ padding: "11px 0", borderRadius: 10, border: `1px solid ${isCurrent ? plan.color : "#e8e8f0"}`, background: isCurrent ? plan.bg : "#fff", fontSize: 13, fontWeight: 700, color: isCurrent ? plan.color : "#6b6b8a", cursor: isCurrent ? "default" : "pointer" }}>
-                  {isCurrent ? "Current Plan" : "Switch to " + plan.name}
-                </button>
-              </div>
-            );
-          })}
+        <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a2e", marginBottom: 6 }}>Choose Your Plan</div>
+        <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 18 }}>Upgrade anytime — pay via EasyPaisa or bank transfer</div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          {ORDERED_PLANS.map(planId => (
+            <PlanCard
+              key={planId}
+              plan={PLAN_CONFIGS[planId]}
+              isCurrent={planId === activePlanId}
+              isPopular={planId === "pro"}
+              hasPending={hasPending}
+              onUpgrade={() => { setShowModal(planId); setScreenshot(null); setPayMethod("easypaisa"); }}
+              onDowngrade={handleDowngrade}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Invoice history */}
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-        <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Invoice History</div>
-          <div style={{ fontSize: 12, color: "#9898b0" }}>Generated on the 1st of every month</div>
+      {/* ── Feature comparison table ── */}
+      <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #ebebf0", overflow: "hidden" }}>
+        <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", gap: 10 }}>
+          <Shield size={18} color="#7C3AED" />
+          <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Feature Comparison</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 90px 48px", padding: "10px 24px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
-          {["INVOICE", "ISSUED", "DUE DATE", "AMOUNT", "STATUS", ""].map((h) => (
-            <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+        {[
+          { feature: "Appointments",         free: "30 / month",  pro: "Unlimited", premium: "Unlimited" },
+          { feature: "Staff members",         free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
+          { feature: "Clients",               free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
+          { feature: "POS products",          free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
+          { feature: "Invoicing & receipts",  free: "✓",           pro: "✓",         premium: "✓" },
+          { feature: "Calendar & scheduling", free: "✓",           pro: "✓",         premium: "✓" },
+          { feature: "Revenue analytics",     free: "Basic",       pro: "Full",      premium: "Full" },
+          { feature: "Inventory management",  free: "Basic",       pro: "Full",      premium: "Full" },
+          { feature: "Online booking page",   free: "✓",           pro: "✓",         premium: "✓" },
+          { feature: "WhatsApp automation",   free: "—",           pro: "—",         premium: "✓" },
+          { feature: "Virtual Try-On (AI)",   free: "—",           pro: "—",         premium: "✓" },
+          { feature: "Price",                 free: "Free",        pro: "PKR 5,500/mo", premium: "PKR 9,000/mo" },
+        ].map((row, i) => (
+          <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>
+            {[row.free, row.pro, row.premium].map((val, j) => (
+              <div key={j} style={{ fontSize: 12, color: val === "—" ? "#c8c8d8" : val.startsWith("✓") || val === "Full" || val === "Unlimited" ? "#059669" : "#4a4a6a", fontWeight: val === "—" ? 400 : 600 }}>
+                {val}
+              </div>
+            ))}
+          </div>
+        ))}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "11px 24px", background: "#f4f4fc" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Feature</div>
+          {ORDERED_PLANS.map(p => (
+            <div key={p} style={{ fontSize: 11, fontWeight: 800, color: PLAN_CONFIGS[p].color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              {PLAN_CONFIGS[p].name}
+            </div>
           ))}
         </div>
-        {invoices.length === 0 ? (
-          <div style={{ padding: "32px 24px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No invoices yet</div>
-        ) : (
-          invoices.map((inv, i) => {
+      </div>
+
+      {/* ── Invoice history ── */}
+      {invoices.length > 0 && (
+        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #ebebf0", overflow: "hidden" }}>
+          <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Invoice History</div>
+            <div style={{ fontSize: 12, color: "#9898b0" }}>Generated monthly after trial ends</div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 100px 48px", padding: "10px 24px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+            {["INVOICE", "ISSUED", "DUE DATE", "AMOUNT", "STATUS", ""].map(h => (
+              <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+            ))}
+          </div>
+          {invoices.map((inv, i) => {
             const sm = STATUS_META[inv.status];
             const Icon = sm.icon;
             return (
-              <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 90px 48px", padding: "13px 24px", borderBottom: i < invoices.length - 1 ? "1px solid #f4f4f8" : "none", alignItems: "center" }}>
+              <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 100px 48px", padding: "13px 24px", borderBottom: i < invoices.length - 1 ? "1px solid #f4f4f8" : "none", alignItems: "center" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{inv.number}</div>
                 <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(inv.issuedDate)}</div>
                 <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(inv.dueDate)}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(inv.total)}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>PKR {inv.total.toLocaleString("en-PK")}</div>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 20, background: sm.bg, fontSize: 11, fontWeight: 700, color: sm.color }}>
                   <Icon size={10} /> {sm.label}
                 </div>
-                <button onClick={() => setViewingInvoice(inv)}
+                <button onClick={() => setViewInvoice(inv)}
                   style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", cursor: "pointer" }}>
                   <Eye size={13} color="#9898b0" />
                 </button>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 }
