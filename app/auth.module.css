@@ -331,47 +331,122 @@
   font-weight: 800;
 }
 
+/* ── Tablet ──────────────────────────────────────────────────── */
 @media (max-width: 980px) {
   .authShell {
     grid-template-columns: 1fr;
-    gap: 24px;
     min-height: 0;
     padding: 0;
   }
 
   .brandPanel {
-    height: 420px;
-    padding: 24px;
-  }
-
-  .formPanel {
-    min-height: auto;
-    padding: 28px 18px 42px;
+    height: 380px;
+    padding: 28px 32px;
   }
 
   .brandBottom {
     display: none;
   }
+
+  .formPanel {
+    min-height: auto;
+    padding: 36px 32px 48px;
+  }
 }
 
+/* ── Mobile ──────────────────────────────────────────────────── */
 @media (max-width: 620px) {
+  .authShell {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Compact hero — enough to show branding, not dominate the screen */
   .brandPanel {
-    height: 320px;
-    padding: 24px;
+    height: 220px;
+    min-height: 0;
+    padding: 20px 20px 16px;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    margin-bottom: 6px;
   }
 
   .headline {
-    font-size: 27px;
+    font-size: 20px;
+    line-height: 1.15;
   }
 
   .supportingText {
-    font-size: 11px;
+    display: none;
   }
 
-  .authPage {
-    padding: 0;
+  .brandStats {
+    margin-top: 10px;
+    gap: 6px;
   }
 
+  .statPill {
+    font-size: 9px;
+    padding: 5px 9px;
+  }
+
+  /* Form panel sits directly below the hero */
+  .formPanel {
+    min-height: 0;
+    flex: 1;
+    padding: 24px 20px 40px;
+    align-items: flex-start;
+  }
+
+  .formCard {
+    max-width: 100%;
+  }
+
+  /* Shrink logos — overrides inline height via max-height */
+  .brandTop img,
+  .formHeader img {
+    max-height: 40px !important;
+    height: auto !important;
+  }
+
+  .formTitle {
+    font-size: 20px;
+    margin-top: 10px !important;
+  }
+
+  .formSubtitle {
+    font-size: 12px;
+  }
+
+  /* Bigger touch targets */
+  .input {
+    height: 44px;
+    font-size: 14px;
+  }
+
+  .inputIcon {
+    top: 13px;
+  }
+
+  .iconButton {
+    top: 8px;
+  }
+
+  .primaryButton {
+    height: 46px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+
+  .footerText {
+    font-size: 13px;
+  }
+
+  /* Two-column field grids collapse to one */
   .fieldGrid {
     grid-template-columns: 1fr;
   }
