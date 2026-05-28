@@ -43,8 +43,6 @@ const STATUS_BADGE = {
   ok:  { label: "In Stock",     color: "#059669", bg: "#ecfdf5" },
 };
 
-// ── Demo data ─────────────────────────────────────────────────────────────────
-
 // ── Shared styles ─────────────────────────────────────────────────────────────
 const INP: React.CSSProperties = {
   width: "100%", padding: "9px 12px", borderRadius: 8,

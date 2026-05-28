@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { getStoredAppointments } from "@/lib/storage";
+import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { Appointment } from "@/lib/types";
 import DashboardHeader from "@/components/dashboard-header";
 import {
@@ -32,13 +33,6 @@ const METHOD_LABELS: Record<string, string> = {
   cash: "Cash", jazzcash: "JazzCash", easypaisa: "EasyPaisa",
   raast: "Raast", card: "Card", bank: "Bank Transfer",
 };
-const METHOD_SPLITS = [
-  { method: "cash",      pct: 0.45 },
-  { method: "jazzcash",  pct: 0.25 },
-  { method: "easypaisa", pct: 0.15 },
-  { method: "card",      pct: 0.10 },
-  { method: "raast",     pct: 0.05 },
-];
 
 function toDateStr(d: Date) { return d.toLocaleDateString("en-CA"); }
 
@@ -51,52 +45,6 @@ function getDaysArray(count: number): string[] {
   return arr;
 }
 
-function seeded(n: number) { const x = Math.sin(n + 1) * 10000; return x - Math.floor(x); }
-
-function buildDemoData(): Appointment[] {
-  const svcs: [string, number][] = [
-    ["Haircut & Style", 3500], ["Hair Color", 8500], ["Facial", 5000],
-    ["Manicure", 2500], ["Pedicure", 3000], ["Bridal Package", 28000],
-    ["Blow Dry", 2000], ["Waxing", 3500], ["Highlights", 13000],
-    ["Deep Conditioning", 4000], ["Keratin Treatment", 12000],
-    ["Nail Art", 4500], ["Eyebrows", 800], ["Skin Whitening", 7000],
-  ];
-  const clients = [
-    "Fatima Ali", "Sara Khan", "Amna Sheikh", "Zara Ahmed", "Hina Malik",
-    "Nadia Raza", "Bushra Iqbal", "Maria Hassan", "Sana Butt", "Layla Chaudhry",
-    "Rabia Nasir", "Aisha Tariq", "Mehwish Qureshi", "Saba Farooq", "Neha Siddiqui",
-  ];
-  const staff = ["Amna", "Sara", "Hina", "Rania", "Faiqa"];
-  const appts: Appointment[] = [];
-  let id = 0;
-  for (let i = 364; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const dow = d.getDay();
-    const s = i * 7;
-    const isWknd = dow === 4 || dow === 5;
-    const isLow  = dow === 0 || dow === 1;
-    const cnt = isWknd ? 6 + Math.floor(seeded(s) * 5) : isLow ? 2 + Math.floor(seeded(s) * 3) : 4 + Math.floor(seeded(s) * 4);
-    for (let j = 0; j < cnt; j++) {
-      const [sn, sp] = svcs[Math.floor(seeded(s + j * 3) * svcs.length)];
-      appts.push({
-        id: `d${id++}`,
-        clientId: `c${Math.floor(seeded(s + j * 5) * 15)}`,
-        clientName: clients[Math.floor(seeded(s + j * 5) * clients.length)],
-        staffId: `st${Math.floor(seeded(s + j * 7) * 5)}`,
-        staffName: staff[Math.floor(seeded(s + j * 7) * staff.length)],
-        serviceIds: [`sv${Math.floor(seeded(s + j * 3) * svcs.length)}`],
-        serviceNames: [sn],
-        date: toDateStr(d),
-        startTime: "10:00",
-        endTime: "11:00",
-        status: "completed",
-        totalAmount: Math.max(800, sp + Math.floor((seeded(s + j * 11) - 0.3) * 1000)),
-        source: "walk-in",
-      });
-    }
-  }
-  return appts;
-}
 
 interface ChartBar {
   label: string;
@@ -108,21 +56,13 @@ interface ChartBar {
 export default function RevenuePage() {
   const [period, setPeriod]             = useState<Period>("30d");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [isDemo, setIsDemo]             = useState(false);
   const [today, setToday]               = useState("");
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null); // "YYYY-MM" drill-down
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [hoveredBar, setHoveredBar]     = useState<number | null>(null);
 
   useEffect(() => {
-    const t = toDateStr(new Date());
-    setToday(t);
-    const stored = getStoredAppointments();
-    if (stored.filter(a => a.status === "completed").length === 0) {
-      setAppointments(buildDemoData());
-      setIsDemo(true);
-    } else {
-      setAppointments(stored);
-    }
+    setToday(toDateStr(new Date()));
+    setAppointments(getStoredAppointments());
   }, []);
 
   // Reset drill-down when period changes
@@ -233,9 +173,21 @@ export default function RevenuePage() {
     })).reverse();
   }, [currentAppts, period, today]);
 
-  const methodBreakdown = useMemo(() =>
-    METHOD_SPLITS.map(m => ({ method: m.method, amount: Math.round(totalRevenue * m.pct), pct: m.pct * 100 })),
-    [totalRevenue]);
+  const methodBreakdown = useMemo(() => {
+    // Build from paid salon invoices that fall within the current period
+    const invoices = getSalonInvoices().filter(
+      inv => inv.status === "paid" && inv.date >= rangeStart && inv.date <= today
+    );
+    const totals: Record<string, number> = {};
+    invoices.forEach(inv => {
+      if (!inv.paymentMethod) return;
+      totals[inv.paymentMethod] = (totals[inv.paymentMethod] ?? 0) + inv.total;
+    });
+    const grand = Object.values(totals).reduce((s, v) => s + v, 0) || 1;
+    return Object.entries(totals)
+      .map(([method, amount]) => ({ method, amount, pct: (amount / grand) * 100 }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [rangeStart, today]);
 
   const topServices = useMemo(() => {
     const map: Record<string, { name: string; count: number; revenue: number }> = {};
@@ -351,7 +303,6 @@ export default function RevenuePage() {
       <div class="report-title">${pdfTitle}</div>
       <div class="report-sub">${pdfRange}</div>
       <div class="report-gen">Generated ${now.toLocaleDateString("en-PK", { weekday: "long", year: "numeric", month: "long", day: "numeric" })} · ${now.toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" })}</div>
-      ${isDemo ? '<div style="font-size:10px;color:#f97316;margin-top:2px;">⚠ Demo Data</div>' : ""}
     </div>
   </div>
 
@@ -512,10 +463,11 @@ export default function RevenuePage() {
         </div>
       </div>
 
-      {/* Demo banner */}
-      {isDemo && (
-        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "10px 16px", marginBottom: 20, fontSize: 13, color: "#9a3412", fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
-          <span>ℹ️</span> Showing demo data — add appointments to see your real revenue figures
+      {/* Empty state banner */}
+      {appointments.filter(a => a.status === "completed").length === 0 && (
+        <div style={{ background: "#f8f9ff", border: "1px solid #e0e0f8", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#6b6b8a", display: "flex", alignItems: "center", gap: 10 }}>
+          <TrendingUp size={16} color="#a0a0c8" />
+          No completed appointments yet — revenue figures will appear here once you complete your first appointment.
         </div>
       )}
 
