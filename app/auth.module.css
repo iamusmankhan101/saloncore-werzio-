@@ -1,4 +1,5 @@
 .authPage {
+  width: 100%;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -16,6 +17,7 @@
   position: relative;
   z-index: 1;
   width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -26,6 +28,7 @@
   border-radius: 0;
   padding: 0;
   box-shadow: none;
+  overflow: hidden;
 }
 
 .brandPanel {
@@ -335,15 +338,21 @@
 @media (max-width: 980px) {
   .authPage {
     align-items: flex-start;
+    justify-content: flex-start;
+    padding: 0;
+    width: 100%;
   }
 
   .authShell {
     grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
     min-height: 100vh;
     padding: 0;
   }
 
   .brandPanel {
+    width: 100%;
     height: 380px;
     padding: 28px 32px;
   }
@@ -353,6 +362,7 @@
   }
 
   .formPanel {
+    width: 100%;
     min-height: auto;
     padding: 36px 32px 48px;
   }
@@ -360,20 +370,26 @@
 
 /* ── Mobile ──────────────────────────────────────────────────── */
 @media (max-width: 620px) {
-  /* Kill the centering gap — shell must fill the full viewport */
   .authPage {
     align-items: flex-start;
+    justify-content: flex-start;
     padding: 0;
+    margin: 0;
+    width: 100vw;
   }
 
   .authShell {
     display: flex;
     flex-direction: column;
+    width: 100vw;
+    max-width: 100vw;
     min-height: 100vh;
+    margin: 0;
   }
 
   /* Compact hero — enough to show branding, not dominate the screen */
   .brandPanel {
+    width: 100%;
     height: 220px;
     min-height: 0;
     padding: 20px 20px 16px;
@@ -407,6 +423,7 @@
 
   /* Form panel sits directly below the hero */
   .formPanel {
+    width: 100%;
     min-height: 0;
     flex: 1;
     padding: 24px 20px 40px;
@@ -417,11 +434,15 @@
     max-width: 100%;
   }
 
-  /* Shrink logos — overrides inline height via max-height */
-  .brandTop img,
+  /* Logo sizes on mobile */
+  .brandTop img {
+    max-height: 80px !important;
+    height: 80px !important;
+  }
+
   .formHeader img {
-    max-height: 40px !important;
-    height: auto !important;
+    max-height: 80px !important;
+    height: 80px !important;
   }
 
   .formTitle {
