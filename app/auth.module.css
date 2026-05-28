@@ -390,11 +390,11 @@
   /* Compact hero — enough to show branding, not dominate the screen */
   .brandPanel {
     width: 100%;
-    height: 220px;
+    height: 240px;
     min-height: 0;
-    padding: 20px 20px 36px;
+    padding: 20px 20px 40px;
     justify-content: flex-start;
-    gap: 12px;
+    gap: 10px;
   }
 
   .eyebrow {
@@ -436,14 +436,10 @@
 
   /* Logo sizes on mobile */
   .brandTop img {
-    max-height: 80px !important;
-    height: 80px !important;
+    max-height: 48px !important;
+    height: 48px !important;
   }
 
-  .formHeader img {
-    max-height: 80px !important;
-    height: 80px !important;
-  }
 
   .formTitle {
     font-size: 20px;

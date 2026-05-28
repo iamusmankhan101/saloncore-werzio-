@@ -162,7 +162,6 @@ export default function SignUpPage() {
 
             {/* Header */}
             <div className={styles.formHeader}>
-              <img src="/Untitled design (5).png" alt="Werzio" style={{ height: 85, width: "auto", display: "block", filter: "brightness(0)" }} />
               <h1 className={styles.formTitle} style={{ marginTop: 14 }}>
                 {step === "verify" ? "Check your email" : step === "plan" ? "Choose your plan" : showAdmin ? "Admin registration" : `${plan.name} plan — details`}
               </h1>

@@ -65,8 +65,7 @@ export default function SignInPage() {
         <section className={styles.formPanel}>
           <form onSubmit={handleSubmit} className={styles.formCard}>
             <div className={styles.formHeader}>
-              <img src="/Untitled design (5).png" alt="Werzio" style={{ height: 85, width: "auto", display: "block", filter: "brightness(0)" }} />
-              <h2 className={styles.formTitle} style={{ marginTop: 14 }}>Welcome back</h2>
+              <h2 className={styles.formTitle}>Welcome back</h2>
               <p className={styles.formSubtitle}>Sign in to continue managing your salon workspace.</p>
             </div>
 
