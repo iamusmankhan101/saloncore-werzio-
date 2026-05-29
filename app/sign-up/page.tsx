@@ -135,7 +135,7 @@ export default function SignUpPage() {
         {/* Brand panel */}
         <section className={styles.brandPanel}>
           <div className={styles.brandTop}>
-            <img src="/werzio logo.png" alt="Werzio" style={{ height: 85, width: "auto" }} />
+            <img src="/Untitled design (5).png" alt="Werzio" style={{ height: 85, width: "auto" }} />
           </div>
           <div className={styles.brandContent}>
             <div className={styles.eyebrow}>Start organized</div>
