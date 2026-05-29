@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, Menu } from "lucide-react";
+import { AlertTriangle, CreditCard, Menu, LayoutDashboard, CalendarDays, Users, ClipboardList } from "lucide-react";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
 import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings } from "@/lib/settings-store";
@@ -150,6 +150,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Billing page is always accessible even when suspended
   const isBillingPage = pathname === "/dashboard/billing";
 
+  const bottomTabs = [
+    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { href: "/dashboard/calendar", icon: CalendarDays, label: "Calendar" },
+    { href: "/dashboard/appointments", icon: ClipboardList, label: "Appointments" },
+    { href: "/dashboard/clients", icon: Users, label: "Clients" },
+  ];
+
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       {/* Mobile Header Banner */}
@@ -195,6 +202,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }}>
         {children}
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="bottom-nav">
+        {bottomTabs.map((tab) => {
+          const isActive = pathname === tab.href;
+          return (
+            <Link 
+              key={tab.href} 
+              href={tab.href}
+              className={`bottom-nav-item ${isActive ? "active" : ""}`}
+            >
+              <tab.icon size={20} />
+              <span>{tab.label}</span>
+              {isActive && <div className="bottom-nav-active-dot" />}
+            </Link>
+          );
+        })}
+        <button 
+          onClick={() => setSidebarOpen(true)}
+          className="bottom-nav-item"
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+        >
+          <Menu size={20} />
+          <span>More</span>
+        </button>
+      </nav>
 
       {/* Suspension gate — shown over everything except the billing page */}
       {suspended && !isBillingPage && <SuspensionGate reason={suspReason} />}
