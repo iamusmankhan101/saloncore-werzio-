@@ -1,6 +1,6 @@
 // Settings persisted to localStorage so changes survive page refreshes
 
-import { userKey } from "./auth";
+import { userKey, getCurrentUser } from "./auth";
 
 const STORAGE_KEY = "werzio_settings";
 export const SETTINGS_CHANGED_EVENT = "werzio_settings_changed";
@@ -72,18 +72,37 @@ function load() {
   if (typeof window === "undefined") return structuredClone(defaults);
   try {
     const raw = localStorage.getItem(userKey(STORAGE_KEY));
-    if (!raw) return structuredClone(defaults);
+    const user = getCurrentUser();
+    const dynamicDefaults = structuredClone(defaults);
+    if (user) {
+      if (user.salonName) dynamicDefaults.salon.name = user.salonName;
+      if (user.phone) dynamicDefaults.salon.phone = user.phone;
+      if (user.email) dynamicDefaults.salon.email = user.email;
+    }
+    if (!raw) return dynamicDefaults;
     // Deep merge so new default keys are always present
     const saved = JSON.parse(raw);
     return {
-      replicate: { ...defaults.replicate, ...saved.replicate },
-      huggingface: { ...defaults.huggingface, ...saved.huggingface },
-      salon: { ...defaults.salon, ...saved.salon },
-      botsailor: { ...defaults.botsailor, ...saved.botsailor },
-      hours: saved.hours ?? structuredClone(defaults.hours),
-      notifications: { ...defaults.notifications, ...saved.notifications },
-      appearance: { ...defaults.appearance, ...saved.appearance },
-      whatsapp: { ...defaults.whatsapp, ...saved.whatsapp },
+      replicate: { ...dynamicDefaults.replicate, ...saved.replicate },
+      huggingface: { ...dynamicDefaults.huggingface, ...saved.huggingface },
+      salon: {
+        ...dynamicDefaults.salon,
+        ...saved.salon,
+        name: saved.salon?.name && saved.salon.name !== "Amna's Salon"
+          ? saved.salon.name
+          : (user?.salonName || dynamicDefaults.salon.name),
+        phone: saved.salon?.phone && saved.salon.phone !== "0300-1234567"
+          ? saved.salon.phone
+          : (user?.phone || dynamicDefaults.salon.phone),
+        email: saved.salon?.email && saved.salon.email !== "amna@werzio.pk"
+          ? saved.salon.email
+          : (user?.email || dynamicDefaults.salon.email),
+      },
+      botsailor: { ...dynamicDefaults.botsailor, ...saved.botsailor },
+      hours: saved.hours ?? structuredClone(dynamicDefaults.hours),
+      notifications: { ...dynamicDefaults.notifications, ...saved.notifications },
+      appearance: { ...dynamicDefaults.appearance, ...saved.appearance },
+      whatsapp: { ...dynamicDefaults.whatsapp, ...saved.whatsapp },
     };
   } catch {
     return structuredClone(defaults);
@@ -96,6 +115,15 @@ function persist() {
 }
 
 export const settingsStore = load();
+
+export function reloadSettings() {
+  const newSettings = load();
+  // Clear and update settingsStore in place so existing imports get the new data
+  for (const key of Object.keys(settingsStore)) {
+    delete (settingsStore as any)[key];
+  }
+  Object.assign(settingsStore, newSettings);
+}
 
 /** Call after mutating any section to persist changes. */
 export function saveSettings() {

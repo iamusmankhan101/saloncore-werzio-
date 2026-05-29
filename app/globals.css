@@ -116,6 +116,16 @@ input, textarea, select { font-family: inherit; }
   display: none !important;
 }
 
+.sidebar-logo {
+  height: 42px !important;
+  width: auto !important;
+  flex-shrink: 0 !important;
+}
+
+.sidebar-live-badge {
+  display: flex !important;
+}
+
 @media (max-width: 980px) {
   /* Mobile header sticky at the top */
   .mobile-header {
@@ -160,5 +170,13 @@ input, textarea, select { font-family: inherit; }
     border-radius: 0 !important;
     box-shadow: none !important;
     padding-top: var(--header-height) !important;
+  }
+
+  .sidebar-logo {
+    height: 34px !important;
+  }
+
+  .sidebar-live-badge {
+    display: none !important;
   }
 }

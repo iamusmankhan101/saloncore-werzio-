@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare, UserCog, BarChart3, Package, Globe, Sparkles, Search, CreditCard, Scissors, CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart, X } from "lucide-react";
 import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
-import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
+import { SETTINGS_CHANGED_EVENT, settingsStore, reloadSettings } from "@/lib/settings-store";
 import { getCurrentPlan } from "@/lib/plan-limits";
  
 const APP_NAV = [
@@ -38,6 +38,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
   useEffect(() => {
     function syncAccountChrome() {
+      reloadSettings();
       setUser(getCurrentUser());
       setSalonName(settingsStore.salon.name || getCurrentUser()?.salonName || "Werzio Salon");
       const plan = getCurrentPlan();
@@ -104,16 +105,20 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
           <img
             src="/Untitled design (5).png"
             alt="Werzio"
-            style={{ height: 50, width: "auto", userSelect: "none", pointerEvents: "none" }}
+            className="sidebar-logo"
+            style={{ userSelect: "none", pointerEvents: "none" }}
           />
         </div>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 5,
-          background: "rgba(124,58,237,0.18)",
-          border: "1px solid rgba(124,58,237,0.35)",
-          borderRadius: 20, padding: "3px 10px 3px 7px",
-          flexShrink: 0
-        }}>
+        <div 
+          className="sidebar-live-badge"
+          style={{
+            alignItems: "center", gap: 5,
+            background: "rgba(124,58,237,0.18)",
+            border: "1px solid rgba(124,58,237,0.35)",
+            borderRadius: 20, padding: "3px 10px 3px 7px",
+            flexShrink: 0
+          }}
+        >
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#a78bfa", boxShadow: "0 0 6px #7C3AED" }} />
           <span style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa", letterSpacing: "0.05em" }}>LIVE</span>
         </div>

@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { AlertTriangle, CreditCard, Menu } from "lucide-react";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
-import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
+import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings } from "@/lib/settings-store";
 import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
 import { syncFromDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
@@ -96,6 +96,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, 0);
     return () => window.clearTimeout(timer);
   }, [router]);
+
+  // Sync settings when authenticated
+  useEffect(() => {
+    if (!isReady) return;
+    reloadSettings();
+  }, [isReady]);
 
   // Appearance
   useEffect(() => {
