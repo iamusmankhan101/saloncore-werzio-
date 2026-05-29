@@ -65,14 +65,14 @@ export default function DashboardPage() {
   const todayTotal = todayAppts.reduce((s, a) => s + a.totalAmount, 0);
 
   return (
-    <div style={{ background: "#ffffff", minHeight: "100vh", padding: "28px 32px" }}>
+    <div className="dash-page" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* Header */}
       <DashboardHeader />
 
 
       {/* Top 3 cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 20 }}>
+      <div className="dash-grid-3">
 
         {/* Card 1: Today Appointments */}
         <Card title="Today's Appointments" subtitle={`${todayAppts.length} scheduled`}>
@@ -126,7 +126,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom 2 cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 440px", gap: 20 }}>
+      <div className="dash-grid-bottom">
 
         {/* Revenue Bar Chart */}
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", padding: "20px 24px", display: "flex", flexDirection: "column" }}>

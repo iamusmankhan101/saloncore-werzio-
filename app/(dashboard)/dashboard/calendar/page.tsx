@@ -104,7 +104,7 @@ function DetailModal({ appt, onClose, staffList, allServices }: { appt: Appointm
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: "#fff", borderRadius: 20, width: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
       >
         {/* Modal header */}
         <div style={{ background: cfg.bg, padding: "20px 24px 16px", borderBottom: `3px solid ${cfg.color}33`, position: "relative" }}>
@@ -206,7 +206,7 @@ export default function CalendarPage() {
   const monthLabel = week[0].toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
 
       {selected && <DetailModal appt={selected} onClose={() => setSelected(null)} staffList={staffList} allServices={services} />}
 
@@ -230,7 +230,9 @@ export default function CalendarPage() {
       </div>
 
       {/* Grid */}
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", overflow: "hidden", flex: 1 }}>
+      <div className="cal-scroll-wrap">
+        <div className="cal-scroll-inner">
+        <div className="cal-grid-inner">
 
         {/* Day headers */}
         <div style={{ display: "grid", gridTemplateColumns: "52px repeat(7, 1fr)", borderBottom: "1px solid #f0f0f8" }}>
@@ -284,7 +286,9 @@ export default function CalendarPage() {
             })}
           </div>
         </div>
-      </div>
+        </div>{/* /cal-grid-inner */}
+        </div>{/* /cal-scroll-inner */}
+      </div>{/* /cal-scroll-wrap */}
 
       {/* Legend */}
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>

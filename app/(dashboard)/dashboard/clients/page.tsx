@@ -60,7 +60,7 @@ function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Clie
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 500, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 500, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
 
         {/* Header */}
         <div style={{ background: "linear-gradient(135deg, #EDE9FE, #fdf2f8)", padding: "28px 24px 20px", borderBottom: "1px solid #f0f0f8", position: "relative" }}>
@@ -313,7 +313,7 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (c: Cl
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>Add New Client</div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#6b6b8a" /></button>
@@ -413,7 +413,7 @@ export default function ClientsPage() {
   const activeFilters = [tagFilter !== "all", sourceFilter !== "all"].filter(Boolean).length;
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
 
       {selected && (
         <ClientPanel
@@ -444,7 +444,7 @@ export default function ClientsPage() {
       )}
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="page-header">
         <div>
           <div style={{ fontWeight: 700, fontSize: 22, color: "#1a1a2e" }}>Clients</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>
@@ -454,6 +454,7 @@ export default function ClientsPage() {
         </div>
         <button
           onClick={() => !clientLimited && setShowAdd(true)}
+          className="page-header-btn"
           title={clientLimited ? `Free plan: ${plan.clientLimit} client limit reached. Upgrade to Pro for unlimited.` : ""}
           style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: clientLimited ? "#e8e8f0" : "#7C3AED", fontSize: 13, fontWeight: 600, color: clientLimited ? "#aaaabc" : "#fff", cursor: clientLimited ? "not-allowed" : "pointer" }}>
           <Plus size={16} /> Add Client
@@ -505,7 +506,9 @@ export default function ClientsPage() {
       )}
 
       {/* Table */}
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+      <div className="table-scroll-wrap">
+        <div className="table-scroll-inner">
+        <div className="client-table-inner" style={{ background: "#fff" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 110px 120px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
           {["CLIENT", "PHONE", "SOURCE", "LAST VISIT", "VISITS", "TOTAL SPEND"].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
@@ -547,7 +550,9 @@ export default function ClientsPage() {
             </div>
           );
         })}
-      </div>
+        </div>{/* /client-table-inner */}
+        </div>{/* /table-scroll-inner */}
+      </div>{/* /table-scroll-wrap */}
     </div>
   );
 }

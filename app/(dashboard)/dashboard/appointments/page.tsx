@@ -111,7 +111,7 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 480, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 70px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 480, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 70px rgba(0,0,0,0.22)", overflow: "hidden" }}>
 
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${cfg.color}18, ${cfg.color}08)`, padding: "20px 24px 18px", borderBottom: `2px solid ${cfg.color}22`, position: "relative" }}>
@@ -354,7 +354,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 500, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 500, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
 
         {/* Header */}
         <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -541,7 +541,7 @@ export default function AppointmentsPage() {
   const activeFilters = [statusFilter !== "all", staffFilter !== "all", !!dateFilter].filter(Boolean).length;
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
 
       {selected && (
         <DetailModal
@@ -619,13 +619,14 @@ export default function AppointmentsPage() {
       )}
 
       {/* Page header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="page-header">
         <div>
           <div style={{ fontWeight: 700, fontSize: 22, color: "#1a1a2e" }}>Appointments</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>{filtered.length} appointments · {fmt(totalRevenue)} total</div>
         </div>
         <button
           onClick={() => !apptLimited && setShowCreate(true)}
+          className="page-header-btn"
           title={apptLimited ? `Free plan: 30 appointments/month limit reached. Upgrade to Pro for unlimited.` : ""}
           style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: apptLimited ? "#e8e8f0" : "#7C3AED", fontSize: 13, fontWeight: 600, color: apptLimited ? "#aaaabc" : "#fff", cursor: apptLimited ? "not-allowed" : "pointer" }}
         >
@@ -707,7 +708,9 @@ export default function AppointmentsPage() {
       )}
 
       {/* Table */}
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+      <div className="table-scroll-wrap">
+        <div className="table-scroll-inner">
+        <div className="appt-table-inner">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 160px 120px 110px 100px 120px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
           {["CLIENT", "DATE", "SERVICE", "STYLIST", "STATUS", "AMOUNT", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
@@ -775,7 +778,9 @@ export default function AppointmentsPage() {
             <span style={{ fontSize: 14, fontWeight: 700, color: "#7C3AED" }}>{fmt(totalRevenue)}</span>
           </div>
         )}
-      </div>
+        </div>{/* /appt-table-inner */}
+        </div>{/* /table-scroll-inner */}
+      </div>{/* /table-scroll-wrap */}
     </div>
   );
 }
