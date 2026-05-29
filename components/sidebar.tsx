@@ -1,13 +1,13 @@
 "use client";
-
+ 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare, UserCog, BarChart3, Package, Globe, Sparkles, Search, CreditCard, Scissors, CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare, UserCog, BarChart3, Package, Globe, Sparkles, Search, CreditCard, Scissors, CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart, X } from "lucide-react";
 import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan } from "@/lib/plan-limits";
-
+ 
 const APP_NAV = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/dashboard/calendar", icon: CalendarDays, label: "Calendar" },
@@ -23,13 +23,13 @@ const APP_NAV = [
   { href: "/online-booking", icon: Globe, label: "Online Booking" },
   { href: "/dashboard/try-on", icon: Wand2, label: "Virtual Try-On" },
 ];
-
+ 
 const SETTINGS_NAV = [
   { href: "/dashboard/account", icon: CircleUserRound, label: "Account" },
   { href: "/dashboard/billing", icon: CreditCard, label: "Billing" },
 ];
-
-export default function Sidebar() {
+ 
+export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -60,7 +60,7 @@ export default function Sidebar() {
   const NavItem = ({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) => {
     const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
     return (
-      <Link href={href} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderRadius: 10, color: active ? "#ffffff" : "#6a6a8a", background: active ? "var(--accent-gradient)" : "transparent", fontWeight: active ? 600 : 400, fontSize: 13, transition: "all 0.15s", marginBottom: 2, boxShadow: active ? "0 2px 10px rgba(91, 33, 182, 0.35)" : "none" }}>
+      <Link href={href} onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderRadius: 10, color: active ? "#ffffff" : "#6a6a8a", background: active ? "var(--accent-gradient)" : "transparent", fontWeight: active ? 600 : 400, fontSize: 13, transition: "all 0.15s", marginBottom: 2, boxShadow: active ? "0 2px 10px rgba(91, 33, 182, 0.35)" : "none" }}>
         <Icon size={16} />
         {label}
       </Link>
@@ -76,20 +76,43 @@ export default function Sidebar() {
     .slice(0, 2);
 
   return (
-    <aside style={{ width: "var(--sidebar-width)", height: "100vh", background: "#13131a", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, zIndex: 50, overflow: "hidden" }}>
+    <aside 
+      className={isOpen ? "active" : ""}
+      style={{ width: "var(--sidebar-width)", height: "100vh", background: "#13131a", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, zIndex: 50, overflow: "hidden" }}
+    >
 
       {/* ── Werzio logo badge ─────────────────────────────────────────── */}
       <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid #1e1e2c", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <img
-          src="/Untitled design (5).png"
-          alt="Werzio"
-          style={{ height: 60, width: "auto", userSelect: "none", pointerEvents: "none" }}
-        />
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Mobile Close Button */}
+          <button 
+            className="mobile-close-btn"
+            onClick={onClose}
+            style={{ 
+              background: "none", 
+              border: "none", 
+              color: "#6a6a8a", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              cursor: "pointer", 
+              marginRight: 4,
+              padding: 4
+            }}
+          >
+            <X size={18} />
+          </button>
+          <img
+            src="/Untitled design (5).png"
+            alt="Werzio"
+            style={{ height: 50, width: "auto", userSelect: "none", pointerEvents: "none" }}
+          />
+        </div>
         <div style={{
           display: "flex", alignItems: "center", gap: 5,
           background: "rgba(124,58,237,0.18)",
           border: "1px solid rgba(124,58,237,0.35)",
           borderRadius: 20, padding: "3px 10px 3px 7px",
+          flexShrink: 0
         }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#a78bfa", boxShadow: "0 0 6px #7C3AED" }} />
           <span style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa", letterSpacing: "0.05em" }}>LIVE</span>

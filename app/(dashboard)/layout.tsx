@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard } from "lucide-react";
+import { AlertTriangle, CreditCard, Menu } from "lucide-react";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
 import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
@@ -83,6 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isReady,    setIsReady]    = useState(false);
   const [suspended,  setSuspended]  = useState(false);
   const [suspReason, setSuspReason] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Auth guard
   useEffect(() => {
@@ -145,7 +146,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      <Sidebar />
+      {/* Mobile Header Banner */}
+      <header className="mobile-header">
+        <button 
+          onClick={() => setSidebarOpen(true)}
+          style={{ 
+            background: "none", 
+            border: "none", 
+            color: "#f0f0f8", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "center", 
+            padding: 8,
+            cursor: "pointer"
+          }}
+        >
+          <Menu size={22} />
+        </button>
+        <img
+          src="/Untitled design (5).png"
+          alt="Werzio"
+          style={{ height: 36, width: "auto" }}
+        />
+        <div style={{ width: 38 }} /> {/* Balanced spacer */}
+      </header>
+
+      {/* Slide-out Backdrop Overlay */}
+      <div 
+        className={`mobile-overlay ${sidebarOpen ? "active" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main style={{
         marginLeft: "var(--sidebar-width)",
         flex: 1,
