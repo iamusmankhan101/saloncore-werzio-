@@ -244,22 +244,9 @@ input, textarea, select { font-family: inherit; }
 }
 
 @media (max-width: 980px) {
-  /* Mobile header sticky at the top */
+  /* Mobile header — hidden (replaced by bottom-nav logo badge) */
   .mobile-header {
-    display: flex !important;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--header-height);
-    background: rgba(19, 19, 26, 0.94) !important;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid #1e1e2c;
-    z-index: 40;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 16px;
+    display: none !important;
   }
 
   /* Overlay show/hide */
@@ -288,8 +275,8 @@ input, textarea, select { font-family: inherit; }
     margin-left: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    padding-top: var(--header-height) !important;
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important; /* Bottom nav space + safe area */
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .sidebar-logo {
@@ -314,6 +301,42 @@ input, textarea, select { font-family: inherit; }
     z-index: 45;
     align-items: center;
     justify-content: space-around;
-    padding-bottom: env(safe-area-inset-bottom, 0px); /* iPhone safe area padding */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* ── Center logo badge in bottom nav ────── */
+  .bottom-nav-logo-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #5B21B6 0%, #9333EA 100%);
+    border: 2.5px solid rgba(255, 255, 255, 0.15);
+    box-shadow:
+      0 0 0 4px rgba(124, 58, 237, 0.18),
+      0 6px 24px rgba(124, 58, 237, 0.5);
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    /* lift badge above the nav bar */
+    margin-bottom: 18px;
+    transform: translateY(-4px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .bottom-nav-logo-badge:active {
+    transform: translateY(-2px) scale(0.94);
+    box-shadow:
+      0 0 0 4px rgba(124, 58, 237, 0.12),
+      0 3px 14px rgba(124, 58, 237, 0.4);
+  }
+
+  .bottom-nav-logo-badge img {
+    height: 26px;
+    width: auto;
+    filter: brightness(0) invert(1);
+    display: block;
   }
 }

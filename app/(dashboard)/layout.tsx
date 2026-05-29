@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, Menu, LayoutDashboard, CalendarDays, Users, ClipboardList } from "lucide-react";
+import { AlertTriangle, CreditCard, LayoutDashboard, CalendarDays, Users, ClipboardList } from "lucide-react";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
 import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings } from "@/lib/settings-store";
@@ -157,35 +157,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: "/dashboard/clients", icon: Users, label: "Clients" },
   ];
 
+  const leftTabs  = bottomTabs.slice(0, 2);
+  const rightTabs = bottomTabs.slice(2);
+
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* Mobile Header Banner */}
-      <header className="mobile-header">
-        <button 
-          onClick={() => setSidebarOpen(true)}
-          style={{ 
-            background: "none", 
-            border: "none", 
-            color: "#f0f0f8", 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "center", 
-            padding: 8,
-            cursor: "pointer"
-          }}
-        >
-          <Menu size={22} />
-        </button>
-        <img
-          src="/Untitled design (5).png"
-          alt="Werzio"
-          style={{ height: 36, width: "auto" }}
-        />
-        <div style={{ width: 38 }} /> {/* Balanced spacer */}
-      </header>
-
       {/* Slide-out Backdrop Overlay */}
-      <div 
+      <div
         className={`mobile-overlay ${sidebarOpen ? "active" : ""}`}
         onClick={() => setSidebarOpen(false)}
       />
@@ -205,11 +183,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="bottom-nav">
-        {bottomTabs.map((tab) => {
+        {/* Left tabs */}
+        {leftTabs.map((tab) => {
           const isActive = pathname === tab.href;
           return (
-            <Link 
-              key={tab.href} 
+            <Link
+              key={tab.href}
               href={tab.href}
               className={`bottom-nav-item ${isActive ? "active" : ""}`}
             >
@@ -219,14 +198,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           );
         })}
-        <button 
+
+        {/* Center logo badge — opens sidebar */}
+        <button
           onClick={() => setSidebarOpen(true)}
-          className="bottom-nav-item"
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          className="bottom-nav-logo-badge"
+          aria-label="Open menu"
         >
-          <Menu size={20} />
-          <span>More</span>
+          <img src="/Untitled design (5).png" alt="Werzio" />
         </button>
+
+        {/* Right tabs */}
+        {rightTabs.map((tab) => {
+          const isActive = pathname === tab.href;
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={`bottom-nav-item ${isActive ? "active" : ""}`}
+            >
+              <tab.icon size={20} />
+              <span>{tab.label}</span>
+              {isActive && <div className="bottom-nav-active-dot" />}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Suspension gate — shown over everything except the billing page */}
