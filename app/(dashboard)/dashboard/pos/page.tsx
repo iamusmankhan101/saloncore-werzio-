@@ -168,6 +168,9 @@ export default function POSPage() {
   const [discType,  setDiscType]  = useState<DiscountType>("flat");
   const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
 
+  // ── Mobile tab ───────────────────────────────────────────────────────────
+  const [posTab, setPosTab] = useState<"customer" | "catalog" | "cart">("catalog");
+
   // ── Flow ──────────────────────────────────────────────────────────────────
   const [completing,   setCompleting]   = useState(false);
   const [printInvoice, setPrintInvoice] = useState<SalonInvoice | null>(null);
@@ -431,10 +434,10 @@ export default function POSPage() {
       )}
 
       {/* ══ 3-PANEL BODY ══ */}
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "280px 1fr 340px", overflow: "hidden", gap: 12, padding: "12px 16px 12px" }}>
+      <div className="pos-panels" style={{ flex: 1, display: "grid", gridTemplateColumns: "280px 1fr 340px", overflow: "hidden", gap: 12, padding: "12px 16px 12px" }}>
 
         {/* ══════════════════════ PANEL 1: CUSTOMER ══════════════════════ */}
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div className={posTab !== "customer" ? "pos-panel-hide" : ""} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
           {/* Panel header */}
           <div style={{ padding: "14px 16px", borderBottom: "1px solid #f4f4fc", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -617,7 +620,7 @@ export default function POSPage() {
         </div>
 
         {/* ══════════════════════ PANEL 2: CATALOG ══════════════════════ */}
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div className={posTab !== "catalog" ? "pos-panel-hide" : ""} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
           {/* Catalog header */}
           <div style={{ padding: "12px 16px", borderBottom: "1px solid #f4f4fc", flexShrink: 0 }}>
@@ -751,7 +754,7 @@ export default function POSPage() {
         </div>
 
         {/* ══════════════════════ PANEL 3: CART ══════════════════════ */}
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div className={posTab !== "cart" ? "pos-panel-hide" : ""} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
           {/* Cart header */}
           <div style={{ padding: "14px 16px", borderBottom: "1px solid #f4f4fc", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -935,6 +938,22 @@ export default function POSPage() {
           )}
         </div>
       </div>
+
+      {/* ══ MOBILE TAB BAR ══ */}
+      <nav className="pos-tab-bar">
+        <button className={`pos-tab-btn${posTab === "customer" ? " pos-tab-active" : ""}`} onClick={() => setPosTab("customer")}>
+          <User size={18} />
+          Customer
+        </button>
+        <button className={`pos-tab-btn${posTab === "catalog" ? " pos-tab-active" : ""}`} onClick={() => setPosTab("catalog")}>
+          <Scissors size={18} />
+          Catalog
+        </button>
+        <button className={`pos-tab-btn${posTab === "cart" ? " pos-tab-active" : ""}`} onClick={() => {setPosTab("cart");}}>
+          <ShoppingCart size={18} />
+          Cart {totalQty > 0 && <span style={{ fontSize: 10, background: "#7C3AED", color: "#fff", borderRadius: 99, padding: "1px 5px", marginLeft: 2 }}>{totalQty}</span>}
+        </button>
+      </nav>
 
       {/* Print modal */}
       {printInvoice && (

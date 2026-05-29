@@ -427,17 +427,17 @@ export default function RevenuePage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ background: "#f8f8fc", minHeight: "100vh", padding: "28px 32px" }}>
+    <div className="dash-page" style={{ background: "#f8f8fc", minHeight: "100vh" }}>
       <DashboardHeader />
 
       {/* Title + controls */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+      <div className="page-header" style={{ marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1a1a2e", margin: 0 }}>Revenue</h1>
           <p style={{ fontSize: 13, color: "#a0a0b8", margin: "4px 0 0" }}>Track your salon&apos;s financial performance</p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ display: "flex", background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: 4, gap: 2 }}>
+        <div className="rev-header-controls">
+          <div className="rev-period-selector" style={{ display: "flex", background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: 4, gap: 2 }}>
             {PERIODS.map(p => (
               <button
                 key={p.key}
@@ -472,7 +472,7 @@ export default function RevenuePage() {
       )}
 
       {/* Stat cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
+      <div className="stats-grid-4" style={{ marginBottom: 20 }}>
         {[
           { label: "Total Revenue", value: fmt(totalRevenue), change: revChange, icon: TrendingUp,   color: "#7C3AED", bg: "#F5F3FF", showTrend: true  },
           { label: "Appointments",  value: String(totalCount), change: cntChange, icon: CalendarDays, color: "#3b82f6", bg: "#eff6ff", showTrend: true  },
@@ -606,7 +606,7 @@ export default function RevenuePage() {
       </div>
 
       {/* Payment methods + Top services */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+      <div className="dash-grid-bottom" style={{ marginBottom: 20 }}>
         {/* Payment Methods */}
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "22px 24px" }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e", marginBottom: 4 }}>Payment Methods</div>
@@ -665,7 +665,7 @@ export default function RevenuePage() {
       </div>
 
       {/* Daily / Monthly breakdown table */}
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", overflow: "hidden" }}>
+      <div className="table-scroll-wrap">
         {/* Table header */}
         <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
@@ -713,6 +713,7 @@ export default function RevenuePage() {
           )}
         </div>
 
+        <div className="table-scroll-inner"><div className="rev-table-inner">
         {/* Column headers */}
         <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 100px 1.2fr 1.2fr", padding: "10px 24px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
           {["DATE", "DAY", "APPTS", "REVENUE", "AVG TICKET"].map(h => (
@@ -761,7 +762,8 @@ export default function RevenuePage() {
           <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(tableTotal)}</div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#6b6b8a" }}>{tableAvg ? fmt(tableAvg) : "—"}</div>
         </div>
-      </div>
+        </div></div>{/* /rev-table-inner /table-scroll-inner */}
+      </div>{/* /table-scroll-wrap */}
     </div>
   );
 }

@@ -534,7 +534,7 @@ export default function InvoicesPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
+    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
 
       {/* ── Print modal ── */}
       {viewingInvoice && (
@@ -577,13 +577,14 @@ export default function InvoicesPage() {
       )}
 
       {/* ── Page header ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="page-header">
         <div>
           <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e" }}>Client Invoices</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>Generate branded invoices for services & products</div>
         </div>
         <button
           onClick={() => { setEditingInvoice(undefined); setShowForm(true); }}
+          className="page-header-btn"
           style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 20px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#5B21B6,#9333EA)", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer", boxShadow: "0 4px 14px rgba(91,33,182,0.35)" }}
         >
           <Plus size={16} /> New Invoice
@@ -591,14 +592,14 @@ export default function InvoicesPage() {
       </div>
 
       {/* ── Stats ── */}
-      <div style={{ display: "flex", gap: 16 }}>
+      <div className="stat-cards-flex">
         <StatCard label="Total Invoices" value={String(stats.total)} sub={`${stats.paidCount} paid · ${stats.unpaidCount} unpaid`} />
         <StatCard label="Revenue Collected" value={fmt(stats.totalRevenue)} color="#059669" />
         <StatCard label="Outstanding" value={fmt(stats.outstanding)} color="#d97706" sub={`${stats.unpaidCount} unpaid invoice${stats.unpaidCount !== 1 ? "s" : ""}`} />
       </div>
 
       {/* ── Table card ── */}
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+      <div className="table-scroll-wrap">
 
         {/* Toolbar */}
         <div style={{ padding: "16px 24px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", gap: 12 }}>
@@ -629,6 +630,7 @@ export default function InvoicesPage() {
           ))}
         </div>
 
+        <div className="table-scroll-inner"><div className="invoice-table-inner" style={{ background: "#fff" }}>
         {/* Column headers */}
         <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 160px 120px 100px 90px 128px", padding: "10px 24px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
           {["Invoice #", "Client", "Staff", "Date", "Amount", "Status", "Actions"].map((h) => (
@@ -719,7 +721,8 @@ export default function InvoicesPage() {
             );
           })
         )}
-      </div>
+        </div></div>{/* /invoice-table-inner /table-scroll-inner */}
+      </div>{/* /table-scroll-wrap */}
     </div>
   );
 }

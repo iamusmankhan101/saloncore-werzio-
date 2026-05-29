@@ -33,7 +33,7 @@ function StaffPanel({ staff, onClose, onEdit, servicesList }: { staff: Staff; on
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 480, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 480, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
 
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${staff.color}22, ${staff.color}08)`, padding: "28px 24px 20px", borderBottom: "1px solid #f0f0f8", position: "relative" }}>
@@ -296,7 +296,7 @@ export default function StaffPage() {
   };
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
 
       {selected && (
         <StaffPanel 
@@ -327,7 +327,7 @@ export default function StaffPage() {
       )}
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="page-header">
         <div>
           <div style={{ fontWeight: 700, fontSize: 22, color: "#1a1a2e" }}>Staff</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>
@@ -337,6 +337,7 @@ export default function StaffPage() {
         </div>
         <button
           onClick={() => !staffLimited && setShowAdd(true)}
+          className="page-header-btn"
           title={staffLimited ? `Free plan: ${plan.staffLimit} active staff limit reached. Upgrade to Pro for unlimited.` : ""}
           style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: staffLimited ? "#e8e8f0" : "#7C3AED", fontSize: 13, fontWeight: 600, color: staffLimited ? "#aaaabc" : "#fff", cursor: staffLimited ? "not-allowed" : "pointer" }}>
           <Plus size={16} /> Add Staff
@@ -355,7 +356,7 @@ export default function StaffPage() {
       )}
 
       {/* Cards grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+      <div className="cards-grid-auto">
         {staffList.map((s) => {
           const stats = getStaffStats(s.id);
           const role = ROLE_COLORS[s.role] ?? { color: "#6b7280", bg: "#f9fafb" };

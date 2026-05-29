@@ -516,7 +516,7 @@ export default function InventoryPage() {
   const activeFilters = [catFilter !== "all", statusFilter !== "all"].filter(Boolean).length;
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px" }}>
+    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
       <DashboardHeader />
 
       {/* Modals */}
@@ -526,7 +526,7 @@ export default function InventoryPage() {
       {showReminder && <ReminderModal alertItems={alertItems} onClose={() => setShowReminder(false)} />}
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+      <div className="page-header" style={{ marginBottom: 16 }}>
         <div>
           <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 10 }}>
             Inventory
@@ -589,7 +589,7 @@ export default function InventoryPage() {
           </div>
 
           {/* Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
+          <div className="stats-grid-4" style={{ marginBottom: 20 }}>
             {[
               { label: "Listed in POS",   value: retailItems.length,  iconColor: "#7C3AED", bg: "#EDE9FE" },
               { label: "Not Listed",      value: items.filter(i => !(i.retailPrice ?? 0)).length, iconColor: "#9898b0", bg: "#f4f4f8" },
@@ -609,7 +609,7 @@ export default function InventoryPage() {
           </div>
 
           {/* Products table */}
-          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", overflow: "hidden" }}>
+          <div className="table-scroll-wrap"><div className="table-scroll-inner"><div className="inv-table-inner" style={{ background: "#fff" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 90px 110px 120px 110px 100px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
               {["PRODUCT", "CATEGORY", "STOCK", "COST PRICE", "RETAIL PRICE", "MARGIN", "IN POS"].map(h => (
                 <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.07em" }}>{h}</div>
@@ -678,7 +678,7 @@ export default function InventoryPage() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>Retail value: {fmtV(retailItems.reduce((s, i) => s + (i.retailPrice ?? 0) * i.currentStock, 0))}</span>
               </div>
             )}
-          </div>
+          </div></div></div>{/* /inv-table-inner /scroll-inner /scroll-wrap */}
         </>
       )}
 
@@ -821,7 +821,7 @@ export default function InventoryPage() {
       )}
 
       {/* Table */}
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+      <div className="table-scroll-wrap"><div className="table-scroll-inner"><div className="inv-table-inner" style={{ background: "#fff" }}>
         {/* Column headers */}
         <div style={{ display: "grid", gridTemplateColumns: "2.2fr 110px 130px 100px 130px 110px 90px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
           {["ITEM", "CATEGORY", "STOCK", "RESTOCKED", "COST PRICE", "STATUS", "ACTIONS"].map((h) => (
@@ -858,7 +858,7 @@ export default function InventoryPage() {
             </span>
           </div>
         )}
-      </div>
+      </div></div></div>{/* /inv-table-inner /scroll-inner /scroll-wrap */}
 
       </>}
     </div>

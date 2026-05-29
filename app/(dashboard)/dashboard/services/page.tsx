@@ -52,7 +52,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
 
   if (done) return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 360, padding: "48px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 360, padding: "48px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28, color: "#059669" }}>✓</div>
         <div style={{ fontWeight: 700, fontSize: 18, color: "#1a1a2e", marginBottom: 8 }}>{isEditing ? "Service Updated" : "Service Added"}</div>
         <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 24 }}>{isEditing ? "The service has been updated." : "The service has been saved."}</div>
@@ -63,7 +63,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 460, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 460, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>{isEditing ? "Edit Service" : "Add Service"}</div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#6b6b8a" /></button>
@@ -161,7 +161,7 @@ export default function ServicesPage() {
   const activeCount = services.filter(s => s.isActive).length;
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
       {(showAdd || editingService) && (
         <AddEditServiceModal
           onClose={() => { setShowAdd(false); setEditingService(null); }}
@@ -172,18 +172,18 @@ export default function ServicesPage() {
       )}
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="page-header">
         <div>
           <div style={{ fontWeight: 700, fontSize: 22, color: "#1a1a2e" }}>Services</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>{services.length} salon services · {activeCount} active</div>
         </div>
-        <button onClick={() => setShowAdd(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}>
+        <button onClick={() => setShowAdd(true)} className="page-header-btn" style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}>
           <Plus size={16} /> Add Service
         </button>
       </div>
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+      <div className="stats-grid-4">
         {[
           { label: "Total Services",    value: totalCount,       icon: <Scissors size={18} color="#7C3AED" />,  bg: "#F5F3FF" },
           { label: "Active Services",   value: activeCount,      icon: <Sparkles size={18} color="#059669" />,  bg: "#ecfdf5" },
@@ -201,7 +201,7 @@ export default function ServicesPage() {
       </div>
 
       {/* Category filter */}
-      <div style={{ display: "flex", gap: 8, borderBottom: "1px solid #ebebf0", paddingBottom: 4 }}>
+      <div className="filter-tabs" style={{ borderBottom: "1px solid #ebebf0" }}>
         {["all", "hair", "skin", "nails", "bridal"].map((cat) => {
           const active = filter === cat;
           return (
@@ -221,7 +221,7 @@ export default function ServicesPage() {
           <div style={{ fontSize: 13, marginTop: 6 }}>Click &quot;Add Service&quot; to get started</div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+        <div className="cards-grid-auto">
           {filteredServices.map((sv) => {
             const badge    = CATEGORY_LABELS[sv.category] || { label: sv.category, bg: "#f3f4f6", color: "#4b5563" };
             const assigned = staff.filter((st) => sv.assignedStaffIds.includes(st.id));
