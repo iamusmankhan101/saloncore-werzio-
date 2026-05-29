@@ -63,7 +63,7 @@ function VerifyEmailInner() {
 
         {/* Real Werzio logo */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-          <img src="/werzio logo.png" alt="Werzio" style={{ height: 36, width: "auto" }} />
+          <img src="/Untitled design (5).png" alt="Werzio" style={{ height: 36, width: "auto" }} />
         </div>
 
         {state === "loading" && (
