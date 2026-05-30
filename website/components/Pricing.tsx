@@ -1,6 +1,8 @@
 import styles from "./Pricing.module.css";
 import { Check } from "lucide-react";
 
+type Feature = string | { label: string; soon: boolean };
+
 const plans = [
   {
     badge: "Free Forever",
@@ -61,7 +63,7 @@ const plans = [
       "Revenue management",
       "Services management",
       "WhatsApp reminders",
-      "Virtual Try-On (AI hair & style preview)",
+      { label: "Virtual Try-On (AI hair & style preview)", soon: true },
     ],
     cta: "Get Werzio Premium",
     ctaClass: "btn btn-outline",
@@ -95,12 +97,17 @@ export default function Pricing() {
               )}
             </div>
             <ul className={styles.features}>
-              {p.features.map((f) => (
-                <li key={f}>
-                  <span className={styles.checkIcon}><Check size={10} strokeWidth={3} /></span>
-                  {f}
-                </li>
-              ))}
+              {p.features.map((f) => {
+                const label = typeof f === "string" ? f : f.label;
+                const soon  = typeof f === "object" && f.soon;
+                return (
+                  <li key={label}>
+                    <span className={styles.checkIcon}><Check size={10} strokeWidth={3} /></span>
+                    <span>{label}</span>
+                    {soon && <span className={styles.soonBadge}>Coming Soon</span>}
+                  </li>
+                );
+              })}
             </ul>
             <a href="#" className={`${p.ctaClass} ${styles.planBtn}`}>{p.cta}</a>
           </div>
