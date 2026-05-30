@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X, User, Mail, Phone, Calendar, Loader2, CheckCircle } from "lucide-react";
 import styles from "./DemoModal.module.css";
 
@@ -39,7 +40,7 @@ export default function DemoModal({ open, onClose }: Props) {
   const change = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStatus("loading");
     setError("");
@@ -60,9 +61,9 @@ export default function DemoModal({ open, onClose }: Props) {
     }
   };
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
 
@@ -173,6 +174,7 @@ export default function DemoModal({ open, onClose }: Props) {
         )}
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

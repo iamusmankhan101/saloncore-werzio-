@@ -48,9 +48,9 @@ export default function Hero() {
         <p className={styles.sub} data-animate data-delay="0.25">
           Easily manage bookings, clients, staff and revenue from start to finish.
         </p>
-        <div className={styles.btns} data-animate data-delay="0.4">
+        <div className={styles.btns}>
           <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.btnPrimary}>Get Started Free</a>
-          <button onClick={() => setDemo(true)} className={styles.btnOutline}>Book a Demo</button>
+          <button type="button" onClick={() => setDemo(true)} className={styles.btnOutline}>Book a Demo</button>
         </div>
       </div>
 
