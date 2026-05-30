@@ -10,24 +10,63 @@ import styles from "../auth.module.css";
 
 const PLANS = [
   {
-    id: "basic",
-    name: "Basic",
-    price: "PKR 5,500",
+    id: "free",
+    name: "Werzio Free",
+    price: "PKR 0",
     icon: Zap,
+    color: "#16a34a",
+    bg: "#f0fdf4",
+    badge: "Free Forever",
+    features: [
+      "Point of Sale (POS)",
+      "Appointment booking (up to 30/month)",
+      "Branded web booking page",
+      "Invoicing",
+      "upto 5 staff members",
+      "upto 5 client management",
+      "upto 5 products management/pos",
+    ],
+  },
+  {
+    id: "pro",
+    name: "Werzio Pro",
+    price: "PKR 6,000",
+    icon: Building2,
     color: "#0369a1",
     bg: "#e0f2fe",
-    badge: null,
-    features: ["Appointments & calendar", "Client management", "Staff & services", "Revenue analytics", "Inventory management", "Online booking page"],
+    badge: "Most Popular",
+    features: [
+      "Point of Sale (POS)",
+      "Unlimited appointment booking",
+      "Branded online web booking page",
+      "Unlimited staff & client management",
+      "Inventory management",
+      "Invoicing",
+      "Revenue management",
+      "Services management",
+      "whatsapp reminders",
+    ],
   },
   {
     id: "premium",
-    name: "Premium",
-    price: "PKR 8,500",
+    name: "Werzio Premium",
+    price: "PKR 10,000",
     icon: Crown,
     color: "#7C3AED",
     bg: "#EDE9FE",
-    badge: "Most Popular",
-    features: ["Everything in Basic", "WhatsApp confirmations", "WhatsApp reminders", "Follow-up messages", "Low stock alerts", "Virtual Try-On (AI)"],
+    badge: "✦ Premium",
+    features: [
+      "Point of Sale (POS)",
+      "Unlimited appointment booking",
+      "Branded online web booking page",
+      "Unlimited staff & client management",
+      "Inventory management",
+      "Invoicing",
+      "Revenue management",
+      "Services management",
+      "whatsapp reminders",
+      "virtual try on",
+    ],
   },
 ] as const;
 
@@ -36,7 +75,7 @@ type PlanId = typeof PLANS[number]["id"];
 export default function SignUpPage() {
   const router = useRouter();
   const [step, setStep] = useState<"plan" | "details" | "verify">("plan");
-  const [selectedPlan, setSelectedPlan] = useState<PlanId>("basic");
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>("pro");
   const [form, setForm] = useState({ ownerName: "", salonName: "", email: "", phone: "", password: "" });
   const [adminCode, setAdminCode] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
