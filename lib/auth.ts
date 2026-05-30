@@ -157,6 +157,16 @@ export function markEmailVerified(email: string): AuthUser {
   users[idx] = { ...users[idx], emailVerified: true };
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
   localStorage.setItem(SESSION_KEY, users[idx].id);
+  
+  // Migrate any plan that was set before login (during sign-up)
+  const basePlanKey = "werzio_active_plan";
+  const tempPlan = localStorage.getItem(basePlanKey);
+  if (tempPlan) {
+    // Move it to the user-scoped key
+    localStorage.setItem(`${basePlanKey}_${users[idx].id}`, tempPlan);
+    localStorage.removeItem(basePlanKey);
+  }
+  
   return withoutPassword(users[idx]);
 }
 

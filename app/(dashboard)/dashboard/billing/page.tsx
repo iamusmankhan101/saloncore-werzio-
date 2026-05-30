@@ -194,24 +194,41 @@ export default function BillingPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setActivePlanId(getCurrentPlanId());
     const user = getCurrentUser();
     if (!user) return;
 
-    const planId = getCurrentPlanId();
-    const plan   = PLAN_CONFIGS[planId];
+    // Fetch plan from database
+    fetch(`/api/billing/user?userId=${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) {
+          const planId = data.planId as PlanId;
+          setActivePlanId(planId);
+          
+          // Also update localStorage for backward compatibility
+          if (planId !== "free") {
+            setActivePlan(planId);
+          }
+          
+          const plan = PLAN_CONFIGS[planId];
+          setTrialActive(isInTrial(user.createdAt));
+          setDaysLeft(trialDaysLeft(user.createdAt));
 
-    setTrialActive(isInTrial(user.createdAt));
-    setDaysLeft(trialDaysLeft(user.createdAt));
-
-    if (plan.price > 0) {
-      const synced = syncInvoices(
-        { id: user.id, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
-        { id: plan.id, name: plan.label, price: plan.price },
-        user.createdAt,
-      );
-      setInvoices(synced.filter(inv => inv.userId === user.id));
-    }
+          if (plan.price > 0) {
+            const synced = syncInvoices(
+              { id: user.id, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
+              { id: plan.id, name: plan.label, price: plan.price },
+              user.createdAt,
+            );
+            setInvoices(synced.filter(inv => inv.userId === user.id));
+          }
+        }
+      })
+      .catch(err => {
+        console.error("[billing] Failed to fetch user plan:", err);
+        // Fallback to localStorage
+        setActivePlanId(getCurrentPlanId());
+      });
 
     setHasPending(getPaymentRequests().some(r => r.userId === user.id && r.status === "pending"));
   }, [submitted]);
@@ -490,7 +507,7 @@ export default function BillingPage() {
           { feature: "Online booking page",   free: "✓",           pro: "✓",         premium: "✓" },
           { feature: "WhatsApp automation",   free: "—",           pro: "—",         premium: "✓" },
           { feature: "Virtual Try-On (AI)",   free: "—",           pro: "—",         premium: "✓" },
-          { feature: "Price",                 free: "Free",        pro: "PKR 5,500/mo", premium: "PKR 9,000/mo" },
+          { feature: "Price",                 free: "Free",        pro: "PKR 6,000/mo", premium: "PKR 10,000/mo" },
         ].map((row, i) => (
           <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>

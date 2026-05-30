@@ -45,6 +45,14 @@ function RequestCard({ req, onUpdate }: { req: PaymentRequest; onUpdate: () => v
     updatePaymentRequest(req.id, status, note || undefined);
     if (status === "approved") {
       setActivePlan(req.planId);
+      
+      // Update plan in database
+      fetch("/api/billing/update-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: req.userId, planId: req.planId }),
+      }).catch((e) => console.warn("[billing/update-plan] failed:", e));
+      
       // Mark the current month's invoice as paid in localStorage
       const now = new Date();
       const invId = `${req.userId}_${now.getFullYear()}_${now.getMonth() + 1}`;

@@ -237,7 +237,7 @@ export default function MessagesPage() {
             <span style={{ fontSize: 13, fontWeight: 800, color: waPlan.color, background: waPlan.bg, borderRadius: 20, padding: "2px 12px", border: `1px solid ${waPlan.color}30` }}>{waPlan.label}</span>
           </div>
           <a href="/dashboard/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 32px", borderRadius: 12, background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 16px rgba(91,33,182,0.38)" }}>
-            Upgrade to Premium — PKR 9,000/mo →
+            Upgrade to Premium — PKR 10,000/mo →
           </a>
         </div>
       </div>

@@ -8,12 +8,16 @@ import { NextRequest } from "next/server";
 import { ensureBillingTables, upsertBillingUser } from "@/lib/billing-db";
 
 const PLAN_PRICES: Record<string, number> = {
-  basic:   5500,
-  premium: 8500,
+  free:    0,
+  pro:     6000,
+  basic:   6000,  // legacy support
+  premium: 10000,
 };
 
 const PLAN_NAMES: Record<string, string> = {
-  basic:   "Basic",
+  free:    "Free",
+  pro:     "Pro",
+  basic:   "Pro",  // legacy support
   premium: "Premium",
 };
 
