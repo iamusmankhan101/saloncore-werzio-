@@ -26,6 +26,10 @@ function VerifyEmailInner() {
     try {
       const res = await fetch(`/api/verify-email?token=${encodeURIComponent(token)}`);
 
+      // Log response details for debugging
+      console.log("[verify-email] Response status:", res.status);
+      console.log("[verify-email] Response headers:", Object.fromEntries(res.headers.entries()));
+
       // Guard: if response is not JSON (e.g. server is restarting), treat as retryable
       const contentType = res.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
@@ -36,9 +40,11 @@ function VerifyEmailInner() {
       }
 
       const data: { ok: boolean; email?: string; error?: string } = await res.json();
+      console.log("[verify-email] Response data:", data);
 
       if (!data.ok || !data.email) {
         setState("error");
+        // Show the actual error message from the API
         setErrorMsg(data.error || "Verification failed. Please try again.");
         setRetrying(false);
         return;
@@ -50,7 +56,7 @@ function VerifyEmailInner() {
     } catch (err) {
       console.error("[verify-email] fetch failed:", err);
       setState("error");
-      setErrorMsg("Could not reach the server. Make sure you're connected, then click Retry.");
+      setErrorMsg(`Could not reach the server: ${err instanceof Error ? err.message : 'Unknown error'}. Make sure you're connected, then click Retry.`);
       setRetrying(false);
     }
   }, [params, router]);
@@ -98,34 +104,64 @@ function VerifyEmailInner() {
             <p style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 24 }}>{errorMsg}</p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {/* Retry button — works for transient network/server errors */}
-              <button
-                onClick={() => verify(true)}
-                disabled={retrying}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  padding: "12px 28px", borderRadius: 10,
-                  background: retrying ? "#e8e8f0" : "linear-gradient(135deg,#5B21B6,#9333EA)",
-                  color: retrying ? "#aaaabc" : "#fff",
-                  fontWeight: 700, fontSize: 13, border: "none", cursor: retrying ? "not-allowed" : "pointer",
-                  width: "100%",
-                }}
-              >
-                <RefreshCw size={14} style={retrying ? { animation: "spin 1s linear infinite" } : {}} />
-                {retrying ? "Retrying…" : "Retry verification"}
-              </button>
+              {/* Show different actions based on error type */}
+              {errorMsg.includes("already been used") || errorMsg.includes("invalid") || errorMsg.includes("expired") ? (
+                <>
+                  <a
+                    href="/sign-up"
+                    style={{
+                      display: "inline-block", padding: "12px 28px", borderRadius: 10,
+                      background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff",
+                      fontWeight: 700, fontSize: 13, textDecoration: "none", width: "100%",
+                      boxSizing: "border-box", textAlign: "center",
+                    }}
+                  >
+                    Request new verification email
+                  </a>
+                  <a
+                    href="/sign-in"
+                    style={{
+                      display: "inline-block", padding: "12px 28px", borderRadius: 10,
+                      background: "#f4f5f7", color: "#6b6b8a",
+                      fontWeight: 700, fontSize: 13, textDecoration: "none", width: "100%",
+                      boxSizing: "border-box", textAlign: "center",
+                    }}
+                  >
+                    Go to sign in
+                  </a>
+                </>
+              ) : (
+                <>
+                  {/* Retry button — works for transient network/server errors */}
+                  <button
+                    onClick={() => verify(true)}
+                    disabled={retrying}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      padding: "12px 28px", borderRadius: 10,
+                      background: retrying ? "#e8e8f0" : "linear-gradient(135deg,#5B21B6,#9333EA)",
+                      color: retrying ? "#aaaabc" : "#fff",
+                      fontWeight: 700, fontSize: 13, border: "none", cursor: retrying ? "not-allowed" : "pointer",
+                      width: "100%",
+                    }}
+                  >
+                    <RefreshCw size={14} style={retrying ? { animation: "spin 1s linear infinite" } : {}} />
+                    {retrying ? "Retrying…" : "Retry verification"}
+                  </button>
 
-              <a
-                href="/sign-in"
-                style={{
-                  display: "inline-block", padding: "12px 28px", borderRadius: 10,
-                  background: "#f4f5f7", color: "#6b6b8a",
-                  fontWeight: 700, fontSize: 13, textDecoration: "none", width: "100%",
-                  boxSizing: "border-box",
-                }}
-              >
-                Go to sign in
-              </a>
+                  <a
+                    href="/sign-in"
+                    style={{
+                      display: "inline-block", padding: "12px 28px", borderRadius: 10,
+                      background: "#f4f5f7", color: "#6b6b8a",
+                      fontWeight: 700, fontSize: 13, textDecoration: "none", width: "100%",
+                      boxSizing: "border-box", textAlign: "center",
+                    }}
+                  >
+                    Go to sign in
+                  </a>
+                </>
+              )}
             </div>
           </>
         )}
