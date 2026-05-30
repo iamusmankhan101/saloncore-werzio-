@@ -10,6 +10,7 @@ const plans: Array<{
   period: string;
   features: (string | { label: string; soon: boolean })[];
   cta: string;
+  ctaHref: string;
   ctaClass: string;
   featured: boolean;
 }> = [
@@ -30,6 +31,7 @@ const plans: Array<{
       "Up to 5 products (POS)",
     ],
     cta: "Get Started Free",
+    ctaHref: "https://app.werzio.com/signup?plan=free",
     ctaClass: "btn btn-outline",
     featured: false,
   },
@@ -52,6 +54,7 @@ const plans: Array<{
       "WhatsApp reminders",
     ],
     cta: "Start Free Trial",
+    ctaHref: "https://app.werzio.com/signup?plan=pro",
     ctaClass: "btn btn-primary",
     featured: true,
   },
@@ -75,6 +78,7 @@ const plans: Array<{
       { label: "Virtual Try-On (AI hair & style preview)", soon: true },
     ],
     cta: "Get Werzio Premium",
+    ctaHref: "https://app.werzio.com/signup?plan=premium",
     ctaClass: "btn btn-outline",
     featured: false,
   },
@@ -118,7 +122,7 @@ export default function Pricing() {
                 );
               })}
             </ul>
-            <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className={`${p.ctaClass} ${styles.planBtn}`}>{p.cta}</a>
+            <a href={p.ctaHref} target="_blank" rel="noopener noreferrer" className={`${p.ctaClass} ${styles.planBtn}`}>{p.cta}</a>
           </div>
         ))}
       </div>
