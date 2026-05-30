@@ -1,6 +1,7 @@
 .authPage {
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   align-items: stretch;
   justify-content: center;
@@ -18,11 +19,11 @@
   z-index: 1;
   width: 100%;
   max-width: 100%;
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
-  align-items: center;
+  align-items: stretch;
   background: #fff;
   border: none;
   border-radius: 0;
@@ -169,7 +170,8 @@
 }
 
 .formPanel {
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
   display: flex;
   align-items: center;
   justify-content: center;
