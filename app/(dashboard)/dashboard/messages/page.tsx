@@ -220,7 +220,7 @@ export default function MessagesPage() {
           </div>
           <div style={{ fontSize: 22, fontWeight: 900, color: "#1a1a2e", marginBottom: 10 }}>WhatsApp Automation</div>
           <div style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.7, marginBottom: 28 }}>
-            Automated WhatsApp reminders, booking confirmations, follow-ups, and low-stock alerts are available on the <strong>Werzio Premium</strong> plan.
+            Automated WhatsApp reminders, booking confirmations, follow-ups, and low-stock alerts are available on the <strong>Werzio Pro</strong> and <strong>Werzio Premium</strong> plans.
           </div>
           <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", padding: "20px 22px", marginBottom: 24, textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}>
             {["Appointment reminders sent automatically", "Booking confirmation messages", "Post-visit follow-up messages", "Low inventory stock alerts", "Manual WhatsApp sends with templates"].map(f => (
@@ -232,13 +232,18 @@ export default function MessagesPage() {
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 16 }}>
             <span style={{ fontSize: 13, color: "#9898b0" }}>Current plan:</span>
             <span style={{ fontSize: 13, fontWeight: 800, color: waPlan.color, background: waPlan.bg, borderRadius: 20, padding: "2px 12px", border: `1px solid ${waPlan.color}30` }}>{waPlan.label}</span>
           </div>
-          <a href="/dashboard/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 32px", borderRadius: 12, background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 16px rgba(91,33,182,0.38)" }}>
-            Upgrade to Premium — PKR 10,000/mo →
-          </a>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+            <a href="/dashboard/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 12, background: "linear-gradient(135deg,#7C3AED,#9333EA)", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 16px rgba(124,58,237,0.38)" }}>
+              Upgrade to Pro — PKR 6,000/mo →
+            </a>
+            <a href="/dashboard/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 12, background: "linear-gradient(135deg,#9333EA,#A855F7)", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 16px rgba(147,51,234,0.38)" }}>
+              Upgrade to Premium — PKR 10,000/mo →
+            </a>
+          </div>
         </div>
       </div>
     );
