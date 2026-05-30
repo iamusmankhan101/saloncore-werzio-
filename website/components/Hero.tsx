@@ -1,10 +1,12 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./Hero.module.css";
 import CalendarMockup from "./CalendarMockup";
+import DemoModal from "./DemoModal";
 
 export default function Hero() {
-  const frameRef = useRef<HTMLDivElement>(null);
+  const frameRef            = useRef<HTMLDivElement>(null);
+  const [demoOpen, setDemo] = useState(false);
 
   useEffect(() => {
     const el = frameRef.current;
@@ -35,6 +37,7 @@ export default function Hero() {
   }, []);
 
   return (
+    <>
     <section className={styles.hero} id="home">
 
       {/* ── headline + subtitle + buttons ── */}
@@ -47,7 +50,7 @@ export default function Hero() {
         </p>
         <div className={styles.btns} data-animate data-delay="0.4">
           <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.btnPrimary}>Get Started Free</a>
-          <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className={styles.btnOutline}>Book a Demo</a>
+          <button onClick={() => setDemo(true)} className={styles.btnOutline}>Book a Demo</button>
         </div>
       </div>
 
@@ -76,5 +79,8 @@ export default function Hero() {
       </div>
 
     </section>
+
+    <DemoModal open={demoOpen} onClose={() => setDemo(false)} />
+    </>
   );
 }
