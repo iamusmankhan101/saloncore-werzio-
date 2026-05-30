@@ -1,17 +1,61 @@
-.section { padding: 90px 5%; background: var(--white); }
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+.section {
+  padding: 90px 0;
+  background: var(--white);
+  overflow: hidden;
 }
 
+.section .text-center,
+.section > div:first-child {
+  padding: 0 5%;
+}
+
+/* ── CAROUSEL TRACK ─────────────────── */
+.track {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  /* fade edges */
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 8%,
+    black 92%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 8%,
+    black 92%,
+    transparent 100%
+  );
+}
+
+.marquee {
+  display: flex;
+  gap: 20px;
+  width: max-content;
+  animation: marquee 32s linear infinite;
+}
+
+.marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ── CARD ───────────────────────────── */
 .card {
   background: var(--bg);
   border: 1.5px solid var(--border);
   border-radius: 16px;
   padding: 28px;
-  transition: all .2s;
+  width: 360px;
+  flex-shrink: 0;
+  transition: border-color .2s, box-shadow .2s;
 }
 .card:hover {
   border-color: rgba(124,58,237,.3);
@@ -19,7 +63,7 @@
 }
 
 .stars { color: #FBBF24; font-size: 1rem; letter-spacing: 2px; margin-bottom: 14px; }
-.text  { font-size: 0.9rem; color: var(--text); line-height: 1.7; margin-bottom: 20px; }
+.text  { font-size: 0.875rem; color: var(--text); line-height: 1.75; margin-bottom: 20px; }
 
 .author { display: flex; align-items: center; gap: 12px; }
 
@@ -36,13 +80,15 @@
   flex-shrink: 0;
 }
 
-.name { font-size: 0.875rem; font-weight: 700; }
+.name { font-size: 0.875rem; font-weight: 700; color: var(--text); }
 .role { font-size: 0.775rem; color: var(--text-muted); }
 
+/* ── RESPONSIVE ─────────────────────── */
 @media (max-width: 768px) {
-  .grid { grid-template-columns: 1fr; }
-  .section { padding: 64px 4%; }
+  .section { padding: 64px 0; }
+  .card { width: 300px; padding: 22px; }
 }
 @media (max-width: 480px) {
-  .card { padding: 20px; }
+  .card { width: 260px; padding: 18px; }
+  .text { font-size: 0.82rem; }
 }
