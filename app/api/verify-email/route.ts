@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { verifyUserEmail } from "@/lib/auth-db";
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
@@ -39,13 +40,16 @@ export async function GET(req: NextRequest) {
 
     const email = row.email as string;
 
-    // ── 3. Delete the token (one-time use) ───────────────────────────────────
+    // ── 3. Mark email as verified in database ─────────────────────────────────
+    await verifyUserEmail(email);
+
+    // ── 4. Delete the token (one-time use) ───────────────────────────────────
     await db.execute({
       sql: "DELETE FROM email_verification_tokens WHERE token = ?",
       args: [token.trim()],
     });
 
-    // ── 4. Return success ─────────────────────────────────────────────────────
+    // ── 5. Return success ─────────────────────────────────────────────────────
     console.log(`[verify-email] ✓ Verified email=${email}`);
     return Response.json({ ok: true, email });
 

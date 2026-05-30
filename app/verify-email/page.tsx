@@ -59,9 +59,21 @@ function VerifyEmailInner() {
         return;
       }
 
-      markEmailVerified(data.email);
-      setState("success");
-      setTimeout(() => router.replace("/dashboard"), 2500);
+      // Try to mark email as verified in localStorage
+      try {
+        markEmailVerified(data.email);
+        setState("success");
+        setTimeout(() => router.replace("/dashboard"), 2500);
+      } catch (markErr) {
+        console.error("[verify-email] markEmailVerified failed:", markErr);
+        // Email is verified in the database, but account not found in localStorage
+        // This can happen if user is on a different device or localStorage was cleared
+        setState("success");
+        // Redirect to sign-in instead of dashboard
+        setTimeout(() => {
+          router.replace("/sign-in?verified=true");
+        }, 2500);
+      }
     } catch (err) {
       console.error("[verify-email] fetch failed:", err);
       setState("error");

@@ -13,9 +13,16 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [verifiedMessage, setVerifiedMessage] = useState(false);
 
   useEffect(() => {
     if (getCurrentUser()) router.replace("/dashboard");
+    
+    // Check if redirected from email verification
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("verified") === "true") {
+      setVerifiedMessage(true);
+    }
   }, [router]);
 
   function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
@@ -68,6 +75,19 @@ export default function SignInPage() {
               <h2 className={styles.formTitle}>Welcome back</h2>
               <p className={styles.formSubtitle}>Sign in to continue managing your salon workspace.</p>
             </div>
+
+            {verifiedMessage && (
+              <div style={{ padding: "12px 16px", borderRadius: 10, background: "#ecfdf5", border: "1px solid #a7f3d0", marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#059669", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: 12, color: "#fff" }}>✓</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "#065f46", fontWeight: 600 }}>
+                    Email verified successfully! You can now sign in.
+                  </div>
+                </div>
+              </div>
+            )}
 
             <label className={styles.field}>
               <span className={styles.label}>Email</span>
