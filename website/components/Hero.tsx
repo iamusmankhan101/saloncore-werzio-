@@ -46,7 +46,7 @@ export default function Hero() {
           Easily manage bookings, clients, staff and revenue from start to finish.
         </p>
         <div className={styles.btns} data-animate data-delay="0.4">
-          <a href="https://app.werzio.com/signup" target="_blank" rel="noopener noreferrer" className={styles.btnPrimary}>Get Started Free</a>
+          <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.btnPrimary}>Get Started Free</a>
           <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className={styles.btnOutline}>Book a Demo</a>
         </div>
       </div>
