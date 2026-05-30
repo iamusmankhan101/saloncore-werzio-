@@ -1,9 +1,18 @@
 import styles from "./Pricing.module.css";
 import { Check } from "lucide-react";
 
-type Feature = string | { label: string; soon: boolean };
-
-const plans = [
+const plans: Array<{
+  badge: string;
+  badgeStyle: Record<string, string>;
+  name: string;
+  desc: string;
+  price: string;
+  period: string;
+  features: (string | { label: string; soon: boolean })[];
+  cta: string;
+  ctaClass: string;
+  featured: boolean;
+}> = [
   {
     badge: "Free Forever",
     badgeStyle: { background: "#f3f4f6", color: "#6b7280" },
@@ -109,7 +118,7 @@ export default function Pricing() {
                 );
               })}
             </ul>
-            <a href="#" className={`${p.ctaClass} ${styles.planBtn}`}>{p.cta}</a>
+            <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className={`${p.ctaClass} ${styles.planBtn}`}>{p.cta}</a>
           </div>
         ))}
       </div>

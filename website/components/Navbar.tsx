@@ -57,8 +57,8 @@ export default function Navbar() {
         </ul>
 
         <div className={styles.cta}>
-          <a href="#" className={`btn btn-outline ${styles.loginBtn}`}>Log In</a>
-          <a href="#pricing" className="btn btn-primary">Start Free Trial</a>
+          <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className={`btn btn-outline ${styles.loginBtn}`}>Log In</a>
+          <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className="btn btn-primary">Start Free Trial</a>
         </div>
 
         <button className={styles.burger} onClick={() => setOpen(!open)} aria-label="Toggle menu">
@@ -78,8 +78,8 @@ export default function Navbar() {
           ))}
         </ul>
         <div className={styles.drawerCta}>
-          <a href="#" className="btn btn-outline" style={{ width: "100%", justifyContent: "center" }}>Log In</a>
-          <a href="#pricing" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => setOpen(false)}>Start Free Trial</a>
+          <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className="btn btn-outline" style={{ width: "100%", justifyContent: "center" }}>Log In</a>
+          <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => setOpen(false)}>Start Free Trial</a>
         </div>
       </div>
 
