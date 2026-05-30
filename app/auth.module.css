@@ -173,8 +173,7 @@
   height: 100vh;
   overflow-y: auto;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   padding: 56px;
   background: #fbfbfe;
 }
@@ -182,6 +181,7 @@
 .formCard {
   width: 100%;
   max-width: 380px;
+  margin: auto;
   background: #ffffff;
   border: 1px solid rgba(228, 228, 231, 0.8);
   border-radius: 20px;
