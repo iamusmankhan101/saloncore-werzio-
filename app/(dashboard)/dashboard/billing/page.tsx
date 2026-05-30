@@ -505,7 +505,7 @@ export default function BillingPage() {
           { feature: "Revenue analytics",     free: "Basic",       pro: "Full",      premium: "Full" },
           { feature: "Inventory management",  free: "Basic",       pro: "Full",      premium: "Full" },
           { feature: "Online booking page",   free: "✓",           pro: "✓",         premium: "✓" },
-          { feature: "WhatsApp automation",   free: "—",           pro: "—",         premium: "✓" },
+          { feature: "WhatsApp automation",   free: "—",           pro: "✓",         premium: "✓" },
           { feature: "Virtual Try-On (AI)",   free: "—",           pro: "—",         premium: "✓" },
           { feature: "Price",                 free: "Free",        pro: "PKR 6,000/mo", premium: "PKR 10,000/mo" },
         ].map((row, i) => (
