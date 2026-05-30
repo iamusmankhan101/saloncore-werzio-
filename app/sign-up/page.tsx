@@ -84,15 +84,44 @@ export default function SignUpPage() {
     event.preventDefault();
     setError("");
     if (form.password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    
+    setSending(true);
+    
     try {
-      const newUser = signUp({ ...form, adminCode: showAdmin && adminCode ? adminCode : undefined });
+      // Create user in database via API
+      const signupRes = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          ownerName: form.ownerName,
+          salonName: form.salonName || form.ownerName,
+          phone: form.phone,
+          adminCode: showAdmin && adminCode ? adminCode : undefined,
+        }),
+      });
+
+      const signupData = await signupRes.json();
+      
+      if (!signupData.ok) {
+        setSending(false);
+        setError(signupData.error || "Failed to create account. Please try again.");
+        return;
+      }
+
+      const newUser = signupData.user;
+
       if (showAdmin) {
         // Admin auto-login (skips email verification and billing)
+        // Set session in localStorage
+        localStorage.setItem("werzio_auth_session", newUser.id);
+        localStorage.setItem(`werzio_user_cache_${newUser.id}`, JSON.stringify(newUser));
         router.replace("/dashboard");
         return;
       }
+
       setActivePlan(selectedPlan);
-      setSending(true);
 
       // Register in billing DB (fire-and-forget — don't block sign-up on failure)
       fetch("/api/billing/register", {

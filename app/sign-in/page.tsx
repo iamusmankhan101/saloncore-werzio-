@@ -29,17 +29,33 @@ export default function SignInPage() {
     event.preventDefault();
     setError("");
 
-    try {
-      signIn(email, password);
-      router.replace("/dashboard");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unable to sign in.";
-      if (msg === "EMAIL_NOT_VERIFIED") {
-        setError("Please verify your email before signing in. Check your inbox for the verification link.");
-      } else {
-        setError(msg);
-      }
-    }
+    // Use database-backed authentication
+    fetch("/api/auth/signin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.ok) {
+          if (data.error === "EMAIL_NOT_VERIFIED") {
+            setError("Please verify your email before signing in. Check your inbox for the verification link.");
+          } else {
+            setError(data.error || "Unable to sign in.");
+          }
+          return;
+        }
+
+        // Set session in localStorage
+        localStorage.setItem("werzio_auth_session", data.user.id);
+        localStorage.setItem(`werzio_user_cache_${data.user.id}`, JSON.stringify(data.user));
+        
+        router.replace("/dashboard");
+      })
+      .catch(err => {
+        console.error("[sign-in] Error:", err);
+        setError("Unable to sign in. Please try again.");
+      });
   }
 
   return (

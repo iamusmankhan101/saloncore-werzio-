@@ -39,7 +39,7 @@ function VerifyEmailInner() {
         return;
       }
 
-      let data: { ok: boolean; email?: string; error?: string };
+      let data: { ok: boolean; email?: string; userId?: string; error?: string };
       try {
         data = await res.json();
         console.log("[verify-email] Response data:", data);
@@ -59,21 +59,30 @@ function VerifyEmailInner() {
         return;
       }
 
-      // Try to mark email as verified in localStorage
-      try {
-        markEmailVerified(data.email);
-        setState("success");
-        setTimeout(() => router.replace("/dashboard"), 2500);
-      } catch (markErr) {
-        console.error("[verify-email] markEmailVerified failed:", markErr);
-        // Email is verified in the database, but account not found in localStorage
-        // This can happen if user is on a different device or localStorage was cleared
-        setState("success");
-        // Redirect to sign-in instead of dashboard
-        setTimeout(() => {
-          router.replace("/sign-in?verified=true");
-        }, 2500);
+      // Email verified successfully
+      if (data.userId) {
+        // User exists in database - fetch full user data and set session
+        try {
+          const userRes = await fetch(`/api/auth/user?userId=${data.userId}`);
+          const userData = await userRes.json();
+          
+          if (userData.ok && userData.user) {
+            // Set session in localStorage
+            localStorage.setItem("werzio_auth_session", userData.user.id);
+            localStorage.setItem(`werzio_user_cache_${userData.user.id}`, JSON.stringify(userData.user));
+            
+            setState("success");
+            setTimeout(() => router.replace("/dashboard"), 2500);
+            return;
+          }
+        } catch (fetchErr) {
+          console.error("[verify-email] Failed to fetch user:", fetchErr);
+        }
       }
+      
+      // Fallback: redirect to sign-in
+      setState("success");
+      setTimeout(() => router.replace("/sign-in?verified=true"), 2500);
     } catch (err) {
       console.error("[verify-email] fetch failed:", err);
       setState("error");
