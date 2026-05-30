@@ -1,0 +1,54 @@
+.doc h1 {
+  font-family: 'Clash Display', 'Inter', sans-serif;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-weight: 600;
+  color: #111111;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+  line-height: 1.15;
+}
+
+.updated {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin-bottom: 40px;
+  display: block;
+}
+
+.doc h2 {
+  font-family: 'Clash Display', 'Inter', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #111111;
+  margin: 40px 0 12px;
+  letter-spacing: -0.02em;
+}
+
+.doc p {
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.85;
+  margin-bottom: 16px;
+}
+
+.doc ul {
+  margin: 0 0 16px 20px;
+}
+
+.doc li {
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.85;
+  margin-bottom: 6px;
+}
+
+.doc strong {
+  color: #111111;
+  font-weight: 600;
+}
+
+.doc a {
+  color: #7c3aed;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

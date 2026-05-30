@@ -51,8 +51,8 @@ export default function Footer() {
       <div className={styles.bottom}>
         <span style={{ color: "#fff" }}>© 2026 Werzio. All rights reserved.</span>
         <div className={styles.legal}>
-          <a href="#">Terms of Service</a>
-          <a href="#">Privacy Policy</a>
+          <a href="/terms">Terms of Service</a>
+          <a href="/privacy">Privacy Policy</a>
         </div>
       </div>
     </footer>
