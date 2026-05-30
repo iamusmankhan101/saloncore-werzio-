@@ -4,8 +4,9 @@
  * Same API, but stores data in database
  */
 
+import { useState, useEffect } from "react";
 import { getCurrentUser } from "@/lib/auth";
-import type { Appointment, Client, Staff, Service, Product } from "@/lib/types";
+import type { Appointment, Client, Staff, Service, InventoryItem } from "@/lib/types";
 
 // ─── Helper to fetch from database ────────────────────────────────────────────
 
@@ -108,15 +109,15 @@ export function saveServices(services: Service[]): void {
 
 // ─── Products/Inventory ────────────────────────────────────────────────────────
 
-export function getStoredInventory(): Product[] {
+export function getStoredInventory(): InventoryItem[] {
   return [];
 }
 
-export async function getStoredInventoryAsync(): Promise<Product[]> {
-  return fetchFromDB<Product>("products");
+export async function getStoredInventoryAsync(): Promise<InventoryItem[]> {
+  return fetchFromDB<InventoryItem>("products");
 }
 
-export function saveInventory(products: Product[]): void {
+export function saveInventory(products: InventoryItem[]): void {
   saveToDB("products", products);
 }
 
@@ -127,7 +128,7 @@ export function useDBData() {
   const [clients, setClients] = useState<Client[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

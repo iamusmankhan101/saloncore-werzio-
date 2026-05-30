@@ -18,11 +18,12 @@ export async function migrateUserDataToDatabase(): Promise<{
 
   const migrated: string[] = [];
   const errors: string[] = [];
+  const userId = user.id; // Store user.id to avoid null checks
 
   // Helper to get localStorage data
   function getLocalStorageData(key: string): any[] {
     try {
-      const data = localStorage.getItem(`${key}_${user.id}`);
+      const data = localStorage.getItem(`${key}_${userId}`);
       return data ? JSON.parse(data) : [];
     } catch {
       return [];
@@ -48,7 +49,7 @@ export async function migrateUserDataToDatabase(): Promise<{
         await fetch(`/api/data/${resourceName}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...transformed, user_id: user.id }),
+          body: JSON.stringify({ ...transformed, user_id: userId }),
         });
       }
 
@@ -71,14 +72,14 @@ export async function migrateUserDataToDatabase(): Promise<{
 
   // Migrate settings
   try {
-    const settings = localStorage.getItem(`werzio_settings_${user.id}`);
+    const settings = localStorage.getItem(`werzio_settings_${userId}`);
     if (settings) {
       const parsed = JSON.parse(settings);
       await fetch(`/api/data/settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: user.id,
+          user_id: userId,
           ...parsed,
           updated_at: new Date().toISOString(),
         }),
