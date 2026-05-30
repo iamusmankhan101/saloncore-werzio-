@@ -316,9 +316,9 @@ export default function Features() {
   return (
     <section className={styles.section} id="features">
       <div className={`${styles.header} text-center`}>
-        <div className="section-label">✦ Everything You Need</div>
-        <h2 className="section-title">Powerful Features Built<br />for Pakistan's Salons</h2>
-        <p className="section-sub">
+        <div className="section-label" data-animate data-delay="0">✦ Everything You Need</div>
+        <h2 className="section-title" data-animate data-delay="0.1">Powerful Features Built<br />for Pakistan's Salons</h2>
+        <p className="section-sub" data-animate data-delay="0.2">
           Eight modules. One dashboard. Everything from booking to inventory — all connected.
         </p>
       </div>

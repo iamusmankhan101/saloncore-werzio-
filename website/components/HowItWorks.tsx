@@ -50,8 +50,8 @@ export default function HowItWorks() {
   return (
     <section className={styles.section} id="how">
       <div className={styles.header}>
-        <h2 className={styles.title}>Get Started In Just 3 Easy Steps</h2>
-        <p className={styles.sub}>
+        <h2 className={styles.title} data-animate data-delay="0">Get Started In Just 3 Easy Steps</h2>
+        <p className={styles.sub} data-animate data-delay="0.1">
           Get started with a guided onboarding experience designed for speed and simplicity.
         </p>
       </div>

@@ -27,8 +27,8 @@ export default function WhyWerzio() {
   return (
     <section className={styles.section} id="why">
       <div className={styles.header}>
-        <h2 className={styles.title}>Why Salons Choose Werzio</h2>
-        <p className={styles.sub}>
+        <h2 className={styles.title} data-animate data-delay="0">Why Salons Choose Werzio</h2>
+        <p className={styles.sub} data-animate data-delay="0.1">
           Trusted by thousands of salons to manage bookings more efficiently.
           Designed to help your beauty business do its best work.
         </p>
@@ -37,6 +37,8 @@ export default function WhyWerzio() {
         {stats.map((s, i) => (
           <div
             key={i}
+            data-animate
+            data-delay={`${0.15 + i * 0.1}`}
             className={[
               styles.card,
               s.highlight ? styles.cardHighlight : "",

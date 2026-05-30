@@ -75,13 +75,13 @@ export default function Pricing() {
   return (
     <section className={styles.section} id="pricing">
       <div className="text-center">
-        <div className="section-label">✦ Pricing</div>
-        <h2 className="section-title">Simple, PKR Pricing.<br />No Hidden Fees.</h2>
-        <p className="section-sub">Start free. Upgrade when you&apos;re ready. Cancel anytime.</p>
+        <div className="section-label" data-animate data-delay="0">✦ Pricing</div>
+        <h2 className="section-title" data-animate data-delay="0.1">Simple, PKR Pricing.<br />No Hidden Fees.</h2>
+        <p className="section-sub" data-animate data-delay="0.2">Start free. Upgrade when you&apos;re ready. Cancel anytime.</p>
       </div>
       <div className={styles.grid}>
-        {plans.map((p) => (
-          <div key={p.name} className={`${styles.card} ${p.featured ? styles.featured : ""}`}>
+        {plans.map((p, i) => (
+          <div key={p.name} data-animate data-delay={`${0.25 + i * 0.12}`} className={`${styles.card} ${p.featured ? styles.featured : ""}`}>
             <div className={styles.badge} style={p.badgeStyle}>{p.badge}</div>
             <div className={styles.planName}>{p.name}</div>
             <p className={styles.planDesc}>{p.desc}</p>

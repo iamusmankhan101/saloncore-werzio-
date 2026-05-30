@@ -39,13 +39,13 @@ export default function Hero() {
 
       {/* ── headline + subtitle + buttons ── */}
       <div className={styles.content}>
-        <h1 className={styles.title}>
+        <h1 className={styles.title} data-animate data-delay="0.1">
           Simplify Salon Operations<br />Boost Your Revenue
         </h1>
-        <p className={styles.sub}>
+        <p className={styles.sub} data-animate data-delay="0.25">
           Easily manage bookings, clients, staff and revenue from start to finish.
         </p>
-        <div className={styles.btns}>
+        <div className={styles.btns} data-animate data-delay="0.4">
           <a href="#pricing" className={styles.btnPrimary}>Get Started Free</a>
           <a href="#how"     className={styles.btnOutline}>Book a Demo</a>
         </div>

@@ -68,9 +68,9 @@ export default function Testimonials() {
   return (
     <section className={styles.section} id="testimonials">
       <div className="text-center">
-        <div className="section-label">✦ Testimonials</div>
-        <h2 className="section-title">Salon Owners Love Werzio</h2>
-        <p className="section-sub">Real results from real salon owners across Pakistan.</p>
+        <div className="section-label" data-animate data-delay="0">✦ Testimonials</div>
+        <h2 className="section-title" data-animate data-delay="0.1">Salon Owners Love Werzio</h2>
+        <p className="section-sub" data-animate data-delay="0.2">Real results from real salon owners across Pakistan.</p>
       </div>
 
       <div className={styles.track}>
