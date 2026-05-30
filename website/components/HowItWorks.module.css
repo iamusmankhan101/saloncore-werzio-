@@ -192,7 +192,6 @@
   display: flex;
   gap: 16px;
   align-items: flex-start;
-  transition: box-shadow 0.2s;
 }
 
 .stepCardActive {

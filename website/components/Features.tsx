@@ -1,3 +1,5 @@
+"use client";
+import { useEffect, useRef } from "react";
 import styles from "./Features.module.css";
 import {
   CalendarDays, Globe, Bell, Sparkles,
@@ -290,6 +292,27 @@ const features = [
 ];
 
 export default function Features() {
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const el = entry.target as HTMLElement;
+            el.style.opacity = "1";
+            el.style.transform = "translateY(0)";
+            observer.unobserve(el);
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -30px 0px" }
+    );
+
+    cardRefs.current.forEach((card) => { if (card) observer.observe(card); });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section className={styles.section} id="features">
       <div className={`${styles.header} text-center`}>
@@ -301,10 +324,21 @@ export default function Features() {
       </div>
 
       <div className={styles.grid}>
-        {features.map((f) => {
+        {features.map((f, i) => {
           const Icon = f.icon;
           return (
-            <div key={f.title} className={styles.card} style={{ gridColumn: f.gc, gridRow: f.gr }}>
+            <div
+              key={f.title}
+              ref={(el) => { cardRefs.current[i] = el; }}
+              className={styles.card}
+              style={{
+                gridColumn: f.gc,
+                gridRow: f.gr,
+                opacity: 0,
+                transform: "translateY(36px)",
+                transition: `opacity 0.55s ease ${i * 0.07}s, transform 0.55s cubic-bezier(0.16,1,0.3,1) ${i * 0.07}s`,
+              }}
+            >
               <div className={styles.cardTop}>
                 <div className={styles.iconBox} style={{ background: f.color + "18", color: f.color }}>
                   <Icon size={20} />

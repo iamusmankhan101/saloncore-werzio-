@@ -6,7 +6,6 @@ import HowItWorks   from "../components/HowItWorks";
 import WhyWerzio    from "../components/WhyWerzio";
 import Testimonials from "../components/Testimonials";
 import Pricing      from "../components/Pricing";
-import CTABand      from "../components/CTABand";
 import Footer       from "../components/Footer";
 
 export default function Home() {
@@ -20,7 +19,6 @@ export default function Home() {
       <WhyWerzio />
       <Testimonials />
       <Pricing />
-      <CTABand />
       <Footer />
     </>
   );

@@ -1,75 +1,104 @@
 .footer {
-  background: #0f0d2e;
-  color: rgba(255,255,255,.6);
-  padding: 60px 5% 32px;
+  background: linear-gradient(to bottom, #9b6fd4 0%, #7c3aed 25%, #5b21b6 55%, #2d1166 80%, #0f0520 100%);
+  border-top: none;
+  padding: 64px 5% 0;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 40px;
-  margin-bottom: 48px;
-}
-
-.brand p {
-  font-size: 0.875rem;
-  line-height: 1.7;
-  margin: 14px 0 20px;
-  max-width: 280px;
-}
-
-.logo {
+/* ── INNER: brand + cols ────────────── */
+.inner {
   display: flex;
-  align-items: center;
-  margin-bottom: 4px;
-  filter: brightness(0) invert(1);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 60px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-bottom: 56px;
 }
 
-.waBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: #25D366;
-  color: #fff;
-  border-radius: 8px;
-  font-size: 0.8rem;
+/* ── BRAND ──────────────────────────── */
+.brand {
+  max-width: 320px;
+  flex-shrink: 0;
+}
+
+.logoWrap {
+  margin-bottom: 16px;
+  filter: brightness(0) invert(1); /* white logo */
+}
+
+.tagline {
+  font-size: 0.875rem;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.75;
+}
+
+/* ── LINK COLUMNS ───────────────────── */
+.cols {
+  display: flex;
+  gap: 56px;
+  flex-shrink: 0;
+}
+
+.col { min-width: 100px; }
+
+.colHead {
+  font-family: 'Clash Display', 'Inter', sans-serif;
+  font-size: 0.875rem;
   font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
 }
 
-.col h4 {
-  color: #fff;
+.colList { list-style: none; }
+
+.colLink {
+  display: block;
   font-size: 0.875rem;
-  font-weight: 700;
-  margin-bottom: 18px;
-}
-
-.col ul { list-style: none; }
-.col li { margin-bottom: 10px; }
-.col a {
-  color: rgba(255,255,255,.55);
+  color: rgba(255,255,255,0.65);
   text-decoration: none;
-  font-size: 0.875rem;
-  transition: color .2s;
+  padding: 5px 0;
+  transition: color .15s;
 }
-.col a:hover { color: #c4b5fd; }
+.colLink:hover { color: #ffffff; }
 
+/* ── BOTTOM BAR ─────────────────────── */
 .bottom {
+  max-width: 1200px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 24px;
-  border-top: 1px solid rgba(255,255,255,.1);
+  padding: 20px 0 24px;
+  border-top: 1px solid rgba(255,255,255,0.15);
   font-size: 0.8rem;
-  color: rgba(255,255,255,.35);
+  color: #ffffff !important;
 }
 
-@media (max-width: 1024px) { .grid { grid-template-columns: 1fr 1fr; gap: 28px; } }
-@media (max-width: 640px) {
-  .grid { grid-template-columns: 1fr; gap: 24px; }
-  .footer { padding: 48px 4% 28px; }
-  .bottom { flex-direction: column; gap: 8px; text-align: center; }
+.legal {
+  display: flex;
+  gap: 24px;
 }
-@media (max-width: 400px) {
-  .waBadge { font-size: 0.75rem; padding: 6px 12px; }
+
+.legal a {
+  color: rgba(255,255,255,0.45);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color .15s;
+}
+.legal a:hover { color: #ffffff; }
+
+/* ── RESPONSIVE ─────────────────────── */
+@media (max-width: 900px) {
+  .inner { flex-direction: column; gap: 40px; }
+  .brand { max-width: 100%; }
+  .cols  { gap: 36px; }
+}
+
+@media (max-width: 600px) {
+  .footer  { padding: 48px 4% 0; }
+  .cols    { flex-wrap: wrap; gap: 28px; }
+  .col     { min-width: calc(50% - 14px); }
+  .bottom  { flex-direction: column; gap: 10px; text-align: center; }
+  .legal   { gap: 16px; }
 }

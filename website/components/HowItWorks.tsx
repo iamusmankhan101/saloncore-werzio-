@@ -1,3 +1,5 @@
+"use client";
+import { useEffect, useRef } from "react";
 import styles from "./HowItWorks.module.css";
 
 const steps = [
@@ -22,6 +24,29 @@ const steps = [
 ];
 
 export default function HowItWorks() {
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            (entry.target as HTMLElement).style.opacity = "1";
+            (entry.target as HTMLElement).style.transform = "translateY(0)";
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: "0px 0px -40px 0px" }
+    );
+
+    cardRefs.current.forEach((card) => {
+      if (card) observer.observe(card);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section className={styles.section} id="how">
       <div className={styles.header}>
@@ -76,8 +101,17 @@ export default function HowItWorks() {
 
         {/* Right: steps */}
         <div className={styles.steps}>
-          {steps.map((s) => (
-            <div key={s.n} className={`${styles.stepCard} ${s.preview ? styles.stepCardActive : ""}`}>
+          {steps.map((s, i) => (
+            <div
+              key={s.n}
+              ref={(el) => { cardRefs.current[i] = el; }}
+              className={`${styles.stepCard} ${s.preview ? styles.stepCardActive : ""}`}
+              style={{
+                opacity: 0,
+                transform: "translateY(40px)",
+                transition: `opacity 0.6s ease ${i * 0.15}s, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${i * 0.15}s`,
+              }}
+            >
               <div className={styles.stepLeft}>
                 <div className={styles.numCircle}>{s.n}</div>
               </div>

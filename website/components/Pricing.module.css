@@ -82,7 +82,8 @@
   color: var(--text-muted);
   padding: 7px 0;
 }
-.featured .features li { color: rgba(255,255,255,.8); }
+.featured .features li,
+.featured .features li span { color: #ffffff; }
 
 .checkIcon {
   width: 18px; height: 18px;
