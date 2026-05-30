@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./LegalLayout.module.css";
-import LegalHeader from "./LegalHeader";
 
 const nav = [
   { label: "Privacy Policy",   href: "/privacy" },
@@ -13,8 +12,6 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
   const path = usePathname();
 
   return (
-    <>
-    <LegalHeader />
     <div className={styles.page}>
       {/* ── sidebar ── */}
       <aside className={styles.sidebar}>
@@ -37,6 +34,5 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
         {children}
       </main>
     </div>
-    </>
   );
 }
