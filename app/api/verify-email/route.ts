@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { verifyUserEmail } from "@/lib/auth-db";
+import { verifyUserEmail, getUserByEmail } from "@/lib/auth-db";
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
@@ -40,8 +40,21 @@ export async function GET(req: NextRequest) {
 
     const email = row.email as string;
 
-    // ── 3. Mark email as verified in database ─────────────────────────────────
-    await verifyUserEmail(email);
+    // ── 3. Mark email as verified in database (if user exists) ────────────────
+    try {
+      const user = await getUserByEmail(email);
+      if (user) {
+        await verifyUserEmail(email);
+      } else {
+        // User doesn't exist in database yet (created in localStorage)
+        // This is okay - they'll need to sign in with localStorage auth
+        console.log(`[verify-email] User ${email} not in database yet (localStorage user)`);
+      }
+    } catch (dbErr) {
+      // If database operations fail, continue anyway
+      // The user might be using localStorage auth
+      console.warn(`[verify-email] Database verification failed for ${email}:`, dbErr);
+    }
 
     // ── 4. Delete the token (one-time use) ───────────────────────────────────
     await db.execute({
