@@ -67,7 +67,7 @@ export default function DashboardHeader() {
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, position: "relative" }}>
+    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, position: "relative", padding: "24px 0" }}>
       <div>
         <div style={{ fontWeight: 700, fontSize: 20, color: "#1a1a2e" }}>Dashboard Performances</div>
         <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>Salon Overview</div>
