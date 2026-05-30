@@ -39,8 +39,17 @@ function VerifyEmailInner() {
         return;
       }
 
-      const data: { ok: boolean; email?: string; error?: string } = await res.json();
-      console.log("[verify-email] Response data:", data);
+      let data: { ok: boolean; email?: string; error?: string };
+      try {
+        data = await res.json();
+        console.log("[verify-email] Response data:", data);
+      } catch (jsonErr) {
+        console.error("[verify-email] Failed to parse JSON:", jsonErr);
+        setState("error");
+        setErrorMsg("Invalid response from server. Please try again.");
+        setRetrying(false);
+        return;
+      }
 
       if (!data.ok || !data.email) {
         setState("error");

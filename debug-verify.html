@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Verification</title>
+</head>
+<body>
+    <h1>Debug Email Verification</h1>
+    <p>Open browser console (F12) to see results</p>
+    
+    <script>
+        // Get token from URL
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token') || 'e96a8d5cb4adfe4833c95e479807e210dbf95ee6a33db986f60e341e8176a5';
+        
+        console.log('Testing verification with token:', token);
+        console.log('Current origin:', window.location.origin);
+        console.log('API URL:', `/api/verify-email?token=${token}`);
+        
+        fetch(`/api/verify-email?token=${encodeURIComponent(token)}`)
+            .then(res => {
+                console.log('Response status:', res.status);
+                console.log('Response headers:', Object.fromEntries(res.headers.entries()));
+                return res.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+            })
+            .catch(err => {
+                console.error('Fetch error:', err);
+                console.error('Error type:', err.constructor.name);
+                console.error('Error message:', err.message);
+            });
+    </script>
+</body>
+</html>
