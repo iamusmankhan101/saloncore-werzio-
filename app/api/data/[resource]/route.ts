@@ -26,9 +26,9 @@ const VALID_RESOURCES = [
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { resource: string } }
+  { params }: { params: Promise<{ resource: string }> }
 ) {
-  const resource = params.resource;
+  const { resource } = await params;
   
   if (!VALID_RESOURCES.includes(resource)) {
     return Response.json({ ok: false, error: "Invalid resource" }, { status: 400 });
@@ -59,9 +59,9 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { resource: string } }
+  { params }: { params: Promise<{ resource: string }> }
 ) {
-  const resource = params.resource;
+  const { resource } = await params;
   
   if (!VALID_RESOURCES.includes(resource)) {
     return Response.json({ ok: false, error: "Invalid resource" }, { status: 400 });
@@ -115,9 +115,9 @@ export async function POST(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { resource: string } }
+  { params }: { params: Promise<{ resource: string }> }
 ) {
-  const resource = params.resource;
+  const { resource } = await params;
   
   if (!VALID_RESOURCES.includes(resource)) {
     return Response.json({ ok: false, error: "Invalid resource" }, { status: 400 });
@@ -161,9 +161,9 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { resource: string } }
+  { params }: { params: Promise<{ resource: string }> }
 ) {
-  const resource = params.resource;
+  const { resource } = await params;
   
   if (!VALID_RESOURCES.includes(resource)) {
     return Response.json({ ok: false, error: "Invalid resource" }, { status: 400 });
