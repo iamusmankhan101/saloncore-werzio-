@@ -90,6 +90,17 @@ export function getCurrentUser(): AuthUser | null {
   const sessionId = localStorage.getItem(SESSION_KEY);
   if (!sessionId) return null;
 
+  // First check if user data is cached in localStorage
+  const cachedUser = localStorage.getItem(`werzio_user_cache_${sessionId}`);
+  if (cachedUser) {
+    try {
+      return JSON.parse(cachedUser);
+    } catch {
+      // Fall through to check old system
+    }
+  }
+
+  // Fallback to old localStorage system for backward compatibility
   const user = getUsers().find((item) => item.id === sessionId);
   return user ? withoutPassword(user) : null;
 }

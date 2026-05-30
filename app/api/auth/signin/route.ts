@@ -25,7 +25,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    console.log("[auth/signin] Attempting sign-in for:", email);
     const user = await validateCredentials(email, password);
+    console.log("[auth/signin] Sign-in successful for:", email);
 
     return Response.json({
       ok: true,
@@ -43,6 +45,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[auth/signin] Error:", err);
     const message = err instanceof Error ? err.message : "Authentication failed.";
+    console.error("[auth/signin] Error message:", message);
     
     if (message === "EMAIL_NOT_VERIFIED") {
       return Response.json({ ok: false, error: "EMAIL_NOT_VERIFIED" }, { status: 403 });
