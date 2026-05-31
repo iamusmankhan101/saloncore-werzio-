@@ -1,21 +1,22 @@
 "use client";
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import styles from "./Navbar.module.css";
 
 const links = [
-  { label: "Features",     href: "#features" },
-  { label: "How It Works", href: "#how" },
-  { label: "Why Werzio",   href: "#why" },
-  { label: "Testimonials", href: "#testimonials" },
-  { label: "Pricing",      href: "#pricing" },
+  { label: "Features",     href: "/#features" },
+  { label: "How It Works", href: "/#how" },
+  { label: "Why Werzio",   href: "/#why" },
+  { label: "Testimonials", href: "/#testimonials" },
+  { label: "Pricing",      href: "/#pricing" },
 ];
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen]         = useState(false);
-  const [active, setActive]     = useState("#features");
+  const [active, setActive]     = useState("/#features");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -38,20 +39,20 @@ export default function Navbar() {
   return (
     <>
       <nav className={`${styles.nav} ${scrolled ? styles.scrolled : ""}`}>
-        <a href="#home" className={styles.logo}>
+        <Link href="/" className={styles.logo}>
           <Image src="/werzio-logo.png" alt="Werzio" width={2000} height={2000} style={{ height: '100px', width: 'auto' }} priority />
-        </a>
+        </Link>
 
         <ul className={styles.links}>
           {links.map((l) => (
             <li key={l.href}>
-              <a
+              <Link
                 href={l.href}
                 className={`${styles.link} ${active === l.href ? styles.active : ""}`}
                 onClick={() => handleLink(l.href)}
               >
                 {l.label}
-              </a>
+              </Link>
             </li>
           ))}
         </ul>
@@ -71,9 +72,9 @@ export default function Navbar() {
         <ul className={styles.drawerLinks}>
           {links.map((l) => (
             <li key={l.href}>
-              <a href={l.href} className={styles.drawerLink} onClick={() => handleLink(l.href)}>
+              <Link href={l.href} className={styles.drawerLink} onClick={() => handleLink(l.href)}>
                 {l.label}
-              </a>
+              </Link>
             </li>
           ))}
         </ul>
