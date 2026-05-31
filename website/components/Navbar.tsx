@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp } from "lucide-react";
+import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users } from "lucide-react";
 import styles from "./Navbar.module.css";
 
 const featureLinks = [
@@ -12,6 +12,8 @@ const featureLinks = [
   { label: "Online Booking Page",    desc: "Shareable page for Instagram & Maps", href: "/features/online-booking",      Icon: Globe },
   { label: "Invoicing",              desc: "Auto-numbered invoices & PDF export", href: "/features/invoicing",            Icon: FileText },
   { label: "Revenue Management",    desc: "Charts, breakdowns & PDF reports",    href: "/features/revenue-management",   Icon: TrendingUp },
+  { label: "Staff Management",      desc: "Roles, services & performance stats",  href: "/features/staff-management",     Icon: UserCog },
+  { label: "Client Management",     desc: "Profiles, formulas & visit history",   href: "/features/client-management",    Icon: Users },
 ];
 
 const links = [
