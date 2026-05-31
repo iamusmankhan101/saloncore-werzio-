@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp } from "lucide-react";
@@ -26,6 +26,10 @@ export default function Navbar() {
   const [open, setOpen]               = useState(false);
   const [dropOpen, setDropOpen]       = useState(false);
   const [mobileFeatures, setMobileFeatures] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const openDrop  = () => { clearTimeout(closeTimer.current); setDropOpen(true); };
+  const closeDrop = () => { closeTimer.current = setTimeout(() => setDropOpen(false), 180); };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -50,13 +54,13 @@ export default function Navbar() {
           {/* Features dropdown */}
           <li
             className={styles.dropParent}
-            onMouseEnter={() => setDropOpen(true)}
-            onMouseLeave={() => setDropOpen(false)}
+            onMouseEnter={openDrop}
+            onMouseLeave={closeDrop}
           >
             <Link href="/#features" className={`${styles.link} ${styles.dropTrigger}`}>
               Features <ChevronDown size={13} className={`${styles.chevron} ${dropOpen ? styles.chevronOpen : ""}`} />
             </Link>
-            <div className={`${styles.dropdown} ${dropOpen ? styles.dropdownOpen : ""}`}>
+            <div className={`${styles.dropdown} ${dropOpen ? styles.dropdownOpen : ""}`} onMouseEnter={openDrop} onMouseLeave={closeDrop}>
               {featureLinks.map(({ label, desc, href, Icon }) => (
                 <Link key={href} href={href} className={styles.dropItem} onClick={() => setDropOpen(false)}>
                   <div className={styles.dropIcon}><Icon size={16} /></div>
