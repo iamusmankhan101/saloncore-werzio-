@@ -186,21 +186,36 @@ export function updateCurrentUser(input: Partial<Pick<AuthUser, "ownerName" | "s
   if (!current) throw new Error("You must be signed in to update your account.");
 
   const users = getUsers();
-  const updatedUsers = users.map((user) =>
-    user.id === current.id
-      ? {
-          ...user,
-          ownerName: input.ownerName?.trim() || user.ownerName,
-          salonName: input.salonName?.trim() || user.salonName,
-          phone: input.phone?.trim() || user.phone,
-        }
-      : user
-  );
+  const existsLocally = users.some((user) => user.id === current.id);
 
-  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
-  const updated = updatedUsers.find((user) => user.id === current.id);
-  if (!updated) throw new Error("Account could not be updated.");
-  return withoutPassword(updated);
+  if (existsLocally) {
+    // Standard path: update local users list
+    const updatedUsers = users.map((user) =>
+      user.id === current.id
+        ? {
+            ...user,
+            ownerName: input.ownerName?.trim() || user.ownerName,
+            salonName: input.salonName?.trim() || user.salonName,
+            phone: input.phone?.trim() || user.phone,
+          }
+        : user
+    );
+    localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+    const updated = updatedUsers.find((user) => user.id === current.id)!;
+    // Refresh cache so getCurrentUser() picks up the changes immediately
+    localStorage.setItem(`werzio_user_cache_${current.id}`, JSON.stringify(withoutPassword(updated)));
+    return withoutPassword(updated);
+  } else {
+    // Cloud/Turso user: not in local list — update the session cache directly
+    const updatedUser: AuthUser = {
+      ...current,
+      ownerName: input.ownerName?.trim() || current.ownerName,
+      salonName: input.salonName?.trim() || current.salonName,
+      phone:     input.phone?.trim()     || current.phone,
+    };
+    localStorage.setItem(`werzio_user_cache_${current.id}`, JSON.stringify(updatedUser));
+    return updatedUser;
+  }
 }
 
 export function updateCurrentPassword(currentPassword: string, nextPassword: string) {
