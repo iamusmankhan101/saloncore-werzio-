@@ -2,13 +2,14 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle } from "lucide-react";
+import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe } from "lucide-react";
 import styles from "./Navbar.module.css";
 
 const featureLinks = [
   { label: "Appointment Scheduling", desc: "Calendar, bookings & reminders", href: "/features/appointment-scheduling", Icon: CalendarDays },
   { label: "Point of Sale (POS)",    desc: "Checkout, payments & invoices",   href: "/features/pos",                     Icon: ShoppingCart },
   { label: "WhatsApp Reminders",     desc: "Confirmations, alerts & follow-ups", href: "/features/whatsapp-reminders",  Icon: MessageCircle },
+  { label: "Online Booking Page",    desc: "Shareable page for Instagram & Maps", href: "/features/online-booking",      Icon: Globe },
 ];
 
 const links = [
