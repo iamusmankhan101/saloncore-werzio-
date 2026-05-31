@@ -2,11 +2,16 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle } from "lucide-react";
 import styles from "./Navbar.module.css";
 
+const featureLinks = [
+  { label: "Appointment Scheduling", desc: "Calendar, bookings & reminders", href: "/features/appointment-scheduling", Icon: CalendarDays },
+  { label: "Point of Sale (POS)",    desc: "Checkout, payments & invoices",   href: "/features/pos",                     Icon: ShoppingCart },
+  { label: "WhatsApp Reminders",     desc: "Confirmations, alerts & follow-ups", href: "/features/whatsapp-reminders",  Icon: MessageCircle },
+];
+
 const links = [
-  { label: "Features",     href: "/#features" },
   { label: "How It Works", href: "/#how" },
   { label: "Why Werzio",   href: "/#why" },
   { label: "Testimonials", href: "/#testimonials" },
@@ -14,9 +19,10 @@ const links = [
 ];
 
 export default function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-  const [open, setOpen]         = useState(false);
-  const [active, setActive]     = useState("/#features");
+  const [scrolled, setScrolled]       = useState(false);
+  const [open, setOpen]               = useState(false);
+  const [dropOpen, setDropOpen]       = useState(false);
+  const [mobileFeatures, setMobileFeatures] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -24,33 +30,50 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // close menu on resize to desktop
   useEffect(() => {
     const onResize = () => { if (window.innerWidth > 768) setOpen(false); };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const handleLink = (href: string) => {
-    setActive(href);
-    setOpen(false);
-  };
-
   return (
     <>
       <nav className={`${styles.nav} ${scrolled ? styles.scrolled : ""}`}>
         <Link href="/" className={styles.logo}>
-          <Image src="/werzio-logo.png" alt="Werzio" width={2000} height={2000} style={{ height: '100px', width: 'auto' }} priority />
+          <Image src="/werzio-logo.png" alt="Werzio" width={2000} height={2000} style={{ height: "100px", width: "auto" }} priority />
         </Link>
 
         <ul className={styles.links}>
+          {/* Features dropdown */}
+          <li
+            className={styles.dropParent}
+            onMouseEnter={() => setDropOpen(true)}
+            onMouseLeave={() => setDropOpen(false)}
+          >
+            <Link href="/#features" className={`${styles.link} ${styles.dropTrigger}`}>
+              Features <ChevronDown size={13} className={`${styles.chevron} ${dropOpen ? styles.chevronOpen : ""}`} />
+            </Link>
+            <div className={`${styles.dropdown} ${dropOpen ? styles.dropdownOpen : ""}`}>
+              {featureLinks.map(({ label, desc, href, Icon }) => (
+                <Link key={href} href={href} className={styles.dropItem} onClick={() => setDropOpen(false)}>
+                  <div className={styles.dropIcon}><Icon size={16} /></div>
+                  <div>
+                    <div className={styles.dropLabel}>{label}</div>
+                    <div className={styles.dropDesc}>{desc}</div>
+                  </div>
+                </Link>
+              ))}
+              <div className={styles.dropDivider} />
+              <Link href="/#features" className={styles.dropAll} onClick={() => setDropOpen(false)}>
+                See all features →
+              </Link>
+            </div>
+          </li>
+
+          {/* Regular links */}
           {links.map((l) => (
             <li key={l.href}>
-              <Link
-                href={l.href}
-                className={`${styles.link} ${active === l.href ? styles.active : ""}`}
-                onClick={() => handleLink(l.href)}
-              >
+              <Link href={l.href} className={styles.link}>
                 {l.label}
               </Link>
             </li>
@@ -70,9 +93,38 @@ export default function Navbar() {
       {/* Mobile drawer */}
       <div className={`${styles.drawer} ${open ? styles.drawerOpen : ""}`}>
         <ul className={styles.drawerLinks}>
+          {/* Features accordion */}
+          <li>
+            <button
+              type="button"
+              className={styles.drawerLink}
+              style={{ width: "100%", background: "none", border: "none", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+              onClick={() => setMobileFeatures(!mobileFeatures)}
+            >
+              Features
+              <ChevronDown size={15} style={{ transform: mobileFeatures ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+            </button>
+            {mobileFeatures && (
+              <ul style={{ listStyle: "none", paddingLeft: 16, marginBottom: 8 }}>
+                {featureLinks.map(({ label, href }) => (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      className={styles.drawerLink}
+                      style={{ fontSize: "0.9rem", color: "var(--purple)", borderBottom: "none", paddingTop: 8, paddingBottom: 8 }}
+                      onClick={() => setOpen(false)}
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+
           {links.map((l) => (
             <li key={l.href}>
-              <Link href={l.href} className={styles.drawerLink} onClick={() => handleLink(l.href)}>
+              <Link href={l.href} className={styles.drawerLink} onClick={() => setOpen(false)}>
                 {l.label}
               </Link>
             </li>
