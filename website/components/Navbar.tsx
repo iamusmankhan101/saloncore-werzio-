@@ -64,19 +64,41 @@ export default function Navbar() {
               Features <ChevronDown size={13} className={`${styles.chevron} ${dropOpen ? styles.chevronOpen : ""}`} />
             </Link>
             <div className={`${styles.dropdown} ${dropOpen ? styles.dropdownOpen : ""}`} onMouseEnter={openDrop} onMouseLeave={closeDrop}>
-              {featureLinks.map(({ label, desc, href, Icon }) => (
-                <Link key={href} href={href} className={styles.dropItem} onClick={() => setDropOpen(false)}>
-                  <div className={styles.dropIcon}><Icon size={16} /></div>
-                  <div>
-                    <div className={styles.dropLabel}>{label}</div>
-                    <div className={styles.dropDesc}>{desc}</div>
+              <div className={styles.megaInner}>
+                <div className={styles.megaLeft}>
+                  <div className={styles.megaHeader}>Explore features</div>
+                  <div className={styles.megaGrid}>
+                    {featureLinks.map(({ label, desc, href, Icon }) => (
+                      <Link key={href} href={href} className={styles.dropItem} onClick={() => setDropOpen(false)}>
+                        <div className={styles.dropIcon}><Icon size={15} /></div>
+                        <div>
+                          <div className={styles.dropLabel}>{label}</div>
+                          <div className={styles.dropDesc}>{desc}</div>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
+                </div>
+                <div className={styles.megaRight}>
+                  <div className={styles.featuredCard}>
+                    <span className={styles.featuredBadge}>Werzio Pro</span>
+                    <strong className={styles.featuredTitle}>Everything your salon needs, in one place</strong>
+                    <p className={styles.featuredBody}>Appointments, POS, inventory, staff, clients &amp; reports — no integrations needed.</p>
+                    <div className={styles.featuredStats}>
+                      <div><strong>9</strong><span>Features</span></div>
+                      <div><strong>14 days</strong><span>Free trial</span></div>
+                    </div>
+                    <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.featuredCta}>
+                      Start free trial →
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div className={styles.megaFooter}>
+                <Link href="/#features" className={styles.dropAll} onClick={() => setDropOpen(false)}>
+                  See all features →
                 </Link>
-              ))}
-              <div className={styles.dropDivider} />
-              <Link href="/#features" className={styles.dropAll} onClick={() => setDropOpen(false)}>
-                See all features →
-              </Link>
+              </div>
             </div>
           </li>
 
