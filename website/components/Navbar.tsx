@@ -28,7 +28,7 @@ export default function Navbar() {
   const [open, setOpen]               = useState(false);
   const [dropOpen, setDropOpen]       = useState(false);
   const [mobileFeatures, setMobileFeatures] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout>>();
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const openDrop  = () => { clearTimeout(closeTimer.current); setDropOpen(true); };
   const closeDrop = () => { closeTimer.current = setTimeout(() => setDropOpen(false), 180); };
