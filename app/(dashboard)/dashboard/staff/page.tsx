@@ -17,12 +17,8 @@ const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
 
 function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
 
-function getStaffStats(staffId: string) {
-  const appts = getStoredServices(); // Fetch dynamically to avoid caching issues
-  // Using static historical appointments as reference
-  const completedCount = 5; 
-  const revenueTotal = 15000;
-  return { total: 8, completed: completedCount, revenue: revenueTotal };
+function getStaffStats(_staffId: string) {
+  return { total: 8, completed: 5, revenue: 15000 };
 }
 
 // ── Detail Panel ──────────────────────────────────────────────────────────────
@@ -32,8 +28,8 @@ function StaffPanel({ staff, onClose, onEdit, servicesList }: { staff: Staff; on
   const assignedServices = servicesList.filter((s) => s.assignedStaffIds.includes(staff.id));
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 480, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ zIndex: 90 }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 480, maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
 
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${staff.color}22, ${staff.color}08)`, padding: "28px 24px 20px", borderBottom: "1px solid #f0f0f8", position: "relative" }}>
@@ -176,8 +172,8 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
   };
 
   if (done) return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 360, padding: "48px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ zIndex: 100 }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 360, maxWidth: "100%", padding: "48px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28, color: "#059669", fontWeight: "bold" }}>✓</div>
         <div style={{ fontWeight: 700, fontSize: 18, color: "#1a1a2e", marginBottom: 8 }}>Staff Member Saved</div>
         <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 24 }}>The staff member record has been updated.</div>
@@ -187,8 +183,8 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
   );
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 440, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ zIndex: 100 }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 440, maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>{staff ? "Edit Staff Member" : "Add Staff Member"}</div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#6b6b8a" /></button>

@@ -68,7 +68,7 @@ function StatCard({ label, value, sub, color = "#7C3AED" }: {
 // ─── Separator ────────────────────────────────────────────────────────────────
 
 function Row({ style, children }: { style?: React.CSSProperties; children: React.ReactNode }) {
-  return <div style={{ display: "flex", gap: 12, ...style }}>{children}</div>;
+  return <div className="form-row" style={{ gap: 12, ...style }}>{children}</div>;
 }
 
 // ─── Item row in the form ─────────────────────────────────────────────────────
@@ -272,10 +272,12 @@ function InvoiceForm({ onClose, onSave, editing, clients, staff, services, inven
   return (
     <div
       onClick={onClose}
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "24px 16px", overflowY: "auto" }}
+      className="modal-overlay"
+      style={{ zIndex: 200, alignItems: "flex-start", overflowY: "auto", padding: "24px 16px" }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="modal-sheet"
         style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 760, boxShadow: "0 24px 70px rgba(0,0,0,0.25)", overflow: "hidden" }}
       >
         {/* Header */}
@@ -561,8 +563,8 @@ export default function InvoicesPage() {
 
       {/* ── Delete confirm ── */}
       {deleteConfirm && (
-        <div onClick={() => setDeleteConfirm(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", maxWidth: 360, width: "100%", boxShadow: "0 16px 50px rgba(0,0,0,0.2)", textAlign: "center" }}>
+        <div onClick={() => setDeleteConfirm(null)} className="modal-overlay" style={{ zIndex: 250 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", maxWidth: 360, width: "100%", boxShadow: "0 16px 50px rgba(0,0,0,0.2)", textAlign: "center" }}>
             <div style={{ width: 52, height: 52, borderRadius: 14, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
               <Trash2 size={22} color="#dc2626" />
             </div>

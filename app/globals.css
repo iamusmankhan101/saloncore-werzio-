@@ -243,6 +243,27 @@ input, textarea, select { font-family: inherit; }
   -webkit-overflow-scrolling: touch;
 }
 
+/* ── New responsive layout helpers ────────────────── */
+
+/* Modal overlay — centered on desktop, bottom-sheet on mobile */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.48);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+  padding: 20px;
+  overscroll-behavior: contain;
+}
+
+/* Sidebar + main content (e.g. messages page) */
+.sidebar-layout { display: grid; grid-template-columns: 1fr 310px; gap: 20px; align-items: start; }
+
+/* Generic 2-col grid */
+.two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* Horizontal form row that stacks on mobile */
+.form-row { display: flex; gap: 12px; }
+
 /* ── Mobile overrides ─────────────────────────────── */
 @media (max-width: 768px) {
   .dash-page           { padding: 14px !important; gap: 14px !important; }
@@ -261,11 +282,17 @@ input, textarea, select { font-family: inherit; }
   /* Calendar day-grid min-width: time col 52 + 7 × 80 = 612 */
   .cal-grid-inner      { min-width: 620px; }
 
-  /* Modals – fit within viewport on small screens */
+  /* ── Bottom-sheet modals on mobile ── */
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
   .modal-sheet {
-    width: calc(100vw - 24px) !important;
+    width: 100% !important;
     max-width: 100% !important;
-    border-radius: 16px !important;
+    max-height: 92dvh !important;
+    border-radius: 20px 20px 0 0 !important;
+    margin: 0 !important;
   }
 
   /* Stat grids → 2-column on mobile */
@@ -287,6 +314,11 @@ input, textarea, select { font-family: inherit; }
   /* Revenue header: stack period selector and export button */
   .rev-header-controls { flex-wrap: wrap !important; gap: 8px !important; }
   .rev-period-selector { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
+
+  /* Responsive helpers */
+  .sidebar-layout  { grid-template-columns: 1fr !important; }
+  .two-col-grid    { grid-template-columns: 1fr !important; }
+  .form-row        { flex-direction: column !important; }
 }
 
 @media (max-width: 980px) {

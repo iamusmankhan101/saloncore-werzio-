@@ -362,8 +362,8 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
 // ── Shared modal helpers ──────────────────────────────────────────────────────
 function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,10,35,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 500, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.22)" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ zIndex: 100 }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 500, maxWidth: "100%", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.22)" }}>
         {children}
       </div>
     </div>
@@ -686,7 +686,7 @@ export default function InventoryPage() {
       {tab === "stock" && <>
 
       {/* Summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
+      <div className="stats-grid-4" style={{ marginBottom: 20 }}>
         {[
           { label: "Total Items",   value: items.length,  icon: Package,      iconColor: "#7C3AED", bg: "#EDE9FE", valColor: "#7C3AED" },
           { label: "Total Value",   value: fmtV(totalValue), icon: DollarSign, iconColor: "#059669", bg: "#ecfdf5", valColor: "#059669", small: true },
@@ -737,7 +737,7 @@ export default function InventoryPage() {
             </div>
           </div>
           {/* Alert items grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
+          <div className="stats-grid-3" style={{ gap: 0 }}>
             {alertItems.slice(0, 6).map((item, i) => {
               const st = stockStatus(item);
               return (

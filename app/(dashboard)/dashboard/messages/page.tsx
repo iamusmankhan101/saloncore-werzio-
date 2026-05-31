@@ -395,7 +395,7 @@ export default function MessagesPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f5f6f9" }}>
       <DashboardHeader />
-      <div style={{ padding: "0 32px 40px" }}>
+      <div className="dash-page" style={{ paddingTop: 0 }}>
 
         {/* ── Connection Banner ─────────────────────────────────────────── */}
         <div style={{
@@ -437,7 +437,7 @@ export default function MessagesPage() {
         </div>
 
         {/* ── Stats Row ─────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+        <div className="stats-grid-4" style={{ marginBottom: 24 }}>
           {[
             { label: "Sent Today",    value: todayCount,  icon: Send,        color: "#7C3AED", sub: "messages dispatched" },
             { label: "This Week",     value: weekCount,   icon: TrendingUp,  color: "#0284c7", sub: "last 7 days" },
@@ -490,7 +490,7 @@ export default function MessagesPage() {
                 </div>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+            <div className="two-col-grid" style={{ gap: 18 }}>
               {TPL_CONFIG.map((cfg) => <TemplateCard key={cfg.key} cfg={cfg} />)}
             </div>
           </div>
@@ -498,7 +498,7 @@ export default function MessagesPage() {
 
         {/* ══════════════════ MESSAGES TAB ══════════════════ */}
         {tab === "messages" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 310px", gap: 20, alignItems: "start" }}>
+          <div className="sidebar-layout">
 
             {/* ── Left: Message Log ── */}
             <div style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
@@ -545,7 +545,8 @@ export default function MessagesPage() {
                   )}
                 </div>
               ) : (
-                <div>
+                <div style={{ overflowX: "auto" }}>
+                  <div style={{ minWidth: 560 }}>
                   {grouped.map(({ day, items }) => (
                     <div key={day}>
                       {/* Day separator */}
@@ -574,6 +575,7 @@ export default function MessagesPage() {
                       ))}
                     </div>
                   ))}
+                  </div>
                 </div>
               )}
             </div>
