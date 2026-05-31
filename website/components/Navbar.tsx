@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users } from "lucide-react";
+import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users, Package } from "lucide-react";
 import styles from "./Navbar.module.css";
 
 const featureLinks = [
@@ -14,6 +14,7 @@ const featureLinks = [
   { label: "Revenue Management",    desc: "Charts, breakdowns & PDF reports",    href: "/features/revenue-management",   Icon: TrendingUp },
   { label: "Staff Management",      desc: "Roles, services & performance stats",  href: "/features/staff-management",     Icon: UserCog },
   { label: "Client Management",     desc: "Profiles, formulas & visit history",   href: "/features/client-management",    Icon: Users },
+  { label: "Inventory Management",  desc: "Stock levels, alerts & retail pricing", href: "/features/inventory-management",  Icon: Package },
 ];
 
 const links = [
