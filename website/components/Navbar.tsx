@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe } from "lucide-react";
+import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText } from "lucide-react";
 import styles from "./Navbar.module.css";
 
 const featureLinks = [
@@ -10,6 +10,7 @@ const featureLinks = [
   { label: "Point of Sale (POS)",    desc: "Checkout, payments & invoices",   href: "/features/pos",                     Icon: ShoppingCart },
   { label: "WhatsApp Reminders",     desc: "Confirmations, alerts & follow-ups", href: "/features/whatsapp-reminders",  Icon: MessageCircle },
   { label: "Online Booking Page",    desc: "Shareable page for Instagram & Maps", href: "/features/online-booking",      Icon: Globe },
+  { label: "Invoicing",              desc: "Auto-numbered invoices & PDF export", href: "/features/invoicing",            Icon: FileText },
 ];
 
 const links = [
