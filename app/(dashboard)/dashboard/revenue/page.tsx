@@ -849,6 +849,7 @@ export default function RevenuePage() {
         </div>
         </div></div>{/* /rev-table-inner /table-scroll-inner */}
       </div>{/* /table-scroll-wrap */}
+      </div>{/* /desktop-only */}
     </div>
   );
 }
