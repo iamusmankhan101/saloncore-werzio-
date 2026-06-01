@@ -6,6 +6,7 @@ import { checkLowStockAlerts } from "@/lib/whatsapp-scheduler";
 import { settingsStore } from "@/lib/settings-store";
 import type { InventoryItem, InventoryCategory, InventoryUnit } from "@/lib/types";
 import DashboardHeader from "@/components/dashboard-header";
+import MobilePageHeader from "@/components/mobile-page-header";
 import {
   Search, X, Plus, AlertTriangle, Package, ChevronDown,
   Edit2, Trash2, Bell, Copy, CheckCircle, TrendingDown,
@@ -456,15 +457,15 @@ function ItemRow({ item, isLast, onEdit, onDelete }: {
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
-  const [tab, setTab]                 = useState<"stock" | "retail">("stock");
-  const [items, setItems]             = useState<InventoryItem[]>([]);
-  const [search, setSearch]           = useState("");
-  const [catFilter, setCatFilter]     = useState<InventoryCategory | "all">("all");
+  const [tab, setTab]                   = useState<"stock" | "retail">("stock");
+  const [items, setItems]               = useState<InventoryItem[]>([]);
+  const [search, setSearch]             = useState("");
+  const [catFilter, setCatFilter]       = useState<InventoryCategory | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "low" | "out" | "ok">("all");
-  const [showFilters, setShowFilters] = useState(false);
-  const [showAdd, setShowAdd]         = useState(false);
-  const [editItem, setEditItem]       = useState<InventoryItem | null>(null);
-  const [deleteItem, setDeleteItem]   = useState<InventoryItem | null>(null);
+  const [showFilters, setShowFilters]   = useState(false);
+  const [showAdd, setShowAdd]           = useState(false);
+  const [editItem, setEditItem]         = useState<InventoryItem | null>(null);
+  const [deleteItem, setDeleteItem]     = useState<InventoryItem | null>(null);
   const [showReminder, setShowReminder] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
 
@@ -490,7 +491,6 @@ export default function InventoryPage() {
 
   const retailItems = useMemo(() => items.filter(i => (i.retailPrice ?? 0) > 0), [items]);
 
-  // Derived stats
   const totalValue = useMemo(() => items.reduce((s, i) => s + i.costPrice * i.currentStock, 0), [items]);
   const alertItems = useMemo(() => items.filter((i) => stockStatus(i) !== "ok"), [items]);
   const lowCount   = alertItems.filter((i) => stockStatus(i) === "low").length;
@@ -516,61 +516,75 @@ export default function InventoryPage() {
   const activeFilters = [catFilter !== "all", statusFilter !== "all"].filter(Boolean).length;
 
   return (
-    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
-      <DashboardHeader />
+    <div style={{ background: "#f4f5f7", minHeight: "100vh" }}>
 
-      {/* Modals */}
+      {/* ── Modals (shared) ── */}
       {showAdd    && <AddModal    onClose={() => setShowAdd(false)}    onAdd={(item) => persist([item, ...items])} />}
       {editItem   && <EditModal   item={editItem} onClose={() => setEditItem(null)} onSave={(updated) => persist(items.map((i) => i.id === updated.id ? updated : i))} />}
       {deleteItem && <DeleteModal item={deleteItem} onClose={() => setDeleteItem(null)} onDelete={() => persist(items.filter((i) => i.id !== deleteItem.id))} />}
       {showReminder && <ReminderModal alertItems={alertItems} onClose={() => setShowReminder(false)} />}
 
-      {/* Header */}
-      <div className="page-header" style={{ marginBottom: 16 }}>
-        <div>
-          <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 10 }}>
-            Inventory
-            {tab === "stock" && alertItems.length > 0 && (
-              <span style={{ fontSize: 12, fontWeight: 700, background: outCount > 0 ? "#fef2f2" : "#fffbeb", color: outCount > 0 ? "#dc2626" : "#d97706", border: `1px solid ${outCount > 0 ? "#fecaca" : "#fed7aa"}`, borderRadius: 20, padding: "2px 10px" }}>
+      {/* ══════════ MOBILE LAYOUT ══════════ */}
+
+      {/* Mobile app bar */}
+      <MobilePageHeader
+        title="Inventory"
+        subtitle={tab === "stock"
+          ? `${items.length} items · ${fmtV(totalValue)}`
+          : `${retailItems.length} in POS`}
+        action={{ label: "+ Add", onClick: () => setShowAdd(true) }}
+      />
+
+      {/* Mobile hero card */}
+      {tab === "stock" && (
+        <div className="mobile-hero-card mobile-only">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div className="mobile-hero-label">Total Inventory Value</div>
+              <div className="mobile-hero-value">{fmtV(totalValue)}</div>
+              <div className="mobile-hero-sub">{items.length} item{items.length !== 1 ? "s" : ""} tracked</div>
+            </div>
+            {alertItems.length > 0 && !alertDismissed && (
+              <button
+                onClick={() => setShowReminder(true)}
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 20, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+              >
+                <Bell size={12} />
                 {alertItems.length} alert{alertItems.length !== 1 ? "s" : ""}
-              </span>
+              </button>
             )}
           </div>
-          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 3 }}>
-            {tab === "stock"
-              ? `${items.length} items · ${fmtV(totalValue)} total value`
-              : `${retailItems.length} products available in POS · ${items.filter(i => !(i.retailPrice ?? 0)).length} not listed`}
+          <div style={{ display: "flex", gap: 20, marginTop: 18 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, textTransform: "uppercase" }}>Low Stock</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: lowCount > 0 ? "#fde68a" : "rgba(255,255,255,0.9)" }}>{lowCount}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, textTransform: "uppercase" }}>Out of Stock</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: outCount > 0 ? "#fca5a5" : "rgba(255,255,255,0.9)" }}>{outCount}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, textTransform: "uppercase" }}>Categories</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "rgba(255,255,255,0.9)" }}>{CATEGORIES.length}</div>
+            </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          {tab === "stock" && alertItems.length > 0 && (
-            <button onClick={() => setShowReminder(true)}
-              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "1px solid #fed7aa", background: "#fffbeb", fontSize: 13, fontWeight: 600, color: "#d97706", cursor: "pointer" }}>
-              <Bell size={14} /> Send Reminder
-            </button>
-          )}
-          <button onClick={() => setShowAdd(true)}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #5B21B6, #9333EA)", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", boxShadow: "0 2px 10px rgba(91,33,182,0.3)" }}>
-            <Plus size={15} /> {tab === "retail" ? "Add Product" : "Add Item"}
-          </button>
-        </div>
-      </div>
+      )}
 
-      {/* Tab switcher */}
-      <div style={{ display: "flex", gap: 4, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, padding: 4, width: "fit-content", marginBottom: 20 }}>
+      {/* Mobile tab bar */}
+      <div className="mobile-tab-bar mobile-only">
         {([
-          { id: "stock",  label: "Stock Management", icon: Package },
-          { id: "retail", label: "Retail Products",  icon: Tag },
+          { id: "stock",  label: "Stock", icon: Package },
+          { id: "retail", label: "Retail", icon: Tag },
         ] as { id: "stock" | "retail"; label: string; icon: React.ElementType }[]).map(t => {
           const active = tab === t.id;
           const Icon = t.icon;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 18px", borderRadius: 9, border: "none", background: active ? "linear-gradient(135deg,#5B21B6,#9333EA)" : "transparent", color: active ? "#fff" : "#6b6b8a", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}>
-              <Icon size={14} />
+            <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`mobile-tab-btn ${active ? "active" : ""}`}>
+              <Icon size={13} style={{ display: "inline-block", verticalAlign: "middle", marginRight: 5 }} />
               {t.label}
               {t.id === "retail" && retailItems.length > 0 && (
-                <span style={{ background: active ? "rgba(255,255,255,0.25)" : "#7C3AED", color: "#fff", borderRadius: 20, fontSize: 10, fontWeight: 800, padding: "1px 7px" }}>
+                <span style={{ marginLeft: 5, background: active ? "rgba(255,255,255,0.25)" : "#7C3AED", color: "#fff", borderRadius: 20, fontSize: 9, fontWeight: 800, padding: "1px 6px" }}>
                   {retailItems.length}
                 </span>
               )}
@@ -579,288 +593,525 @@ export default function InventoryPage() {
         })}
       </div>
 
-      {/* ══════════ RETAIL PRODUCTS TAB ══════════ */}
-      {tab === "retail" && (
-        <>
-          {/* Info banner */}
-          <div style={{ padding: "10px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 13, color: "#92400e", display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-            <Tag size={14} color="#d97706" />
-            Items with a <strong>retail price</strong> appear in the POS catalog for sale. Toggle the switch to enable/disable an item for POS retail.
+      {/* Mobile stock tab */}
+      {tab === "stock" && (
+        <div className="mobile-only">
+          {/* Alert banner */}
+          {alertItems.length > 0 && !alertDismissed && (
+            <div className="mobile-alert-banner" style={{ background: outCount > 0 ? "#fef2f2" : "#fffbeb", border: `1px solid ${outCount > 0 ? "#fecaca" : "#fde68a"}`, color: outCount > 0 ? "#dc2626" : "#d97706" }}>
+              <AlertTriangle size={16} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>
+                  {outCount > 0 ? `${outCount} out of stock` : ""}{outCount > 0 && lowCount > 0 ? ", " : ""}{lowCount > 0 ? `${lowCount} running low` : ""}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 600, marginTop: 1, opacity: 0.8 }}>Tap bell to send restock reminder</div>
+              </div>
+              <button onClick={() => setShowReminder(true)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                <Bell size={15} color={outCount > 0 ? "#dc2626" : "#d97706"} />
+              </button>
+              <button onClick={() => setAlertDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                <X size={14} color={outCount > 0 ? "#dc2626" : "#d97706"} />
+              </button>
+            </div>
+          )}
+
+          {/* Search */}
+          <div className="mobile-search-bar">
+            <Search size={16} color="#9898b0" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, brand, supplier…" />
+            {search && (
+              <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}>
+                <X size={14} color="#9898b0" />
+              </button>
+            )}
           </div>
 
-          {/* Stats */}
+          {/* Category filter chips */}
+          <div className="mobile-filter-row">
+            <button type="button" className={`mobile-filter-chip ${catFilter === "all" ? "active" : ""}`} onClick={() => setCatFilter("all")}>All</button>
+            {CATEGORIES.map(c => (
+              <button key={c} type="button" className={`mobile-filter-chip ${catFilter === c ? "active" : ""}`} onClick={() => setCatFilter(c)}>
+                {CATEGORY_CONFIG[c].label}
+              </button>
+            ))}
+          </div>
+
+          {/* Status filter chips */}
+          <div className="mobile-filter-row" style={{ paddingTop: 0 }}>
+            {(["all", "ok", "low", "out"] as const).map(s => (
+              <button key={s} type="button" className={`mobile-filter-chip ${statusFilter === s ? "active" : ""}`} onClick={() => setStatusFilter(s)}>
+                {s === "all" ? "All Status" : s === "ok" ? "In Stock" : s === "low" ? "Low Stock" : "Out of Stock"}
+              </button>
+            ))}
+          </div>
+
+          {/* Item list */}
+          {filtered.length === 0 ? (
+            <div className="mobile-empty">
+              <div className="mobile-empty-icon"><Package size={26} color="#c8c8e0" /></div>
+              <div className="mobile-empty-title">{items.length === 0 ? "No items yet" : "No items match"}</div>
+              <div className="mobile-empty-sub">
+                {items.length === 0
+                  ? "Tap + Add to add your first inventory item."
+                  : "Try adjusting your search or filters."}
+              </div>
+            </div>
+          ) : (
+            <div className="mobile-list">
+              {filtered.map((item) => {
+                const status = stockStatus(item);
+                const badge  = STATUS_BADGE[status];
+                const cat    = CATEGORY_CONFIG[item.category];
+                const maxStock = Math.max(item.minStock * 3, item.currentStock, 1);
+                const stockPct = Math.min(100, Math.round((item.currentStock / maxStock) * 100));
+                const barColor = status === "out" ? "#dc2626" : status === "low" ? "#d97706" : "#059669";
+                return (
+                  <div key={item.id} className="mobile-list-card" onClick={() => setEditItem(item)}>
+                    <div className="mobile-list-icon" style={{ background: cat.bg }}>
+                      <Package size={17} color={cat.color} />
+                    </div>
+                    <div className="mobile-list-body">
+                      <div className="mobile-list-title">{item.name}</div>
+                      <div className="mobile-list-sub">
+                        {item.brand}{item.supplier ? ` · ${item.supplier}` : ""} · {fmt(item.costPrice)}
+                      </div>
+                      <div className="mobile-stock-bar-wrap">
+                        <div className="mobile-stock-bar" style={{ width: `${stockPct}%`, background: barColor }} />
+                      </div>
+                    </div>
+                    <div className="mobile-list-right">
+                      <div className="mobile-list-amount" style={{ fontSize: 13, color: status === "out" ? "#dc2626" : status === "low" ? "#d97706" : "#1a1a2e" }}>
+                        {item.currentStock} {item.unit}
+                      </div>
+                      <span className="mobile-badge" style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Count footer */}
+          {filtered.length > 0 && (
+            <div style={{ padding: "12px 16px 8px", textAlign: "center" }}>
+              <span style={{ fontSize: 11, color: "#b0b0c8", fontWeight: 600 }}>
+                {filtered.length} of {items.length} items · {fmtV(filtered.reduce((s, i) => s + i.costPrice * i.currentStock, 0))}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mobile retail tab */}
+      {tab === "retail" && (
+        <div className="mobile-only">
+          {/* Info banner */}
+          <div className="mobile-alert-banner" style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e" }}>
+            <Tag size={15} color="#d97706" />
+            <div style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>
+              Items with a retail price appear in the POS catalog. Toggle to enable/disable.
+            </div>
+          </div>
+
+          {/* Retail stats scroll */}
+          <div className="mobile-stat-scroll">
+            {[
+              { label: "In POS",    value: String(retailItems.length), color: "#7C3AED" },
+              { label: "Not Listed", value: String(items.filter(i => !(i.retailPrice ?? 0)).length), color: "#9898b0" },
+              { label: "Low/Out",   value: String(retailItems.filter(i => i.currentStock <= i.minStock).length), color: "#dc2626" },
+              { label: "Retail Value", value: fmtV(retailItems.reduce((s, i) => s + (i.retailPrice ?? 0) * i.currentStock, 0)), color: "#059669" },
+            ].map(s => (
+              <div key={s.label} className="mobile-stat-card">
+                <div className="mobile-stat-card-label">{s.label}</div>
+                <div className="mobile-stat-card-value" style={{ fontSize: s.value.length > 8 ? 13 : 18, color: s.color }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Retail list */}
+          {items.length === 0 ? (
+            <div className="mobile-empty">
+              <div className="mobile-empty-icon"><Tag size={26} color="#c8c8e0" /></div>
+              <div className="mobile-empty-title">No items yet</div>
+              <div className="mobile-empty-sub">Add inventory items first, then enable them for POS retail.</div>
+            </div>
+          ) : (
+            <div className="mobile-list">
+              {items.map((item) => {
+                const isRetail = (item.retailPrice ?? 0) > 0;
+                const cat      = CATEGORY_CONFIG[item.category];
+                const isLow    = item.currentStock <= item.minStock;
+                const margin   = isRetail && item.costPrice ? Math.round(((item.retailPrice! - item.costPrice) / item.retailPrice!) * 100) : null;
+                return (
+                  <div key={item.id} className="mobile-list-card">
+                    <div className="mobile-list-icon" style={{ background: cat.bg }}>
+                      <Package size={17} color={cat.color} />
+                    </div>
+                    <div className="mobile-list-body">
+                      <div className="mobile-list-title">{item.name}</div>
+                      <div className="mobile-list-sub">
+                        {item.brand} · {item.currentStock} {item.unit}{isLow ? " ⚠️" : ""}
+                        {isRetail
+                          ? ` · ${fmt(item.retailPrice!)}${margin !== null ? ` (${margin}%)` : ""}`
+                          : " · Not listed"}
+                      </div>
+                    </div>
+                    <div className="mobile-list-right" style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => setEditItem(item)}
+                        style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #e8e8f0", background: "#fafafa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                      >
+                        <Edit2 size={13} color="#9898b0" />
+                      </button>
+                      <button type="button" onClick={() => toggleRetail(item.id)} style={{ border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}>
+                        {isRetail ? <ToggleRight size={28} color="#7C3AED" /> : <ToggleLeft size={28} color="#c8c8d8" />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {items.length > 0 && (
+            <div style={{ padding: "12px 16px 8px", textAlign: "center" }}>
+              <span style={{ fontSize: 11, color: "#b0b0c8", fontWeight: 600 }}>
+                {retailItems.length} of {items.length} items enabled for POS
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════ DESKTOP LAYOUT ══════════ */}
+      <div className="dash-page desktop-only" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
+        <DashboardHeader />
+
+        {/* Page header */}
+        <div className="page-header" style={{ marginBottom: 16 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 10 }}>
+              Inventory
+              {tab === "stock" && alertItems.length > 0 && (
+                <span style={{ fontSize: 12, fontWeight: 700, background: outCount > 0 ? "#fef2f2" : "#fffbeb", color: outCount > 0 ? "#dc2626" : "#d97706", border: `1px solid ${outCount > 0 ? "#fecaca" : "#fed7aa"}`, borderRadius: 20, padding: "2px 10px" }}>
+                  {alertItems.length} alert{alertItems.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 13, color: "#9898b0", marginTop: 3 }}>
+              {tab === "stock"
+                ? `${items.length} items · ${fmtV(totalValue)} total value`
+                : `${retailItems.length} products available in POS · ${items.filter(i => !(i.retailPrice ?? 0)).length} not listed`}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            {tab === "stock" && alertItems.length > 0 && (
+              <button onClick={() => setShowReminder(true)}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "1px solid #fed7aa", background: "#fffbeb", fontSize: 13, fontWeight: 600, color: "#d97706", cursor: "pointer" }}>
+                <Bell size={14} /> Send Reminder
+              </button>
+            )}
+            <button onClick={() => setShowAdd(true)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #5B21B6, #9333EA)", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", boxShadow: "0 2px 10px rgba(91,33,182,0.3)" }}>
+              <Plus size={15} /> {tab === "retail" ? "Add Product" : "Add Item"}
+            </button>
+          </div>
+        </div>
+
+        {/* Tab switcher */}
+        <div style={{ display: "flex", gap: 4, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, padding: 4, width: "fit-content", marginBottom: 20 }}>
+          {([
+            { id: "stock",  label: "Stock Management", icon: Package },
+            { id: "retail", label: "Retail Products",  icon: Tag },
+          ] as { id: "stock" | "retail"; label: string; icon: React.ElementType }[]).map(t => {
+            const active = tab === t.id;
+            const Icon = t.icon;
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 18px", borderRadius: 9, border: "none", background: active ? "linear-gradient(135deg,#5B21B6,#9333EA)" : "transparent", color: active ? "#fff" : "#6b6b8a", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}>
+                <Icon size={14} />
+                {t.label}
+                {t.id === "retail" && retailItems.length > 0 && (
+                  <span style={{ background: active ? "rgba(255,255,255,0.25)" : "#7C3AED", color: "#fff", borderRadius: 20, fontSize: 10, fontWeight: 800, padding: "1px 7px" }}>
+                    {retailItems.length}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Retail Products Tab ── */}
+        {tab === "retail" && (
+          <>
+            <div style={{ padding: "10px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, fontSize: 13, color: "#92400e", display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+              <Tag size={14} color="#d97706" />
+              Items with a <strong>retail price</strong> appear in the POS catalog for sale. Toggle the switch to enable/disable an item for POS retail.
+            </div>
+
+            <div className="stats-grid-4" style={{ marginBottom: 20 }}>
+              {[
+                { label: "Listed in POS",   value: retailItems.length,  iconColor: "#7C3AED", bg: "#EDE9FE" },
+                { label: "Not Listed",      value: items.filter(i => !(i.retailPrice ?? 0)).length, iconColor: "#9898b0", bg: "#f4f4f8" },
+                { label: "Low/Out Stock",   value: retailItems.filter(i => i.currentStock <= i.minStock).length, iconColor: "#dc2626", bg: "#fef2f2" },
+                { label: "Retail Value",    value: fmtV(retailItems.reduce((s, i) => s + (i.retailPrice ?? 0) * i.currentStock, 0)), iconColor: "#059669", bg: "#ecfdf5" },
+              ].map(({ label, value, iconColor, bg }) => (
+                <div key={label} style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 11, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Tag size={20} color={iconColor} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: iconColor, lineHeight: 1.1 }}>{value}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3 }}>{label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="table-scroll-wrap"><div className="table-scroll-inner"><div className="inv-table-inner" style={{ background: "#fff" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 90px 110px 120px 110px 100px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+                {["PRODUCT", "CATEGORY", "STOCK", "COST PRICE", "RETAIL PRICE", "MARGIN", "IN POS"].map(h => (
+                  <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.07em" }}>{h}</div>
+                ))}
+              </div>
+
+              {items.length === 0 ? (
+                <div style={{ padding: "56px 20px", textAlign: "center" }}>
+                  <Package size={32} color="#e0e0f0" style={{ marginBottom: 12 }} />
+                  <div style={{ fontSize: 14, color: "#b0b0c8", fontWeight: 600 }}>No items in inventory yet</div>
+                  <div style={{ fontSize: 12, color: "#c8c8d8", marginTop: 4 }}>Add items first, then enable them for POS retail</div>
+                </div>
+              ) : (
+                items.map((item, i) => {
+                  const isRetail = (item.retailPrice ?? 0) > 0;
+                  const margin   = isRetail && item.costPrice ? Math.round(((item.retailPrice! - item.costPrice) / item.retailPrice!) * 100) : null;
+                  const isLow    = item.currentStock <= item.minStock;
+                  const cat      = CATEGORY_CONFIG[item.category];
+                  return (
+                    <div key={item.id}
+                      style={{ display: "grid", gridTemplateColumns: "1fr 110px 90px 110px 120px 110px 100px", padding: "13px 20px", borderBottom: i < items.length - 1 ? "1px solid #f4f4f8" : "none", alignItems: "center", background: isRetail ? "#fafffe" : "transparent" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#fafafa")}
+                      onMouseLeave={e => (e.currentTarget.style.background = isRetail ? "#fafffe" : "transparent")}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 9, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Package size={15} color={cat.color} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{item.brand ? `${item.brand} ` : ""}{item.name}</div>
+                          <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{item.unit}</div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: cat.color, background: cat.bg, borderRadius: 20, padding: "2px 8px", width: "fit-content" }}>{cat.label}</span>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: isLow ? "#dc2626" : "#1a1a2e" }}>
+                        {item.currentStock} {item.unit}
+                        {isLow && <div style={{ fontSize: 10, color: "#dc2626", fontWeight: 700 }}>Low</div>}
+                      </div>
+                      <div style={{ fontSize: 13, color: "#6b7280" }}>{item.costPrice ? fmt(item.costPrice) : "—"}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: isRetail ? "#7C3AED" : "#c8c8d8" }}>
+                        {isRetail ? fmt(item.retailPrice!) : <span style={{ fontSize: 11, color: "#c8c8d8" }}>Not set</span>}
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: margin !== null && margin > 0 ? "#059669" : "#c8c8d8" }}>
+                        {margin !== null ? `${margin}%` : "—"}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <button onClick={() => toggleRetail(item.id)} title={isRetail ? "Remove from POS" : "Enable in POS"}
+                          style={{ border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                          {isRetail
+                            ? <ToggleRight size={26} color="#7C3AED" />
+                            : <ToggleLeft  size={26} color="#c8c8d8" />}
+                        </button>
+                        <button onClick={() => setEditItem(item)}
+                          style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #e8e8f0", background: "#fafafa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                          <Edit2 size={12} color="#9898b0" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+
+              {items.length > 0 && (
+                <div style={{ padding: "12px 20px", borderTop: "1px solid #f0f0f8", background: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 12, color: "#9898b0" }}>{retailItems.length} of {items.length} items enabled for POS</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>Retail value: {fmtV(retailItems.reduce((s, i) => s + (i.retailPrice ?? 0) * i.currentStock, 0))}</span>
+                </div>
+              )}
+            </div></div></div>
+          </>
+        )}
+
+        {/* ── Stock Management Tab ── */}
+        {tab === "stock" && <>
           <div className="stats-grid-4" style={{ marginBottom: 20 }}>
             {[
-              { label: "Listed in POS",   value: retailItems.length,  iconColor: "#7C3AED", bg: "#EDE9FE" },
-              { label: "Not Listed",      value: items.filter(i => !(i.retailPrice ?? 0)).length, iconColor: "#9898b0", bg: "#f4f4f8" },
-              { label: "Low/Out Stock",   value: retailItems.filter(i => i.currentStock <= i.minStock).length, iconColor: "#dc2626", bg: "#fef2f2" },
-              { label: "Retail Value",    value: fmtV(retailItems.reduce((s, i) => s + (i.retailPrice ?? 0) * i.currentStock, 0)), iconColor: "#059669", bg: "#ecfdf5" },
-            ].map(({ label, value, iconColor, bg }) => (
+              { label: "Total Items",  value: items.length,     icon: Package,       iconColor: "#7C3AED", bg: "#EDE9FE", valColor: "#7C3AED" },
+              { label: "Total Value",  value: fmtV(totalValue), icon: DollarSign,    iconColor: "#059669", bg: "#ecfdf5", valColor: "#059669", small: true },
+              { label: "Low Stock",    value: lowCount,         icon: TrendingDown,  iconColor: "#d97706", bg: "#fffbeb", valColor: "#d97706" },
+              { label: "Out of Stock", value: outCount,         icon: AlertTriangle, iconColor: "#dc2626", bg: "#fef2f2", valColor: "#dc2626" },
+            ].map(({ label, value, icon: Icon, iconColor, bg, valColor, small }) => (
               <div key={label} style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
                 <div style={{ width: 42, height: 42, borderRadius: 11, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Tag size={20} color={iconColor} />
+                  <Icon size={20} color={iconColor} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: iconColor, lineHeight: 1.1 }}>{value}</div>
+                  <div style={{ fontSize: small ? 16 : 22, fontWeight: 800, color: valColor, lineHeight: 1.1 }}>{value}</div>
                   <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3 }}>{label}</div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Products table */}
+          {alertItems.length > 0 && !alertDismissed && (
+            <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #fed7aa", marginBottom: 20, overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "linear-gradient(135deg, #fffbeb, #fff7ed)", borderBottom: "1px solid #fed7aa" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 9, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Bell size={16} color="#d97706" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
+                      Stock Alert — {outCount > 0 ? `${outCount} out of stock` : ""}{outCount > 0 && lowCount > 0 ? ", " : ""}{lowCount > 0 ? `${lowCount} running low` : ""}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#9898b0", marginTop: 1 }}>Restock these items to avoid service disruptions</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => setShowReminder(true)}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "none", background: "#25D366", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}
+                  >
+                    <MessageCircle size={13} /> WhatsApp Reminder
+                  </button>
+                  <button
+                    onClick={() => setAlertDismissed(true)}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 6, display: "flex", alignItems: "center", color: "#9898b0" }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+              <div className="stats-grid-3" style={{ gap: 0 }}>
+                {alertItems.slice(0, 6).map((item, i) => {
+                  const st = stockStatus(item);
+                  return (
+                    <div
+                      key={item.id}
+                      style={{ padding: "12px 16px", borderRight: (i + 1) % 3 !== 0 ? "1px solid #fef3c7" : "none", borderBottom: i < 3 && alertItems.length > 3 ? "1px solid #fef3c7" : "none", display: "flex", alignItems: "center", gap: 10 }}
+                    >
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: st === "out" ? "#dc2626" : "#d97706", flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1a2e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
+                        <div style={{ fontSize: 11, color: "#9898b0" }}>{item.currentStock}/{item.minStock} {item.unit}</div>
+                      </div>
+                      <button onClick={() => setEditItem(item)} style={{ fontSize: 10, fontWeight: 700, color: "#7C3AED", background: "#F5F3FF", border: "none", borderRadius: 6, padding: "3px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                        Restock
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {alertItems.length > 6 && (
+                <div style={{ padding: "10px 18px", borderTop: "1px solid #fef3c7", fontSize: 12, color: "#9898b0", textAlign: "center" }}>
+                  +{alertItems.length - 6} more items need attention —{" "}
+                  <button onClick={() => setStatusFilter("low")} style={{ background: "none", border: "none", color: "#7C3AED", fontWeight: 600, fontSize: 12, cursor: "pointer", padding: 0 }}>View all</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: "9px 14px" }}>
+              <Search size={15} color="#b0b0c8" />
+              <input
+                value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, brand, or supplier…"
+                style={{ flex: 1, border: "none", outline: "none", fontSize: 13, color: "#1a1a2e", background: "transparent" }}
+              />
+              {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}><X size={14} color="#b0b0c8" /></button>}
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `1px solid ${activeFilters > 0 ? "#7C3AED" : "#e8e8f0"}`, background: activeFilters > 0 ? "#F5F3FF" : "#fff", fontSize: 13, fontWeight: 500, color: activeFilters > 0 ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}
+            >
+              Filters
+              {activeFilters > 0 && (
+                <span style={{ background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {activeFilters}
+                </span>
+              )}
+              <ChevronDown size={13} style={{ transform: showFilters ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+            </button>
+          </div>
+
+          {showFilters && (
+            <div style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, padding: "16px 20px", display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 14 }}>
+              {[
+                {
+                  label: "Category", value: catFilter,
+                  onChange: (v: string) => setCatFilter(v as InventoryCategory | "all"),
+                  options: [["all", "All Categories"], ...CATEGORIES.map((c) => [c, CATEGORY_CONFIG[c].label])] as [string, string][],
+                },
+                {
+                  label: "Stock Status", value: statusFilter,
+                  onChange: (v: string) => setStatusFilter(v as "all" | "low" | "out" | "ok"),
+                  options: [["all", "All"], ["ok", "In Stock"], ["low", "Low Stock"], ["out", "Out of Stock"]] as [string, string][],
+                },
+              ].map(({ label, value, onChange, options }) => (
+                <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
+                  <select value={value} onChange={(e) => onChange(e.target.value)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff", cursor: "pointer" }}>
+                    {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </div>
+              ))}
+              {activeFilters > 0 && (
+                <button onClick={() => { setCatFilter("all"); setStatusFilter("all"); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 600, color: "#dc2626", cursor: "pointer" }}>
+                  Clear all
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="table-scroll-wrap"><div className="table-scroll-inner"><div className="inv-table-inner" style={{ background: "#fff" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 90px 110px 120px 110px 100px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-              {["PRODUCT", "CATEGORY", "STOCK", "COST PRICE", "RETAIL PRICE", "MARGIN", "IN POS"].map(h => (
-                <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.07em" }}>{h}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "2.2fr 110px 130px 100px 130px 110px 90px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+              {["ITEM", "CATEGORY", "STOCK", "RESTOCKED", "COST PRICE", "STATUS", "ACTIONS"].map((h) => (
+                <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
               ))}
             </div>
 
-            {items.length === 0 ? (
+            {filtered.length === 0 ? (
               <div style={{ padding: "56px 20px", textAlign: "center" }}>
                 <Package size={32} color="#e0e0f0" style={{ marginBottom: 12 }} />
-                <div style={{ fontSize: 14, color: "#b0b0c8", fontWeight: 600 }}>No items in inventory yet</div>
-                <div style={{ fontSize: 12, color: "#c8c8d8", marginTop: 4 }}>Add items first, then enable them for POS retail</div>
+                <div style={{ fontSize: 14, color: "#b0b0c8", fontWeight: 600 }}>No items match your filters</div>
+                <div style={{ fontSize: 12, color: "#c8c8d8", marginTop: 4 }}>Try adjusting your search or filter</div>
               </div>
             ) : (
-              items.map((item, i) => {
-                const isRetail = (item.retailPrice ?? 0) > 0;
-                const margin   = isRetail && item.costPrice ? Math.round(((item.retailPrice! - item.costPrice) / item.retailPrice!) * 100) : null;
-                const isLow    = item.currentStock <= item.minStock;
-                const cat      = CATEGORY_CONFIG[item.category];
-                return (
-                  <div key={item.id}
-                    style={{ display: "grid", gridTemplateColumns: "1fr 110px 90px 110px 120px 110px 100px", padding: "13px 20px", borderBottom: i < items.length - 1 ? "1px solid #f4f4f8" : "none", alignItems: "center", background: isRetail ? "#fafffe" : "transparent" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#fafafa")}
-                    onMouseLeave={e => (e.currentTarget.style.background = isRetail ? "#fafffe" : "transparent")}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: 9, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <Package size={15} color={cat.color} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{item.brand ? `${item.brand} ` : ""}{item.name}</div>
-                        <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{item.unit}</div>
-                      </div>
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: cat.color, background: cat.bg, borderRadius: 20, padding: "2px 8px", width: "fit-content" }}>{cat.label}</span>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: isLow ? "#dc2626" : "#1a1a2e" }}>
-                      {item.currentStock} {item.unit}
-                      {isLow && <div style={{ fontSize: 10, color: "#dc2626", fontWeight: 700 }}>Low</div>}
-                    </div>
-                    <div style={{ fontSize: 13, color: "#6b7280" }}>{item.costPrice ? fmt(item.costPrice) : "—"}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: isRetail ? "#7C3AED" : "#c8c8d8" }}>
-                      {isRetail ? fmt(item.retailPrice!) : <span style={{ fontSize: 11, color: "#c8c8d8" }}>Not set</span>}
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: margin !== null && margin > 0 ? "#059669" : "#c8c8d8" }}>
-                      {margin !== null ? `${margin}%` : "—"}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <button onClick={() => toggleRetail(item.id)} title={isRetail ? "Remove from POS" : "Enable in POS"}
-                        style={{ border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center" }}>
-                        {isRetail
-                          ? <ToggleRight size={26} color="#7C3AED" />
-                          : <ToggleLeft  size={26} color="#c8c8d8" />}
-                      </button>
-                      <button onClick={() => setEditItem(item)}
-                        style={{ width: 28, height: 28, borderRadius: 7, border: "1px solid #e8e8f0", background: "#fafafa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                        <Edit2 size={12} color="#9898b0" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-
-            {items.length > 0 && (
-              <div style={{ padding: "12px 20px", borderTop: "1px solid #f0f0f8", background: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 12, color: "#9898b0" }}>{retailItems.length} of {items.length} items enabled for POS</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>Retail value: {fmtV(retailItems.reduce((s, i) => s + (i.retailPrice ?? 0) * i.currentStock, 0))}</span>
-              </div>
-            )}
-          </div></div></div>{/* /inv-table-inner /scroll-inner /scroll-wrap */}
-        </>
-      )}
-
-      {/* ══════════ STOCK MANAGEMENT TAB ══════════ */}
-      {tab === "stock" && <>
-
-      {/* Summary cards */}
-      <div className="stats-grid-4" style={{ marginBottom: 20 }}>
-        {[
-          { label: "Total Items",   value: items.length,  icon: Package,      iconColor: "#7C3AED", bg: "#EDE9FE", valColor: "#7C3AED" },
-          { label: "Total Value",   value: fmtV(totalValue), icon: DollarSign, iconColor: "#059669", bg: "#ecfdf5", valColor: "#059669", small: true },
-          { label: "Low Stock",     value: lowCount,      icon: TrendingDown, iconColor: "#d97706", bg: "#fffbeb", valColor: "#d97706" },
-          { label: "Out of Stock",  value: outCount,      icon: AlertTriangle,iconColor: "#dc2626", bg: "#fef2f2", valColor: "#dc2626" },
-        ].map(({ label, value, icon: Icon, iconColor, bg, valColor, small }) => (
-          <div key={label} style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 11, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Icon size={20} color={iconColor} />
-            </div>
-            <div>
-              <div style={{ fontSize: small ? 16 : 22, fontWeight: 800, color: valColor, lineHeight: 1.1 }}>{value}</div>
-              <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3 }}>{label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Low stock alert banner */}
-      {alertItems.length > 0 && !alertDismissed && (
-        <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #fed7aa", marginBottom: 20, overflow: "hidden" }}>
-          {/* Banner header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "linear-gradient(135deg, #fffbeb, #fff7ed)", borderBottom: "1px solid #fed7aa" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Bell size={16} color="#d97706" />
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>
-                  Stock Alert — {outCount > 0 ? `${outCount} out of stock` : ""}{outCount > 0 && lowCount > 0 ? ", " : ""}{lowCount > 0 ? `${lowCount} running low` : ""}
-                </div>
-                <div style={{ fontSize: 12, color: "#9898b0", marginTop: 1 }}>Restock these items to avoid service disruptions</div>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setShowReminder(true)}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "none", background: "#25D366", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}
-              >
-                <MessageCircle size={13} /> WhatsApp Reminder
-              </button>
-              <button
-                onClick={() => setAlertDismissed(true)}
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 6, display: "flex", alignItems: "center", color: "#9898b0" }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-          {/* Alert items grid */}
-          <div className="stats-grid-3" style={{ gap: 0 }}>
-            {alertItems.slice(0, 6).map((item, i) => {
-              const st = stockStatus(item);
-              return (
-                <div
+              filtered.map((item, i) => (
+                <ItemRow
                   key={item.id}
-                  style={{ padding: "12px 16px", borderRight: (i + 1) % 3 !== 0 ? "1px solid #fef3c7" : "none", borderBottom: i < 3 && alertItems.length > 3 ? "1px solid #fef3c7" : "none", display: "flex", alignItems: "center", gap: 10 }}
-                >
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: st === "out" ? "#dc2626" : "#d97706", flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1a2e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
-                    <div style={{ fontSize: 11, color: "#9898b0" }}>{item.currentStock}/{item.minStock} {item.unit}</div>
-                  </div>
-                  <button onClick={() => setEditItem(item)} style={{ fontSize: 10, fontWeight: 700, color: "#7C3AED", background: "#F5F3FF", border: "none", borderRadius: 6, padding: "3px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
-                    Restock
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          {alertItems.length > 6 && (
-            <div style={{ padding: "10px 18px", borderTop: "1px solid #fef3c7", fontSize: 12, color: "#9898b0", textAlign: "center" }}>
-              +{alertItems.length - 6} more items need attention —{" "}
-              <button onClick={() => setStatusFilter("low")} style={{ background: "none", border: "none", color: "#7C3AED", fontWeight: 600, fontSize: 12, cursor: "pointer", padding: 0 }}>View all</button>
-            </div>
-          )}
-        </div>
-      )}
+                  item={item}
+                  isLast={i === filtered.length - 1}
+                  onEdit={() => setEditItem(item)}
+                  onDelete={() => setDeleteItem(item)}
+                />
+              ))
+            )}
 
-      {/* Search + filter bar */}
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: "9px 14px" }}>
-          <Search size={15} color="#b0b0c8" />
-          <input
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, brand, or supplier…"
-            style={{ flex: 1, border: "none", outline: "none", fontSize: 13, color: "#1a1a2e", background: "transparent" }}
-          />
-          {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}><X size={14} color="#b0b0c8" /></button>}
-        </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `1px solid ${activeFilters > 0 ? "#7C3AED" : "#e8e8f0"}`, background: activeFilters > 0 ? "#F5F3FF" : "#fff", fontSize: 13, fontWeight: 500, color: activeFilters > 0 ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}
-        >
-          Filters
-          {activeFilters > 0 && (
-            <span style={{ background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {activeFilters}
-            </span>
-          )}
-          <ChevronDown size={13} style={{ transform: showFilters ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
-        </button>
-      </div>
-
-      {showFilters && (
-        <div style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, padding: "16px 20px", display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 14 }}>
-          {[
-            {
-              label: "Category", value: catFilter,
-              onChange: (v: string) => setCatFilter(v as InventoryCategory | "all"),
-              options: [["all", "All Categories"], ...CATEGORIES.map((c) => [c, CATEGORY_CONFIG[c].label])] as [string, string][],
-            },
-            {
-              label: "Stock Status", value: statusFilter,
-              onChange: (v: string) => setStatusFilter(v as "all" | "low" | "out" | "ok"),
-              options: [["all", "All"], ["ok", "In Stock"], ["low", "Low Stock"], ["out", "Out of Stock"]] as [string, string][],
-            },
-          ].map(({ label, value, onChange, options }) => (
-            <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
-              <select value={value} onChange={(e) => onChange(e.target.value)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff", cursor: "pointer" }}>
-                {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </div>
-          ))}
-          {activeFilters > 0 && (
-            <button onClick={() => { setCatFilter("all"); setStatusFilter("all"); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 600, color: "#dc2626", cursor: "pointer" }}>
-              Clear all
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="table-scroll-wrap"><div className="table-scroll-inner"><div className="inv-table-inner" style={{ background: "#fff" }}>
-        {/* Column headers */}
-        <div style={{ display: "grid", gridTemplateColumns: "2.2fr 110px 130px 100px 130px 110px 90px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
-          {["ITEM", "CATEGORY", "STOCK", "RESTOCKED", "COST PRICE", "STATUS", "ACTIONS"].map((h) => (
-            <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
-          ))}
-        </div>
-
-        {filtered.length === 0 ? (
-          <div style={{ padding: "56px 20px", textAlign: "center" }}>
-            <Package size={32} color="#e0e0f0" style={{ marginBottom: 12 }} />
-            <div style={{ fontSize: 14, color: "#b0b0c8", fontWeight: 600 }}>No items match your filters</div>
-            <div style={{ fontSize: 12, color: "#c8c8d8", marginTop: 4 }}>Try adjusting your search or filter</div>
-          </div>
-        ) : (
-          filtered.map((item, i) => (
-            <ItemRow
-              key={item.id}
-              item={item}
-              isLast={i === filtered.length - 1}
-              onEdit={() => setEditItem(item)}
-              onDelete={() => setDeleteItem(item)}
-            />
-          ))
-        )}
-
-        {/* Footer */}
-        {filtered.length > 0 && (
-          <div style={{ padding: "12px 20px", borderTop: "1px solid #f0f0f8", background: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 12, color: "#9898b0" }}>
-              Showing {filtered.length} of {items.length} items
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>
-              Total value: {fmtV(filtered.reduce((s, i) => s + i.costPrice * i.currentStock, 0))}
-            </span>
-          </div>
-        )}
-      </div></div></div>{/* /inv-table-inner /scroll-inner /scroll-wrap */}
-
-      </>}
+            {filtered.length > 0 && (
+              <div style={{ padding: "12px 20px", borderTop: "1px solid #f0f0f8", background: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "#9898b0" }}>
+                  Showing {filtered.length} of {items.length} items
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>
+                  Total value: {fmtV(filtered.reduce((s, i) => s + i.costPrice * i.currentStock, 0))}
+                </span>
+              </div>
+            )}
+          </div></div></div>
+        </>}
+      </div>{/* /desktop-only */}
     </div>
   );
 }
