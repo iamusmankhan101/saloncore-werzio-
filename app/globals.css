@@ -709,8 +709,17 @@ input, textarea, select { font-family: inherit; }
   padding: 14px 16px;
   border-bottom: 1px solid #f4f4fb;
   cursor: pointer;
+  /* button reset */
+  width: 100%;
+  background: #fff;
+  border: none;
+  border-bottom: 1px solid #f4f4fb;
+  text-align: left;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
 }
 .mobile-settings-row:last-child { border-bottom: none; }
+.mobile-settings-row:active { background: #f8f7ff; }
 .mobile-settings-row-icon {
   width: 36px;
   height: 36px;
