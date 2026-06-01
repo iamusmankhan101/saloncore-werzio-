@@ -5,6 +5,7 @@ import { getStoredAppointments } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { Appointment } from "@/lib/types";
 import DashboardHeader from "@/components/dashboard-header";
+import MobilePageHeader from "@/components/mobile-page-header";
 import {
   Download, ArrowUpRight, ArrowDownRight,
   TrendingUp, CalendarDays, CreditCard, Wallet, ChevronLeft,
@@ -427,8 +428,92 @@ export default function RevenuePage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="dash-page" style={{ background: "#f8f8fc", minHeight: "100vh" }}>
+    <div style={{ background: "#f8f8fc", minHeight: "100vh" }}>
       <DashboardHeader />
+
+      {/* ── Native mobile app bar ── */}
+      <MobilePageHeader
+        title="Revenue"
+        subtitle={cfg.label}
+        action={{ label: "Export PDF", onClick: exportPDF }}
+      />
+
+      {/* ── Mobile period tabs ── */}
+      <div className="mobile-tab-bar mobile-only">
+        {PERIODS.map((p) => (
+          <button key={p.key} type="button" className={`mobile-tab-btn ${period === p.key ? "active" : ""}`} onClick={() => setPeriod(p.key)}>{p.label}</button>
+        ))}
+      </div>
+
+      {/* ── Mobile hero revenue card ── */}
+      <div className="mobile-only">
+        <div className="mobile-hero-card">
+          <div className="mobile-hero-label">Total Revenue · {cfg.label}</div>
+          <div className="mobile-hero-value">{fmt(totalRevenue)}</div>
+          <div className="mobile-hero-sub" style={{ color: revChange >= 0 ? "#4ade80" : "#f87171" }}>
+            {revChange >= 0 ? "▲" : "▼"} {Math.abs(revChange).toFixed(1)}% vs previous {cfg.label.toLowerCase()}
+          </div>
+        </div>
+
+        {/* Mobile stats scroll */}
+        <div className="mobile-stat-scroll">
+          {[
+            { label: "Appointments", value: String(totalCount), color: "#3b82f6", change: cntChange },
+            { label: "Avg Ticket",   value: fmtK(avgTicket),   color: "#059669", change: avgChange },
+            { label: "Tips est.",    value: fmtK(totalRevenue * 0.08), color: "#d97706", change: 0 },
+          ].map((s) => (
+            <div key={s.label} className="mobile-stat-card">
+              <div className="mobile-stat-card-label">{s.label}</div>
+              <div className="mobile-stat-card-value" style={{ color: s.color }}>{s.value}</div>
+              {s.change !== 0 && <div className="mobile-stat-card-sub" style={{ color: s.change >= 0 ? "#059669" : "#dc2626" }}>{s.change >= 0 ? "▲" : "▼"} {Math.abs(s.change).toFixed(1)}%</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* Mobile payment methods */}
+        {methodBreakdown.length > 0 && (
+          <>
+            <div className="mobile-section-header">By Payment Method</div>
+            <div style={{ padding: "0 16px" }}>
+              {methodBreakdown.slice(0, 4).map((m) => (
+                <div key={m.method} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: METHOD_COLORS[m.method] ?? "#888", flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e", flex: 1 }}>{METHOD_LABELS[m.method]}</span>
+                  <span style={{ fontSize: 12, color: "#9898b0" }}>{m.pct.toFixed(0)}%</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED", minWidth: 80, textAlign: "right" }}>{fmt(m.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Mobile daily table */}
+        {dailyRows.length > 0 && (
+          <>
+            <div className="mobile-section-header">Daily Breakdown</div>
+            <div className="mobile-list">
+              {dailyRows.slice(0, 10).map((row) => (
+                <div key={row.date} className="mobile-list-card">
+                  <div className="mobile-list-icon" style={{ background: row.date === today ? "#ede9fe" : "#f4f4fb" }}>
+                    <CalendarDays size={16} color={row.date === today ? "#7C3AED" : "#9898b0"} />
+                  </div>
+                  <div className="mobile-list-body">
+                    <div className="mobile-list-title">{row.date === today ? "Today" : row.date}</div>
+                    <div className="mobile-list-sub">{row.count} appointment{row.count !== 1 ? "s" : ""}</div>
+                  </div>
+                  <div className="mobile-list-right">
+                    <div className="mobile-list-amount" style={{ color: "#7C3AED" }}>{fmt(row.revenue)}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0" }}>{row.count ? fmt(row.revenue / row.count) : "—"} avg</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Desktop layout ── */}
+      <div className="dash-page desktop-only" style={{ background: "#f8f8fc" }}>
 
       {/* Title + controls */}
       <div className="page-header" style={{ marginBottom: 24 }}>

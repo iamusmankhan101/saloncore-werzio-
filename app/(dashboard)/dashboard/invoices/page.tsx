@@ -14,6 +14,7 @@ import { getStoredClients, getStoredStaff, getStoredServices, getStoredInventory
 import type { Client, Staff, Service, InventoryItem, PaymentMethod } from "@/lib/types";
 import { settingsStore } from "@/lib/settings-store";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
+import MobilePageHeader from "@/components/mobile-page-header";
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
@@ -536,9 +537,79 @@ export default function InvoicesPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ background: "#f4f5f7", minHeight: "100vh" }}>
 
-      {/* ── Print modal ── */}
+      {/* ── Native mobile app bar ── */}
+      <MobilePageHeader
+        title="Invoices"
+        subtitle={`${stats.total} invoices · ${stats.paidCount} paid`}
+        action={{ label: "+ New", onClick: () => { setEditingInvoice(undefined); setShowForm(true); } }}
+      />
+
+      {/* ── Mobile stats scroll ── */}
+      <div className="mobile-stat-scroll mobile-only">
+        {[
+          { label: "Total",     value: String(stats.total),        color: "#7C3AED" },
+          { label: "Revenue",   value: fmt(stats.totalRevenue),    color: "#059669" },
+          { label: "Outstanding", value: fmt(stats.outstanding),   color: "#d97706" },
+          { label: "Unpaid",    value: String(stats.unpaidCount),  color: "#dc2626" },
+        ].map((s) => (
+          <div key={s.label} className="mobile-stat-card">
+            <div className="mobile-stat-card-label">{s.label}</div>
+            <div className="mobile-stat-card-value" style={{ fontSize: s.value.length > 8 ? 13 : 18, color: s.color }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Mobile search ── */}
+      <div className="mobile-search-bar mobile-only">
+        <Search size={16} color="#9898b0" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoices…" />
+      </div>
+
+      {/* ── Mobile filter chips ── */}
+      <div className="mobile-filter-row mobile-only">
+        {(["all", "paid", "unpaid"] as const).map((s) => (
+          <button key={s} type="button" className={`mobile-filter-chip ${filterStatus === s ? "active" : ""}`} onClick={() => setFilterStatus(s)}>
+            {s === "all" ? "All" : s === "paid" ? "Paid" : "Unpaid"}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Mobile invoice card list ── */}
+      <div className="mobile-only">
+        {filtered.length === 0 ? (
+          <div className="mobile-empty">
+            <div className="mobile-empty-icon"><FileText size={26} color="#c8c8e0" /></div>
+            <div className="mobile-empty-title">No invoices yet</div>
+            <div className="mobile-empty-sub">Create your first invoice to get started.</div>
+          </div>
+        ) : (
+          <div className="mobile-list">
+            {filtered.map((inv) => {
+              const sm = STATUS_META[inv.status];
+              const Icon = sm.icon;
+              return (
+                <div key={inv.id} className="mobile-list-card" onClick={() => setViewingInvoice(inv)}>
+                  <div className="mobile-list-icon" style={{ background: sm.bg }}>
+                    <Icon size={18} color={sm.color} />
+                  </div>
+                  <div className="mobile-list-body">
+                    <div className="mobile-list-title">{inv.clientName}</div>
+                    <div className="mobile-list-sub">{inv.number} · {fmtDate(inv.date)}{inv.staffName ? ` · ${inv.staffName}` : ""}</div>
+                  </div>
+                  <div className="mobile-list-right">
+                    <div className="mobile-list-amount">{fmt(inv.total)}</div>
+                    <span className="mobile-badge" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Overlays (shared mobile + desktop) ── */}
       {viewingInvoice && (
         <SalonInvoicePrint
           invoice={viewingInvoice}
@@ -550,8 +621,6 @@ export default function InvoicesPage() {
           onMarkPaid={() => handleMarkPaid(viewingInvoice.id)}
         />
       )}
-
-      {/* ── Invoice Form Modal ── */}
       {showForm && (
         <InvoiceForm
           onClose={() => { setShowForm(false); setEditingInvoice(undefined); }}
@@ -560,8 +629,6 @@ export default function InvoicesPage() {
           clients={clients} staff={staff} services={services} inventory={inventory}
         />
       )}
-
-      {/* ── Delete confirm ── */}
       {deleteConfirm && (
         <div onClick={() => setDeleteConfirm(null)} className="modal-overlay" style={{ zIndex: 250 }}>
           <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", maxWidth: 360, width: "100%", boxShadow: "0 16px 50px rgba(0,0,0,0.2)", textAlign: "center" }}>
@@ -577,6 +644,9 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
+
+      {/* ── Desktop layout ── */}
+      <div className="dash-page desktop-only" style={{ background: "#f4f5f7", display: "flex", flexDirection: "column", gap: 16, paddingTop: 16 }}>
 
       {/* ── Page header ── */}
       <div className="page-header">
@@ -725,6 +795,7 @@ export default function InvoicesPage() {
         )}
         </div></div>{/* /invoice-table-inner /table-scroll-inner */}
       </div>{/* /table-scroll-wrap */}
+      </div>{/* /desktop-only */}
     </div>
   );
 }

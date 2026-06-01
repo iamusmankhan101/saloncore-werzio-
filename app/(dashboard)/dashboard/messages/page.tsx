@@ -7,6 +7,7 @@ import {
   Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, AlertCircle,
 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard-header";
+import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
 import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone } from "@/lib/whatsapp-scheduler";
@@ -395,7 +396,100 @@ export default function MessagesPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f5f6f9" }}>
       <DashboardHeader />
-      <div className="dash-page" style={{ paddingTop: 0 }}>
+
+      {/* ── Native mobile app bar ── */}
+      <MobilePageHeader
+        title="WhatsApp"
+        subtitle={isConnected ? "Connected · Live" : "Not configured"}
+        action={{ label: "Settings", href: "/dashboard/account" }}
+      />
+
+      {/* ── Mobile connection status ── */}
+      <div className="mobile-only" style={{ margin: "10px 16px 0", padding: "12px 14px", borderRadius: 16, display: "flex", alignItems: "center", gap: 10, background: isConnected ? "linear-gradient(135deg,#4C1D95,#9333EA)" : "#1a1a2e", color: "#fff" }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          {isConnected ? <Wifi size={18} /> : <WifiOff size={18} />}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 800 }}>{isConnected ? "WhatsApp Connected" : "Not Configured"}</div>
+          <div style={{ fontSize: 10, opacity: 0.72, marginTop: 2 }}>{isConnected ? `Phone ID: ${bs.phoneNumberId}` : "Tap Settings to connect"}</div>
+        </div>
+        {isConnected && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80", flexShrink: 0 }} />}
+      </div>
+
+      {/* ── Mobile stats ── */}
+      <div className="mobile-stat-scroll mobile-only">
+        {[
+          { label: "Today",    value: todayCount,       color: "#7C3AED" },
+          { label: "This Week", value: weekCount,       color: "#0284c7" },
+          { label: "Failed",   value: failCount,        color: "#dc2626" },
+          { label: "Success",  value: `${successRate}%`, color: "#059669" },
+        ].map((s) => (
+          <div key={s.label} className="mobile-stat-card">
+            <div className="mobile-stat-card-label">{s.label}</div>
+            <div className="mobile-stat-card-value" style={{ color: s.color }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Mobile tab bar ── */}
+      <div className="mobile-tab-bar mobile-only">
+        {[{ id: "messages", label: "Messages" }, { id: "templates", label: "Templates" }].map((t) => (
+          <button key={t.id} type="button" className={`mobile-tab-btn ${tab === t.id ? "active" : ""}`} onClick={() => setTab(t.id as typeof tab)}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* ── Mobile: Message log list ── */}
+      {tab === "messages" && (
+        <div className="mobile-only">
+          {filtered.length === 0 ? (
+            <div className="mobile-empty">
+              <div className="mobile-empty-icon"><MessageSquare size={26} color="#c8c8e0" /></div>
+              <div className="mobile-empty-title">No messages yet</div>
+              <div className="mobile-empty-sub">{isConnected ? "Messages appear here once the scheduler sends them." : "Connect WhatsApp in Account settings."}</div>
+            </div>
+          ) : (
+            <>
+              <div className="mobile-filter-row">
+                {FILTERS.map((f) => (
+                  <button key={f.value} type="button" className={`mobile-filter-chip ${filter === f.value ? "active" : ""}`} onClick={() => setFilter(f.value)}>{f.label}</button>
+                ))}
+              </div>
+              <div className="mobile-list">
+                {filtered.map((log) => {
+                  const m = TYPE_META[log.type];
+                  const Icon = m.icon;
+                  return (
+                    <div key={log.id} className="mobile-list-card">
+                      <div className="mobile-list-icon" style={{ background: m.bg }}><Icon size={18} color={m.color} /></div>
+                      <div className="mobile-list-body">
+                        <div className="mobile-list-title">{log.clientName}</div>
+                        <div className="mobile-list-sub">{log.phone} · {fmtTime(log.timestamp)}</div>
+                      </div>
+                      <div className="mobile-list-right">
+                        <span className="mobile-badge" style={{ background: m.bg, color: m.color }}>{m.label}</span>
+                        <span className="mobile-badge" style={{ background: log.status === "sent" ? "#ecfdf5" : "#fef2f2", color: log.status === "sent" ? "#059669" : "#dc2626" }}>{log.status === "sent" ? "✓ Sent" : "✗ Failed"}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Mobile: Templates ── */}
+      {tab === "templates" && (
+        <div className="mobile-only" style={{ padding: "0 16px 24px" }}>
+          <div style={{ marginTop: 10, padding: "12px 14px", borderRadius: 14, background: "#f5f4ff", border: "1px solid #ddd6fe", marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#5B21B6", marginBottom: 4 }}>💡 How templates work</div>
+            <div style={{ fontSize: 12, color: "#6a6a8a", lineHeight: 1.65 }}>Write your message, copy it, then paste when creating a template in BotSailor. Click variable chips to insert them.</div>
+          </div>
+          {TPL_CONFIG.map((cfg) => <TemplateCard key={cfg.key} cfg={cfg} />)}
+        </div>
+      )}
+
+      <div className="dash-page desktop-only" style={{ paddingTop: 0 }}>
 
         {/* ── Connection Banner ─────────────────────────────────────────── */}
         <div style={{
