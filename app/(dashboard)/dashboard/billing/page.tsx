@@ -10,6 +10,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { addPaymentRequest, getActivePlan, setActivePlan, getPaymentRequests, type PaymentMethod } from "@/lib/payment-requests";
 import { syncInvoices, isInTrial, trialDaysLeft, type Invoice, type InvoiceStatus } from "@/lib/invoices";
 import InvoiceViewer from "@/components/invoice-viewer";
+import MobilePageHeader from "@/components/mobile-page-header";
 import {
   PLAN_CONFIGS, ORDERED_PLANS, getCurrentPlanId,
   type PlanId, type PlanConfig,
@@ -274,16 +275,29 @@ export default function BillingPage() {
     setActivePlanId("free");
   }
 
-  return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
+  const COMPARISON_ROWS = [
+    { feature: "Appointments",         free: "30 / month",  pro: "Unlimited",    premium: "Unlimited" },
+    { feature: "Staff members",         free: "Up to 5",     pro: "Unlimited",    premium: "Unlimited" },
+    { feature: "Clients",               free: "Up to 5",     pro: "Unlimited",    premium: "Unlimited" },
+    { feature: "POS products",          free: "Up to 5",     pro: "Unlimited",    premium: "Unlimited" },
+    { feature: "Invoicing",             free: "✓",           pro: "✓",            premium: "✓" },
+    { feature: "Revenue analytics",     free: "Basic",       pro: "Full",         premium: "Full" },
+    { feature: "Inventory",             free: "Basic",       pro: "Full",         premium: "Full" },
+    { feature: "WhatsApp automation",   free: "—",           pro: "✓",            premium: "✓" },
+    { feature: "Virtual Try-On (AI)",   free: "—",           pro: "—",            premium: "✓" },
+    { feature: "Price",                 free: "Free",        pro: "PKR 6,000/mo", premium: "PKR 10,000/mo" },
+  ];
 
-      {/* Invoice viewer overlay */}
+  return (
+    <div style={{ background: "#f4f5f7", minHeight: "100vh" }}>
+
+      {/* Shared overlays */}
       {viewInvoice && <InvoiceViewer invoice={viewInvoice} onClose={() => setViewInvoice(null)} />}
 
-      {/* ── Payment modal ── */}
+      {/* ── Payment modal (bottom-sheet on mobile) ── */}
       {showModal && upgradePlan && (
-        <div onClick={() => setShowModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 22, width: 490, boxShadow: "0 28px 80px rgba(0,0,0,0.25)", overflow: "hidden", maxHeight: "94vh", overflowY: "auto" }}>
+        <div onClick={() => setShowModal(null)} className="modal-overlay" style={{ zIndex: 100 }}>
+          <div onClick={e => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 22, width: 490, boxShadow: "0 28px 80px rgba(0,0,0,0.25)", overflow: "hidden", maxHeight: "94vh", overflowY: "auto" }}>
 
             {/* Modal header */}
             <div style={{ background: upgradePlan.gradient, padding: "22px 26px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -399,168 +413,322 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* ── Page header ── */}
-      <div>
-        <div style={{ fontWeight: 900, fontSize: 24, color: "#1a1a2e" }}>Billing & Plans</div>
-        <div style={{ fontSize: 13, color: "#9898b0", marginTop: 3 }}>Manage your subscription and view invoice history</div>
-      </div>
+      {/* ══════════ MOBILE LAYOUT ══════════ */}
 
-      {/* ── Trial banner ── */}
+      {/* Mobile app bar */}
+      <MobilePageHeader
+        title="Billing & Plans"
+        subtitle={trialActive ? `${daysLeft} days trial left · ${currentPlan.name}` : currentPlan.label}
+      />
+
+      {/* Mobile trial banner */}
       {trialActive && (
-        <div style={{ background: "linear-gradient(135deg,#7C3AED,#9333EA)", borderRadius: 16, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", color: "#fff" }}>
+        <div className="mobile-hero-card mobile-only">
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 46, height: 46, borderRadius: 13, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎉</div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 15 }}>14-Day Free Trial Active</div>
-              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>
+            <div style={{ fontSize: 30 }}>🎉</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 900, fontSize: 15 }}>14-Day Free Trial Active</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 3 }}>
                 {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — full access, no charge yet.` : "Trial ends today."}
               </div>
             </div>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 18px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
-            {daysLeft}d left
+            <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 20, padding: "6px 14px", fontSize: 15, fontWeight: 900, whiteSpace: "nowrap" }}>
+              {daysLeft}d left
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── Pending notice ── */}
+      {/* Mobile current plan card */}
+      <div className="mobile-only" style={{ margin: "12px 16px 0" }}>
+        <div style={{ background: currentPlan.gradient, borderRadius: 20, padding: "20px 22px", boxShadow: `0 8px 28px ${currentPlan.color}28` }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Active Plan</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+            <div style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {(() => { const Icon = PLAN_ICONS[activePlanId]; return <Icon size={22} color="#fff" />; })()}
+            </div>
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "#fff", lineHeight: 1.1 }}>{currentPlan.label}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.78)", marginTop: 3 }}>
+                {currentPlan.price === 0
+                  ? "Free forever · no billing"
+                  : `PKR ${currentPlan.price.toLocaleString("en-PK")}/month`}
+              </div>
+            </div>
+          </div>
+          {latestInvoice && (
+            <button onClick={() => setViewInvoice(latestInvoice)}
+              style={{ width: "100%", padding: "10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <Eye size={14} /> View Latest Invoice
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile alert banners */}
       {hasPending && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "#eff6ff", border: "1px solid #bae6fd", borderRadius: 12 }}>
-          <Clock size={16} color="#0369a1" />
-          <div style={{ fontSize: 13, color: "#0c4a6e" }}>
-            You have a <strong>pending payment request</strong> under admin review. Your plan will be upgraded once payment is verified.
+        <div className="mobile-alert-banner mobile-only" style={{ background: "#eff6ff", border: "1px solid #bae6fd", color: "#0c4a6e" }}>
+          <Clock size={16} color="#0369a1" style={{ flexShrink: 0 }} />
+          <div style={{ fontSize: 12, fontWeight: 700, flex: 1 }}>
+            Payment under admin review. Plan upgrades once verified.
           </div>
         </div>
       )}
-
-      {/* ── Current plan banner ── */}
-      <div style={{ background: currentPlan.gradient, borderRadius: 18, padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 15, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {(() => { const Icon = PLAN_ICONS[activePlanId]; return <Icon size={24} color="#fff" />; })()}
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.09em" }}>Active Plan</div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: "#fff", marginTop: 2 }}>{currentPlan.label}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>
-              {currentPlan.price === 0
-                ? "Free forever · no billing"
-                : `PKR ${currentPlan.price.toLocaleString("en-PK")}/month · renews 1st of every month`}
-            </div>
-          </div>
-        </div>
-        {latestInvoice && (
-          <button onClick={() => setViewInvoice(latestInvoice)}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.15)", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
-            <Eye size={14} /> Latest Invoice
-          </button>
-        )}
-      </div>
-
-      {/* ── Overdue invoice alert ── */}
       {latestInvoice && latestInvoice.status !== "paid" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: latestInvoice.status === "overdue" ? "#fef2f2" : "#fffbeb", border: `1px solid ${latestInvoice.status === "overdue" ? "#fecaca" : "#fde68a"}`, borderRadius: 12 }}>
-          <AlertTriangle size={16} color={latestInvoice.status === "overdue" ? "#dc2626" : "#d97706"} />
-          <div style={{ fontSize: 13, color: latestInvoice.status === "overdue" ? "#991b1b" : "#92400e" }}>
-            Invoice <strong>{latestInvoice.number}</strong> of <strong>PKR {latestInvoice.total.toLocaleString("en-PK")}</strong> is{" "}
-            {latestInvoice.status === "overdue" ? <strong>overdue</strong> : <>due on <strong>{fmtDate(latestInvoice.dueDate)}</strong></>}.{" "}
-            <button onClick={() => setViewInvoice(latestInvoice)} style={{ background: "none", border: "none", cursor: "pointer", fontWeight: 700, textDecoration: "underline", fontSize: 13, color: "inherit", padding: 0 }}>View invoice →</button>
+        <div
+          className="mobile-alert-banner mobile-only"
+          style={{ background: latestInvoice.status === "overdue" ? "#fef2f2" : "#fffbeb", border: `1px solid ${latestInvoice.status === "overdue" ? "#fecaca" : "#fde68a"}`, color: latestInvoice.status === "overdue" ? "#991b1b" : "#92400e", cursor: "pointer" }}
+          onClick={() => setViewInvoice(latestInvoice)}
+        >
+          <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+          <div style={{ fontSize: 12, fontWeight: 700, flex: 1 }}>
+            Invoice {latestInvoice.number} · PKR {latestInvoice.total.toLocaleString("en-PK")} is {latestInvoice.status === "overdue" ? "overdue" : `due ${fmtDate(latestInvoice.dueDate)}`}
           </div>
+          <Eye size={14} style={{ flexShrink: 0 }} />
         </div>
       )}
 
-      {/* ── Pricing plans ── */}
-      <div>
-        <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a2e", marginBottom: 6 }}>Choose Your Plan</div>
-        <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 18 }}>Upgrade anytime — pay via EasyPaisa or bank transfer</div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+      {/* Mobile plan cards — horizontal swipeable carousel */}
+      <div className="mobile-only">
+        <div className="mobile-section-header">Choose Your Plan</div>
+        <div style={{ display: "flex", gap: 14, overflowX: "auto", padding: "0 16px 16px", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
           {ORDERED_PLANS.map(planId => (
-            <PlanCard
-              key={planId}
-              plan={PLAN_CONFIGS[planId]}
-              isCurrent={planId === activePlanId}
-              isPopular={planId === "pro"}
-              hasPending={hasPending}
-              onUpgrade={() => { setShowModal(planId); setScreenshot(null); setPayMethod("easypaisa"); }}
-              onDowngrade={handleDowngrade}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* ── Feature comparison table ── */}
-      <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #ebebf0", overflow: "hidden" }}>
-        <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", gap: 10 }}>
-          <Shield size={18} color="#7C3AED" />
-          <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Feature Comparison</div>
-        </div>
-        {[
-          { feature: "Appointments",         free: "30 / month",  pro: "Unlimited", premium: "Unlimited" },
-          { feature: "Staff members",         free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
-          { feature: "Clients",               free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
-          { feature: "POS products",          free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
-          { feature: "Invoicing & receipts",  free: "✓",           pro: "✓",         premium: "✓" },
-          { feature: "Calendar & scheduling", free: "✓",           pro: "✓",         premium: "✓" },
-          { feature: "Revenue analytics",     free: "Basic",       pro: "Full",      premium: "Full" },
-          { feature: "Inventory management",  free: "Basic",       pro: "Full",      premium: "Full" },
-          { feature: "Online booking page",   free: "✓",           pro: "✓",         premium: "✓" },
-          { feature: "WhatsApp automation",   free: "—",           pro: "✓",         premium: "✓" },
-          { feature: "Virtual Try-On (AI)",   free: "—",           pro: "—",         premium: "✓" },
-          { feature: "Price",                 free: "Free",        pro: "PKR 6,000/mo", premium: "PKR 10,000/mo" },
-        ].map((row, i) => (
-          <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>
-            {[row.free, row.pro, row.premium].map((val, j) => (
-              <div key={j} style={{ fontSize: 12, color: val === "—" ? "#c8c8d8" : val.startsWith("✓") || val === "Full" || val === "Unlimited" ? "#059669" : "#4a4a6a", fontWeight: val === "—" ? 400 : 600 }}>
-                {val}
-              </div>
-            ))}
-          </div>
-        ))}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "11px 24px", background: "#f4f4fc" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Feature</div>
-          {ORDERED_PLANS.map(p => (
-            <div key={p} style={{ fontSize: 11, fontWeight: 800, color: PLAN_CONFIGS[p].color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              {PLAN_CONFIGS[p].name}
+            <div key={planId} style={{ flexShrink: 0, width: "78vw", maxWidth: 320, scrollSnapAlign: "start" }}>
+              <PlanCard
+                plan={PLAN_CONFIGS[planId]}
+                isCurrent={planId === activePlanId}
+                isPopular={planId === "pro"}
+                hasPending={hasPending}
+                onUpgrade={() => { setShowModal(planId); setScreenshot(null); setPayMethod("easypaisa"); }}
+                onDowngrade={handleDowngrade}
+              />
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Invoice history ── */}
-      {invoices.length > 0 && (
-        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #ebebf0", overflow: "hidden" }}>
-          <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Invoice History</div>
-            <div style={{ fontSize: 12, color: "#9898b0" }}>Generated monthly after trial ends</div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 100px 48px", padding: "10px 24px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
-            {["INVOICE", "ISSUED", "DUE DATE", "AMOUNT", "STATUS", ""].map(h => (
-              <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+      {/* Mobile feature comparison — horizontally scrollable */}
+      <div className="mobile-only">
+        <div className="mobile-section-header" style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <Shield size={13} color="#9898b0" /> Feature Comparison
+        </div>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingLeft: 16, scrollbarWidth: "none" }}>
+          <div style={{ minWidth: 460, marginRight: 16, background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", overflow: "hidden" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", padding: "10px 14px", background: "#f4f4fc", borderBottom: "1px solid #f0f0f8" }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#9898b0", textTransform: "uppercase" }}>Feature</div>
+              {ORDERED_PLANS.map(p => (
+                <div key={p} style={{ fontSize: 10, fontWeight: 800, color: PLAN_CONFIGS[p].color, textTransform: "uppercase" }}>{PLAN_CONFIGS[p].name}</div>
+              ))}
+            </div>
+            {COMPARISON_ROWS.map((row, i) => (
+              <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", padding: "10px 14px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>
+                {[row.free, row.pro, row.premium].map((val, j) => (
+                  <div key={j} style={{ fontSize: 11, fontWeight: val === "—" ? 400 : 600, color: val === "—" ? "#c8c8d8" : val === "✓" || val === "Full" || val === "Unlimited" ? "#059669" : "#4a4a6a" }}>
+                    {val}
+                  </div>
+                ))}
+              </div>
             ))}
           </div>
-          {invoices.map((inv, i) => {
-            const sm = STATUS_META[inv.status];
-            const Icon = sm.icon;
-            return (
-              <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 100px 48px", padding: "13px 24px", borderBottom: i < invoices.length - 1 ? "1px solid #f4f4f8" : "none", alignItems: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{inv.number}</div>
-                <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(inv.issuedDate)}</div>
-                <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(inv.dueDate)}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>PKR {inv.total.toLocaleString("en-PK")}</div>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 20, background: sm.bg, fontSize: 11, fontWeight: 700, color: sm.color }}>
-                  <Icon size={10} /> {sm.label}
+        </div>
+      </div>
+
+      {/* Mobile invoice history */}
+      {invoices.length > 0 && (
+        <div className="mobile-only">
+          <div className="mobile-section-header">Invoice History</div>
+          <div className="mobile-list" style={{ padding: "0 16px 24px" }}>
+            {invoices.map((inv) => {
+              const sm = STATUS_META[inv.status];
+              const Icon = sm.icon;
+              return (
+                <div key={inv.id} className="mobile-list-card" onClick={() => setViewInvoice(inv)}>
+                  <div className="mobile-list-icon" style={{ background: sm.bg }}>
+                    <Icon size={18} color={sm.color} />
+                  </div>
+                  <div className="mobile-list-body">
+                    <div className="mobile-list-title">{inv.number}</div>
+                    <div className="mobile-list-sub">Issued {fmtDate(inv.issuedDate)} · Due {fmtDate(inv.dueDate)}</div>
+                  </div>
+                  <div className="mobile-list-right">
+                    <div className="mobile-list-amount" style={{ color: "#7C3AED" }}>PKR {inv.total.toLocaleString("en-PK")}</div>
+                    <span className="mobile-badge" style={{ background: sm.bg, color: sm.color }}>
+                      {sm.label}
+                    </span>
+                  </div>
                 </div>
-                <button onClick={() => setViewInvoice(inv)}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", cursor: "pointer" }}>
-                  <Eye size={13} color="#9898b0" />
-                </button>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
+
+      {/* ══════════ DESKTOP LAYOUT ══════════ */}
+      <div className="desktop-only" style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
+
+        {/* Page header */}
+        <div>
+          <div style={{ fontWeight: 900, fontSize: 24, color: "#1a1a2e" }}>Billing & Plans</div>
+          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 3 }}>Manage your subscription and view invoice history</div>
+        </div>
+
+        {/* Trial banner */}
+        {trialActive && (
+          <div style={{ background: "linear-gradient(135deg,#7C3AED,#9333EA)", borderRadius: 16, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", color: "#fff" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 13, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎉</div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 15 }}>14-Day Free Trial Active</div>
+                <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>
+                  {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — full access, no charge yet.` : "Trial ends today."}
+                </div>
+              </div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 18px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+              {daysLeft}d left
+            </div>
+          </div>
+        )}
+
+        {/* Pending notice */}
+        {hasPending && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "#eff6ff", border: "1px solid #bae6fd", borderRadius: 12 }}>
+            <Clock size={16} color="#0369a1" />
+            <div style={{ fontSize: 13, color: "#0c4a6e" }}>
+              You have a <strong>pending payment request</strong> under admin review. Your plan will be upgraded once payment is verified.
+            </div>
+          </div>
+        )}
+
+        {/* Current plan banner */}
+        <div style={{ background: currentPlan.gradient, borderRadius: 18, padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ width: 52, height: 52, borderRadius: 15, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {(() => { const Icon = PLAN_ICONS[activePlanId]; return <Icon size={24} color="#fff" />; })()}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.09em" }}>Active Plan</div>
+              <div style={{ fontSize: 26, fontWeight: 900, color: "#fff", marginTop: 2 }}>{currentPlan.label}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>
+                {currentPlan.price === 0
+                  ? "Free forever · no billing"
+                  : `PKR ${currentPlan.price.toLocaleString("en-PK")}/month · renews 1st of every month`}
+              </div>
+            </div>
+          </div>
+          {latestInvoice && (
+            <button onClick={() => setViewInvoice(latestInvoice)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.15)", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+              <Eye size={14} /> Latest Invoice
+            </button>
+          )}
+        </div>
+
+        {/* Overdue invoice alert */}
+        {latestInvoice && latestInvoice.status !== "paid" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: latestInvoice.status === "overdue" ? "#fef2f2" : "#fffbeb", border: `1px solid ${latestInvoice.status === "overdue" ? "#fecaca" : "#fde68a"}`, borderRadius: 12 }}>
+            <AlertTriangle size={16} color={latestInvoice.status === "overdue" ? "#dc2626" : "#d97706"} />
+            <div style={{ fontSize: 13, color: latestInvoice.status === "overdue" ? "#991b1b" : "#92400e" }}>
+              Invoice <strong>{latestInvoice.number}</strong> of <strong>PKR {latestInvoice.total.toLocaleString("en-PK")}</strong> is{" "}
+              {latestInvoice.status === "overdue" ? <strong>overdue</strong> : <>due on <strong>{fmtDate(latestInvoice.dueDate)}</strong></>}.{" "}
+              <button onClick={() => setViewInvoice(latestInvoice)} style={{ background: "none", border: "none", cursor: "pointer", fontWeight: 700, textDecoration: "underline", fontSize: 13, color: "inherit", padding: 0 }}>View invoice →</button>
+            </div>
+          </div>
+        )}
+
+        {/* Pricing plans */}
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a2e", marginBottom: 6 }}>Choose Your Plan</div>
+          <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 18 }}>Upgrade anytime — pay via EasyPaisa or bank transfer</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+            {ORDERED_PLANS.map(planId => (
+              <PlanCard
+                key={planId}
+                plan={PLAN_CONFIGS[planId]}
+                isCurrent={planId === activePlanId}
+                isPopular={planId === "pro"}
+                hasPending={hasPending}
+                onUpgrade={() => { setShowModal(planId); setScreenshot(null); setPayMethod("easypaisa"); }}
+                onDowngrade={handleDowngrade}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Feature comparison table */}
+        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #ebebf0", overflow: "hidden" }}>
+          <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", gap: 10 }}>
+            <Shield size={18} color="#7C3AED" />
+            <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Feature Comparison</div>
+          </div>
+          {[
+            { feature: "Appointments",         free: "30 / month",  pro: "Unlimited", premium: "Unlimited" },
+            { feature: "Staff members",         free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
+            { feature: "Clients",               free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
+            { feature: "POS products",          free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
+            { feature: "Invoicing & receipts",  free: "✓",           pro: "✓",         premium: "✓" },
+            { feature: "Calendar & scheduling", free: "✓",           pro: "✓",         premium: "✓" },
+            { feature: "Revenue analytics",     free: "Basic",       pro: "Full",      premium: "Full" },
+            { feature: "Inventory management",  free: "Basic",       pro: "Full",      premium: "Full" },
+            { feature: "Online booking page",   free: "✓",           pro: "✓",         premium: "✓" },
+            { feature: "WhatsApp automation",   free: "—",           pro: "✓",         premium: "✓" },
+            { feature: "Virtual Try-On (AI)",   free: "—",           pro: "—",         premium: "✓" },
+            { feature: "Price",                 free: "Free",        pro: "PKR 6,000/mo", premium: "PKR 10,000/mo" },
+          ].map((row, i) => (
+            <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>
+              {[row.free, row.pro, row.premium].map((val, j) => (
+                <div key={j} style={{ fontSize: 12, color: val === "—" ? "#c8c8d8" : val.startsWith("✓") || val === "Full" || val === "Unlimited" ? "#059669" : "#4a4a6a", fontWeight: val === "—" ? 400 : 600 }}>
+                  {val}
+                </div>
+              ))}
+            </div>
+          ))}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "11px 24px", background: "#f4f4fc" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Feature</div>
+            {ORDERED_PLANS.map(p => (
+              <div key={p} style={{ fontSize: 11, fontWeight: 800, color: PLAN_CONFIGS[p].color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {PLAN_CONFIGS[p].name}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Invoice history */}
+        {invoices.length > 0 && (
+          <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #ebebf0", overflow: "hidden" }}>
+            <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Invoice History</div>
+              <div style={{ fontSize: 12, color: "#9898b0" }}>Generated monthly after trial ends</div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 100px 48px", padding: "10px 24px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+              {["INVOICE", "ISSUED", "DUE DATE", "AMOUNT", "STATUS", ""].map(h => (
+                <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+              ))}
+            </div>
+            {invoices.map((inv, i) => {
+              const sm = STATUS_META[inv.status];
+              const Icon = sm.icon;
+              return (
+                <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 100px 48px", padding: "13px 24px", borderBottom: i < invoices.length - 1 ? "1px solid #f4f4f8" : "none", alignItems: "center" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{inv.number}</div>
+                  <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(inv.issuedDate)}</div>
+                  <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(inv.dueDate)}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>PKR {inv.total.toLocaleString("en-PK")}</div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 20, background: sm.bg, fontSize: 11, fontWeight: 700, color: sm.color }}>
+                    <Icon size={10} /> {sm.label}
+                  </div>
+                  <button onClick={() => setViewInvoice(inv)}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", cursor: "pointer" }}>
+                    <Eye size={13} color="#9898b0" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>{/* /desktop-only */}
     </div>
   );
 }

@@ -821,4 +821,35 @@ input, textarea, select { font-family: inherit; }
 
   /* Remove top padding from dash-page on mobile — app bar handles it */
   .dash-page { padding-top: 8px !important; }
+
+  /* ── Account page: force single-column grids inside mobile forms ── */
+  .account-mobile-content {
+    padding: 16px 16px 32px;
+  }
+  .account-mobile-content [style*="1fr 1fr"],
+  .account-mobile-content [style*="280px 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Business hours row: day | toggle | times → day+toggle on first row, times below */
+  .account-mobile-content [style*="140px 56px 1fr"] {
+    grid-template-columns: 1fr 56px !important;
+    gap: 8px 12px !important;
+  }
+  .account-mobile-content [style*="140px 56px 1fr"] > *:last-child {
+    grid-column: 1 / -1;
+  }
+  /* Business hours time inputs */
+  .account-mobile-content input[type="time"] {
+    width: auto !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+  /* Save button: full width on mobile */
+  .account-mobile-content [style*="flex-end"] {
+    justify-content: stretch !important;
+  }
+  .account-mobile-content [style*="flex-end"] > button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
 }

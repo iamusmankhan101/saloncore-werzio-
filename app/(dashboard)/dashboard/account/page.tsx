@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Check, ChevronRight, Clock, LogOut, Save, Shield, Smartphone, Store, User, Wand2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Clock, LogOut, Save, Shield, Smartphone, Store, User, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
+import MobilePageHeader from "@/components/mobile-page-header";
 
 type SectionId = "profile" | "salon" | "hours" | "security" | "whatsapp" | "tryon";
 
@@ -677,63 +678,168 @@ export default function AccountPage() {
   const SECTIONS = isAdmin
     ? [...BASE_SECTIONS, { id: "tryon" as SectionId, label: "Virtual Try-On", icon: Wand2 }]
     : BASE_SECTIONS;
-  const [active, setActive] = useState<SectionId>("profile");
+  const [active, setActive]               = useState<SectionId>("profile");
+  const [mobileScreen, setMobileScreen]   = useState<"menu" | SectionId>("menu");
+
+  const initials = (currentUser?.ownerName || "?")
+    .split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 
   function handleSignOut() {
     signOut();
     router.replace("/sign-in");
   }
 
+  const activeSection = SECTIONS.find(s => s.id === mobileScreen);
+
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f6f9", padding: "28px 32px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
-        <div>
-          <h1 style={{ margin: 0, color: "#1d1d2f", fontSize: 22, fontWeight: 900 }}>Account</h1>
-          <p style={{ margin: "5px 0 0", color: "#9393aa", fontSize: 12 }}>Manage your salon profile, operations, and account preferences.</p>
+    <div style={{ minHeight: "100vh", background: "#f5f6f9" }}>
+
+      {/* ══════════ MOBILE LAYOUT ══════════ */}
+
+      {/* Mobile app bar */}
+      {mobileScreen === "menu" ? (
+        <MobilePageHeader
+          title="Account"
+          subtitle="Salon profile & preferences"
+        />
+      ) : (
+        <MobilePageHeader
+          title={activeSection?.label ?? ""}
+          left={
+            <button
+              type="button"
+              onClick={() => setMobileScreen("menu")}
+              style={{ display: "flex", alignItems: "center", background: "none", border: "none", cursor: "pointer", color: "var(--accent)", padding: "0 4px 0 0" }}
+            >
+              <ChevronLeft size={22} color="var(--accent)" />
+            </button>
+          }
+        />
+      )}
+
+      {/* Mobile menu view */}
+      {mobileScreen === "menu" && (
+        <div className="mobile-only">
+          {/* Profile hero */}
+          <div className="mobile-hero-card">
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ width: 58, height: 58, borderRadius: "50%", background: "rgba(255,255,255,0.2)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 900, color: "#fff", border: "2px solid rgba(255,255,255,0.35)" }}>
+                {initials}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 17, fontWeight: 900, color: "#fff", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {currentUser?.ownerName || "—"}
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {currentUser?.email}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>
+                  {currentUser?.salonName}
+                </div>
+              </div>
+            </div>
+            {currentUser?.createdAt && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Member since</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 700 }}>
+                  {new Date(currentUser.createdAt).toLocaleDateString("en-PK", { month: "long", year: "numeric" })}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Settings nav list */}
+          <div className="mobile-section-header">Preferences</div>
+          <div className="mobile-settings-group">
+            {SECTIONS.map((section) => {
+              const Icon = section.icon;
+              const iconBgs: Record<string, string> = {
+                profile: "#EDE9FE", salon: "#e0f2fe", hours: "#fef9c3",
+                security: "#fef2f2", whatsapp: "#dcfce7", tryon: "#fdf4ff",
+              };
+              const iconColors: Record<string, string> = {
+                profile: "#7C3AED", salon: "#0284c7", hours: "#ca8a04",
+                security: "#dc2626", whatsapp: "#16a34a", tryon: "#a21caf",
+              };
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  className="mobile-settings-row"
+                  onClick={() => setMobileScreen(section.id)}
+                >
+                  <div className="mobile-settings-row-icon" style={{ background: iconBgs[section.id] || "#f4f4fb" }}>
+                    <Icon size={18} color={iconColors[section.id] || "#7C3AED"} />
+                  </div>
+                  <div className="mobile-settings-row-body">
+                    <div className="mobile-settings-row-label">{section.label}</div>
+                  </div>
+                  <ChevronRight size={16} className="mobile-settings-chevron" />
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sign out */}
+          <div className="mobile-section-header">Account</div>
+          <div className="mobile-settings-group">
+            <button type="button" className="mobile-settings-row" onClick={handleSignOut}>
+              <div className="mobile-settings-row-icon" style={{ background: "#fef2f2" }}>
+                <LogOut size={18} color="#dc2626" />
+              </div>
+              <div className="mobile-settings-row-body">
+                <div className="mobile-settings-row-label" style={{ color: "#dc2626" }}>Sign Out</div>
+              </div>
+            </button>
+          </div>
+
+          <div style={{ height: 24 }} />
         </div>
-        <button onClick={handleSignOut} style={{ display: "flex", alignItems: "center", gap: 7, border: "1px solid #fecaca", background: "#fff", color: "#dc2626", borderRadius: 20, padding: "8px 14px", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
-          <LogOut size={14} /> Sign out
-        </button>
-      </div>
+      )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 22 }}>
-        <aside style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 16, overflow: "hidden", alignSelf: "start", boxShadow: "0 1px 4px rgba(20,20,40,0.03)" }}>
-          {SECTIONS.map((section) => {
-            const Icon = section.icon;
-            const isActive = active === section.id;
-            return (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => setActive(section.id)}
-                style={{
-                  width: "100%",
-                  height: 56,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  padding: "0 20px",
-                  border: "none",
-                  borderLeft: isActive ? "4px solid var(--accent)" : "4px solid transparent",
-                  background: isActive ? "var(--accent-dim)" : "#fff",
-                  color: isActive ? "var(--accent)" : "#8989a6",
-                  fontSize: 15,
-                  fontWeight: isActive ? 900 : 600,
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                <Icon size={18} />
-                <span style={{ flex: 1 }}>{section.label}</span>
-                <ChevronRight size={17} color={isActive ? "var(--accent)" : "#b8b8c8"} />
-              </button>
-            );
-          })}
-        </aside>
+      {/* Mobile section detail */}
+      {mobileScreen !== "menu" && (
+        <div className="mobile-only account-mobile-content">
+          <SectionContent active={mobileScreen as SectionId} />
+        </div>
+      )}
 
-        <main style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 16, padding: "32px 34px", minHeight: 520, boxShadow: "0 1px 4px rgba(20,20,40,0.03)" }}>
-          <SectionContent active={active} />
-        </main>
+      {/* ══════════ DESKTOP LAYOUT ══════════ */}
+      <div className="desktop-only" style={{ padding: "28px 32px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+          <div>
+            <h1 style={{ margin: 0, color: "#1d1d2f", fontSize: 22, fontWeight: 900 }}>Account</h1>
+            <p style={{ margin: "5px 0 0", color: "#9393aa", fontSize: 12 }}>Manage your salon profile, operations, and account preferences.</p>
+          </div>
+          <button onClick={handleSignOut} style={{ display: "flex", alignItems: "center", gap: 7, border: "1px solid #fecaca", background: "#fff", color: "#dc2626", borderRadius: 20, padding: "8px 14px", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+            <LogOut size={14} /> Sign out
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 22 }}>
+          <aside style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 16, overflow: "hidden", alignSelf: "start", boxShadow: "0 1px 4px rgba(20,20,40,0.03)" }}>
+            {SECTIONS.map((section) => {
+              const Icon = section.icon;
+              const isActive = active === section.id;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActive(section.id)}
+                  style={{ width: "100%", height: 56, display: "flex", alignItems: "center", gap: 14, padding: "0 20px", border: "none", borderLeft: isActive ? "4px solid var(--accent)" : "4px solid transparent", background: isActive ? "var(--accent-dim)" : "#fff", color: isActive ? "var(--accent)" : "#8989a6", fontSize: 15, fontWeight: isActive ? 900 : 600, cursor: "pointer", textAlign: "left" }}
+                >
+                  <Icon size={18} />
+                  <span style={{ flex: 1 }}>{section.label}</span>
+                  <ChevronRight size={17} color={isActive ? "var(--accent)" : "#b8b8c8"} />
+                </button>
+              );
+            })}
+          </aside>
+
+          <main style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 16, padding: "32px 34px", minHeight: 520, boxShadow: "0 1px 4px rgba(20,20,40,0.03)" }}>
+            <SectionContent active={active} />
+          </main>
+        </div>
       </div>
     </div>
   );

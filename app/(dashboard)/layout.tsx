@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, LayoutDashboard, CalendarDays, Users, ClipboardList } from "lucide-react";
+import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList } from "lucide-react";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
 import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings } from "@/lib/settings-store";
@@ -151,10 +151,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isBillingPage = pathname === "/dashboard/billing";
 
   const bottomTabs = [
-    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/dashboard/calendar", icon: CalendarDays, label: "Calendar" },
-    { href: "/dashboard/appointments", icon: ClipboardList, label: "Appointments" },
-    { href: "/dashboard/clients", icon: Users, label: "Clients" },
+    { href: "/dashboard",             icon: LayoutDashboard, label: "Dashboard"    },
+    { href: "/dashboard/appointments", icon: ClipboardList,   label: "Appointments" },
+    { href: "/dashboard/billing",      icon: CreditCard,      label: "Billing"      },
+    { href: "/dashboard/account",      icon: User,            label: "Account"      },
   ];
 
   const leftTabs  = bottomTabs.slice(0, 2);
