@@ -227,14 +227,26 @@ export default function SalonInvoicePrint({
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 32, fontWeight: 900, color: "#1a1a2e", letterSpacing: "-0.5px" }}>INVOICE</div>
                   <div style={{ fontSize: 14, color: "#7C3AED", fontWeight: 700, marginTop: 4 }}>{invoice.number}</div>
-                  <div style={{ marginTop: 12, fontSize: 12, color: "#6b6b8a" }}>
-                    Date: <strong style={{ color: "#1a1a2e" }}>{fmtDate(invoice.date)}</strong>
+                  <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>
+                      <span style={{ color: "#9898b0" }}>Date:</span>{" "}
+                      <strong style={{ color: "#1a1a2e" }}>{fmtDate(invoice.date)}</strong>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>
+                      <span style={{ color: "#9898b0" }}>Status:</span>{" "}
+                      <strong style={{ color: st.color }}>{st.label}</strong>
+                    </div>
+                    {invoice.items.length > 0 && (
+                      <div style={{ fontSize: 11, color: "#9898b0" }}>
+                        {invoice.items.length} item{invoice.items.length !== 1 ? "s" : ""}
+                      </div>
+                    )}
                   </div>
                   <div style={{
-                    marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6,
-                    padding: "5px 14px", borderRadius: 20,
+                    marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "6px 14px", borderRadius: 20,
                     background: st.bg, border: `1px solid ${st.border}`,
-                    fontSize: 12, fontWeight: 800, color: st.color, letterSpacing: "0.06em",
+                    fontSize: 11, fontWeight: 800, color: st.color, letterSpacing: "0.06em",
                   }}>
                     {st.label}
                   </div>
@@ -248,8 +260,22 @@ export default function SalonInvoicePrint({
                   <div style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 10 }}>Bill To</div>
                   <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", marginBottom: 4 }}>{invoice.clientName}</div>
                   <div style={{ fontSize: 12, color: "#6b6b8a", lineHeight: 1.8 }}>
-                    {invoice.clientPhone && <>{invoice.clientPhone}<br /></>}
-                    {invoice.clientEmail}
+                    {invoice.clientPhone && (
+                      <>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ color: "#9898b0" }}>Phone:</span>
+                          <span style={{ fontWeight: 600 }}>{invoice.clientPhone}</span>
+                        </div>
+                      </>
+                    )}
+                    {invoice.clientEmail && (
+                      <>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ color: "#9898b0" }}>Email:</span>
+                          <span>{invoice.clientEmail}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -257,8 +283,13 @@ export default function SalonInvoicePrint({
                 <div style={{ padding: "18px 20px", borderRadius: 12, border: "1px solid #ebebf0", background: "#fafafd" }}>
                   <div style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 10 }}>Service Details</div>
                   <div style={{ fontSize: 12, color: "#6b6b8a", lineHeight: 2 }}>
-                    <div><span style={{ color: "#9898b0" }}>Stylist: </span><strong style={{ color: "#1a1a2e" }}>{invoice.staffName || "—"}</strong></div>
-                    <div><span style={{ color: "#9898b0" }}>Payment: </span><strong style={{ color: "#1a1a2e" }}>{METHOD_LABELS[invoice.paymentMethod] ?? "—"}</strong></div>
+                    {invoice.staffName && (
+                      <div><span style={{ color: "#9898b0" }}>Stylist: </span><strong style={{ color: "#1a1a2e" }}>{invoice.staffName}</strong></div>
+                    )}
+                    <div><span style={{ color: "#9898b0" }}>Invoice Date: </span><strong style={{ color: "#1a1a2e" }}>{fmtDate(invoice.date)}</strong></div>
+                    {invoice.paymentMethod && (
+                      <div><span style={{ color: "#9898b0" }}>Payment: </span><strong style={{ color: "#1a1a2e" }}>{METHOD_LABELS[invoice.paymentMethod] ?? "—"}</strong></div>
+                    )}
                     {invoice.appointmentId && (
                       <div><span style={{ color: "#9898b0" }}>Appt Ref: </span><strong style={{ color: "#1a1a2e" }}>#{invoice.appointmentId.slice(0, 8).toUpperCase()}</strong></div>
                     )}
@@ -317,31 +348,56 @@ export default function SalonInvoicePrint({
 
               {/* ── Totals ── */}
               <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 32 }}>
-                <div style={{ width: 300 }}>
+                <div style={{ width: 320 }}>
+                  {/* Subtotal - always show */}
                   <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f8", fontSize: 13, color: "#6b6b8a" }}>
                     <span>Subtotal</span>
                     <span style={{ fontWeight: 600, color: "#1a1a2e" }}>{fmt(invoice.subtotal)}</span>
                   </div>
+                  
+                  {/* Discount - only show if > 0 */}
                   {invoice.discountAmount > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f8", fontSize: 13, color: "#059669" }}>
                       <span>Discount</span>
                       <span style={{ fontWeight: 600 }}>− {fmt(invoice.discountAmount)}</span>
                     </div>
                   )}
+                  
+                  {/* Tax - only show if > 0 */}
                   {invoice.taxAmount > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f8", fontSize: 13, color: "#6b6b8a" }}>
                       <span>Tax</span>
                       <span style={{ fontWeight: 600, color: "#1a1a2e" }}>{fmt(invoice.taxAmount)}</span>
                     </div>
                   )}
+                  
+                  {/* Total Amount Paid/Due */}
                   <div style={{
                     display: "flex", justifyContent: "space-between",
-                    padding: "13px 16px", marginTop: 10,
+                    padding: "13px 18px", marginTop: 10,
                     background: "linear-gradient(135deg,#5B21B6,#9333EA)", borderRadius: 12,
                   }}>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Total</span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>
+                      {invoice.status === "paid" ? "Amount Paid" : "Amount Due"}
+                    </span>
                     <span style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>{fmt(invoice.total)}</span>
                   </div>
+                  
+                  {/* Payment method info - only show if paid */}
+                  {invoice.status === "paid" && invoice.paymentMethod && (
+                    <div style={{
+                      marginTop: 12, padding: "10px 14px",
+                      background: "#ecfdf5", borderRadius: 10, border: "1px solid #6ee7b7",
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}>
+                      <span style={{ fontSize: 12, color: "#059669", fontWeight: 600 }}>
+                        Paid via {METHOD_LABELS[invoice.paymentMethod] ?? invoice.paymentMethod}
+                      </span>
+                      <span style={{ fontSize: 10, color: "#6ee7b7", fontWeight: 700, letterSpacing: "0.05em" }}>
+                        ✓ CLEARED
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
