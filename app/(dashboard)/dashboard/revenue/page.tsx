@@ -245,10 +245,8 @@ export default function RevenuePage() {
     body { font-family: 'Montserrat', sans-serif; background: #fff; color: #1a1a2e; font-size: 13px; }
     .page { max-width: 820px; margin: 0 auto; padding: 40px 48px; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid #f0f0f8; }
-    .logo-icon { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #5B21B6, #9333EA); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 800; }
-    .logo { display: flex; align-items: center; gap: 12px; }
-    .logo-text { font-size: 22px; font-weight: 800; }
-    .logo-sub  { font-size: 12px; color: #a0a0b8; margin-top: 2px; }
+    .logo-img { height: 42px; width: auto; display: block; }
+    .logo-sub  { font-size: 12px; color: #a0a0b8; margin-top: 6px; }
     .report-meta { text-align: right; }
     .report-title { font-size: 16px; font-weight: 800; color: #7C3AED; }
     .report-sub   { font-size: 12px; color: #6b6b8a; margin-top: 4px; }
@@ -293,12 +291,9 @@ export default function RevenuePage() {
 <body>
 <div class="page">
   <div class="header">
-    <div class="logo">
-      <div class="logo-icon">G</div>
-      <div>
-        <div class="logo-text">Werzio</div>
-        <div class="logo-sub">Salon Management Platform</div>
-      </div>
+    <div>
+      <img src="/Untitled design (5).png" alt="Werzio" class="logo-img" />
+      <div class="logo-sub">Salon Management Platform</div>
     </div>
     <div class="report-meta">
       <div class="report-title">${pdfTitle}</div>
