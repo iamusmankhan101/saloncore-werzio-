@@ -52,7 +52,7 @@ function buildNotifications(): Notif[] {
   return notifs;
 }
 
-export default function DashboardHeader() {
+export default function DashboardHeader({ title = "Dashboard Performances", subtitle = "Salon Overview" }: { title?: string; subtitle?: string }) {
   const [showNotif, setShowNotif] = useState(false);
   const [notifs, setNotifs] = useState<Notif[]>([]);
 
@@ -69,8 +69,8 @@ export default function DashboardHeader() {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, position: "relative", padding: "24px 0" }}>
       <div>
-        <div style={{ fontWeight: 700, fontSize: 20, color: "#1a1a2e" }}>Dashboard Performances</div>
-        <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>Salon Overview</div>
+        <div style={{ fontWeight: 700, fontSize: 20, color: "#1a1a2e" }}>{title}</div>
+        <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>{subtitle}</div>
       </div>
 
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>

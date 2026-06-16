@@ -424,7 +424,7 @@ export default function RevenuePage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ background: "#f8f8fc", minHeight: "100vh" }}>
-      <DashboardHeader />
+      <DashboardHeader title="Revenue" subtitle="Earnings & financial overview" />
 
       {/* ── Native mobile app bar ── */}
       <MobilePageHeader

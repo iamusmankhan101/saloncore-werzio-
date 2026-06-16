@@ -786,7 +786,7 @@ export default function InventoryPage() {
 
       {/* ══════════ DESKTOP LAYOUT ══════════ */}
       <div className="dash-page desktop-only" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
-        <DashboardHeader />
+        <DashboardHeader title="Inventory" subtitle="Stock levels & product management" />
 
         {/* Page header */}
         <div className="page-header" style={{ marginBottom: 16 }}>
