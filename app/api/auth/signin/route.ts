@@ -45,12 +45,17 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[auth/signin] Error:", err);
     const message = err instanceof Error ? err.message : "Authentication failed.";
-    console.error("[auth/signin] Error message:", message);
-    
+
     if (message === "EMAIL_NOT_VERIFIED") {
       return Response.json({ ok: false, error: "EMAIL_NOT_VERIFIED" }, { status: 403 });
     }
-    
-    return Response.json({ ok: false, error: message }, { status: 401 });
+
+    const isAuthError = message === "Invalid email or password.";
+    if (isAuthError) {
+      return Response.json({ ok: false, error: message }, { status: 401 });
+    }
+
+    console.error("[auth/signin] Unexpected server error:", message);
+    return Response.json({ ok: false, error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
