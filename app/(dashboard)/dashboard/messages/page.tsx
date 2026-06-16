@@ -395,7 +395,9 @@ export default function MessagesPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f6f9" }}>
-      <DashboardHeader title="WhatsApp Messaging" subtitle="Send & manage client messages" />
+      <div style={{ paddingLeft: 25 }}>
+        <DashboardHeader title="WhatsApp Messaging" subtitle="Send & manage client messages" />
+      </div>
 
       {/* ── Native mobile app bar ── */}
       <MobilePageHeader
