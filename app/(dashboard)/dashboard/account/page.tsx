@@ -290,19 +290,19 @@ function SalonProfile() {
         <div style={{ fontSize: 13, fontWeight: 800, color: "#242438", marginBottom: 14 }}>Salon Logo</div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           {/* Preview */}
-          <div style={{
-            width: 80, height: 80, borderRadius: 16, flexShrink: 0, overflow: "hidden",
-            background: form.logo ? "#f0f0f8" : "linear-gradient(135deg, #5B21B6, #9333EA)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            border: "1px solid #e0e0f0",
-          }}>
-            {form.logo
-              ? <img src={form.logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-              : <span style={{ fontSize: 26, fontWeight: 900, color: "#fff" }}>
-                  {(form.name || "S").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}
-                </span>
-            }
-          </div>
+          {form.logo ? (
+            <img src={form.logo} alt="logo" style={{ height: 80, maxWidth: 160, objectFit: "contain", flexShrink: 0, borderRadius: 4 }} />
+          ) : (
+            <div style={{
+              width: 80, height: 80, borderRadius: 16, flexShrink: 0,
+              background: "linear-gradient(135deg, #5B21B6, #9333EA)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span style={{ fontSize: 26, fontWeight: 900, color: "#fff" }}>
+                {(form.name || "S").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}
+              </span>
+            </div>
+          )}
           {/* Actions */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <label style={{

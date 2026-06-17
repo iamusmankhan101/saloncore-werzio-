@@ -52,20 +52,19 @@ function SalonLogo({ name }: { name: string }) {
     .join("");
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-      <div style={{
-        width: 52, height: 52, borderRadius: 16,
-        background: logo ? "#f4f4f8" : "linear-gradient(135deg, #5B21B6, #9333EA)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0,
-        overflow: "hidden",
-        boxShadow: "0 4px 14px rgba(91,33,182,0.30)",
-        border: logo ? "1px solid #e0e0f0" : "none",
-      }}>
-        {logo
-          ? <img src={logo} alt={name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-          : <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.5px" }}>{initials}</span>
-        }
-      </div>
+      {logo ? (
+        <img src={logo} alt={name} style={{ height: 52, maxWidth: 120, objectFit: "contain", flexShrink: 0 }} />
+      ) : (
+        <div style={{
+          width: 52, height: 52, borderRadius: 16,
+          background: "linear-gradient(135deg, #5B21B6, #9333EA)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+          boxShadow: "0 4px 14px rgba(91,33,182,0.30)",
+        }}>
+          <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.5px" }}>{initials}</span>
+        </div>
+      )}
       <div>
         <div style={{ fontSize: 22, fontWeight: 900, color: "#1a1a2e", letterSpacing: "-0.4px", lineHeight: 1.1 }}>{name}</div>
         <div style={{ fontSize: 11, color: "#9898b0", fontWeight: 500, marginTop: 3 }}>Beauty &amp; Wellness</div>
