@@ -10,27 +10,9 @@ import styles from "../auth.module.css";
 
 const PLANS = [
   {
-    id: "free",
-    name: "Werzio Free",
-    price: "PKR 0",
-    icon: Zap,
-    color: "#6b7280",
-    bg: "#f9fafb",
-    badge: "Free Forever",
-    features: [
-      "Point of Sale (POS)",
-      "Appointment booking (up to 30/month)",
-      "Branded web booking page",
-      "Invoicing",
-      "upto 5 staff members",
-      "upto 5 client management",
-      "upto 5 products management/pos",
-    ],
-  },
-  {
     id: "pro",
     name: "Werzio Pro",
-    price: "PKR 6,000",
+    price: "PKR 10,000",
     icon: Building2,
     color: "#7C3AED",
     bg: "#f5f3ff",
@@ -50,7 +32,7 @@ const PLANS = [
   {
     id: "premium",
     name: "Werzio Premium",
-    price: "PKR 10,000",
+    price: "PKR 15,000",
     icon: Crown,
     color: "#9333EA",
     bg: "#faf5ff",

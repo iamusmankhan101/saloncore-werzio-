@@ -91,7 +91,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     name: "Pro",
     label: "Werzio Pro",
     badge: "PRO",
-    price: 6000,
+    price: 10000,
     color: "#7C3AED",
     bg: "#f5f3ff",
     gradient: "linear-gradient(135deg,#5B21B6,#9333EA)",
@@ -131,7 +131,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     name: "Premium",
     label: "Werzio Premium",
     badge: "PREMIUM",
-    price: 10000,
+    price: 15000,
     color: "#9333EA",
     bg: "#faf5ff",
     gradient: "linear-gradient(135deg,#7C3AED,#A855F7)",
@@ -154,7 +154,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
   },
 };
 
-export const ORDERED_PLANS: PlanId[] = ["free", "pro", "premium"];
+export const ORDERED_PLANS: PlanId[] = ["pro", "premium"];
 
 // ─── Active plan helpers ──────────────────────────────────────────────────────
 

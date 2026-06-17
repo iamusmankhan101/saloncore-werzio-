@@ -276,16 +276,16 @@ export default function BillingPage() {
   }
 
   const COMPARISON_ROWS = [
-    { feature: "Appointments",         free: "30 / month",  pro: "Unlimited",    premium: "Unlimited" },
-    { feature: "Staff members",         free: "Up to 5",     pro: "Unlimited",    premium: "Unlimited" },
-    { feature: "Clients",               free: "Up to 5",     pro: "Unlimited",    premium: "Unlimited" },
-    { feature: "POS products",          free: "Up to 5",     pro: "Unlimited",    premium: "Unlimited" },
-    { feature: "Invoicing",             free: "✓",           pro: "✓",            premium: "✓" },
-    { feature: "Revenue analytics",     free: "Basic",       pro: "Full",         premium: "Full" },
-    { feature: "Inventory",             free: "Basic",       pro: "Full",         premium: "Full" },
-    { feature: "WhatsApp automation",   free: "—",           pro: "✓",            premium: "✓" },
-    { feature: "Virtual Try-On (AI)",   free: "—",           pro: "—",            premium: "✓" },
-    { feature: "Price",                 free: "Free",        pro: "PKR 6,000/mo", premium: "PKR 10,000/mo" },
+    { feature: "Appointments",         pro: "Unlimited",       premium: "Unlimited" },
+    { feature: "Staff members",         pro: "Unlimited",       premium: "Unlimited" },
+    { feature: "Clients",               pro: "Unlimited",       premium: "Unlimited" },
+    { feature: "POS products",          pro: "Unlimited",       premium: "Unlimited" },
+    { feature: "Invoicing",             pro: "✓",               premium: "✓" },
+    { feature: "Revenue analytics",     pro: "Full",            premium: "Full" },
+    { feature: "Inventory",             pro: "Full",            premium: "Full" },
+    { feature: "WhatsApp automation",   pro: "✓",               premium: "✓" },
+    { feature: "Virtual Try-On (AI)",   pro: "—",               premium: "✓" },
+    { feature: "Price",                 pro: "PKR 10,000/mo",   premium: "PKR 15,000/mo" },
   ];
 
   return (
@@ -513,17 +513,17 @@ export default function BillingPage() {
           <Shield size={13} color="#9898b0" /> Feature Comparison
         </div>
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingLeft: 16, scrollbarWidth: "none" }}>
-          <div style={{ minWidth: 460, marginRight: 16, background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", padding: "10px 14px", background: "#f4f4fc", borderBottom: "1px solid #f0f0f8" }}>
+          <div style={{ minWidth: 340, marginRight: 16, background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", overflow: "hidden" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", padding: "10px 14px", background: "#f4f4fc", borderBottom: "1px solid #f0f0f8" }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: "#9898b0", textTransform: "uppercase" }}>Feature</div>
               {ORDERED_PLANS.map(p => (
                 <div key={p} style={{ fontSize: 10, fontWeight: 800, color: PLAN_CONFIGS[p].color, textTransform: "uppercase" }}>{PLAN_CONFIGS[p].name}</div>
               ))}
             </div>
             {COMPARISON_ROWS.map((row, i) => (
-              <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", padding: "10px 14px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
+              <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", padding: "10px 14px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>
-                {[row.free, row.pro, row.premium].map((val, j) => (
+                {[row.pro, row.premium].map((val, j) => (
                   <div key={j} style={{ fontSize: 11, fontWeight: val === "—" ? 400 : 600, color: val === "—" ? "#c8c8d8" : val === "✓" || val === "Full" || val === "Unlimited" ? "#059669" : "#4a4a6a" }}>
                     {val}
                   </div>
@@ -641,7 +641,7 @@ export default function BillingPage() {
         <div>
           <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a2e", marginBottom: 6 }}>Choose Your Plan</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 18 }}>Upgrade anytime — pay via EasyPaisa or bank transfer</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
             {ORDERED_PLANS.map(planId => (
               <PlanCard
                 key={planId}
@@ -663,29 +663,29 @@ export default function BillingPage() {
             <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Feature Comparison</div>
           </div>
           {[
-            { feature: "Appointments",         free: "30 / month",  pro: "Unlimited", premium: "Unlimited" },
-            { feature: "Staff members",         free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
-            { feature: "Clients",               free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
-            { feature: "POS products",          free: "Up to 5",     pro: "Unlimited", premium: "Unlimited" },
-            { feature: "Invoicing & receipts",  free: "✓",           pro: "✓",         premium: "✓" },
-            { feature: "Calendar & scheduling", free: "✓",           pro: "✓",         premium: "✓" },
-            { feature: "Revenue analytics",     free: "Basic",       pro: "Full",      premium: "Full" },
-            { feature: "Inventory management",  free: "Basic",       pro: "Full",      premium: "Full" },
-            { feature: "Online booking page",   free: "✓",           pro: "✓",         premium: "✓" },
-            { feature: "WhatsApp automation",   free: "—",           pro: "✓",         premium: "✓" },
-            { feature: "Virtual Try-On (AI)",   free: "—",           pro: "—",         premium: "✓" },
-            { feature: "Price",                 free: "Free",        pro: "PKR 6,000/mo", premium: "PKR 10,000/mo" },
+            { feature: "Appointments",         pro: "Unlimited",      premium: "Unlimited" },
+            { feature: "Staff members",         pro: "Unlimited",      premium: "Unlimited" },
+            { feature: "Clients",               pro: "Unlimited",      premium: "Unlimited" },
+            { feature: "POS products",          pro: "Unlimited",      premium: "Unlimited" },
+            { feature: "Invoicing & receipts",  pro: "✓",              premium: "✓" },
+            { feature: "Calendar & scheduling", pro: "✓",              premium: "✓" },
+            { feature: "Revenue analytics",     pro: "Full",           premium: "Full" },
+            { feature: "Inventory management",  pro: "Full",           premium: "Full" },
+            { feature: "Online booking page",   pro: "✓",              premium: "✓" },
+            { feature: "WhatsApp automation",   pro: "✓",              premium: "✓" },
+            { feature: "Virtual Try-On (AI)",   pro: "—",              premium: "✓" },
+            { feature: "Price",                 pro: "PKR 10,000/mo",  premium: "PKR 15,000/mo" },
           ].map((row, i) => (
-            <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
+            <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>
-              {[row.free, row.pro, row.premium].map((val, j) => (
+              {[row.pro, row.premium].map((val, j) => (
                 <div key={j} style={{ fontSize: 12, color: val === "—" ? "#c8c8d8" : val.startsWith("✓") || val === "Full" || val === "Unlimited" ? "#059669" : "#4a4a6a", fontWeight: val === "—" ? 400 : 600 }}>
                   {val}
                 </div>
               ))}
             </div>
           ))}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", padding: "11px 24px", background: "#f4f4fc" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "11px 24px", background: "#f4f4fc" }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Feature</div>
             {ORDERED_PLANS.map(p => (
               <div key={p} style={{ fontSize: 11, fontWeight: 800, color: PLAN_CONFIGS[p].color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
