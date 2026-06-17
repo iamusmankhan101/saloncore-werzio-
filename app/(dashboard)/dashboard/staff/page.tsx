@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getStoredStaff, saveStaff, getStoredServices, saveServices } from "@/lib/storage";
-import type { Staff, Service, StaffRole } from "@/lib/types";
+import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments } from "@/lib/storage";
+import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
 import { X, Plus, Phone, Briefcase, Scissors, Star, TrendingUp, Check, Edit2 } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
@@ -17,13 +17,16 @@ const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
 
 function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
 
-function getStaffStats(_staffId: string) {
-  return { total: 8, completed: 5, revenue: 15000 };
+function getStaffStats(staffId: string, appointments: Appointment[]) {
+  const staffAppts = appointments.filter((a) => a.staffId === staffId);
+  const completed = staffAppts.filter((a) => a.status === "completed");
+  const revenue = completed.reduce((sum, a) => sum + (a.totalAmount ?? 0), 0);
+  return { total: staffAppts.length, completed: completed.length, revenue };
 }
 
 // ── Detail Panel ──────────────────────────────────────────────────────────────
-function StaffPanel({ staff, onClose, onEdit, servicesList }: { staff: Staff; onClose: () => void; onEdit: () => void; servicesList: Service[] }) {
-  const stats = getStaffStats(staff.id);
+function StaffPanel({ staff, onClose, onEdit, servicesList, appointments }: { staff: Staff; onClose: () => void; onEdit: () => void; servicesList: Service[]; appointments: Appointment[] }) {
+  const stats = getStaffStats(staff.id, appointments);
   const role = ROLE_COLORS[staff.role] ?? { color: "#6b7280", bg: "#f9fafb" };
   const assignedServices = servicesList.filter((s) => s.assignedStaffIds.includes(staff.id));
 
@@ -249,6 +252,7 @@ export default function StaffPage() {
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [servicesList, setServicesList] = useState<Service[]>([]);
+  const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
 
   const plan        = getCurrentPlan();
   const activeCount = staffList.filter(s => s.isActive).length;
@@ -257,6 +261,7 @@ export default function StaffPage() {
   useEffect(() => {
     setStaffList(getStoredStaff());
     setServicesList(getStoredServices());
+    setAppointmentsList(getStoredAppointments());
   }, []);
 
   const handleSaveStaff = (savedStaff: Staff, assignedServiceIds: string[]) => {
@@ -295,10 +300,11 @@ export default function StaffPage() {
     <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
 
       {selected && (
-        <StaffPanel 
-          staff={selected} 
+        <StaffPanel
+          staff={selected}
           servicesList={servicesList}
-          onClose={() => setSelected(null)} 
+          appointments={appointmentsList}
+          onClose={() => setSelected(null)}
           onEdit={() => {
             setEditingStaff(selected);
           }}
@@ -354,7 +360,7 @@ export default function StaffPage() {
       {/* Cards grid */}
       <div className="cards-grid-auto">
         {staffList.map((s) => {
-          const stats = getStaffStats(s.id);
+          const stats = getStaffStats(s.id, appointmentsList);
           const role = ROLE_COLORS[s.role] ?? { color: "#6b7280", bg: "#f9fafb" };
           return (
             <div
