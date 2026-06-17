@@ -20,6 +20,7 @@ const defaults = {
     city: "Karachi",
     currency: "PKR",
     timezone: "Asia/Karachi",
+    logo: "",
   },
   botsailor: {
     apiToken: "",

@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Printer, CheckCircle } from "lucide-react";
 import type { SalonInvoice } from "@/lib/salon-invoices";
+import { settingsStore } from "@/lib/settings-store";
 
 // ─── Formatting helpers ───────────────────────────────────────────────────────
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -42,6 +43,7 @@ const STATUS_STYLE = {
 // ─── Salon Logo (initials + name) ─────────────────────────────────────────────
 
 function SalonLogo({ name }: { name: string }) {
+  const logo = (settingsStore.salon as { logo?: string }).logo || "";
   const initials = name
     .split(" ")
     .filter(Boolean)
@@ -52,12 +54,17 @@ function SalonLogo({ name }: { name: string }) {
     <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
       <div style={{
         width: 52, height: 52, borderRadius: 16,
-        background: "linear-gradient(135deg, #5B21B6, #9333EA)",
+        background: logo ? "#f4f4f8" : "linear-gradient(135deg, #5B21B6, #9333EA)",
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0,
+        overflow: "hidden",
         boxShadow: "0 4px 14px rgba(91,33,182,0.30)",
+        border: logo ? "1px solid #e0e0f0" : "none",
       }}>
-        <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.5px" }}>{initials}</span>
+        {logo
+          ? <img src={logo} alt={name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          : <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.5px" }}>{initials}</span>
+        }
       </div>
       <div>
         <div style={{ fontSize: 22, fontWeight: 900, color: "#1a1a2e", letterSpacing: "-0.4px", lineHeight: 1.1 }}>{name}</div>

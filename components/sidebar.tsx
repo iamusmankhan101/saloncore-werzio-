@@ -34,6 +34,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [salonName, setSalonName] = useState("Werzio Salon");
+  const [salonLogo, setSalonLogo] = useState("");
   const [planBadge, setPlanBadge] = useState({ badge: "FREE", color: "#6b7280", bg: "#f9fafb" });
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       reloadSettings();
       setUser(getCurrentUser());
       setSalonName(settingsStore.salon.name || getCurrentUser()?.salonName || "Werzio Salon");
+      setSalonLogo((settingsStore.salon as { logo?: string }).logo || "");
       const plan = getCurrentPlan();
       setPlanBadge({ badge: plan.badge, color: plan.color, bg: plan.bg });
     }
@@ -128,12 +130,16 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       <div style={{ padding: "14px 16px", borderBottom: "1px solid #1e1e2c", display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
           width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-          background: "linear-gradient(135deg, #5B21B6, #9333EA)",
+          background: salonLogo ? "#fff" : "linear-gradient(135deg, #5B21B6, #9333EA)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 13, fontWeight: 800, color: "#fff",
           boxShadow: "0 2px 8px rgba(91,33,182,0.45)",
+          overflow: "hidden",
         }}>
-          {initials}
+          {salonLogo
+            ? <img src={salonLogo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            : initials
+          }
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: "#f0f0f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{salonName}</div>

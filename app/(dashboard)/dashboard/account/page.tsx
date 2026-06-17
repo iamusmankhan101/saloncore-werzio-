@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Check, ChevronLeft, ChevronRight, Clock, LogOut, Save, Shield, Smartphone, Store, User, Wand2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Clock, ImageIcon, LogOut, Save, Shield, Smartphone, Store, Trash2, User, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
@@ -18,6 +18,7 @@ interface SalonSettings {
   city: string;
   currency: string;
   timezone: string;
+  logo: string;
 }
 
 interface BusinessHour {
@@ -215,6 +216,27 @@ function ProfileSection() {
   );
 }
 
+// ─── Logo resize helper ───────────────────────────────────────────────────────
+
+function resizeImage(file: File, maxSize = 300): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.src = e.target!.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 // ─── Salon Settings ────────────────────────────────────────────────────────────
 
 function SalonProfile() {
@@ -252,9 +274,62 @@ function SalonProfile() {
     window.setTimeout(() => setSaved(false), 2200);
   }
 
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const dataUrl = await resizeImage(file);
+    setForm((f) => ({ ...f, logo: dataUrl }));
+  }
+
   return (
     <section>
       <h2 style={{ margin: "0 0 26px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Salon Profile</h2>
+
+      {/* Logo upload */}
+      <div style={{ marginBottom: 28, padding: "20px 22px", background: "#fafafd", border: "1px solid #eeeeF6", borderRadius: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#242438", marginBottom: 14 }}>Salon Logo</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          {/* Preview */}
+          <div style={{
+            width: 80, height: 80, borderRadius: 16, flexShrink: 0, overflow: "hidden",
+            background: form.logo ? "#f0f0f8" : "linear-gradient(135deg, #5B21B6, #9333EA)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            border: "1px solid #e0e0f0",
+          }}>
+            {form.logo
+              ? <img src={form.logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              : <span style={{ fontSize: 26, fontWeight: 900, color: "#fff" }}>
+                  {(form.name || "S").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}
+                </span>
+            }
+          </div>
+          {/* Actions */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <label style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "9px 18px", borderRadius: 9, cursor: "pointer",
+              background: "var(--accent)", color: "#fff", fontSize: 12, fontWeight: 700,
+            }}>
+              <ImageIcon size={14} />
+              {form.logo ? "Change Logo" : "Upload Logo"}
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogoUpload} />
+            </label>
+            {form.logo && (
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, logo: "" }))}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 9, cursor: "pointer", background: "#fff", border: "1px solid #fecaca", color: "#dc2626", fontSize: 12, fontWeight: 700 }}
+              >
+                <Trash2 size={14} /> Remove Logo
+              </button>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: "#9999b0", lineHeight: 1.6 }}>
+            Appears on invoices and sidebar.<br />PNG or JPG recommended.<br />Max displayed size: 300×300 px.
+          </div>
+        </div>
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px 18px" }}>
         <Field label="Salon Name"><input style={inputStyle} value={form.name} onChange={(event) => setField("name", event.target.value)} /></Field>
         <Field label="Phone"><input style={inputStyle} value={form.phone} onChange={(event) => setField("phone", event.target.value)} /></Field>
