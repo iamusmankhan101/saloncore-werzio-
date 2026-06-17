@@ -242,7 +242,7 @@ export default function SignUpPage() {
                             </div>
                             <div>
                               <div style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e" }}>{p.name}</div>
-                              <div style={{ fontSize: 12, color: p.color, fontWeight: 700 }}>{p.price}{p.id !== "free" && <span style={{ color: "#9898b0", fontWeight: 400 }}>/mo after trial</span>}</div>
+                              <div style={{ fontSize: 12, color: p.color, fontWeight: 700 }}>{p.price}<span style={{ color: "#9898b0", fontWeight: 400 }}>/mo after trial</span></div>
                             </div>
                           </div>
                           <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${selected ? p.color : "#d1d5db"}`, background: selected ? p.color : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
