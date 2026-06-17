@@ -2,8 +2,9 @@
 
 import { APPOINTMENTS, REVENUE_LAST_7_DAYS, CLIENTS, STAFF } from "@/lib/mock-data";
 
-const TODAY = "2026-03-21";
-const fmt = (n: number) => "PKR " + n.toLocaleString("en-PK");
+import { fmtCurrency as fmt } from "@/lib/format";
+
+const TODAY = new Date().toISOString().slice(0, 10);
 
 const STATUS_COLORS: Record<string, string> = {
   completed:     "#16a34a",

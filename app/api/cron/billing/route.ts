@@ -27,6 +27,8 @@ import {
   logBillingRun,
   addDays,
   isInTrial,
+  BILLING_CYCLE_DAYS,
+  SUSPENSION_GRACE_DAYS,
   type BillingUser,
   type BillingInvoice,
 } from "@/lib/billing-db";
@@ -86,7 +88,7 @@ function invoiceBox(inv: BillingInvoice, accentColor = "#7C3AED"): string {
     </div>
     <div style="display:flex;justify-content:space-between;margin-bottom:8px">
       <span style="color:#9898b0;font-size:12px">Billing Period</span>
-      <span style="color:#1a1a2e;font-size:13px;font-weight:600">${fmtDate(inv.periodStart)} – ${fmtDate(addDays(inv.periodStart, 30))}</span>
+      <span style="color:#1a1a2e;font-size:13px;font-weight:600">${fmtDate(inv.periodStart)} – ${fmtDate(addDays(inv.periodStart, BILLING_CYCLE_DAYS))}</span>
     </div>
     <div style="display:flex;justify-content:space-between;margin-bottom:8px">
       <span style="color:#9898b0;font-size:12px">Due Date</span>
@@ -113,7 +115,7 @@ function issuedEmail(user: BillingUser, inv: BillingInvoice) {
         Please log in to your <strong>Werzio Dashboard → Billing</strong> and submit your payment within 10 days to avoid any interruption in service.
       </p>`,
     ),
-    text: `Hi ${user.ownerName},\n\nYour ${user.planName} Plan invoice ${inv.number} has been issued.\nPeriod: ${fmtDate(inv.periodStart)} – ${fmtDate(addDays(inv.periodStart, 30))}\nAmount: ${fmt(inv.amount)}\nDue: ${fmtDate(inv.dueDate)}\n\nLog in to Werzio → Billing to submit payment.\n\n— Werzio`,
+    text: `Hi ${user.ownerName},\n\nYour ${user.planName} Plan invoice ${inv.number} has been issued.\nPeriod: ${fmtDate(inv.periodStart)} – ${fmtDate(addDays(inv.periodStart, BILLING_CYCLE_DAYS))}\nAmount: ${fmt(inv.amount)}\nDue: ${fmtDate(inv.dueDate)}\n\nLog in to Werzio → Billing to submit payment.\n\n— Werzio`,
   };
 }
 
@@ -236,7 +238,7 @@ async function runDaily(resend: Resend): Promise<{ invoicesGenerated: number; em
     }
 
     // ── Step 3: Suspend if unpaid 10+ days after due_date ──────────────────
-    const suspendAfter = addDays(inv.dueDate, 10); // 20 days total from invoice
+    const suspendAfter = addDays(inv.dueDate, SUSPENSION_GRACE_DAYS);
     if (today >= suspendAfter && !user.suspended) {
       await suspendUser(user.id, `Invoice ${inv.number} unpaid for 20+ days. Suspended on ${today}.`);
       usersSuspended++;

@@ -11,7 +11,7 @@ import {
   TrendingUp, CalendarDays, CreditCard, Wallet, ChevronLeft,
 } from "lucide-react";
 
-const fmt  = (n: number) => "PKR " + Math.round(n).toLocaleString("en-PK");
+import { fmtCurrency as fmt } from "@/lib/format";
 const fmtK = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
   : n >= 1_000   ? `${Math.round(n / 1_000)}K`

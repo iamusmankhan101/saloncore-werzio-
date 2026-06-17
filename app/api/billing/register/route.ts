@@ -6,20 +6,17 @@
 
 import { NextRequest } from "next/server";
 import { ensureBillingTables, upsertBillingUser } from "@/lib/billing-db";
+import { PLAN_CONFIGS } from "@/lib/plan-limits";
 
-const PLAN_PRICES: Record<string, number> = {
-  free:    0,
-  pro:     6000,
-  basic:   6000,  // legacy support
-  premium: 10000,
-};
+function getPlanPrice(planId: string): number {
+  if (planId === "basic") return PLAN_CONFIGS.pro.price; // legacy alias
+  return PLAN_CONFIGS[planId as keyof typeof PLAN_CONFIGS]?.price ?? 0;
+}
 
-const PLAN_NAMES: Record<string, string> = {
-  free:    "Free",
-  pro:     "Pro",
-  basic:   "Pro",  // legacy support
-  premium: "Premium",
-};
+function getPlanName(planId: string): string {
+  if (planId === "basic") return PLAN_CONFIGS.pro.name; // legacy alias
+  return PLAN_CONFIGS[planId as keyof typeof PLAN_CONFIGS]?.name ?? planId;
+}
 
 export async function POST(req: NextRequest) {
   let body: {
@@ -43,9 +40,9 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: false, error: "Missing required fields." }, { status: 400 });
   }
 
-  const planPrice = PLAN_PRICES[planId];
-  const planName  = PLAN_NAMES[planId];
-  if (!planPrice) {
+  const planPrice = getPlanPrice(planId);
+  const planName  = getPlanName(planId);
+  if (!PLAN_CONFIGS[planId as keyof typeof PLAN_CONFIGS] && planId !== "basic") {
     return Response.json({ ok: false, error: `Unknown plan: ${planId}` }, { status: 400 });
   }
 

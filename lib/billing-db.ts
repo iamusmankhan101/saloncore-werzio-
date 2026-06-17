@@ -16,6 +16,12 @@
 
 import { db } from "@/lib/db";
 
+// ─── Billing constants ────────────────────────────────────────────────────────
+export const TRIAL_DAYS = 14;
+export const BILLING_CYCLE_DAYS = 30;
+export const INVOICE_DUE_DAYS = 10;
+export const SUSPENSION_GRACE_DAYS = 10; // extra days after due before suspension
+
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 export async function ensureBillingTables(): Promise<void> {
@@ -168,14 +174,14 @@ function daysDiff(a: string, b: string): number {
 }
 
 /**
- * Compute the billing anchor: trial_start + 14 days.
+ * Compute the billing anchor: trial_start + TRIAL_DAYS.
  * This is the date the very first invoice is issued.
  */
 export function computeBillingAnchor(trialStart: string): string {
-  return addDays(trialStart, 14);
+  return addDays(trialStart, TRIAL_DAYS);
 }
 
-/** Returns true if today is still within the 14-day trial. */
+/** Returns true if today is still within the trial period. */
 export function isInTrial(trialStart: string): boolean {
   const today  = new Date().toISOString().slice(0, 10);
   const anchor = computeBillingAnchor(trialStart);
@@ -190,8 +196,8 @@ export function currentPeriodStart(anchor: string, today?: string): string | nul
   const t = today ?? new Date().toISOString().slice(0, 10);
   const elapsed = daysDiff(t, anchor);
   if (elapsed < 0) return null;                        // still in trial
-  const cycleIndex = Math.floor(elapsed / 30);
-  return addDays(anchor, cycleIndex * 30);
+  const cycleIndex = Math.floor(elapsed / BILLING_CYCLE_DAYS);
+  return addDays(anchor, cycleIndex * BILLING_CYCLE_DAYS);
 }
 
 // ─── Billing Users ─────────────────────────────────────────────────────────────
@@ -286,7 +292,7 @@ export async function getOrCreate30DayInvoice(
   }
 
   // Create new invoice
-  const dueDate = addDays(periodStart, 10);   // 10 days to pay
+  const dueDate = addDays(periodStart, INVOICE_DUE_DAYS);
   const now     = new Date().toISOString();
 
   await db.execute({

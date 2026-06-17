@@ -18,7 +18,7 @@ import MobilePageHeader from "@/components/mobile-page-header";
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
-function fmt(n: number) { return "PKR " + Math.round(n).toLocaleString("en-PK"); }
+import { fmtCurrency as fmt } from "@/lib/format";
 function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-PK", { month: "short", day: "numeric", year: "numeric" });
 }

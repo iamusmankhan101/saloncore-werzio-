@@ -13,7 +13,7 @@ import {
 } from "@/lib/payment-requests";
 import { getInvoices, markInvoicePaid } from "@/lib/invoices";
 
-function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
+import { fmtCurrency as fmt } from "@/lib/format";
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });

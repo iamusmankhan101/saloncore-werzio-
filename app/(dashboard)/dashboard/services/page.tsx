@@ -12,7 +12,7 @@ const CATEGORY_LABELS: Record<string, { label: string; bg: string; color: string
   bridal: { label: "Bridal",    bg: "#fdf2f8", color: "#db2777" },
 };
 
-function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
+import { fmtCurrency as fmt } from "@/lib/format";
 
 // ── Add/Edit Service Modal ────────────────────────────────────────────────────
 function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {

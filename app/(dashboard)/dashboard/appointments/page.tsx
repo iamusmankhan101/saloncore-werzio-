@@ -19,7 +19,7 @@ const STATUS: Record<AppointmentStatus, { label: string; color: string; bg: stri
 
 const ALL_STATUSES = Object.keys(STATUS) as AppointmentStatus[];
 
-function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
+import { fmtCurrency as fmt } from "@/lib/format";
 
 function fmtDate(s: string) {
   const [y, m, d] = s.split("-").map(Number);

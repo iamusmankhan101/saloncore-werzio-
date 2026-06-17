@@ -16,10 +16,7 @@ import { X, Printer, CheckCircle } from "lucide-react";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 
 // ─── Formatting helpers ───────────────────────────────────────────────────────
-
-function fmt(n: number): string {
-  return "PKR " + Math.round(n).toLocaleString("en-PK");
-}
+import { fmtCurrency as fmt } from "@/lib/format";
 
 function fmtDate(d: string): string {
   return new Date(d + "T00:00:00").toLocaleDateString("en-PK", {

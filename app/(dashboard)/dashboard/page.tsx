@@ -7,8 +7,7 @@ import type { AppointmentStatus, Appointment, Client, Staff } from "@/lib/types"
 import Link from "next/link";
 import DashboardHeader from "@/components/dashboard-header";
 import { MoreHorizontal } from "lucide-react";
-
-const fmt = (n: number) => "PKR " + n.toLocaleString("en-PK");
+import { fmtCurrency as fmt } from "@/lib/format";
 
 const STATUS_CONFIG: Record<AppointmentStatus, { label: string; color: string; bg: string }> = {
   booked:        { label: "Booked",      color: "#6366f1", bg: "#EEF2FF" },

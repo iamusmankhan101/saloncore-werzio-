@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getStoredAppointments, getStoredStaff, getStoredServices } from "@/lib/storage";
 import type { AppointmentStatus, Appointment, Staff, Service } from "@/lib/types";
 import { ChevronLeft, ChevronRight, X, Clock, User, Scissors, Phone, Tag } from "lucide-react";
+import { fmtCurrency as fmt } from "@/lib/format";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 0–23
 const SLOT_H = 56;
@@ -47,10 +48,6 @@ function fmtTime(t: string) {
   const ampm = h < 12 ? "am" : "pm";
   const hour = h % 12 === 0 ? 12 : h % 12;
   return `${hour}:${String(m).padStart(2, "0")}${ampm}`;
-}
-
-function fmt(n: number) {
-  return "PKR " + n.toLocaleString("en-PK");
 }
 
 function Block({ appt, onClick, staffList }: { appt: Appointment; onClick: () => void; staffList: Staff[] }) {

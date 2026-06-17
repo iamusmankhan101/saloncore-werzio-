@@ -14,6 +14,7 @@ import {
 } from "@/lib/storage";
 import type { Appointment, Client, Staff, Service } from "@/lib/types";
 import { settingsStore } from "@/lib/settings-store";
+import { fmtCurrency as fmt } from "@/lib/format";
 
 interface BusinessHour {
   day: string;
@@ -33,10 +34,6 @@ const selectStyle: React.CSSProperties = {
   outline: "none",
   background: "#fff",
 };
-
-function fmt(n: number) {
-  return "PKR " + n.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function fmtDate(s: string) {
   const [y, m, d] = s.split("-").map(Number);

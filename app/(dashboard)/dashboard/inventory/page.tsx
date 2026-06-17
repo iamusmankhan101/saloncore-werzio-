@@ -26,11 +26,13 @@ const CATEGORY_CONFIG: Record<InventoryCategory, { label: string; color: string;
 const UNITS: InventoryUnit[]      = ["ml", "g", "pcs", "box", "bottle", "tube"];
 const CATEGORIES = Object.keys(CATEGORY_CONFIG) as InventoryCategory[];
 
-const fmt  = (n: number) => "PKR " + Math.round(n).toLocaleString("en-PK");
-const fmtV = (n: number) =>
-  n >= 1_000_000 ? `PKR ${(n / 1_000_000).toFixed(1)}M`
-  : n >= 1_000   ? `PKR ${Math.round(n / 1_000)}K`
-  : fmt(n);
+import { fmtCurrency as fmt } from "@/lib/format";
+const fmtV = (n: number) => {
+  const currency = settingsStore.salon.currency || "PKR";
+  return n >= 1_000_000 ? `${currency} ${(n / 1_000_000).toFixed(1)}M`
+    : n >= 1_000   ? `${currency} ${Math.round(n / 1_000)}K`
+    : fmt(n);
+};
 
 function stockStatus(item: InventoryItem): "out" | "low" | "ok" {
   if (item.currentStock === 0)              return "out";

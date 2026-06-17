@@ -22,7 +22,7 @@ const TAG_COLORS: Record<string, { color: string; bg: string }> = {
   "At-Risk":{ color: "#dc2626", bg: "#fef2f2" },
 };
 
-function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
+import { fmtCurrency as fmt } from "@/lib/format";
 
 function fmtDate(s?: string) {
   if (!s) return "—";

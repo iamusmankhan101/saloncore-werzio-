@@ -15,7 +15,7 @@ const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   trainee:         { color: "#6b7280", bg: "#f9fafb" },
 };
 
-function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
+import { fmtCurrency as fmt } from "@/lib/format";
 
 function getStaffStats(staffId: string, appointments: Appointment[]) {
   const staffAppts = appointments.filter((a) => a.staffId === staffId);
