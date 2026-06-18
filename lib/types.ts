@@ -64,6 +64,7 @@ export interface Client {
   totalSpend: number;
   lastVisitDate?: string;
   averageRating?: number;
+  notes?: string;
 }
 
 export interface BeautyProfile {

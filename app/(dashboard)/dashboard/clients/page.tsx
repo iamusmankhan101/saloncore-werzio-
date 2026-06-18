@@ -275,7 +275,7 @@ function InfoLine({ icon, label }: { icon: React.ReactNode; label: string }) {
 // ── Add Client Modal ──────────────────────────────────────────────────────────
 function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (c: Client) => void }) {
   const [done, setDone] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "" });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", notes: "" });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const canSubmit = form.name && form.phone;
 
@@ -295,6 +295,7 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (c: Cl
       totalSpend: 0,
       lastVisitDate: "",
       averageRating: 0.0,
+      notes: form.notes || undefined,
     };
     onAdd(newClient);
     setDone(true);
@@ -345,6 +346,16 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (c: Cl
                 {Object.keys(TAG_COLORS).map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Notes & Preferences</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => set("notes", e.target.value)}
+              placeholder="e.g. Sensitive scalp, prefers morning appointments, no strong fragrances…"
+              rows={3}
+              style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+            />
           </div>
           <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
             <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
