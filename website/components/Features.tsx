@@ -67,13 +67,23 @@ function ClientPreview() {
           {label:"Hair Formula", val:"Loreal 7.3 + 20vol", c:"#7c3aed"},
           {label:"Skin Type",    val:"Oily Combination"},
           {label:"Allergy",      val:"⚠ PPD Dye", c:"#ef4444"},
-          {label:"Lifetime Value",val:"₨ 186,000"},
+          {label:"Notes",        val:"Sensitive scalp · prefers Zara", c:"#6b7280"},
         ].map(r=>(
           <div key={r.label} className={styles.clientRow}>
             <span className={styles.clientLabel}>{r.label}</span>
-            <span className={styles.clientVal} style={{color:(r as {c?:string}).c}}>{r.val}</span>
+            <span className={styles.clientVal} style={{color:(r as {c?:string}).c, fontStyle: r.label==="Notes"?"italic":undefined}}>{r.val}</span>
           </div>
         ))}
+        <div className={styles.beforeAfterStrip}>
+          <div className={styles.beforeAfterHalf}>
+            <div className={styles.beforeAfterBefore} />
+            <span>Before</span>
+          </div>
+          <div className={styles.beforeAfterHalf}>
+            <div className={styles.beforeAfterAfter} />
+            <span>After</span>
+          </div>
+        </div>
       </div>
     </div>
   );

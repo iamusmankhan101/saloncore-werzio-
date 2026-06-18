@@ -516,6 +516,38 @@
 .clientLabel { font-size: 0.62rem; color: #9ca3af; flex-shrink: 0; }
 .clientVal   { font-size: 0.63rem; font-weight: 700; color: #111827; text-align: right; }
 
+.beforeAfterStrip {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.beforeAfterHalf {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.beforeAfterHalf span {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.beforeAfterBefore {
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #e5e7eb, #d1d5db);
+}
+
+.beforeAfterAfter {
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #ede9fe, #c4b5fd);
+}
+
 /* ════════════════════════════════════
    7. STAFF MANAGEMENT PREVIEW
 ════════════════════════════════════ */

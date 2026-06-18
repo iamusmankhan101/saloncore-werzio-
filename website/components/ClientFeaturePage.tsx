@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowRight, Users, Search, Tag,
-  AlertTriangle, Heart, BarChart2, Globe,
+  AlertTriangle, Heart, Globe, Camera, Download,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -181,10 +181,10 @@ function TagsSourcePanel() {
 
 function VisitHistoryPanel() {
   const visits = [
-    { service: "Hair Color",       staff: "Zara K.",  date: "28 May", amt: "PKR 4,500" },
-    { service: "Keratin Treatment",staff: "Zara K.",  date: "14 Apr", amt: "PKR 6,000" },
-    { service: "Hydra Facial",     staff: "Nida M.",  date: "2 Mar",  amt: "PKR 3,200" },
-    { service: "Bridal Trial",     staff: "Ayesha M.",date: "18 Feb", amt: "PKR 12,000" },
+    { service: "Hair Color",        staff: "Zara K.",   date: "28 May", amt: "PKR 4,500",  photos: 2 },
+    { service: "Keratin Treatment", staff: "Zara K.",   date: "14 Apr", amt: "PKR 6,000",  photos: 2 },
+    { service: "Hydra Facial",      staff: "Nida M.",   date: "2 Mar",  amt: "PKR 3,200",  photos: 0 },
+    { service: "Bridal Trial",      staff: "Ayesha M.", date: "18 Feb", amt: "PKR 12,000", photos: 4 },
   ];
   return (
     <div className={styles.staffPanel}>
@@ -198,6 +198,17 @@ function VisitHistoryPanel() {
             <strong style={{ fontSize: "0.84rem", color: "#17112a" }}>{v.service}</strong>
             <span style={{ fontSize: "0.68rem" }}>{v.staff} · {v.date}</span>
           </div>
+          {v.photos > 0 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 20, background: "#ede9fe", marginRight: 8, cursor: "pointer" }}>
+              <Camera size={10} color="#7c3aed" />
+              <span style={{ fontSize: "0.6rem", fontWeight: 700, color: "#7c3aed" }}>{v.photos}</span>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 20, background: "#f3f4f6", marginRight: 8, cursor: "pointer" }}>
+              <Camera size={10} color="#9ca3af" />
+              <span style={{ fontSize: "0.6rem", fontWeight: 600, color: "#9ca3af" }}>Add</span>
+            </div>
+          )}
           <em style={{ color: "#059669", fontStyle: "normal", fontWeight: 900, fontSize: "0.78rem" }}>{v.amt}</em>
         </div>
       ))}
@@ -234,6 +245,121 @@ function LifetimeValuePanel() {
   );
 }
 
+function NotesPreferencesPanel() {
+  return (
+    <div className={styles.checkoutPanel}>
+      <div style={{ fontSize: "0.78rem", fontWeight: 900, color: "#17112a", marginBottom: 12 }}>
+        Notes &amp; Preferences — Sana Nawaz
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: "0.62rem", fontWeight: 900, color: "#7c3aed", textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 6 }}>Staff Notes</div>
+        <div style={{ background: "#f5f3ff", border: "1px solid #ede9fe", borderRadius: 8, padding: "9px 10px", fontSize: "0.72rem", color: "#374151", lineHeight: 1.55 }}>
+          Prefers Zara for all colour services. Sensitive scalp — use cool water during rinse. Always offer green tea on arrival.
+        </div>
+      </div>
+      <div style={{ fontSize: "0.62rem", fontWeight: 900, color: "#7c3aed", textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 6 }}>Preferences</div>
+      {[
+        { label: "Preferred stylist", value: "Zara Khan" },
+        { label: "Appointment time",  value: "Weekday mornings" },
+        { label: "Contact via",       value: "WhatsApp" },
+        { label: "Fragrance",         value: "No strong fragrances" },
+      ].map((r) => (
+        <div key={r.label} className={styles.checkoutBody}>
+          <div>
+            <span>{r.label}</span>
+            <strong style={{ color: "#17112a" }}>{r.value}</strong>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BeforeAfterPanel() {
+  const visits = [
+    { label: "Hair Color",        date: "28 May", active: true,  photos: 2 },
+    { label: "Keratin Treatment", date: "14 Apr", active: false, photos: 2 },
+    { label: "Bridal Trial",      date: "18 Feb", active: false, photos: 4 },
+  ];
+  return (
+    <div className={styles.staffPanel}>
+      {/* visit selector */}
+      <div style={{ display: "flex", gap: 5, marginBottom: 10, flexWrap: "wrap" as const }}>
+        {visits.map((v) => (
+          <div key={v.label} style={{
+            display: "flex", alignItems: "center", gap: 4,
+            padding: "4px 9px", borderRadius: 20, cursor: "pointer",
+            background: v.active ? "#7c3aed" : "#f3f4f6",
+            border: `1px solid ${v.active ? "#7c3aed" : "#e5e7eb"}`,
+          }}>
+            <Camera size={9} color={v.active ? "#fff" : "#9ca3af"} />
+            <span style={{ fontSize: "0.6rem", fontWeight: 700, color: v.active ? "#fff" : "#6b7280" }}>
+              {v.label} · {v.date}
+            </span>
+            <span style={{ fontSize: "0.55rem", fontWeight: 700, color: v.active ? "#c4b5fd" : "#9ca3af" }}>
+              {v.photos}
+            </span>
+          </div>
+        ))}
+      </div>
+      {/* active visit label */}
+      <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#7c3aed", marginBottom: 6 }}>
+        Hair Color · 28 May 2026 · Zara K.
+      </div>
+      {/* before / after photos */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+        <div style={{ borderRadius: 10, overflow: "hidden", position: "relative" }}>
+          <div style={{ height: 80, background: "linear-gradient(135deg, #e5e7eb, #d1d5db)" }} />
+          <span style={{ position: "absolute", bottom: 5, left: 6, fontSize: "0.6rem", fontWeight: 800, color: "#374151", background: "rgba(255,255,255,0.9)", padding: "2px 7px", borderRadius: 20 }}>Before</span>
+        </div>
+        <div style={{ borderRadius: 10, overflow: "hidden", position: "relative" }}>
+          <div style={{ height: 80, background: "linear-gradient(135deg, #ede9fe, #c4b5fd)" }} />
+          <span style={{ position: "absolute", bottom: 5, left: 6, fontSize: "0.6rem", fontWeight: 800, color: "#7c3aed", background: "rgba(255,255,255,0.9)", padding: "2px 7px", borderRadius: 20 }}>After</span>
+        </div>
+      </div>
+      {/* upload prompt */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px", borderRadius: 8, background: "#f5f3ff", border: "1px dashed #a78bfa", cursor: "pointer" }}>
+        <Camera size={12} color="#7c3aed" />
+        <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#7c3aed" }}>Upload photos for this visit</span>
+      </div>
+    </div>
+  );
+}
+
+function ExportPanel() {
+  return (
+    <div className={styles.checkoutPanel}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <span style={{ fontSize: "0.78rem", fontWeight: 900, color: "#17112a" }}>Client Report</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: "#7c3aed", cursor: "pointer" }}>
+          <Download size={12} color="#fff" />
+          <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "#fff" }}>Export PDF</span>
+        </div>
+      </div>
+      <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
+        <div style={{ background: "#7c3aed", padding: "10px 14px" }}>
+          <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#fff" }}>Sana Nawaz — Client Report</div>
+          <div style={{ fontSize: "0.6rem", color: "#c4b5fd" }}>Generated 18 Jun 2026</div>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          {[
+            { label: "Total visits",          value: "24" },
+            { label: "Lifetime spend",         value: "PKR 1,86,000" },
+            { label: "Services used",          value: "Hair, Facial, Nails" },
+            { label: "Before/after photos",    value: "8 photos" },
+            { label: "Allergy alerts",         value: "PPD Dye" },
+          ].map((r) => (
+            <div key={r.label} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", padding: "4px 0", borderBottom: "1px solid #f3f4f6" }}>
+              <span style={{ color: "#9ca3af" }}>{r.label}</span>
+              <strong style={{ color: "#17112a" }}>{r.value}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── feature rows ───────────────────────────────────────── */
 const rows = [
   {
@@ -255,6 +381,12 @@ const rows = [
     visual: <BeautyProfilePanel />,
   },
   {
+    eyebrow: "Notes & preferences",
+    title: "Keep private notes and service preferences for every client",
+    body: "Add free-text staff notes to any client profile — record sensitivities, personal preferences, special instructions, and anything your team needs before the appointment. Notes are visible at booking and checkout so nothing gets missed across shift changes.",
+    visual: <NotesPreferencesPanel />,
+  },
+  {
     eyebrow: "Tags and sources",
     title: "Segment clients by value, status, and how they found you",
     body: "Tag every client as VIP, Regular, Bridal, New, or At-Risk. Track their booking source as WhatsApp, walk-in, web, or manual. Filter the full client list by any combination of tag and source to spot patterns and prioritise outreach.",
@@ -265,6 +397,18 @@ const rows = [
     title: "See every past appointment, service, stylist, and amount",
     body: "The visit history panel shows the last 8 completed appointments for each client — service name, attending stylist, date, and amount paid. Upcoming appointments are listed separately so your front desk sees the full picture before a client arrives.",
     visual: <VisitHistoryPanel />,
+  },
+  {
+    eyebrow: "Before & after photos",
+    title: "Attach before & after photos to every single visit",
+    body: "Each visit in a client's history has its own before & after photo slot. Upload photos from any device during or after the appointment — they are saved against that specific visit, service, and stylist. Switch between visits to compare results over time, and use them for consultations, portfolio building, or WhatsApp promotions.",
+    visual: <BeforeAfterPanel />,
+  },
+  {
+    eyebrow: "PDF export",
+    title: "Export any client's full profile as a polished PDF report",
+    body: "Generate a one-click PDF report for any client — including visit history, lifetime spend, beauty profile, allergy alerts, service breakdown, and before/after photo count. Share it with the client, use it for VIP outreach, or keep it for your records.",
+    visual: <ExportPanel />,
   },
 ];
 
@@ -341,6 +485,16 @@ export default function ClientFeaturePage() {
             <span>Red warning shown to staff any time a client with allergies is booked.</span>
           </div>
           <div>
+            <Search size={19} />
+            <strong>Notes &amp; preferences</strong>
+            <span>Free-text staff notes and service preferences visible at booking and checkout.</span>
+          </div>
+          <div>
+            <Camera size={19} />
+            <strong>Before &amp; after photos</strong>
+            <span>Photos linked to each visit, service, and stylist for easy reference.</span>
+          </div>
+          <div>
             <Tag size={19} />
             <strong>5 client tags</strong>
             <span>VIP, Regular, Bridal, New, At-Risk — filter and segment your whole list.</span>
@@ -349,6 +503,11 @@ export default function ClientFeaturePage() {
             <Globe size={19} />
             <strong>Source tracking</strong>
             <span>Know if each client came via WhatsApp, walk-in, web booking, or manual entry.</span>
+          </div>
+          <div>
+            <Download size={19} />
+            <strong>PDF export</strong>
+            <span>One-click client report with visit history, spend, photos, and allergy alerts.</span>
           </div>
         </section>
       </main>
