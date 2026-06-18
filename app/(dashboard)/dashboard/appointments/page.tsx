@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
-import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart } from "lucide-react";
+import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
 
@@ -96,6 +96,13 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
 }) {
   const [currentStatus, setCurrentStatus] = useState<AppointmentStatus>(appt.status);
   const cfg          = STATUS[currentStatus];
+  const [photos, setPhotos] = useState<{ before?: string; after?: string }>({});
+
+  const handlePhotoUpload = (side: "before" | "after", file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => setPhotos((p) => ({ ...p, [side]: e.target?.result as string }));
+    reader.readAsDataURL(file);
+  };
   const staff        = staffList.find((s) => s.id === appt.staffId);
   const services     = allServices.filter((s) => appt.serviceIds.includes(s.id));
   const client       = clients.find((c) => c.id === appt.clientId);
@@ -212,6 +219,40 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
             <span style={{ fontSize: 13, color: "#6b6b8a", fontWeight: 600 }}>Total Amount</span>
             <span style={{ fontSize: 22, fontWeight: 900, color: "#7C3AED" }}>{fmt(appt.totalAmount)}</span>
           </div>
+
+          {/* ── Before & After Photos ── */}
+          {(currentStatus === "in-progress" || currentStatus === "completed") && (
+            <div style={{ borderTop: "1px solid #f0f0f8", paddingTop: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
+                Before &amp; After Photos
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {(["before", "after"] as const).map((side) => (
+                  <div key={side}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{side}</div>
+                    {photos[side] ? (
+                      <div style={{ position: "relative", borderRadius: 10, overflow: "hidden" }}>
+                        <img src={photos[side]} alt={side} style={{ width: "100%", height: 110, objectFit: "cover", display: "block" }} />
+                        <button
+                          onClick={() => setPhotos((p) => ({ ...p, [side]: undefined }))}
+                          style={{ position: "absolute", top: 5, right: 5, width: 22, height: 22, borderRadius: "50%", border: "none", background: "rgba(0,0,0,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          <X size={11} color="#fff" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, height: 100, borderRadius: 10, border: "2px dashed #a78bfa", background: "#faf5ff", cursor: "pointer" }}>
+                        <Camera size={18} color="#a78bfa" />
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "#a78bfa" }}>Upload {side}</span>
+                        <input type="file" accept="image/*" style={{ display: "none" }}
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(side, f); }} />
+                      </label>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── Status workflow ── */}
           {!isTerminal && nextStep && (
