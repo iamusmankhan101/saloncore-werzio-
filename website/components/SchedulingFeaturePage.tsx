@@ -5,12 +5,11 @@ import {
   Bell,
   CalendarDays,
   CheckCircle2,
-  Clock3,
   MessageCircle,
-  Scissors,
   Sparkles,
-  UserRound,
-  Users,
+  Globe,
+  UserCog,
+  CalendarX2,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -47,48 +46,87 @@ const scheduleBlocks = [
   },
 ];
 
+function StaffSchedulePanel() {
+  const staff = [
+    { name: "Zara K.",  color: "#7c3aed", appts: ["10:00 · Hair Color", "12:30 · Keratin"] },
+    { name: "Nida M.",  color: "#059669", appts: ["11:00 · Hydra Facial", "2:30 · Cleanup"] },
+    { name: "Sara A.",  color: "#db2777", appts: ["10:30 · Nails", "3:00 · Bridal Trial"] },
+  ];
+  return (
+    <div className={styles.staffPanel}>
+      <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#17112a", marginBottom: 10 }}>Today — Staff Schedule</div>
+      {staff.map((s) => (
+        <div key={s.name} className={styles.staffRow}>
+          <div className={styles.avatarSmall} style={{ background: s.color + "22", color: s.color }}>{s.name.charAt(0)}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <strong>{s.name}</strong>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 3 }}>
+              {s.appts.map((a) => (
+                <span key={a} style={{ fontSize: "0.65rem", color: "#9898b0" }}>{a}</span>
+              ))}
+            </div>
+          </div>
+          <em style={{ fontSize: "0.7rem", color: s.color, fontStyle: "normal", fontWeight: 700 }}>{s.appts.length} appts</em>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CancellationPanel() {
+  const items = [
+    { name: "Sana N.",   service: "Hair Color",   date: "28 May", status: "Cancelled", sc: "#dc2626", sbg: "#fef2f2" },
+    { name: "Fatima A.", service: "Hydra Facial",  date: "29 May", status: "No Show",   sc: "#d97706", sbg: "#fffbeb" },
+    { name: "Maria K.",  service: "Keratin",       date: "30 May", status: "Cancelled", sc: "#dc2626", sbg: "#fef2f2" },
+  ];
+  return (
+    <div className={styles.staffPanel}>
+      <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#17112a", marginBottom: 10 }}>Cancellations &amp; No Shows</div>
+      {items.map((it) => (
+        <div key={it.name} className={styles.staffRow}>
+          <div className={styles.avatarSmall}>{it.name.charAt(0)}</div>
+          <div style={{ flex: 1 }}>
+            <strong>{it.name}</strong>
+            <span>{it.service} · {it.date}</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <span style={{ fontSize: "0.6rem", fontWeight: 700, color: it.sc, background: it.sbg, padding: "2px 7px", borderRadius: 20 }}>{it.status}</span>
+            <span style={{ fontSize: "0.6rem", fontWeight: 700, color: "#7c3aed", cursor: "pointer" }}>Reschedule →</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const rows = [
   {
-    eyebrow: "Visual calendar",
-    title: "See every booking and status on a weekly calendar",
-    body:
-      "Werzio gives your team a clean week calendar with timed appointment blocks, status colors, staff color accents, today controls, and quick appointment detail previews.",
-    visual: <CalendarPanel />,
-  },
-  {
-    eyebrow: "Fast front desk",
-    title: "Create appointments, move clients through the visit, and check out",
-    body:
-      "Create appointments for existing or new clients, choose a stylist, filter services by that stylist, progress bookings from booked to completed, and send arrived or in-progress clients straight to POS checkout.",
-    visual: <CheckoutPanel />,
-  },
-  {
-    eyebrow: "WhatsApp automation",
-    title: "Send confirmations, reminders, and follow-ups automatically",
-    body:
-      "Werzio handles booking confirmations, 24-hour and 2-hour WhatsApp reminders, and post-visit follow-ups so your staff is not chasing every client manually.",
-    visual: <MessagesPanel />,
-  },
-  {
     eyebrow: "Online booking",
-    title: "Let clients book from your branded web booking page",
+    title: "Let clients book from your branded booking page, 24/7",
     body:
-      "Share a branded Werzio booking page where clients enter their details, pick services, see salon business hours, avoid closed days, and create a web booking that appears in the dashboard.",
+      "Share a branded Werzio booking page where clients pick their service, choose a stylist, and confirm a time — without calling the salon. Bookings land directly in your dashboard with source, services, and total already filled in. Business hours and closed days are respected automatically.",
     visual: <PhoneBookingPanel />,
   },
   {
-    eyebrow: "Service assignment",
-    title: "Keep services connected to the right team members",
+    eyebrow: "Staff scheduling",
+    title: "Schedule every stylist's day without conflicts or guesswork",
     body:
-      "Werzio connects services to assigned staff, shows active team members in appointment creation, and keeps client, service, stylist, duration, and revenue context together.",
-    visual: <StaffPanel />,
+      "Assign appointments to specific staff members, see each stylist's workload side by side on the weekly calendar, and create new bookings with stylist and service pre-linked. No double-bookings — Werzio shows only the available slots for each team member.",
+    visual: <StaffSchedulePanel />,
   },
   {
-    eyebrow: "Business controls",
-    title: "Respect salon hours and plan limits while bookings grow",
+    eyebrow: "Automatic reminders",
+    title: "Send confirmations, reminders, and follow-ups automatically",
     body:
-      "Online bookings follow configured business hours, Sundays can be closed, free-plan appointment usage is tracked, and paid plans unlock unlimited appointment booking.",
-    visual: <BlockPanel />,
+      "Werzio sends a booking confirmation the moment an appointment is created, a 24-hour reminder the day before, a 2-hour reminder on the day, and a post-visit follow-up — all via WhatsApp, with zero manual effort from your team.",
+    visual: <MessagesPanel />,
+  },
+  {
+    eyebrow: "Cancellation management",
+    title: "Handle cancellations and no-shows without losing track",
+    body:
+      "Mark appointments as cancelled or no-show in one tap. Cancelled slots free up immediately for new bookings. Both statuses are tracked in client history and daily reports so you can see your no-show rate and follow up with a reschedule message.",
+    visual: <CancellationPanel />,
   },
 ];
 
@@ -129,55 +167,6 @@ function HeroCalendar() {
   );
 }
 
-function CalendarPanel() {
-  return (
-    <div className={styles.calendarPanel}>
-      <div className={styles.panelToolbar}>
-        <span>Today</span>
-        <strong>Week view</strong>
-      </div>
-      <div className={styles.calendarGrid}>
-        {["Mon 25", "Tue 26", "Wed 27"].map((name, index) => (
-          <div key={name} className={styles.calendarColumn}>
-            <strong>{name}</strong>
-            <div className={styles.slotTall}>{index === 0 ? "Booked" : "Confirmed"}<br /><span>Hair Color - Zara</span></div>
-            <div className={styles.slotShort}>{index === 2 ? "In progress" : "Arrived"}<br /><span>Facial - Nida</span></div>
-            <div className={styles.slotMuted}>No show</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CheckoutPanel() {
-  return (
-    <div className={styles.checkoutPanel}>
-      <div className={styles.clientStrip}>
-        <div className={styles.avatar}>SN</div>
-        <div>
-          <strong>Sana Nawaz</strong>
-          <span>24 visits - VIP client</span>
-        </div>
-      </div>
-      <div className={styles.checkoutBody}>
-        <div>
-          <span>Status</span>
-          <strong>Arrived</strong>
-        </div>
-        <div>
-          <span>Next step</span>
-          <strong>In Progress</strong>
-        </div>
-        <div>
-          <span>Checkout</span>
-          <strong>Open POS</strong>
-        </div>
-      </div>
-      <button type="button">Send to checkout</button>
-    </div>
-  );
-}
 
 function MessagesPanel() {
   return (
@@ -215,43 +204,6 @@ function PhoneBookingPanel() {
   );
 }
 
-function StaffPanel() {
-  const staff = [
-    ["Zara K.", "Senior Stylist", "Hair Color"],
-    ["Nida M.", "Skin Therapist", "Facial"],
-    ["Sara A.", "Nail Artist", "Nails"],
-  ];
-
-  return (
-    <div className={styles.staffPanel}>
-      {staff.map(([name, role, load]) => (
-        <div key={name} className={styles.staffRow}>
-          <div className={styles.avatarSmall}>{name.charAt(0)}</div>
-          <div>
-            <strong>{name}</strong>
-            <span>{role}</span>
-          </div>
-          <em>{load}</em>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function BlockPanel() {
-  return (
-    <div className={styles.blockPanel}>
-      <div className={styles.blockHeader}>
-        <Clock3 size={17} />
-        <span>Booking controls</span>
-      </div>
-      <div className={styles.blockArea}>
-        <div className={styles.blockedSlot}>Sunday closed<br /><span>Online booking disabled</span></div>
-        <div className={styles.openSlot}>24 / 30 monthly bookings<br /><span>Upgrade for unlimited</span></div>
-      </div>
-    </div>
-  );
-}
 
 export default function SchedulingFeaturePage() {
   return (
@@ -317,24 +269,24 @@ export default function SchedulingFeaturePage() {
 
         <section className={styles.miniStats} aria-label="Scheduling advantages">
           <div>
+            <Globe size={19} />
+            <strong>Online booking</strong>
+            <span>Branded booking page shared via Instagram, Google Maps, or your website.</span>
+          </div>
+          <div>
+            <UserCog size={19} />
+            <strong>Staff scheduling</strong>
+            <span>Per-stylist calendars with no double-bookings and conflict detection.</span>
+          </div>
+          <div>
             <Bell size={19} />
-            <strong>Automated reminders</strong>
-            <span>WhatsApp confirmations, reminders, and follow-ups.</span>
+            <strong>Automatic reminders</strong>
+            <span>WhatsApp confirmations, 24hr &amp; 2hr reminders, and post-visit follow-ups.</span>
           </div>
           <div>
-            <Users size={19} />
-            <strong>Team assignments</strong>
-            <span>Active staff, service assignments, stylist colors, and appointment filters.</span>
-          </div>
-          <div>
-            <Scissors size={19} />
-            <strong>Salon context</strong>
-            <span>Client profiles, service history, formulas, and allergies.</span>
-          </div>
-          <div>
-            <UserRound size={19} />
-            <strong>Client booking</strong>
-            <span>Online booking page with instant confirmation.</span>
+            <CalendarX2 size={19} />
+            <strong>Cancellation management</strong>
+            <span>One-tap cancel or no-show, tracked in history with reschedule prompts.</span>
           </div>
         </section>
       </main>
