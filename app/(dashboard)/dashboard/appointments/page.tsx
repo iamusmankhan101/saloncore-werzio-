@@ -536,6 +536,118 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   );
 }
 
+// ── Cancellations Tab ─────────────────────────────────────────────────────────
+
+function CancellationsTab({ appointments, staffList, onReschedule, onSelect }: {
+  appointments: Appointment[];
+  staffList: Staff[];
+  onReschedule: () => void;
+  onSelect: (a: Appointment) => void;
+}) {
+  const cancelled = appointments
+    .filter((a) => a.status === "cancelled" || a.status === "no-show")
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const totalCancelled = cancelled.filter((a) => a.status === "cancelled").length;
+  const totalNoShow    = cancelled.filter((a) => a.status === "no-show").length;
+  const lostRevenue    = cancelled.reduce((s, a) => s + a.totalAmount, 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+      {/* Stats row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        {[
+          { label: "Cancelled",    value: totalCancelled,  color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+          { label: "No Shows",     value: totalNoShow,     color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+          { label: "Lost Revenue", value: fmt(lostRevenue),color: "#7C3AED", bg: "#f5f3ff", border: "#ddd6fe" },
+        ].map((s) => (
+          <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 12, padding: "14px 18px" }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: s.color, opacity: 0.7, textTransform: "uppercase" as const, letterSpacing: "0.06em", marginTop: 4 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* List */}
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e8e8f0", overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 160px 110px 110px 150px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+          {["CLIENT", "DATE", "SERVICE", "STYLIST", "STATUS", "ACTIONS"].map((h) => (
+            <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+          ))}
+        </div>
+
+        {cancelled.length === 0 ? (
+          <div style={{ padding: "48px 20px", textAlign: "center", color: "#b0b0c8", fontSize: 14 }}>
+            No cancellations or no-shows yet.
+          </div>
+        ) : (
+          cancelled.map((appt, i) => {
+            const staff      = staffList.find((s) => s.id === appt.staffId);
+            const isLast     = i === cancelled.length - 1;
+            const isCancelled = appt.status === "cancelled";
+            return (
+              <div
+                key={appt.id}
+                style={{ display: "grid", gridTemplateColumns: "1fr 130px 160px 110px 110px 150px", padding: "13px 20px", borderBottom: isLast ? "none" : "1px solid #f4f4f8", alignItems: "center" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#6b6b8a", flexShrink: 0 }}>
+                    {appt.clientName.charAt(0)}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{appt.clientName}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{fmt(appt.totalAmount)} lost</div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, color: "#1a1a2e", fontWeight: 500 }}>{fmtDate(appt.date)}</div>
+                  <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{fmtTime(appt.startTime)}</div>
+                </div>
+                <div style={{ fontSize: 13, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {appt.serviceNames.join(", ")}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: staff?.color ?? "#ccc", flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: "#1a1a2e" }}>{appt.staffName.split(" ")[0]}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: isCancelled ? "#dc2626" : "#d97706", background: isCancelled ? "#fef2f2" : "#fffbeb", padding: "3px 10px", borderRadius: 20 }}>
+                    {isCancelled ? "Cancelled" : "No Show"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => onSelect(appt)}
+                    style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid #e8e8f0", background: "#fff", fontSize: 11, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={onReschedule}
+                    style={{ padding: "5px 10px", borderRadius: 7, border: "none", background: "#7C3AED", fontSize: 11, fontWeight: 700, color: "#fff", cursor: "pointer" }}
+                  >
+                    Reschedule
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+
+        {cancelled.length > 0 && (
+          <div style={{ padding: "12px 20px", borderTop: "1px solid #f0f0f8", background: "#fafafa", display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, color: "#9898b0" }}>{cancelled.length} records</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>− {fmt(lostRevenue)} lost revenue</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AppointmentsPage() {
@@ -546,6 +658,7 @@ export default function AppointmentsPage() {
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [tab, setTab] = useState<"appointments" | "cancellations">("appointments");
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -694,6 +807,25 @@ export default function AppointmentsPage() {
         </div>
       )}
 
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 4, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, padding: 4, alignSelf: "flex-start" }}>
+        {([["appointments", "All Appointments"], ["cancellations", "Cancellations"]] as const).map(([t, label]) => {
+          const cancCount = appointments.filter((a) => a.status === "cancelled" || a.status === "no-show").length;
+          return (
+            <button key={t} onClick={() => setTab(t)} style={{ padding: "7px 18px", borderRadius: 9, border: "none", background: tab === t ? "#7C3AED" : "transparent", color: tab === t ? "#fff" : "#6b6b8a", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}>
+              {label}
+              {t === "cancellations" && cancCount > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, background: tab === t ? "rgba(255,255,255,0.25)" : "#fef2f2", color: tab === t ? "#fff" : "#dc2626", borderRadius: 20, padding: "1px 7px" }}>{cancCount}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "cancellations" ? (
+        <CancellationsTab appointments={appointments} staffList={staffList} onReschedule={() => setShowCreate(true)} onSelect={setSelected} />
+      ) : (<>
+
       {/* Search + filter bar */}
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: "9px 14px" }}>
@@ -822,6 +954,7 @@ export default function AppointmentsPage() {
         </div>{/* /appt-table-inner */}
         </div>{/* /table-scroll-inner */}
       </div>{/* /table-scroll-wrap */}
+      </>)}
     </div>
   );
 }
