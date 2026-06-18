@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { CLIENTS, APPOINTMENTS, BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import type { Client, Appointment } from "@/lib/types";
-import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown, Camera } from "lucide-react";
+import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown, Camera, ExternalLink } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
 const STATUS_CONFIG = {
@@ -32,6 +33,7 @@ function fmtDate(s?: string) {
 
 // ── Client Detail Panel ───────────────────────────────────────────────────────
 function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Client; onClose: () => void; appointments: Appointment[]; onUpdate?: (c: Client) => void }) {
+  const panelRouter = useRouter();
   const allClientAppts   = appointments.filter((a) => a.clientId === client.id);
   const completedAppts   = allClientAppts.filter((a) => a.status === "completed").sort((a, b) => b.date.localeCompare(a.date));
   const liveVisits       = completedAppts.length;
@@ -75,6 +77,12 @@ function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Clie
         {/* Header */}
         <div style={{ background: "linear-gradient(135deg, #EDE9FE, #fdf2f8)", padding: "28px 24px 20px", borderBottom: "1px solid #f0f0f8", position: "relative" }}>
           <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8 }}>
+            <button
+              onClick={() => { onClose(); panelRouter.push(`/dashboard/clients/${client.id}`); }}
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 7, border: "1px solid #EDE9FE", background: "#7C3AED", fontSize: 11, fontWeight: 600, color: "#fff", cursor: "pointer" }}
+            >
+              <ExternalLink size={11} /> Full Profile
+            </button>
             {!editing && (
               <button onClick={() => setEditing(true)} style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid #EDE9FE", background: "#fff", fontSize: 11, fontWeight: 600, color: "#7C3AED", cursor: "pointer" }}>
                 Edit
@@ -429,6 +437,7 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (c: Cl
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ClientsPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
@@ -578,8 +587,8 @@ export default function ClientsPage() {
       <div className="table-scroll-wrap">
         <div className="table-scroll-inner">
         <div className="client-table-inner" style={{ background: "#fff" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 110px 120px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
-          {["CLIENT", "PHONE", "SOURCE", "LAST VISIT", "VISITS", "TOTAL SPEND"].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 110px 120px 110px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+          {["CLIENT", "PHONE", "SOURCE", "LAST VISIT", "VISITS", "TOTAL SPEND", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
         </div>
@@ -592,7 +601,7 @@ export default function ClientsPage() {
             <div
               key={client.id}
               onClick={() => setSelected(client)}
-              style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 110px 120px", padding: "13px 20px", borderBottom: isLast ? "none" : "1px solid #f4f4f8", alignItems: "center", cursor: "pointer" }}
+              style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 110px 120px 110px", padding: "13px 20px", borderBottom: isLast ? "none" : "1px solid #f4f4f8", alignItems: "center", cursor: "pointer" }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
@@ -616,6 +625,14 @@ export default function ClientsPage() {
               <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(client.lastVisitDate)}</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{client.totalVisits}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(client.totalSpend)}</div>
+              <div onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", fontSize: 11, fontWeight: 600, color: "#7C3AED", cursor: "pointer", whiteSpace: "nowrap" }}
+                >
+                  <ExternalLink size={11} /> View
+                </button>
+              </div>
             </div>
           );
         })}
