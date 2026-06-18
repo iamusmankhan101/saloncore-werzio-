@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { CLIENTS, APPOINTMENTS, BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import type { Client, Appointment } from "@/lib/types";
-import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown } from "lucide-react";
+import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown, Camera } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
 const STATUS_CONFIG = {
@@ -51,6 +51,16 @@ function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Clie
   });
   const [saved, setSaved] = useState(false);
   const setE = (k: string, v: string) => setEditForm((f) => ({ ...f, [k]: v }));
+  const [visitPhotos, setVisitPhotos] = useState<Record<string, { before?: string; after?: string }>>({});
+  const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
+
+  const handlePhotoUpload = (apptId: string, side: "before" | "after", file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setVisitPhotos((prev) => ({ ...prev, [apptId]: { ...prev[apptId], [side]: e.target?.result as string } }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const displayName = saved ? editForm.name : client.name;
   const displayPhone = saved ? editForm.phone : client.phone;
@@ -111,16 +121,64 @@ function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Clie
           {completedAppts.length > 0 && (
             <div>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Visit History</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 200, overflowY: "auto" }}>
-                {completedAppts.slice(0, 8).map((a) => (
-                  <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 10, background: "#f9f9fb", border: "1px solid #f0f0f8" }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>{a.serviceNames.join(", ")}</div>
-                      <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>{fmtDate(a.date)} · {a.staffName || "—"}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {completedAppts.slice(0, 8).map((a) => {
+                  const photos = visitPhotos[a.id] ?? {};
+                  const photoCount = [photos.before, photos.after].filter(Boolean).length;
+                  const isExpanded = expandedVisit === a.id;
+                  return (
+                    <div key={a.id}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: isExpanded ? "10px 10px 0 0" : 10, background: "#f9f9fb", border: "1px solid #f0f0f8", borderBottom: isExpanded ? "none" : "1px solid #f0f0f8" }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>{a.serviceNames.join(", ")}</div>
+                          <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>{fmtDate(a.date)} · {a.staffName || "—"}</div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: "#7C3AED" }}>{fmt(a.totalAmount)}</div>
+                          <button
+                            onClick={() => setExpandedVisit(isExpanded ? null : a.id)}
+                            style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 9px", borderRadius: 20, border: "none", cursor: "pointer", background: photoCount > 0 ? "#ede9fe" : "#f3f4f6" }}
+                          >
+                            <Camera size={11} color={photoCount > 0 ? "#7C3AED" : "#9ca3af"} />
+                            <span style={{ fontSize: 10, fontWeight: 700, color: photoCount > 0 ? "#7C3AED" : "#9ca3af" }}>
+                              {photoCount > 0 ? photoCount : "Add"}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div style={{ background: "#f5f3ff", border: "1px solid #ede9fe", borderTop: "none", borderRadius: "0 0 10px 10px", padding: "12px" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                            {(["before", "after"] as const).map((side) => (
+                              <div key={side}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{side}</div>
+                                {photos[side] ? (
+                                  <div style={{ position: "relative", borderRadius: 8, overflow: "hidden" }}>
+                                    <img src={photos[side]} alt={side} style={{ width: "100%", height: 100, objectFit: "cover", display: "block" }} />
+                                    <button
+                                      onClick={() => setVisitPhotos((prev) => ({ ...prev, [a.id]: { ...prev[a.id], [side]: undefined } }))}
+                                      style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", border: "none", background: "rgba(0,0,0,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                    >
+                                      <X size={10} color="#fff" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, height: 90, borderRadius: 8, border: "2px dashed #a78bfa", background: "#faf5ff", cursor: "pointer" }}>
+                                    <Camera size={16} color="#a78bfa" />
+                                    <span style={{ fontSize: 10, fontWeight: 600, color: "#a78bfa" }}>Upload {side}</span>
+                                    <input type="file" accept="image/*" style={{ display: "none" }}
+                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(a.id, side, f); }} />
+                                  </label>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: "#7C3AED" }}>{fmt(a.totalAmount)}</div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               {liveLastVisit && (
                 <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 6 }}>Last visit: {fmtDate(liveLastVisit)}</div>
