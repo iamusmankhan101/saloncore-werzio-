@@ -2,8 +2,7 @@
 import { useEffect, useRef } from "react";
 import styles from "./Features.module.css";
 import {
-  CalendarDays, Globe, Bell, Sparkles,
-  Users, UserCog, Package, BookOpen,
+  CalendarDays, Package, Users, Check, Wallet, Megaphone,
 } from "lucide-react";
 
 /* ── mini UI previews ─────────────────────────────────────── */
@@ -28,49 +27,6 @@ function AppointmentPreview() {
   );
 }
 
-function OnlineBookingPreview() {
-  return (
-    <div className={styles.prev}>
-      <div className={styles.obCard}>
-        <div className={styles.obLogo}><BookOpen size={12}/>  Werzio Booking</div>
-        <div className={styles.obField}>Hair Color</div>
-        <div className={styles.obField}>Zara Khan · Stylist</div>
-        <div className={styles.obField} style={{color:"#7c3aed",fontWeight:700}}>Wed, 28 May · 2:00 PM</div>
-        <div className={styles.obBtn}>Confirm Booking</div>
-      </div>
-    </div>
-  );
-}
-
-function CalendarPreview() {
-  const appts = [
-    {name:"Sana N.",  svc:"Hair Color", col:"#ede9fe", border:"#a78bfa", top:0},
-    {name:"Fatima A.",svc:"Facial",     col:"#dcfce7", border:"#6ee7b7", top:58},
-    {name:"Maria K.", svc:"Bridal",     col:"#fef3c7", border:"#fcd34d", top:116},
-  ];
-  return (
-    <div className={styles.prev}>
-      <div className={styles.calHeader}>
-        {["MON","TUE","WED","THU","FRI"].map((d,i)=>(
-          <div key={d} className={`${styles.calCol} ${i===1?styles.calToday:""}`}>
-            <span className={styles.calDay}>{d}</span>
-            <span className={`${styles.calNum} ${i===1?styles.calNumToday:""}`}>{24+i}</span>
-          </div>
-        ))}
-      </div>
-      <div className={styles.calBody}>
-        {appts.map(a=>(
-          <div key={a.name} className={styles.calAppt}
-            style={{background:a.col, borderLeft:`3px solid ${a.border}`, top:a.top}}>
-            <div className={styles.calApptName}>{a.name}</div>
-            <div className={styles.calApptSvc}>{a.svc}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function WhatsAppPreview() {
   return (
     <div className={styles.prev}>
@@ -82,51 +38,14 @@ function WhatsAppPreview() {
         </div>
       </div>
       <div className={styles.waMsgs}>
-
-        {/* confirmation */}
-        <div className={styles.waTag}>Booking Confirmation</div>
+        <div className={styles.waTag}>Birthday Offer</div>
         <div className={`${styles.waMsg} ${styles.waMsgOut}`}>
-          ✅ <strong>Booking Confirmed!</strong><br />
-          Sana, your Hair Color is booked for<br />
-          <strong>Wed 28 May · 2:00 PM</strong> with Zara.<br />
-          📍 DHA Salon, Lahore
+          🎂 Happy Birthday Sana! Enjoy <strong>20% off</strong> your next visit this week.
         </div>
-
-        {/* 24hr reminder */}
-        <div className={styles.waTag}>24hr Reminder</div>
+        <div className={styles.waTag}>Loyalty Reward</div>
         <div className={`${styles.waMsg} ${styles.waMsgOut}`}>
-          🔔 Hi Sana! Your appointment is <strong>tomorrow at 2 PM</strong>.<br />
-          Reply <em>C</em> to confirm or <em>R</em> to reschedule.
+          🏆 You&apos;ve earned a free blow dry! Book your next appointment to redeem.
         </div>
-
-        {/* follow-up */}
-        <div className={styles.waTag}>Follow-up</div>
-        <div className={`${styles.waMsg} ${styles.waMsgOut}`}>
-          💜 Thanks for visiting! How was your experience?<br />
-          <span className={styles.waStars}>⭐⭐⭐⭐⭐</span>
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-function VirtualTryOnPreview() {
-  return (
-    <div className={styles.prev}>
-      <div className={styles.vtFrame}>
-        <div className={styles.vtFace}>
-          <div className={styles.vtHair} />
-          <div className={styles.vtFaceCircle} />
-          <div className={styles.vtScanLine} />
-        </div>
-        <div className={styles.vtLabel}>AI Analysing…</div>
-        <div className={styles.vtColors}>
-          {["#2d1b4e","#8B4513","#D2691E","#FFD700","#FF69B4"].map(c=>(
-            <div key={c} className={styles.vtColor} style={{background:c}} />
-          ))}
-        </div>
-        <div className={styles.vtResult}>✨ 3 styles recommended</div>
       </div>
     </div>
   );
@@ -152,7 +71,7 @@ function ClientPreview() {
         ].map(r=>(
           <div key={r.label} className={styles.clientRow}>
             <span className={styles.clientLabel}>{r.label}</span>
-            <span className={styles.clientVal} style={{color:r.c}}>{r.val}</span>
+            <span className={styles.clientVal} style={{color:(r as {c?:string}).c}}>{r.val}</span>
           </div>
         ))}
       </div>
@@ -160,29 +79,37 @@ function ClientPreview() {
   );
 }
 
-function StaffPreview() {
-  const staff = [
-    {name:"Zara K.",  role:"Senior Stylist", rev:"₨18K", pct:88, color:"#7c3aed"},
-    {name:"Nida M.",  role:"Nail Artist",    rev:"₨12K", pct:65, color:"#10b981"},
-    {name:"Sara A.",  role:"Skin Therapist", rev:"₨9K",  pct:50, color:"#f59e0b"},
-  ];
+function BillingPreview() {
   return (
     <div className={styles.prev}>
-      {staff.map(s=>(
-        <div key={s.name} className={styles.staffRow}>
-          <div className={styles.staffAvatar} style={{background:s.color+"22",color:s.color}}>
-            {s.name[0]}
-          </div>
-          <div className={styles.staffInfo}>
-            <div className={styles.staffName}>{s.name}</div>
-            <div className={styles.staffRole}>{s.role}</div>
-            <div className={styles.staffBar}>
-              <div className={styles.staffFill} style={{width:`${s.pct}%`,background:s.color}} />
-            </div>
-          </div>
-          <div className={styles.staffRev}>{s.rev}</div>
+      <div className={styles.invoiceCard}>
+        <div className={styles.invoiceHeader}>
+          <span className={styles.invoiceNum}>Invoice #INV-042</span>
+          <span className={styles.invoicePaid}>Paid</span>
         </div>
-      ))}
+        {[
+          { svc: "Hair Color", amt: "₨4,500" },
+          { svc: "Blow Dry",   amt: "₨800" },
+        ].map(r => (
+          <div key={r.svc} className={styles.invoiceLine}>
+            <span>{r.svc}</span><span>{r.amt}</span>
+          </div>
+        ))}
+        <div className={styles.invoiceTotal}>
+          <span>Total</span><span>₨5,300</span>
+        </div>
+      </div>
+      <div className={styles.billingStats}>
+        {[
+          { label: "Today's Sales", value: "₨42,500", c: "#7c3aed" },
+          { label: "Pending",       value: "₨8,200",  c: "#d97706" },
+        ].map(s => (
+          <div key={s.label} className={styles.billingStat}>
+            <div className={styles.billingStatVal} style={{ color: s.c }}>{s.value}</div>
+            <div className={styles.billingStatLabel}>{s.label}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -218,76 +145,51 @@ function InventoryPreview() {
 }
 
 /* ── feature card data ─────────────────────────────────────── */
-// gridColumn / gridRow follow CSS grid placement syntax
 const features = [
-  // ── ROW 1 ──────────────────────────────────────────────────
-  {
-    icon: Bell,
-    color: "#059669",
-    title: "WhatsApp Reminders",
-    desc:  "Salon sends booking confirmations, 24hr & 2hr reminders, and post-visit follow-ups automatically — zero manual effort.",
-    preview: <WhatsAppPreview />,
-    gc: "1 / 3", gr: "1",        // 2 cols wide
-  },
-  {
-    icon: CalendarDays,
-    color: "#7c3aed",
-    title: "Appointment Booking",
-    desc:  "Let clients self-book in seconds. Time slots, stylist selection, and instant confirmation — all automated.",
-    preview: <AppointmentPreview />,
-    gc: "3 / 4", gr: "1",
-  },
-  {
-    icon: Sparkles,
-    color: "#db2777",
-    title: "Virtual Try-On",
-    desc:  "AI-powered hair color and style previewer. Clients see how they'll look before they even book.",
-    preview: <VirtualTryOnPreview />,
-    gc: "4 / 5", gr: "1",
-  },
-
-  // ── ROW 2 ──────────────────────────────────────────────────
   {
     icon: Users,
     color: "#7c3aed",
     title: "Client Management",
-    desc:  "Full client profiles — hair formulas, skin type, allergy alerts, visit history, and lifetime value.",
+    desc: "Every client profile in one place — from first visit to VIP loyalty.",
+    bullets: ["Customer database", "Visit history", "Notes and preferences", "Before/after photos"],
     preview: <ClientPreview />,
-    gc: "1 / 2", gr: "2 / 4",   // 2 rows tall
+    gc: "1/2", gr: "1",
   },
   {
     icon: CalendarDays,
     color: "#0891b2",
-    title: "Calendar & Scheduling",
-    desc:  "Visual day/week view with per-stylist columns, drag-and-drop rescheduling, and real-time conflict detection.",
-    preview: <CalendarPreview />,
-    gc: "2 / 4", gr: "2",        // 2 cols wide
+    title: "Appointment Booking",
+    desc: "Seamless booking for clients and staff, with zero double-bookings.",
+    bullets: ["Online booking", "Staff scheduling", "Automatic reminders", "Cancellation management"],
+    preview: <AppointmentPreview />,
+    gc: "2/3", gr: "1",
   },
   {
-    icon: Globe,
-    color: "#4f46e5",
-    title: "Online Booking",
-    desc:  "A branded booking page at werzio.pk/your-salon. Shareable from Instagram, Google Maps, and your website.",
-    preview: <OnlineBookingPreview />,
-    gc: "4 / 5", gr: "2",
+    icon: Wallet,
+    color: "#059669",
+    title: "Billing & Payments",
+    desc: "Invoicing, payment tracking, and daily sales reports — all automated.",
+    bullets: ["Invoices", "Payment tracking", "Daily sales reports"],
+    preview: <BillingPreview />,
+    gc: "1/2", gr: "2",
   },
-
-  // ── ROW 3 ──────────────────────────────────────────────────
   {
-    icon: UserCog,
-    color: "#d97706",
-    title: "Staff Management",
-    desc:  "Schedules, commission tracking, attendance, and performance dashboards for every team member.",
-    preview: <StaffPreview />,
-    gc: "2 / 3", gr: "3",
+    icon: Megaphone,
+    color: "#db2777",
+    title: "Marketing",
+    desc: "Keep clients coming back with targeted messages and loyalty programmes.",
+    bullets: ["SMS reminders", "WhatsApp promotions", "Birthday offers", "Loyalty rewards"],
+    preview: <WhatsAppPreview />,
+    gc: "2/3", gr: "2",
   },
   {
     icon: Package,
-    color: "#0891b2",
-    title: "Inventory Management",
-    desc:  "Track stock levels, expiry dates, and auto-deduct products per service. Low-stock WhatsApp alerts included.",
+    color: "#d97706",
+    title: "Inventory",
+    desc: "Track stock, get low-stock alerts, and manage suppliers without spreadsheets.",
+    bullets: ["Product stock", "Low-stock alerts", "Supplier management"],
     preview: <InventoryPreview />,
-    gc: "3 / 5", gr: "3",        // 2 cols wide
+    gc: "1/3", gr: "3",
   },
 ];
 
@@ -317,9 +219,9 @@ export default function Features() {
     <section className={styles.section} id="features">
       <div className={`${styles.header} text-center`}>
         <div className="section-label" data-animate data-delay="0">✦ Everything You Need</div>
-        <h2 className="section-title" data-animate data-delay="0.1">Powerful Features Built<br />for Pakistan's Salons</h2>
+        <h2 className="section-title" data-animate data-delay="0.1">Powerful Features Built<br />for Pakistan&apos;s Salons</h2>
         <p className="section-sub" data-animate data-delay="0.2">
-          Eight modules. One dashboard. Everything from booking to inventory — all connected.
+          Five modules. One dashboard. Everything from booking to inventory — all connected.
         </p>
       </div>
 
@@ -345,6 +247,14 @@ export default function Features() {
                 </div>
                 <h3 className={styles.cardTitle}>{f.title}</h3>
                 <p className={styles.cardDesc}>{f.desc}</p>
+                <ul className={styles.cardBullets}>
+                  {f.bullets.map(b => (
+                    <li key={b}>
+                      <Check size={11} color={f.color} strokeWidth={2.5} />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
               </div>
               <div className={styles.cardPreview}>
                 {f.preview}

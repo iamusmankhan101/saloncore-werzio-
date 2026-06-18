@@ -1,11 +1,21 @@
 import { Resend } from "resend";
 import { NextRequest, NextResponse } from "next/server";
 
+const submittedEmails = new Set<string>();
+
 export async function POST(req: NextRequest) {
   const { name, email, phone, datetime } = await req.json();
 
   if (!name || !email || !phone || !datetime) {
     return NextResponse.json({ error: "All fields are required." }, { status: 400 });
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  if (submittedEmails.has(normalizedEmail)) {
+    return NextResponse.json(
+      { error: "This email has already been registered. We'll be in touch soon!" },
+      { status: 409 }
+    );
   }
 
   const submittedAt = new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
@@ -69,5 +79,6 @@ export async function POST(req: NextRequest) {
     console.error("Resend error:", err);
   }
 
+  submittedEmails.add(normalizedEmail);
   return NextResponse.json({ success: true });
 }

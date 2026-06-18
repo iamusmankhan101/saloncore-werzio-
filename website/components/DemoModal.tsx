@@ -45,6 +45,14 @@ export default function DemoModal({ open, onClose }: Props) {
     setStatus("loading");
     setError("");
 
+    // Client-side duplicate check via localStorage
+    const stored: string[] = JSON.parse(localStorage.getItem("demoEmails") ?? "[]");
+    if (stored.includes(form.email.toLowerCase().trim())) {
+      setStatus("error");
+      setError("This email has already been registered. We'll be in touch soon!");
+      return;
+    }
+
     try {
       const res = await fetch("/api/demo", {
         method: "POST",
@@ -53,6 +61,7 @@ export default function DemoModal({ open, onClose }: Props) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      localStorage.setItem("demoEmails", JSON.stringify([...stored, form.email.toLowerCase().trim()]));
       setStatus("success");
       setForm({ name: "", email: "", phone: "", datetime: "" });
     } catch (err: unknown) {
