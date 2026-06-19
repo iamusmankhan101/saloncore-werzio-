@@ -12,6 +12,7 @@ import { NextRequest } from "next/server";
 import { Resend } from "resend";
 import { db } from "@/lib/db";
 import { getAllActiveBillingUsers } from "@/lib/billing-db";
+import { generateDailyReportPdf } from "@/lib/report-pdf";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -321,6 +322,17 @@ export async function GET(req: NextRequest) {
 
     const { subject, html, text } = buildReportEmail(user.ownerName, salonName, today, invoices);
 
+    // Generate PDF attachment
+    let pdfBuffer: Buffer | undefined;
+    try {
+      pdfBuffer = await generateDailyReportPdf({ salonName, ownerName: user.ownerName, date: today, invoices });
+    } catch (e) {
+      console.error(`[daily-report] PDF generation failed for ${user.email}:`, e);
+    }
+
+    const dateSlug = today.replace(/-/g, "");
+    const filename = `daily-report-${dateSlug}.pdf`;
+
     try {
       const { error } = await resend.emails.send({
         from:    "Werzio Reports <noreply@werzio.com>",
@@ -329,13 +341,16 @@ export async function GET(req: NextRequest) {
         subject,
         html,
         text,
+        attachments: pdfBuffer
+          ? [{ filename, content: pdfBuffer }]
+          : [],
       });
 
       if (error) {
         console.error(`[daily-report] Resend error for ${user.email}:`, error.message);
       } else {
         emailsSent++;
-        console.log(`[daily-report] ✓ ${user.email} — ${invoices.length} invoices, ${pkr(invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0))}`);
+        console.log(`[daily-report] ✓ ${user.email} — ${invoices.length} invoices, ${pkr(invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0))}${pdfBuffer ? " + PDF attached" : ""}`);
       }
     } catch (e) {
       console.error(`[daily-report] Exception for ${user.email}:`, e);
