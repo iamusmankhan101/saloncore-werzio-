@@ -12,7 +12,7 @@ import { settingsStore, saveSettings } from "@/lib/settings-store";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
   Gift, Star, Search, Settings2, ChevronRight, TrendingUp,
-  Award, Users, Coins, RotateCcw, Plus, Minus, X, History,
+  Award, Users, Plus, Minus, X,
 } from "lucide-react";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ function ClientModal({
     const pts = parseInt(adjPts, 10);
     if (!pts || pts <= 0) return;
     setSaving(true);
-    const [clients, setClients] = [getStoredClients(), null];
+    const clients = getStoredClients();
     let updated: Client;
     if (adjType === "add") {
       updated = adjustPoints(client, pts, adjNote || "Manual adjustment");
@@ -479,7 +479,7 @@ export default function LoyaltyPage() {
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {TIER_FILTERS.map((f) => (
             <button key={f.value} onClick={() => setTierFilter(f.value)} style={{
-              padding: "7px 14px", borderRadius: 20, border: "none", cursor: "pointer",
+              padding: "7px 14px", borderRadius: 20, cursor: "pointer",
               fontSize: 12, fontWeight: 700,
               background: tierFilter === f.value ? "#7C3AED" : "#fff",
               color: tierFilter === f.value ? "#fff" : "#5a5a7a",
