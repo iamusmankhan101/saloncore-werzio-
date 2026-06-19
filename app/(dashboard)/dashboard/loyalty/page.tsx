@@ -382,7 +382,26 @@ export default function LoyaltyPage() {
   const settings = settingsStore.loyalty as LoyaltySettings;
 
   useEffect(() => {
-    setClients(getStoredClients());
+    const ls = settingsStore.loyalty as LoyaltySettings;
+    const allClients = getStoredClients();
+
+    // Back-fill: clients who already have spend but predate the loyalty system
+    const needsFill = allClients.some(
+      (c) => c.totalSpend > 0 && c.loyaltyPointsEarned === undefined,
+    );
+    if (needsFill) {
+      const filled = allClients.map((c) => {
+        if (c.totalSpend > 0 && c.loyaltyPointsEarned === undefined) {
+          const pts = Math.floor(c.totalSpend * ls.pointsPerRupee);
+          return { ...c, loyaltyPoints: pts, loyaltyPointsEarned: pts };
+        }
+        return c;
+      });
+      saveClients(filled);
+      setClients(filled);
+    } else {
+      setClients(allClients);
+    }
   }, []);
 
   function handleUpdate(updated: Client) {
