@@ -1,6 +1,7 @@
 // Settings persisted to localStorage so changes survive page refreshes
 
 import { userKey, getCurrentUser } from "./auth";
+import { saveSettingsToDB } from "./turso-sync";
 
 const STORAGE_KEY = "werzio_settings";
 export const SETTINGS_CHANGED_EVENT = "werzio_settings_changed";
@@ -145,6 +146,7 @@ export function reloadSettings() {
 /** Call after mutating any section to persist changes. */
 export function saveSettings() {
   persist();
+  saveSettingsToDB(settingsStore);
   applyAppearanceSettings();
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT));

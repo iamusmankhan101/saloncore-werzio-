@@ -97,12 +97,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.clearTimeout(timer);
   }, [router]);
 
-  // Sync settings when authenticated
-  useEffect(() => {
-    if (!isReady) return;
-    reloadSettings();
-  }, [isReady]);
-
   // Appearance
   useEffect(() => {
     applyAppearanceSettings();
@@ -111,12 +105,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   // Data sync + invoice notifications + suspension check
+  // Settings reload happens AFTER syncFromDB so Turso data is in localStorage first
   useEffect(() => {
     if (!isReady) return;
     const user = getCurrentUser();
     if (!user) return;
 
-    syncFromDB();
+    syncFromDB().then(() => reloadSettings());
     checkInvoiceNotifications();
 
     // Check suspension status from Turso (server-side source of truth)

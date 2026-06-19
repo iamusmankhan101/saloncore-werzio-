@@ -1,4 +1,5 @@
 import { userKey } from "./auth";
+import { saveLoyaltyHistoryToDB } from "./turso-sync";
 import type { Client, LoyaltyTransaction } from "./types";
 
 const HISTORY_KEY = "werzio_loyalty_history";
@@ -68,6 +69,7 @@ function appendHistory(tx: Omit<LoyaltyTransaction, "id" | "date">) {
   history.unshift(entry);
   if (history.length > 2000) history.length = 2000;
   localStorage.setItem(userKey(HISTORY_KEY), JSON.stringify(history));
+  saveLoyaltyHistoryToDB(history);
   return entry;
 }
 
@@ -94,6 +96,20 @@ export function awardPoints(
     loyaltyPoints:       (client.loyaltyPoints       ?? 0) + pts,
     loyaltyPointsEarned: (client.loyaltyPointsEarned ?? 0) + pts,
   };
+}
+
+/** Recompute a single client's earned points from their completed appointments.
+ *  Preserves any manual redemptions. Returns the client unchanged if already correct. */
+export function recomputeClientPoints(
+  client: Client,
+  completedSpend: number,
+  settings: LoyaltySettings,
+): Client {
+  const correctEarned = Math.floor(completedSpend * settings.pointsPerRupee);
+  if (client.loyaltyPointsEarned === correctEarned) return client;
+  const redeemed  = Math.max(0, (client.loyaltyPointsEarned ?? 0) - (client.loyaltyPoints ?? 0));
+  const newBalance = Math.max(0, correctEarned - redeemed);
+  return { ...client, loyaltyPointsEarned: correctEarned, loyaltyPoints: newBalance };
 }
 
 export function redeemPoints(
