@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/birthday",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/daily-report",
+      "schedule": "0 16 * * *"
     }
   ]
 }
