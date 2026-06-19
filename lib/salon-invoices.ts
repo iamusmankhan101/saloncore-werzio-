@@ -38,6 +38,7 @@ export interface SalonInvoice {
   status: SalonInvoiceStatus;
   notes?: string;
   createdAt: string;        // ISO timestamp
+  source?: "pos" | "manual";
 }
 
 // ─── Storage ──────────────────────────────────────────────────────────────────

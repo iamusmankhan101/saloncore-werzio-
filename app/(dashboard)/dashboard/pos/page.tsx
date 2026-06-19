@@ -6,8 +6,9 @@ import {
   X, ShoppingCart, ReceiptText, Banknote, CreditCard,
   Smartphone, Zap, Tag, UserPlus, CheckCircle2, Printer,
   MessageSquare, RefreshCw, User, ChevronRight, Sparkles,
-  Clock, AlertCircle,
+  Clock, AlertCircle, Gift,
 } from "lucide-react";
+import { awardPoints, redeemPoints, type LoyaltySettings } from "@/lib/loyalty";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
 import {
   getStoredServices, getStoredClients, getStoredInventory,
@@ -163,10 +164,11 @@ export default function POSPage() {
   const [catalogSearch, setCatalogSearch] = useState("");
 
   // ── Cart ──────────────────────────────────────────────────────────────────
-  const [cart,      setCart]      = useState<CartEntry[]>([]);
-  const [discount,  setDiscount]  = useState<number>(0);
-  const [discType,  setDiscType]  = useState<DiscountType>("flat");
-  const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
+  const [cart,          setCart]          = useState<CartEntry[]>([]);
+  const [discount,      setDiscount]      = useState<number>(0);
+  const [discType,      setDiscType]      = useState<DiscountType>("flat");
+  const [loyaltyRedeem, setLoyaltyRedeem] = useState<number>(0);
+  const [payMethod,     setPayMethod]     = useState<PaymentMethod>("cash");
 
   // ── Mobile tab ───────────────────────────────────────────────────────────
   const [posTab, setPosTab] = useState<"customer" | "catalog" | "cart">("catalog");
@@ -205,7 +207,16 @@ export default function POSPage() {
   }));
   const rawSubtotal    = cartLineItems.reduce((s, i) => s + i.total, 0);
   const discountAmount = discType === "pct" ? Math.round(rawSubtotal * discount / 100) : discount;
-  const { subtotal, taxAmount, total } = calcTotals(cartLineItems, discountAmount);
+
+  const loyaltySettings       = settingsStore.loyalty as LoyaltySettings;
+  const availableLoyaltyPts   = selectedClient?.id ? (selectedClient.loyaltyPoints ?? 0) : 0;
+  const cappedLoyaltyRedeem   = Math.min(loyaltyRedeem, availableLoyaltyPts);
+  const loyaltyDiscount       = loyaltySettings.enabled && cappedLoyaltyRedeem > 0
+    ? Math.min(Math.floor(cappedLoyaltyRedeem * loyaltySettings.rupeePerPoint), Math.max(0, rawSubtotal - discountAmount))
+    : 0;
+  const totalDiscountAmount   = discountAmount + loyaltyDiscount;
+
+  const { subtotal, taxAmount, total } = calcTotals(cartLineItems, totalDiscountAmount);
   const totalQty = cart.reduce((s, e) => s + e.qty, 0);
 
   // ── Cart ops ──────────────────────────────────────────────────────────────
@@ -245,9 +256,12 @@ export default function POSPage() {
     setNewName(""); setNewPhone("");
   }
 
+  // Reset redeemed points when client changes
+  useEffect(() => { setLoyaltyRedeem(0); }, [selectedClient?.id]);
+
   // ── New sale reset ────────────────────────────────────────────────────────
   function startNewSale() {
-    setCart([]); setDiscount(0); setSaleNotes(""); setPayMethod("cash");
+    setCart([]); setDiscount(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod("cash");
     setSelectedClient(null); setClientQ(""); setSelectedStaffId("");
     setCompleted(false); setLastInvoice(null); setWaStatus("idle");
   }
@@ -266,10 +280,11 @@ export default function POSPage() {
         clientEmail:   selectedClient?.email,
         staffName:     staffMember?.name || "",
         items:         cartLineItems,
-        subtotal, discountAmount, taxAmount, total,
+        subtotal, discountAmount: totalDiscountAmount, taxAmount, total,
         paymentMethod: payMethod,
         date: today, status: "paid",
         notes: saleNotes.trim(),
+        source: "pos",
       });
 
       const soldProducts = cart.filter(e => e.type === "product");
@@ -283,11 +298,21 @@ export default function POSPage() {
       }
 
       if (selectedClient?.id) {
-        const updated = clients.map(c => c.id === selectedClient.id
-          ? { ...c, totalVisits: c.totalVisits + 1, totalSpend: c.totalSpend + total, lastVisitDate: today }
-          : c);
-        setClients(updated);
-        saveClients(updated);
+        let updatedClient: Client = {
+          ...selectedClient,
+          totalVisits: selectedClient.totalVisits + 1,
+          totalSpend:  selectedClient.totalSpend + total,
+          lastVisitDate: today,
+        };
+        if (loyaltySettings.enabled) {
+          if (loyaltyDiscount > 0 && cappedLoyaltyRedeem > 0) {
+            updatedClient = redeemPoints(updatedClient, cappedLoyaltyRedeem, `Redeemed at POS · ${invoice.number}`);
+          }
+          updatedClient = awardPoints(updatedClient, total, loyaltySettings, invoice.id);
+        }
+        const updatedClients = clients.map(c => c.id === selectedClient.id ? updatedClient : c);
+        setClients(updatedClients);
+        saveClients(updatedClients);
       }
 
       setLastInvoice(invoice);
@@ -583,7 +608,7 @@ export default function POSPage() {
                       {[
                         { label: "Visits", value: selectedClient.totalVisits, color: "#7C3AED", bg: "rgba(124,58,237,0.07)" },
                         { label: "Spent", value: selectedClient.totalSpend >= 1000 ? `${(selectedClient.totalSpend / 1000).toFixed(1)}k` : selectedClient.totalSpend, color: "#059669", bg: "rgba(5,150,105,0.07)" },
-                        { label: "Points", value: Math.floor(selectedClient.totalSpend / 100), color: "#d97706", bg: "rgba(217,119,6,0.07)" },
+                        { label: "Points", value: selectedClient.loyaltyPoints ?? 0, color: "#d97706", bg: "rgba(217,119,6,0.07)" },
                       ].map(s => (
                         <div key={s.label} style={{ padding: "8px 6px", borderRadius: 9, background: s.bg, textAlign: "center" }}>
                           <div style={{ fontSize: 16, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</div>
@@ -870,6 +895,45 @@ export default function POSPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#059669", marginTop: 4, fontWeight: 700, padding: "0 4px" }}>
                     <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Tag size={11} />Discount applied</span>
                     <span>− {pkr(discountAmount)}</span>
+                  </div>
+                )}
+
+                {/* Loyalty redemption row */}
+                {loyaltySettings.enabled && selectedClient?.id && availableLoyaltyPts > 0 && (
+                  <div style={{ marginTop: 8, padding: "10px", borderRadius: 9, background: "#fffbeb", border: "1px solid #fde68a" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 7 }}>
+                      <Gift size={12} color="#d97706" style={{ flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#92400e", flex: 1 }}>Loyalty Points</span>
+                      <span style={{ fontSize: 10, color: "#d97706", fontWeight: 800, background: "#fef3c7", padding: "1px 7px", borderRadius: 20 }}>
+                        {availableLoyaltyPts} pts = {pkr(availableLoyaltyPts * loyaltySettings.rupeePerPoint)}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                      <input
+                        type="number" min={0} max={availableLoyaltyPts}
+                        value={loyaltyRedeem || ""}
+                        onChange={e => setLoyaltyRedeem(Math.min(Math.max(0, Number(e.target.value)), availableLoyaltyPts))}
+                        placeholder="0"
+                        style={{ flex: 1, height: 30, padding: "0 8px", borderRadius: 8, border: "1.5px solid #fde68a", fontSize: 12, textAlign: "right", outline: "none", background: "#fff", fontWeight: 700 }}
+                      />
+                      <span style={{ fontSize: 11, color: "#92400e", fontWeight: 600 }}>pts</span>
+                      <button type="button" onClick={() => setLoyaltyRedeem(availableLoyaltyPts)}
+                        style={{ padding: "4px 10px", borderRadius: 7, border: "1px solid #fbbf24", background: "#fef3c7", fontSize: 10, fontWeight: 800, color: "#92400e", cursor: "pointer", whiteSpace: "nowrap" }}>
+                        Use All
+                      </button>
+                      {loyaltyRedeem > 0 && (
+                        <button type="button" onClick={() => setLoyaltyRedeem(0)}
+                          style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                          <X size={11} color="#dc2626" />
+                        </button>
+                      )}
+                    </div>
+                    {loyaltyDiscount > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#d97706", marginTop: 6, fontWeight: 700, padding: "0 2px" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Gift size={11} />Points redeemed</span>
+                        <span>− {pkr(loyaltyDiscount)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
