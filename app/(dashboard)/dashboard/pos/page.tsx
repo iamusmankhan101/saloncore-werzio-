@@ -1027,7 +1027,7 @@ export default function POSPage() {
           salonPhone={salon.phone}
           salonEmail={salon.email}
           salonAddress={salon.address}
-          onClose={() => setPrintInvoice(null)}
+          onClose={() => { setPrintInvoice(null); startNewSale(); }}
         />
       )}
 
