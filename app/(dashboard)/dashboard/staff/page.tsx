@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments } from "@/lib/storage";
 import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
-import { X, Plus, Phone, Briefcase, Scissors, Star, TrendingUp, Check, Edit2 } from "lucide-react";
+import { X, Plus, Check, ChevronRight } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
@@ -18,108 +19,9 @@ const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
 import { fmtCurrency as fmt } from "@/lib/format";
 
 function getStaffStats(staffId: string, appointments: Appointment[]) {
-  const staffAppts = appointments.filter((a) => a.staffId === staffId);
-  const completed = staffAppts.filter((a) => a.status === "completed");
-  const revenue = completed.reduce((sum, a) => sum + (a.totalAmount ?? 0), 0);
-  return { total: staffAppts.length, completed: completed.length, revenue };
-}
-
-// ── Detail Panel ──────────────────────────────────────────────────────────────
-function StaffPanel({ staff, onClose, onEdit, servicesList, appointments }: { staff: Staff; onClose: () => void; onEdit: () => void; servicesList: Service[]; appointments: Appointment[] }) {
-  const stats = getStaffStats(staff.id, appointments);
-  const role = ROLE_COLORS[staff.role] ?? { color: "#6b7280", bg: "#f9fafb" };
-  const assignedServices = servicesList.filter((s) => s.assignedStaffIds.includes(staff.id));
-
-  return (
-    <div onClick={onClose} className="modal-overlay" style={{ zIndex: 90 }}>
-      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 480, maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-
-        {/* Header */}
-        <div style={{ background: `linear-gradient(135deg, ${staff.color}22, ${staff.color}08)`, padding: "28px 24px 20px", borderBottom: "1px solid #f0f0f8", position: "relative" }}>
-          <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex" }}>
-            <X size={18} color="#6b6b8a" />
-          </button>
-          <button onClick={onEdit} style={{ position: "absolute", top: 16, right: 48, background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 600, color: "#7C3AED" }}>
-            <Edit2 size={14} /> Edit
-          </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: staff.color + "33", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: staff.color }}>
-              {staff.name.charAt(0)}
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 20, color: "#1a1a2e" }}>{staff.name}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: role.color, background: role.bg, padding: "3px 10px", borderRadius: 20, textTransform: "capitalize" }}>
-                  {staff.role.replace(/-/g, " ")}
-                </span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: staff.isActive ? "#059669" : "#dc2626", background: staff.isActive ? "#ecfdf5" : "#fef2f2", padding: "3px 10px", borderRadius: 20 }}>
-                  {staff.isActive ? "Active" : "Inactive"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
-
-          {/* Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            {[
-              { label: "Total Appts", value: stats.total, icon: <Briefcase size={14} color="#9898b0" /> },
-              { label: "Completed", value: stats.completed, icon: <Star size={14} color="#9898b0" /> },
-              { label: "Revenue", value: fmt(stats.revenue), icon: <TrendingUp size={14} color="#9898b0" /> },
-            ].map((s) => (
-              <div key={s.label} style={{ background: "#f9f9fb", borderRadius: 12, padding: "12px 14px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>{s.icon}<span style={{ fontSize: 10, color: "#9898b0", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span></div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>{s.value}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Contact */}
-          <Section title="Contact">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Phone size={14} color="#9898b0" />
-              <span style={{ fontSize: 13, color: "#1a1a2e" }}>{staff.phone}</span>
-            </div>
-          </Section>
-
-          {/* Specialties */}
-          <Section title="Specialties">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {staff.specialties.length > 0 ? staff.specialties.map((sp) => (
-                <span key={sp} style={{ fontSize: 12, color: staff.color, background: staff.color + "18", padding: "4px 12px", borderRadius: 20, fontWeight: 500 }}>{sp}</span>
-              )) : <span style={{ fontSize: 12, color: "#9898b0", fontStyle: "italic" }}>No specialties listed</span>}
-            </div>
-          </Section>
-
-          {/* Services */}
-          <Section title="Assigned Services">
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {assignedServices.length > 0 ? assignedServices.map((sv) => (
-                <div key={sv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f9f9fb", borderRadius: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Scissors size={12} color="#9898b0" />
-                    <span style={{ fontSize: 13, color: "#1a1a2e" }}>{sv.name}</span>
-                  </div>
-                  <span style={{ fontSize: 12, color: "#7C3AED", fontWeight: 600 }}>{fmt(sv.price)}</span>
-                </div>
-              )) : <span style={{ fontSize: 12, color: "#9898b0", fontStyle: "italic" }}>No services assigned</span>}
-            </div>
-          </Section>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>{title}</div>
-      {children}
-    </div>
-  );
+  const mine      = appointments.filter((a) => a.staffId === staffId);
+  const completed = mine.filter((a) => a.status === "completed");
+  return { total: mine.length, revenue: completed.reduce((s, a) => s + (a.totalAmount ?? 0), 0) };
 }
 
 // ── Staff Form Modal (Add & Edit) ─────────────────────────────────────────────
@@ -247,15 +149,14 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function StaffPage() {
-  const [selected, setSelected] = useState<Staff | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
-  const [staffList, setStaffList] = useState<Staff[]>([]);
+  const router = useRouter();
+  const [showAdd, setShowAdd]       = useState(false);
+  const [staffList, setStaffList]   = useState<Staff[]>([]);
   const [servicesList, setServicesList] = useState<Service[]>([]);
   const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
 
   const plan        = getCurrentPlan();
-  const activeCount = staffList.filter(s => s.isActive).length;
+  const activeCount = staffList.filter((s) => s.isActive).length;
   const staffLimited = isAtLimit(plan.staffLimit, activeCount);
 
   useEffect(() => {
@@ -265,31 +166,18 @@ export default function StaffPage() {
   }, []);
 
   const handleSaveStaff = (savedStaff: Staff, assignedServiceIds: string[]) => {
-    // 1. Update Staff List
-    let updatedStaffList;
-    const exists = staffList.some(s => s.id === savedStaff.id);
-    if (exists) {
-      updatedStaffList = staffList.map(s => s.id === savedStaff.id ? savedStaff : s);
-    } else {
-      updatedStaffList = [...staffList, savedStaff];
-    }
+    const exists = staffList.some((s) => s.id === savedStaff.id);
+    const updatedStaffList = exists
+      ? staffList.map((s) => (s.id === savedStaff.id ? savedStaff : s))
+      : [...staffList, savedStaff];
     setStaffList(updatedStaffList);
     saveStaff(updatedStaffList);
 
-    // Update active detailed panel viewer if open
-    if (selected && selected.id === savedStaff.id) {
-      setSelected(savedStaff);
-    }
-
-    // 2. Update Services mapping
     const updatedServicesList = servicesList.map((sv) => {
       const isAssigned = assignedServiceIds.includes(sv.id);
-      const hasStaff = sv.assignedStaffIds.includes(savedStaff.id);
-      if (isAssigned && !hasStaff) {
-        return { ...sv, assignedStaffIds: [...sv.assignedStaffIds, savedStaff.id] };
-      } else if (!isAssigned && hasStaff) {
-        return { ...sv, assignedStaffIds: sv.assignedStaffIds.filter((id) => id !== savedStaff.id) };
-      }
+      const hasStaff   = sv.assignedStaffIds.includes(savedStaff.id);
+      if (isAssigned && !hasStaff)  return { ...sv, assignedStaffIds: [...sv.assignedStaffIds, savedStaff.id] };
+      if (!isAssigned && hasStaff)  return { ...sv, assignedStaffIds: sv.assignedStaffIds.filter((id) => id !== savedStaff.id) };
       return sv;
     });
     setServicesList(updatedServicesList);
@@ -299,32 +187,11 @@ export default function StaffPage() {
   return (
     <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {selected && (
-        <StaffPanel
-          staff={selected}
-          servicesList={servicesList}
-          appointments={appointmentsList}
-          onClose={() => setSelected(null)}
-          onEdit={() => {
-            setEditingStaff(selected);
-          }}
-        />
-      )}
-
       {showAdd && (
-        <StaffFormModal 
+        <StaffFormModal
           servicesList={servicesList}
-          onClose={() => setShowAdd(false)} 
-          onSave={handleSaveStaff} 
-        />
-      )}
-
-      {editingStaff && (
-        <StaffFormModal 
-          staff={editingStaff}
-          servicesList={servicesList}
-          onClose={() => setEditingStaff(null)} 
-          onSave={handleSaveStaff} 
+          onClose={() => setShowAdd(false)}
+          onSave={handleSaveStaff}
         />
       )}
 
@@ -361,11 +228,11 @@ export default function StaffPage() {
       <div className="cards-grid-auto">
         {staffList.map((s) => {
           const stats = getStaffStats(s.id, appointmentsList);
-          const role = ROLE_COLORS[s.role] ?? { color: "#6b7280", bg: "#f9fafb" };
+          const role  = ROLE_COLORS[s.role] ?? { color: "#6b7280", bg: "#f9fafb" };
           return (
             <div
               key={s.id}
-              onClick={() => setSelected(s)}
+              onClick={() => router.push(`/dashboard/staff/${s.id}`)}
               style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "20px", cursor: "pointer", transition: "box-shadow 0.15s" }}
               onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.1)")}
               onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)")}
@@ -390,13 +257,15 @@ export default function StaffPage() {
 
               {/* Specialties */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 14 }}>
-                {s.specialties.length > 0 ? s.specialties.slice(0, 3).map((sp) => (
-                  <span key={sp} style={{ fontSize: 11, color: s.color, background: s.color + "15", padding: "2px 8px", borderRadius: 12 }}>{sp}</span>
-                )) : <span style={{ fontSize: 11, color: "#9898b0", fontStyle: "italic" }}>No specialties</span>}
+                {s.specialties.length > 0
+                  ? s.specialties.slice(0, 3).map((sp) => (
+                    <span key={sp} style={{ fontSize: 11, color: s.color, background: s.color + "15", padding: "2px 8px", borderRadius: 12 }}>{sp}</span>
+                  ))
+                  : <span style={{ fontSize: 11, color: "#9898b0", fontStyle: "italic" }}>No specialties</span>}
               </div>
 
-              {/* Stats */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, borderTop: "1px solid #f4f4f8", paddingTop: 14 }}>
+              {/* Stats + view profile CTA */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, borderTop: "1px solid #f4f4f8", paddingTop: 14, alignItems: "center" }}>
                 <div>
                   <div style={{ fontSize: 10, color: "#b0b0c8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Appointments</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: "#1a1a2e", marginTop: 2 }}>{stats.total}</div>
@@ -404,6 +273,9 @@ export default function StaffPage() {
                 <div>
                   <div style={{ fontSize: 10, color: "#b0b0c8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Revenue</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "#7C3AED", marginTop: 2 }}>{fmt(stats.revenue)}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "50%", background: "#f0eeff" }}>
+                  <ChevronRight size={14} color="#7C3AED" />
                 </div>
               </div>
             </div>
