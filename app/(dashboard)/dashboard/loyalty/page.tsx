@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { getStoredClients, saveClients } from "@/lib/storage";
+import { getStoredClients, saveClients, getStoredAppointments } from "@/lib/storage";
 import type { Client } from "@/lib/types";
 import {
   getTier, TIER_META, nextTierThreshold, pointsToRupees,
@@ -384,24 +384,26 @@ export default function LoyaltyPage() {
   useEffect(() => {
     const ls = settingsStore.loyalty as LoyaltySettings;
     const allClients = getStoredClients();
+    const allAppts   = getStoredAppointments();
 
-    // Back-fill: clients who already have spend but predate the loyalty system
-    const needsFill = allClients.some(
-      (c) => c.totalSpend > 0 && c.loyaltyPointsEarned === undefined,
-    );
-    if (needsFill) {
-      const filled = allClients.map((c) => {
-        if (c.totalSpend > 0 && c.loyaltyPointsEarned === undefined) {
-          const pts = Math.floor(c.totalSpend * ls.pointsPerRupee);
-          return { ...c, loyaltyPoints: pts, loyaltyPointsEarned: pts };
-        }
-        return c;
-      });
-      saveClients(filled);
-      setClients(filled);
-    } else {
-      setClients(allClients);
-    }
+    // Recompute earned points from actual appointment history at the current rate.
+    // This self-heals whenever the rate changes and handles first-time backfill.
+    let changed = false;
+    const recalculated = allClients.map((c) => {
+      const spent = allAppts
+        .filter((a) => a.clientId === c.id && a.status === "completed")
+        .reduce((s, a) => s + a.totalAmount, 0);
+      const correctEarned = Math.floor(spent * ls.pointsPerRupee);
+      if (c.loyaltyPointsEarned === correctEarned) return c;
+      // Preserve any manual redemptions (earned - balance = amount redeemed)
+      const redeemed = Math.max(0, (c.loyaltyPointsEarned ?? 0) - (c.loyaltyPoints ?? 0));
+      const newBalance = Math.max(0, correctEarned - redeemed);
+      changed = true;
+      return { ...c, loyaltyPointsEarned: correctEarned, loyaltyPoints: newBalance };
+    });
+
+    if (changed) saveClients(recalculated);
+    setClients(recalculated);
   }, []);
 
   function handleUpdate(updated: Client) {
