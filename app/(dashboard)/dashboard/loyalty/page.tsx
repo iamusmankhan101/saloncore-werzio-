@@ -320,7 +320,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
               style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e8e8f0", fontSize: 14, outline: "none", boxSizing: "border-box" }}
             />
             <div style={{ fontSize: 11, color: "#9898b0", marginTop: 4 }}>
-              e.g. 0.1 = 1 pt per Rs. 10 · 1 = 1 pt per Rs. 1
+              e.g. 0.01 = 1 pt per Rs. 100 · 0.1 = 1 pt per Rs. 10
             </div>
           </div>
 

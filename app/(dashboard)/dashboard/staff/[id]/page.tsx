@@ -10,7 +10,9 @@ import {
 import { getStoredStaff, getStoredAppointments, getStoredServices, saveStaff, saveServices } from "@/lib/storage";
 import type { Staff, Appointment, Service, StaffRole } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
-import { Check, X, Plus } from "lucide-react";
+import { Check, X, Plus, FileDown } from "lucide-react";
+import { exportStaffPdf } from "@/lib/export-pdf";
+import { settingsStore } from "@/lib/settings-store";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   owner:            { color: "#7C3AED", bg: "#EDE9FE" },
@@ -394,12 +396,19 @@ export default function StaffProfilePage() {
               </div>
             </div>
 
-            {/* Edit button */}
-            <button
-              onClick={() => setShowEdit(true)}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #7C3AED", background: "#fff", color: "#7C3AED", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 1px 4px rgba(124,58,237,0.12)", flexShrink: 0 }}>
-              <Edit2 size={14} /> Edit Profile
-            </button>
+            {/* Action buttons */}
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <button
+                onClick={() => exportStaffPdf(staff, appointments, settingsStore.salon.name as string)}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", color: "#6b6b8a", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                <FileDown size={14} /> Export PDF
+              </button>
+              <button
+                onClick={() => setShowEdit(true)}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "1px solid #7C3AED", background: "#fff", color: "#7C3AED", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 1px 4px rgba(124,58,237,0.12)" }}>
+                <Edit2 size={14} /> Edit Profile
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -8,10 +8,11 @@ import type { Client, Appointment, Staff } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
+import { exportClientPdf } from "@/lib/export-pdf";
 import {
   ArrowLeft, Phone, Mail, Calendar, Heart, Star, Camera, X,
   Plus, Edit2, TrendingUp, Clock, Users, Scissors,
-  ChevronDown, ChevronUp, CheckCircle2, AlertTriangle,
+  ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, FileDown,
 } from "lucide-react";
 
 const TAG_COLORS: Record<string, { color: string; bg: string }> = {
@@ -193,6 +194,12 @@ export default function ClientProfilePage() {
               <Edit2 size={13} /> Edit Profile
             </button>
           )}
+          <button
+            onClick={() => exportClientPdf(client, appointments, settingsStore.loyalty as LoyaltySettings, settingsStore.salon.name as string)}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}
+          >
+            <FileDown size={13} /> Export PDF
+          </button>
           <button
             onClick={() => router.push("/dashboard/appointments")}
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}

@@ -75,7 +75,7 @@ const defaults = {
   },
   loyalty: {
     enabled: true,
-    pointsPerRupee: 0.1,
+    pointsPerRupee: 0.01,
     rupeePerPoint: 1,
     silverMin: 500,
     goldMin: 2000,
