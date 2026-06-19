@@ -5,6 +5,7 @@
 
 import type { PaymentMethod } from "@/lib/types";
 import { userKey } from "@/lib/auth";
+import { saveToDB } from "@/lib/turso-sync";
 
 export type SalonInvoiceStatus = "paid" | "unpaid";
 
@@ -52,7 +53,10 @@ export function getSalonInvoices(): SalonInvoice[] {
 }
 
 export function saveSalonInvoices(list: SalonInvoice[]): void {
-  if (typeof window !== "undefined") localStorage.setItem(userKey(BASE_KEY), JSON.stringify(list));
+  if (typeof window !== "undefined") {
+    localStorage.setItem(userKey(BASE_KEY), JSON.stringify(list));
+    saveToDB("salon_invoices", list);
+  }
 }
 
 function nextInvoiceNumber(): string {

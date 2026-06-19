@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 
-const ALLOWED = new Set(["clients", "appointments", "staff", "services", "inventory"]);
+const ALLOWED = new Set(["clients", "appointments", "staff", "services", "inventory", "salon_invoices"]);
 
 async function ensureTable() {
   await db.execute(`

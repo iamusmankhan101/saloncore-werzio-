@@ -1,6 +1,6 @@
 import { getCurrentUser, userKey } from "./auth";
 
-const ENTITIES = ["clients", "appointments", "staff", "services", "inventory"] as const;
+const ENTITIES = ["clients", "appointments", "staff", "services", "inventory", "salon_invoices"] as const;
 type Entity = typeof ENTITIES[number];
 
 /**
