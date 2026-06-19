@@ -209,12 +209,6 @@ export default function OnlineBookingPage() {
             powered by <span className="brandPoweredByName">werzio</span>
           </div>
         </div>
-        <nav className="topNavLinks">
-          <a className="topNavLink">About</a>
-          <a className="topNavLink">Services</a>
-          <a className="topNavLink">Gift Cards</a>
-          <a className="topNavLink">Contact</a>
-        </nav>
       </header>
 
       {/* Hero Section */}
