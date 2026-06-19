@@ -19,7 +19,7 @@ export function normalizePhone(raw: string, countryCode = "92"): string {
   return digits;
 }
 
-export type WaMsgType = "reminder" | "confirmation" | "followup" | "lowstock" | "manual";
+export type WaMsgType = "reminder" | "confirmation" | "followup" | "lowstock" | "manual" | "birthday";
 export type WaMsgStatus = "sent" | "failed";
 
 export interface WaLogEntry {
@@ -153,6 +153,68 @@ function buildVars(appt: {
   };
 }
 
+const BIRTHDAY_SENT_KEY = "werzio_wa_birthday_sent";
+
+/**
+ * Client-side birthday check — runs as part of the scheduler loop.
+ * The server-side cron (/api/cron/birthday) is the primary mechanism;
+ * this acts as a same-day backup when the dashboard is open.
+ */
+export async function checkBirthdayReminders(): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  const bd = settingsStore.birthday as {
+    autoBirthday: boolean;
+    birthdayTemplateId: string;
+    birthdayDiscount: string;
+  };
+
+  if (!bd.autoBirthday) return;
+  if (!bd.birthdayTemplateId) return;
+
+  const today = new Date();
+  const todayKey = today.toISOString().slice(0, 10);
+  const year = String(today.getFullYear());
+
+  const sent: Record<string, string> = (() => {
+    try { return JSON.parse(localStorage.getItem(userKey(BIRTHDAY_SENT_KEY)) || "{}"); } catch { return {}; }
+  })();
+
+  const clients = getStoredClients();
+  const salonName = settingsStore.salon.name as string;
+
+  for (const client of clients) {
+    if (!client.dob || !client.phone) continue;
+
+    const [, dobMonth, dobDay] = client.dob.split("-").map(Number);
+    const isToday = dobMonth === today.getMonth() + 1 && dobDay === today.getDate();
+    if (!isToday) continue;
+
+    const sentKey = `${client.id}_${year}`;
+    if (sent[sentKey]) continue;
+
+    const phone = normalizePhone(client.phone);
+    if (!phone) continue;
+
+    const variables: Record<string, string> = {
+      name:       client.name,
+      salon_name: salonName,
+      discount:   bd.birthdayDiscount || "a special treat",
+    };
+
+    console.log(`Birthday wish → ${client.name} (${phone})`);
+    const ok = await callSendApi(phone, bd.birthdayTemplateId, variables, {
+      type: "birthday",
+      clientName: client.name,
+    });
+
+    if (ok) {
+      sent[sentKey] = todayKey;
+      localStorage.setItem(userKey(BIRTHDAY_SENT_KEY), JSON.stringify(sent));
+    }
+  }
+}
+
 export async function runWhatsAppScheduler(): Promise<void> {
   if (typeof window === "undefined") return;
 
@@ -230,6 +292,9 @@ export async function runWhatsAppScheduler(): Promise<void> {
 
   // 4. Low stock alerts
   await checkLowStockAlerts();
+
+  // 5. Birthday reminders
+  await checkBirthdayReminders();
 }
 
 /** Call this whenever inventory is saved to send alerts immediately for newly-low items. */
@@ -270,3 +335,4 @@ export async function checkLowStockAlerts(): Promise<void> {
     localStorage.setItem(userKey(LOW_STOCK_SENT_KEY), JSON.stringify(sent));
   }
 }
+

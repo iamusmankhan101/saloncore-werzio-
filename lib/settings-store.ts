@@ -66,6 +66,12 @@ const defaults = {
     confirmation: "Hi {{name}}, your {{service}} booking on {{date}} at {{time}} is confirmed at {{salon_name}}. We look forward to seeing you! 💜",
     followup: "Hi {{name}}, thank you for visiting {{salon_name}}! We hope you loved your {{service}}. We'd love to see you again soon 💜",
     lowstock: "⚠️ Low Stock Alert from {{salon_name}}: {{count}} item(s) running low — {{items}}. Please restock soon.",
+    birthday: "🎂 Happy Birthday {{name}}! Wishing you a beautiful day from all of us at {{salon_name}}. As a birthday gift, enjoy {{discount}} off your next visit — book anytime this week 💜",
+  },
+  birthday: {
+    autoBirthday: true,
+    birthdayTemplateId: "",
+    birthdayDiscount: "",
   },
 };
 
@@ -104,6 +110,7 @@ function load() {
       notifications: { ...dynamicDefaults.notifications, ...saved.notifications },
       appearance: { ...dynamicDefaults.appearance, ...saved.appearance },
       whatsapp: { ...dynamicDefaults.whatsapp, ...saved.whatsapp },
+      birthday: { ...dynamicDefaults.birthday, ...saved.birthday },
     };
   } catch {
     return structuredClone(defaults);

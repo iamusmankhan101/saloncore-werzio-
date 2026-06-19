@@ -4,13 +4,14 @@ import { useState, useEffect, useMemo } from "react";
 import {
   MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw,
   Zap, Bell, ThumbsUp, Package, ChevronRight, Phone, Copy, Check,
-  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, AlertCircle,
+  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, AlertCircle, Cake,
 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
 import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone } from "@/lib/whatsapp-scheduler";
+import type { BirthdaySettings } from "@/app/api/wa/birthday-settings/route";
 import { getCurrentUser, userKey } from "@/lib/auth";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import type { Client } from "@/lib/types";
@@ -23,6 +24,7 @@ const TYPE_META: Record<WaMsgType, { label: string; color: string; bg: string; i
   followup:     { label: "Follow-up",    color: "#0284c7", bg: "rgba(2,132,199,0.1)",   icon: ThumbsUp },
   lowstock:     { label: "Low Stock",    color: "#ea580c", bg: "rgba(234,88,12,0.1)",   icon: Package },
   manual:       { label: "Manual",       color: "#6b7280", bg: "rgba(107,114,128,0.1)", icon: Send },
+  birthday:     { label: "Birthday",     color: "#db2777", bg: "rgba(219,39,119,0.1)",  icon: Cake },
 };
 
 const SAMPLE_VARS: Record<string, string> = {
@@ -35,11 +37,12 @@ const SAMPLE_VARS: Record<string, string> = {
   count: "2",
 };
 
-const TPL_CONFIG: { key: "reminder" | "confirmation" | "followup" | "lowstock"; label: string; description: string; vars: string[]; color: string; icon: React.ElementType }[] = [
-  { key: "reminder",     label: "Appointment Reminder", description: "Sent automatically X hours before the appointment",  vars: ["name","service","date","time","salon_name"], color: "#7C3AED", icon: Bell },
-  { key: "confirmation", label: "Booking Confirmation",  description: "Sent when a new appointment is booked",             vars: ["name","service","date","time","salon_name"], color: "#059669", icon: CheckCircle2 },
-  { key: "followup",     label: "Follow-up Message",     description: "Sent after appointment is marked as completed",     vars: ["name","service","salon_name"],               color: "#0284c7", icon: ThumbsUp },
-  { key: "lowstock",     label: "Low Stock Alert",       description: "Sent once daily to your WhatsApp when stock is low", vars: ["items","count","salon_name"],               color: "#ea580c", icon: Package },
+const TPL_CONFIG: { key: "reminder" | "confirmation" | "followup" | "lowstock" | "birthday"; label: string; description: string; vars: string[]; color: string; icon: React.ElementType }[] = [
+  { key: "reminder",     label: "Appointment Reminder", description: "Sent automatically X hours before the appointment",          vars: ["name","service","date","time","salon_name"], color: "#7C3AED", icon: Bell },
+  { key: "confirmation", label: "Booking Confirmation",  description: "Sent when a new appointment is booked",                    vars: ["name","service","date","time","salon_name"], color: "#059669", icon: CheckCircle2 },
+  { key: "followup",     label: "Follow-up Message",     description: "Sent after appointment is marked as completed",            vars: ["name","service","salon_name"],               color: "#0284c7", icon: ThumbsUp },
+  { key: "lowstock",     label: "Low Stock Alert",       description: "Sent once daily to your WhatsApp when stock is low",       vars: ["items","count","salon_name"],               color: "#ea580c", icon: Package },
+  { key: "birthday",     label: "Birthday Greeting",     description: "Auto-sent on client's birthday at 9 AM (server cron)",    vars: ["name","salon_name","discount"],             color: "#db2777", icon: Cake },
 ];
 
 const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
@@ -47,6 +50,7 @@ const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
   { value: "reminder",     label: "Reminders" },
   { value: "confirmation", label: "Confirmations" },
   { value: "followup",     label: "Follow-ups" },
+  { value: "birthday",     label: "Birthdays" },
   { value: "lowstock",     label: "Low Stock" },
   { value: "manual",       label: "Manual" },
 ];
@@ -256,6 +260,39 @@ export default function MessagesPage() {
   const [filter, setFilter]     = useState<WaMsgType | "all">("all");
   const [refreshKey, setRefreshKey] = useState(0);
   const [loadingLogs, setLoadingLogs] = useState(true);
+
+  // Birthday reminder settings
+  const bdDefaults = settingsStore.birthday as { autoBirthday: boolean; birthdayTemplateId: string; birthdayDiscount: string };
+  const [bdEnabled,    setBdEnabled]    = useState(bdDefaults.autoBirthday);
+  const [bdTemplate,   setBdTemplate]   = useState(bdDefaults.birthdayTemplateId);
+  const [bdDiscount,   setBdDiscount]   = useState(bdDefaults.birthdayDiscount);
+  const [bdSaving,     setBdSaving]     = useState(false);
+  const [bdSaved,      setBdSaved]      = useState(false);
+
+  async function saveBirthdaySettings() {
+    setBdSaving(true);
+    // Persist locally
+    const bd = settingsStore.birthday as Record<string, unknown>;
+    bd.autoBirthday       = bdEnabled;
+    bd.birthdayTemplateId = bdTemplate;
+    bd.birthdayDiscount   = bdDiscount;
+    saveSettings();
+    // Persist to Turso so the server cron can read it
+    const user = getCurrentUser();
+    if (user) {
+      await fetch("/api/wa/birthday-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          settings: { enabled: bdEnabled, templateName: bdTemplate, discount: bdDiscount } satisfies BirthdaySettings,
+        }),
+      }).catch(() => {});
+    }
+    setBdSaving(false);
+    setBdSaved(true);
+    setTimeout(() => setBdSaved(false), 2500);
+  }
 
   // Manual send state
   const [selClientId, setSelClientId] = useState("");
@@ -753,6 +790,7 @@ export default function MessagesPage() {
                   <AutoCard icon={CheckCircle2} label="Booking Confirmation"  enabled={bs.autoConfirmation} templateId={bs.confirmationTemplateId} color="#059669" />
                   <AutoCard icon={ThumbsUp}     label="Follow-up Message"     enabled={bs.autoFollowup}     templateId={bs.followupTemplateId}     color="#0284c7" />
                   <AutoCard icon={Package}      label="Low Stock Alert"       enabled={bs.autoLowStock}     templateId={bs.lowStockTemplateId}     color="#ea580c" />
+                  <AutoCard icon={Cake}         label="Birthday Reminder"     enabled={bdEnabled}           templateId={bdTemplate}                color="#db2777" />
                 </div>
 
                 {totalQueue > 0 && (
@@ -768,6 +806,62 @@ export default function MessagesPage() {
                     No API credentials configured — automation is paused.
                   </div>
                 )}
+              </div>
+
+              {/* Birthday Reminder Settings */}
+              <div style={{ background: "#fff", border: "1px solid #fce7f3", borderRadius: 18, padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(219,39,119,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Cake size={16} color="#db2777" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: "#1d1d2f" }}>Birthday Reminders</div>
+                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>Auto-sent at 9 AM on each client&apos;s birthday</div>
+                  </div>
+                  {/* Toggle */}
+                  <button type="button" onClick={() => setBdEnabled((v) => !v)}
+                    style={{ marginLeft: "auto", width: 40, height: 22, borderRadius: 11, border: "none", cursor: "pointer", background: bdEnabled ? "#db2777" : "#d1d5db", transition: "background 0.2s", position: "relative", flexShrink: 0 }}>
+                    <span style={{ position: "absolute", top: 3, left: bdEnabled ? 20 : 3, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Meta Template Name
+                    </label>
+                    <input
+                      value={bdTemplate}
+                      onChange={(e) => setBdTemplate(e.target.value)}
+                      placeholder="e.g. birthday_wishes"
+                      style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", outline: "none", boxSizing: "border-box" }}
+                    />
+                    <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>Must match the approved template name in Meta Business Manager</div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Discount / Gift (optional)
+                    </label>
+                    <input
+                      value={bdDiscount}
+                      onChange={(e) => setBdDiscount(e.target.value)}
+                      placeholder="e.g. 15% off or a free blow-dry"
+                      style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", outline: "none", boxSizing: "border-box" }}
+                    />
+                    <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>Inserted as {"{{discount}}"} in the template — leave blank if not using</div>
+                  </div>
+
+                  <div style={{ padding: "10px 12px", borderRadius: 9, background: "#fdf2f8", border: "1px solid #fce7f3", fontSize: 11, color: "#9d174d", lineHeight: 1.6 }}>
+                    <strong>Template variables:</strong> {"{{name}}"} {"{{salon_name}}"} {"{{discount}}"}<br />
+                    Clients must have a date of birth saved in their profile to receive birthday messages.
+                  </div>
+
+                  <button type="button" onClick={saveBirthdaySettings} disabled={bdSaving}
+                    style={{ width: "100%", border: "none", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: bdSaving ? "not-allowed" : "pointer", background: bdSaved ? "#ecfdf5" : "linear-gradient(135deg,#be185d,#db2777)", color: bdSaved ? "#059669" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, boxShadow: bdSaved ? "none" : "0 3px 10px rgba(219,39,119,0.3)" }}>
+                    {bdSaved ? <><Check size={13} /> Saved</> : bdSaving ? "Saving…" : <><Save size={13} /> Save Birthday Settings</>}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
