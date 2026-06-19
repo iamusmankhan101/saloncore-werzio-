@@ -73,6 +73,14 @@ const defaults = {
     birthdayTemplateId: "",
     birthdayDiscount: "",
   },
+  loyalty: {
+    enabled: true,
+    pointsPerRupee: 0.1,
+    rupeePerPoint: 1,
+    silverMin: 500,
+    goldMin: 2000,
+    platinumMin: 5000,
+  },
 };
 
 function load() {
@@ -111,6 +119,7 @@ function load() {
       appearance: { ...dynamicDefaults.appearance, ...saved.appearance },
       whatsapp: { ...dynamicDefaults.whatsapp, ...saved.whatsapp },
       birthday: { ...dynamicDefaults.birthday, ...saved.birthday },
+      loyalty:  { ...dynamicDefaults.loyalty,  ...saved.loyalty  },
     };
   } catch {
     return structuredClone(defaults);

@@ -5,6 +5,8 @@ import { getStoredAppointments, saveAppointments, getStoredClients, saveClients,
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
 import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup } from "@/lib/whatsapp-scheduler";
+import { awardPoints } from "@/lib/loyalty";
+import { settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
 
 const STATUS: Record<AppointmentStatus, { label: string; color: string; bg: string }> = {
@@ -714,15 +716,15 @@ export default function AppointmentsPage() {
 
             if (newStatus === "completed") {
               enqueueWhatsAppFollowup(apptId);
-              // Update client visit count, spend and last visit date
               const appt = appointments.find((a) => a.id === apptId);
               if (appt?.clientId) {
                 setClients((prev) => {
-                  const updated = prev.map((c) =>
-                    c.id === appt.clientId
-                      ? { ...c, totalVisits: c.totalVisits + 1, totalSpend: c.totalSpend + appt.totalAmount, lastVisitDate: appt.date }
-                      : c
-                  );
+                  const loyaltySettings = settingsStore.loyalty as Parameters<typeof awardPoints>[2];
+                  const updated = prev.map((c) => {
+                    if (c.id !== appt.clientId) return c;
+                    const withVisit = { ...c, totalVisits: c.totalVisits + 1, totalSpend: c.totalSpend + appt.totalAmount, lastVisitDate: appt.date };
+                    return awardPoints(withVisit, appt.totalAmount, loyaltySettings, appt.id);
+                  });
                   saveClients(updated);
                   return updated;
                 });

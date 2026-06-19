@@ -6,6 +6,8 @@ import { getStoredClients, getStoredAppointments, saveClients, getStoredStaff } 
 import { BEAUTY_PROFILES } from "@/lib/mock-data";
 import type { Client, Appointment, Staff } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
+import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
+import { settingsStore } from "@/lib/settings-store";
 import {
   ArrowLeft, Phone, Mail, Calendar, Heart, Star, Camera, X,
   Plus, Edit2, TrendingUp, Clock, Users, Scissors,
@@ -387,6 +389,55 @@ export default function ClientProfilePage() {
 
           {/* RIGHT column */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+            {/* Loyalty Card */}
+            {(() => {
+              const ls = settingsStore.loyalty as LoyaltySettings;
+              if (!ls.enabled) return null;
+              const balance = client.loyaltyPoints ?? 0;
+              const earned  = client.loyaltyPointsEarned ?? 0;
+              const tier    = getTier(earned, ls);
+              const tm      = TIER_META[tier];
+              const next    = nextTierThreshold(earned, ls);
+              return (
+                <div style={{ background: `linear-gradient(135deg, ${tm.bg}, #fff)`, borderRadius: 16, border: `1.5px solid ${tm.color}33`, overflow: "hidden" }}>
+                  <div style={{ padding: "14px 18px", borderBottom: `1px solid ${tm.color}22`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>Loyalty Points</div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: tm.color, background: tm.bg, padding: "3px 10px", borderRadius: 20 }}>{tm.emoji} {tm.label}</span>
+                  </div>
+                  <div style={{ padding: "14px 18px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 28, fontWeight: 900, color: tm.color, lineHeight: 1 }}>{balance.toLocaleString()}</div>
+                        <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3 }}>pts available · {fmt(pointsToRupees(balance, ls.rupeePerPoint))} value</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#5a5a7a" }}>{earned.toLocaleString()}</div>
+                        <div style={{ fontSize: 10, color: "#9898b0" }}>lifetime earned</div>
+                      </div>
+                    </div>
+                    {next && (
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                          <span style={{ fontSize: 11, color: "#9898b0" }}>Progress to {TIER_META[next.tier].emoji} {TIER_META[next.tier].label}</span>
+                          <span style={{ fontSize: 11, color: "#9898b0" }}>{next.needed} pts needed</span>
+                        </div>
+                        <div style={{ height: 6, borderRadius: 3, background: "#e8e8f0", overflow: "hidden" }}>
+                          <div style={{
+                            height: "100%", borderRadius: 3,
+                            background: `linear-gradient(90deg,${tm.color},${tm.color}99)`,
+                            width: `${Math.min(100, (earned / (earned + next.needed)) * 100)}%`,
+                          }} />
+                        </div>
+                      </div>
+                    )}
+                    {!next && (
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#6b21a8", textAlign: "center", padding: "4px 0" }}>💎 Platinum — Top tier achieved!</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Upcoming appointments */}
             <SectionCard title="Upcoming" sub={upcomingAppts.length > 0 ? `${upcomingAppts.length} scheduled` : undefined}>

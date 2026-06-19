@@ -65,6 +65,20 @@ export interface Client {
   lastVisitDate?: string;
   averageRating?: number;
   notes?: string;
+  loyaltyPoints?: number;
+  loyaltyPointsEarned?: number;
+}
+
+export type LoyaltyTxType = "earn" | "redeem" | "adjust";
+
+export interface LoyaltyTransaction {
+  id: string;
+  clientId: string;
+  type: LoyaltyTxType;
+  points: number;
+  note: string;
+  date: string;
+  appointmentId?: string;
 }
 
 export interface BeautyProfile {
