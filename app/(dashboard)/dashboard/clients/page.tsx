@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CLIENTS, APPOINTMENTS, BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import type { Client, Appointment } from "@/lib/types";
-import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown, Camera, ExternalLink } from "lucide-react";
+import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown, Camera, ExternalLink, Trash2 } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
 const STATUS_CONFIG = {
@@ -31,8 +31,33 @@ function fmtDate(s?: string) {
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// ── Delete Confirm Modal ──────────────────────────────────────────────────────
+function DeleteConfirmModal({ clientName, onConfirm, onCancel }: { clientName: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 340, padding: "28px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", textAlign: "center" }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <Trash2 size={22} color="#dc2626" />
+        </div>
+        <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 8 }}>Delete Client?</div>
+        <div style={{ fontSize: 13, color: "#6b6b8a", lineHeight: 1.6, marginBottom: 24 }}>
+          This will permanently delete <strong>{clientName}</strong> and all their data. This cannot be undone.
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>
+            Cancel
+          </button>
+          <button onClick={onConfirm} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: "#dc2626", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Client Detail Panel ───────────────────────────────────────────────────────
-function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Client; onClose: () => void; appointments: Appointment[]; onUpdate?: (c: Client) => void }) {
+function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { client: Client; onClose: () => void; appointments: Appointment[]; onUpdate?: (c: Client) => void; onDelete?: (id: string) => void }) {
   const panelRouter = useRouter();
   const allClientAppts   = appointments.filter((a) => a.clientId === client.id);
   const completedAppts   = allClientAppts.filter((a) => a.status === "completed").sort((a, b) => b.date.localeCompare(a.date));
@@ -52,6 +77,7 @@ function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Clie
     tag: client.tags[0] ?? "",
   });
   const [saved, setSaved] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const setE = (k: string, v: string) => setEditForm((f) => ({ ...f, [k]: v }));
   const [visitPhotos, setVisitPhotos] = useState<Record<string, { before?: string; after?: string }>>({});
   const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
@@ -72,6 +98,13 @@ function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Clie
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {showDeleteConfirm && (
+        <DeleteConfirmModal
+          clientName={client.name}
+          onCancel={() => setShowDeleteConfirm(false)}
+          onConfirm={() => { onDelete?.(client.id); onClose(); }}
+        />
+      )}
       <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 500, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
 
         {/* Header */}
@@ -88,6 +121,9 @@ function ClientPanel({ client, onClose, appointments, onUpdate }: { client: Clie
                 Edit
               </button>
             )}
+            <button onClick={() => setShowDeleteConfirm(true)} title="Delete client" style={{ display: "flex", alignItems: "center", padding: "5px 8px", borderRadius: 7, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer" }}>
+              <Trash2 size={13} color="#dc2626" />
+            </button>
             <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}>
               <X size={18} color="#6b6b8a" />
             </button>
@@ -444,6 +480,7 @@ export default function ClientsPage() {
   const [selected, setSelected] = useState<Client | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -506,6 +543,14 @@ export default function ClientsPage() {
             });
             setSelected(updatedC);
           }}
+          onDelete={(id) => {
+            setClients((prevClients) => {
+              const updated = prevClients.filter((c) => c.id !== id);
+              saveClients(updated);
+              return updated;
+            });
+            setSelected(null);
+          }}
         />
       )}
       {showAdd && (
@@ -517,6 +562,21 @@ export default function ClientsPage() {
               saveClients(updated);
               return updated;
             });
+          }}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          clientName={deleteTarget.name}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            setClients((prev) => {
+              const updated = prev.filter((c) => c.id !== deleteTarget.id);
+              saveClients(updated);
+              return updated;
+            });
+            setDeleteTarget(null);
           }}
         />
       )}
@@ -625,12 +685,19 @@ export default function ClientsPage() {
               <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(client.lastVisitDate)}</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{client.totalVisits}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(client.totalSpend)}</div>
-              <div onClick={(e) => e.stopPropagation()}>
+              <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 6 }}>
                 <button
                   onClick={() => router.push(`/dashboard/clients/${client.id}`)}
                   style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", fontSize: 11, fontWeight: 600, color: "#7C3AED", cursor: "pointer", whiteSpace: "nowrap" }}
                 >
                   <ExternalLink size={11} /> View
+                </button>
+                <button
+                  onClick={() => setDeleteTarget(client)}
+                  title="Delete client"
+                  style={{ display: "flex", alignItems: "center", padding: "5px 8px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer" }}
+                >
+                  <Trash2 size={12} color="#dc2626" />
                 </button>
               </div>
             </div>
