@@ -507,6 +507,8 @@ export default function ClientsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
   const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteSelected, setShowDeleteSelected] = useState(false);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -552,6 +554,21 @@ export default function ClientsPage() {
   const allTags = Array.from(new Set(clients.flatMap((c) => c.tags)));
   const allSources = Array.from(new Set(clients.map((c) => c.source)));
   const activeFilters = [tagFilter !== "all", sourceFilter !== "all"].filter(Boolean).length;
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
+  const someFilteredSelected = filtered.some((c) => selectedIds.has(c.id));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds((prev) => { const next = new Set(prev); filtered.forEach((c) => next.delete(c.id)); return next; });
+    } else {
+      setSelectedIds((prev) => { const next = new Set(prev); filtered.forEach((c) => next.add(c.id)); return next; });
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  };
 
   return (
     <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -613,7 +630,23 @@ export default function ClientsPage() {
           onConfirm={() => {
             saveClients([]);
             setClients([]);
+            setSelectedIds(new Set());
             setShowDeleteAll(false);
+          }}
+        />
+      )}
+      {showDeleteSelected && (
+        <DeleteAllConfirmModal
+          count={selectedIds.size}
+          onCancel={() => setShowDeleteSelected(false)}
+          onConfirm={() => {
+            setClients((prev) => {
+              const updated = prev.filter((c) => !selectedIds.has(c.id));
+              saveClients(updated);
+              return updated;
+            });
+            setSelectedIds(new Set());
+            setShowDeleteSelected(false);
           }}
         />
       )}
@@ -689,11 +722,33 @@ export default function ClientsPage() {
         </div>
       )}
 
+      {/* Selection action bar */}
+      {someFilteredSelected && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 10, background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#7C3AED" }}>{selectedIds.size} client{selectedIds.size !== 1 ? "s" : ""} selected</span>
+          <button
+            onClick={() => setShowDeleteSelected(true)}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, border: "none", background: "#dc2626", fontSize: 12, fontWeight: 600, color: "#fff", cursor: "pointer" }}>
+            <Trash2 size={13} /> Delete Selected
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #ddd6fe", background: "#fff", fontSize: 12, fontWeight: 600, color: "#7C3AED", cursor: "pointer" }}>
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="table-scroll-wrap">
         <div className="table-scroll-inner">
         <div className="client-table-inner" style={{ background: "#fff" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 110px 120px 110px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 130px 100px 120px 110px 120px 110px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa", alignItems: "center" }}>
+          <div onClick={toggleSelectAll} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${allFilteredSelected ? "#7C3AED" : "#d1d1e0"}`, background: allFilteredSelected ? "#7C3AED" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
+              {allFilteredSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            </div>
+          </div>
           {["CLIENT", "PHONE", "SOURCE", "LAST VISIT", "VISITS", "TOTAL SPEND", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
@@ -707,10 +762,16 @@ export default function ClientsPage() {
             <div
               key={client.id}
               onClick={() => setSelected(client)}
-              style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 110px 120px 110px", padding: "13px 20px", borderBottom: isLast ? "none" : "1px solid #f4f4f8", alignItems: "center", cursor: "pointer" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              style={{ display: "grid", gridTemplateColumns: "40px 1fr 130px 100px 120px 110px 120px 110px", padding: "13px 20px", borderBottom: isLast ? "none" : "1px solid #f4f4f8", alignItems: "center", cursor: "pointer", background: selectedIds.has(client.id) ? "#faf7ff" : "transparent" }}
+              onMouseEnter={(e) => { if (!selectedIds.has(client.id)) e.currentTarget.style.background = "#fafafa"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = selectedIds.has(client.id) ? "#faf7ff" : "transparent"; }}
             >
+              {/* Checkbox */}
+              <div onClick={(e) => { e.stopPropagation(); toggleOne(client.id); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${selectedIds.has(client.id) ? "#7C3AED" : "#d1d1e0"}`, background: selectedIds.has(client.id) ? "#7C3AED" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
+                  {selectedIds.has(client.id) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </div>
+              </div>
               {/* Client */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #9333EA22, #ec489922)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#9333EA", flexShrink: 0 }}>
