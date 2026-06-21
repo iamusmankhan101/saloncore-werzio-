@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 
-const PHONE_NUMBER_ID = "1143945662132104";
-const META_URL = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
+const HARDCODED_PHONE_NUMBER_ID = process.env.META_PHONE_NUMBER_ID || "1143945662132104";
 
 // Variable order per template — must match {{1}},{{2}}... positions in Meta template
 const TEMPLATE_VAR_ORDER: Record<string, string[]> = {
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { phoneNumberId: _ignored, templateId: templateName, phone, variables } = body as {
+  const { phoneNumberId, templateId: templateName, phone, variables } = body as {
     phoneNumberId?: string;
     templateId: string;   // now stores template name e.g. "reminder", "confirmm"
     phone: string;
@@ -30,6 +29,10 @@ export async function POST(request: NextRequest) {
   if (!templateName || !phone) {
     return Response.json({ ok: false, error: "Missing required fields" }, { status: 400 });
   }
+
+  // Use phone number ID from request body first, then env var, then hardcoded fallback
+  const resolvedPhoneNumberId = phoneNumberId || HARDCODED_PHONE_NUMBER_ID;
+  const metaUrl = `https://graph.facebook.com/v19.0/${resolvedPhoneNumberId}/messages`;
 
   // Build ordered parameters array matching template {{1}}...{{N}} positions
   const order = TEMPLATE_VAR_ORDER[templateName] ?? DEFAULT_ORDER;
@@ -52,10 +55,10 @@ export async function POST(request: NextRequest) {
     },
   };
 
-  console.log("📱 Meta API send:", JSON.stringify(payload, null, 2));
+  console.log("📱 Meta API send to phone ID:", resolvedPhoneNumberId, JSON.stringify(payload, null, 2));
 
   try {
-    const res = await fetch(META_URL, {
+    const res = await fetch(metaUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
