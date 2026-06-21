@@ -31,6 +31,31 @@ function fmtDate(s?: string) {
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// ── Delete All Confirm Modal ──────────────────────────────────────────────────
+function DeleteAllConfirmModal({ count, onConfirm, onCancel }: { count: number; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 360, padding: "28px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", textAlign: "center" }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <Trash2 size={22} color="#dc2626" />
+        </div>
+        <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 8 }}>Delete All Clients?</div>
+        <div style={{ fontSize: 13, color: "#6b6b8a", lineHeight: 1.6, marginBottom: 24 }}>
+          This will permanently delete all <strong>{count} client{count !== 1 ? "s" : ""}</strong>. This action cannot be undone.
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>
+            Cancel
+          </button>
+          <button onClick={onConfirm} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: "#dc2626", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+            Delete All
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Delete Confirm Modal ──────────────────────────────────────────────────────
 function DeleteConfirmModal({ clientName, onConfirm, onCancel }: { clientName: string; onConfirm: () => void; onCancel: () => void }) {
   return (
@@ -481,6 +506,7 @@ export default function ClientsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -580,6 +606,17 @@ export default function ClientsPage() {
           }}
         />
       )}
+      {showDeleteAll && (
+        <DeleteAllConfirmModal
+          count={clients.length}
+          onCancel={() => setShowDeleteAll(false)}
+          onConfirm={() => {
+            saveClients([]);
+            setClients([]);
+            setShowDeleteAll(false);
+          }}
+        />
+      )}
 
       {/* Header */}
       <div className="page-header">
@@ -590,14 +627,23 @@ export default function ClientsPage() {
             {plan.clientLimit !== -1 && <span style={{ marginLeft: 8, color: clientLimited ? "#dc2626" : "#b0b0c8" }}>· {clients.length}/{plan.clientLimit} on Free plan</span>}
           </div>
         </div>
-        <button
-          onClick={() => !clientLimited && setShowAdd(true)}
-          className="page-header-btn"
-          title={clientLimited ? `Free plan: ${plan.clientLimit} client limit reached. Upgrade to Pro for unlimited.` : ""}
-          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: clientLimited ? "#e8e8f0" : "#7C3AED", fontSize: 13, fontWeight: 600, color: clientLimited ? "#aaaabc" : "#fff", cursor: clientLimited ? "not-allowed" : "pointer" }}>
-          <Plus size={16} /> Add Client
-          {clientLimited && <span style={{ fontSize: 10, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px" }}>Limit reached</span>}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {clients.length > 0 && (
+            <button
+              onClick={() => setShowDeleteAll(true)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 13, fontWeight: 600, color: "#dc2626", cursor: "pointer" }}>
+              <Trash2 size={15} /> Delete All
+            </button>
+          )}
+          <button
+            onClick={() => !clientLimited && setShowAdd(true)}
+            className="page-header-btn"
+            title={clientLimited ? `Free plan: ${plan.clientLimit} client limit reached. Upgrade to Pro for unlimited.` : ""}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: clientLimited ? "#e8e8f0" : "#7C3AED", fontSize: 13, fontWeight: 600, color: clientLimited ? "#aaaabc" : "#fff", cursor: clientLimited ? "not-allowed" : "pointer" }}>
+            <Plus size={16} /> Add Client
+            {clientLimited && <span style={{ fontSize: 10, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px" }}>Limit reached</span>}
+          </button>
+        </div>
       </div>
 
       {clientLimited && (
