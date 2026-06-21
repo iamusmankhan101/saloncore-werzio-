@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
 import type { Service, Staff, ServiceCategory } from "@/lib/types";
-import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil } from "lucide-react";
+import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2 } from "lucide-react";
 
 const CATEGORY_LABELS: Record<string, { label: string; bg: string; color: string }> = {
   hair:   { label: "Hair Care", bg: "#EDE9FE", color: "#7C3AED" },
@@ -125,12 +125,34 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
   );
 }
 
+// ── Delete Confirm Modal ──────────────────────────────────────────────────────
+function DeleteConfirmModal({ name, onConfirm, onCancel }: { name: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 340, padding: "32px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <Trash2 size={22} color="#dc2626" />
+        </div>
+        <div style={{ fontWeight: 700, fontSize: 17, color: "#1a1a2e", marginBottom: 8 }}>Delete Service?</div>
+        <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 24 }}>
+          This will permanently delete <strong>{name}</strong> and cannot be undone.
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onConfirm} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: "#dc2626", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
@@ -153,6 +175,13 @@ export default function ServicesPage() {
     saveServices(updated);
   };
 
+  const handleDeleteService = (id: string) => {
+    const updated = services.filter(s => s.id !== id);
+    setServices(updated);
+    saveServices(updated);
+    setDeleteTarget(null);
+  };
+
   const filteredServices = filter === "all" ? services : services.filter(s => s.category === filter);
 
   const totalCount  = services.length;
@@ -168,6 +197,13 @@ export default function ServicesPage() {
           onSave={handleSaveService}
           staffList={staff}
           serviceToEdit={editingService ?? undefined}
+        />
+      )}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          name={deleteTarget.name}
+          onConfirm={() => handleDeleteService(deleteTarget.id)}
+          onCancel={() => setDeleteTarget(null)}
         />
       )}
 
@@ -232,12 +268,18 @@ export default function ServicesPage() {
                     <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", background: badge.bg, color: badge.color, padding: "3px 8px", borderRadius: 20 }}>{badge.label}</span>
                     <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e", marginTop: 8 }}>{sv.name}</div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <button onClick={() => setEditingService(sv)}
                       style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #EDE9FE", background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = "#EDE9FE"; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "#F5F3FF"; }}>
                       <Pencil size={14} color="#7C3AED" />
+                    </button>
+                    <button onClick={() => setDeleteTarget(sv)}
+                      style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#fee2e2"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "#fef2f2"; }}>
+                      <Trash2 size={14} color="#dc2626" />
                     </button>
                     <div onClick={() => toggleServiceStatus(sv.id)} style={{ width: 40, height: 20, borderRadius: 10, background: sv.isActive ? "#059669" : "#e0e0ec", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
                       <div style={{ position: "absolute", top: 2, left: sv.isActive ? 22 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />

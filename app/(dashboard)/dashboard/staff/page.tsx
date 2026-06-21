@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments } from "@/lib/storage";
 import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
-import { X, Plus, Check, ChevronRight } from "lucide-react";
+import { X, Plus, Check, ChevronRight, Trash2 } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
@@ -147,6 +147,27 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
   );
 }
 
+// ── Delete Confirm Modal ──────────────────────────────────────────────────────
+function DeleteConfirmModal({ name, onConfirm, onCancel }: { name: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 340, padding: "32px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <Trash2 size={22} color="#dc2626" />
+        </div>
+        <div style={{ fontWeight: 700, fontSize: 17, color: "#1a1a2e", marginBottom: 8 }}>Delete Staff Member?</div>
+        <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 24 }}>
+          This will permanently delete <strong>{name}</strong> and cannot be undone.
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onConfirm} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: "#dc2626", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function StaffPage() {
   const router = useRouter();
@@ -154,6 +175,7 @@ export default function StaffPage() {
   const [staffList, setStaffList]   = useState<Staff[]>([]);
   const [servicesList, setServicesList] = useState<Service[]>([]);
   const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
 
   const plan        = getCurrentPlan();
   const activeCount = staffList.filter((s) => s.isActive).length;
@@ -184,6 +206,20 @@ export default function StaffPage() {
     saveServices(updatedServicesList);
   };
 
+  const handleDeleteStaff = (id: string) => {
+    const updated = staffList.filter((s) => s.id !== id);
+    setStaffList(updated);
+    saveStaff(updated);
+    // Remove this staff member from all service assignments
+    const updatedServices = servicesList.map((sv) => ({
+      ...sv,
+      assignedStaffIds: sv.assignedStaffIds.filter((sid) => sid !== id),
+    }));
+    setServicesList(updatedServices);
+    saveServices(updatedServices);
+    setDeleteTarget(null);
+  };
+
   return (
     <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
 
@@ -192,6 +228,13 @@ export default function StaffPage() {
           servicesList={servicesList}
           onClose={() => setShowAdd(false)}
           onSave={handleSaveStaff}
+        />
+      )}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          name={deleteTarget.name}
+          onConfirm={() => handleDeleteStaff(deleteTarget.id)}
+          onCancel={() => setDeleteTarget(null)}
         />
       )}
 
@@ -250,9 +293,18 @@ export default function StaffPage() {
                     </span>
                   </div>
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 600, color: s.isActive ? "#059669" : "#dc2626", background: s.isActive ? "#ecfdf5" : "#fef2f2", padding: "3px 8px", borderRadius: 20 }}>
-                  {s.isActive ? "Active" : "Inactive"}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: s.isActive ? "#059669" : "#dc2626", background: s.isActive ? "#ecfdf5" : "#fef2f2", padding: "3px 8px", borderRadius: 20 }}>
+                    {s.isActive ? "Active" : "Inactive"}
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(s); }}
+                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#fee2e2"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#fef2f2"; }}>
+                    <Trash2 size={13} color="#dc2626" />
+                  </button>
+                </div>
               </div>
 
               {/* Specialties */}
