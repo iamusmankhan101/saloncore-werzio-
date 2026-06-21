@@ -81,26 +81,40 @@ function alreadySent(key: string): boolean {
   return !!getSentLog()[key];
 }
 
-function getQueue(storageKey: string): string[] {
-  try { return JSON.parse(localStorage.getItem(userKey(storageKey)) || "[]"); } catch { return []; }
+const MAX_RETRIES = 3;
+const FOLLOWUP_DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours after completion
+
+// sendAfter: unix ms timestamp — scheduler skips item until Date.now() >= sendAfter
+type QueueItem = { id: string; retries: number; sendAfter?: number };
+
+function getQueue(storageKey: string): QueueItem[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(userKey(storageKey)) || "[]") as (string | QueueItem)[];
+    // Migrate old string[] format → {id, retries} format
+    return raw.map((item) => typeof item === "string" ? { id: item, retries: 0 } : item);
+  } catch { return []; }
 }
 
-function setQueue(storageKey: string, ids: string[]) {
-  localStorage.setItem(userKey(storageKey), JSON.stringify(ids));
+function setQueue(storageKey: string, items: QueueItem[]) {
+  localStorage.setItem(userKey(storageKey), JSON.stringify(items));
 }
 
-/** Call when a new appointment is booked to queue a confirmation message. */
+/** Call when a new appointment is booked — sends confirmation on the next scheduler tick. */
 export function enqueueWhatsAppConfirmation(apptId: string) {
   if (typeof window === "undefined") return;
   const q = getQueue(CONFIRM_QUEUE_KEY);
-  if (!q.includes(apptId)) setQueue(CONFIRM_QUEUE_KEY, [...q, apptId]);
+  if (!q.some((item) => item.id === apptId)) {
+    setQueue(CONFIRM_QUEUE_KEY, [...q, { id: apptId, retries: 0 }]);
+  }
 }
 
-/** Call when an appointment is marked completed to queue a follow-up message. */
+/** Call when an appointment is marked completed — sends follow-up 24 hours later. */
 export function enqueueWhatsAppFollowup(apptId: string) {
   if (typeof window === "undefined") return;
   const q = getQueue(FOLLOWUP_QUEUE_KEY);
-  if (!q.includes(apptId)) setQueue(FOLLOWUP_QUEUE_KEY, [...q, apptId]);
+  if (!q.some((item) => item.id === apptId)) {
+    setQueue(FOLLOWUP_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + FOLLOWUP_DELAY_MS }]);
+  }
 }
 
 async function callSendApi(
@@ -260,34 +274,45 @@ export async function runWhatsAppScheduler(): Promise<void> {
     }
   }
 
-  // 2. Booking confirmations — drain the confirm queue
+  // 2. Booking confirmations — drain the confirm queue (max 3 attempts per item)
   if (bs.autoConfirmation && bs.confirmationTemplateId) {
     const queue = getQueue(CONFIRM_QUEUE_KEY);
-    const failed: string[] = [];
-    for (const apptId of queue) {
-      const appt = appointments.find((a) => a.id === apptId);
+    const remaining: QueueItem[] = [];
+    for (const item of queue) {
+      const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
       if (appt && phone) {
         const ok = await callSendApi(phone, bs.confirmationTemplateId, buildVars(appt, salonName), { type: "confirmation", clientName: appt.clientName });
-        if (!ok) failed.push(apptId);
+        if (!ok && item.retries < MAX_RETRIES - 1) {
+          remaining.push({ id: item.id, retries: item.retries + 1 });
+        }
+        // On success or after MAX_RETRIES attempts: drop from queue
       }
     }
-    setQueue(CONFIRM_QUEUE_KEY, failed);
+    setQueue(CONFIRM_QUEUE_KEY, remaining);
   }
 
-  // 3. Follow-up messages — drain the followup queue
+  // 3. Follow-up messages — send 24h after completion (max 3 attempts)
   if (bs.autoFollowup && bs.followupTemplateId) {
     const queue = getQueue(FOLLOWUP_QUEUE_KEY);
-    const failed: string[] = [];
-    for (const apptId of queue) {
-      const appt = appointments.find((a) => a.id === apptId);
+    const remaining: QueueItem[] = [];
+    for (const item of queue) {
+      // Not yet time — keep in queue untouched
+      if (item.sendAfter && Date.now() < item.sendAfter) {
+        remaining.push(item);
+        continue;
+      }
+      const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
       if (appt && phone) {
         const ok = await callSendApi(phone, bs.followupTemplateId, buildVars(appt, salonName), { type: "followup", clientName: appt.clientName });
-        if (!ok) failed.push(apptId);
+        if (!ok && item.retries < MAX_RETRIES - 1) {
+          remaining.push({ id: item.id, retries: item.retries + 1 });
+        }
+        // On success or after MAX_RETRIES attempts: drop from queue
       }
     }
-    setQueue(FOLLOWUP_QUEUE_KEY, failed);
+    setQueue(FOLLOWUP_QUEUE_KEY, remaining);
   }
 
   // 4. Low stock alerts
@@ -330,9 +355,8 @@ export async function checkLowStockAlerts(): Promise<void> {
   }, { type: "lowstock", clientName: "Owner" });
   console.log("📦 Low stock alert result:", ok ? "sent ✅" : "failed ❌");
 
-  if (ok) {
-    newlyLow.forEach((i) => { sent[i.id] = today; });
-    localStorage.setItem(userKey(LOW_STOCK_SENT_KEY), JSON.stringify(sent));
-  }
+  // Mark attempted regardless of outcome — low stock alerts send once per day only
+  newlyLow.forEach((i) => { sent[i.id] = today; });
+  localStorage.setItem(userKey(LOW_STOCK_SENT_KEY), JSON.stringify(sent));
 }
 
