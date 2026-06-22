@@ -24,7 +24,7 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
-export type WaMsgType = "reminder" | "confirmation" | "followup" | "lowstock" | "manual" | "birthday";
+export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday";
 export type WaMsgStatus = "sent" | "failed";
 
 export interface WaLogEntry {
@@ -71,6 +71,7 @@ export function appendLog(entry: Omit<WaLogEntry, "id" | "timestamp">) {
 const SENT_KEY = "werzio_wa_sent";
 const CONFIRM_QUEUE_KEY = "werzio_wa_confirm_queue";
 const FOLLOWUP_QUEUE_KEY = "werzio_wa_followup_queue";
+const CANCEL_QUEUE_KEY  = "werzio_wa_cancel_queue";
 
 function getSentLog(): Record<string, number> {
   try { return JSON.parse(localStorage.getItem(userKey(SENT_KEY)) || "{}"); } catch { return {}; }
@@ -123,6 +124,15 @@ export function enqueueWhatsAppFollowup(apptId: string) {
   const q = getQueue(FOLLOWUP_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
     setQueue(FOLLOWUP_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + FOLLOWUP_DELAY_MS }]);
+  }
+}
+
+/** Call when an appointment is cancelled — sends a win-back discount message 24 hours later. */
+export function enqueueWhatsAppCancellation(apptId: string) {
+  if (typeof window === "undefined") return;
+  const q = getQueue(CANCEL_QUEUE_KEY);
+  if (!q.some((item) => item.id === apptId)) {
+    setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + FOLLOWUP_DELAY_MS }]);
   }
 }
 
@@ -257,6 +267,7 @@ async function runSchedulerInternal(): Promise<void> {
     reminderHours: number;
     autoConfirmation: boolean;
     autoFollowup: boolean;
+    autoCancellation: boolean;
     autoLowStock: boolean;
   };
 
@@ -266,6 +277,7 @@ async function runSchedulerInternal(): Promise<void> {
     reminder: string;
     confirmation: string;
     followup: string;
+    cancellation: string;
   };
 
   const appointments = getStoredAppointments();
@@ -337,10 +349,37 @@ async function runSchedulerInternal(): Promise<void> {
     setQueue(FOLLOWUP_QUEUE_KEY, remaining);
   }
 
-  // 4. Low stock alerts
+  // 4. Cancellation win-back messages — sent 24h after cancellation
+  const cancelTpl = (settingsStore.whatsapp as { cancellation: string }).cancellation;
+  if (ws.autoCancellation && cancelTpl) {
+    const queue = getQueue(CANCEL_QUEUE_KEY);
+    const remaining: QueueItem[] = [];
+    for (const item of queue) {
+      if (item.sendAfter && Date.now() < item.sendAfter) {
+        remaining.push(item);
+        continue;
+      }
+      const appt = appointments.find((a) => a.id === item.id);
+      const phone = appt ? clientPhone(appt.clientId) : "";
+      if (appt && phone) {
+        const cancelDiscount = (settingsStore.wasender as { cancelDiscount?: string }).cancelDiscount || "10%";
+        const text = fillTemplate(cancelTpl, {
+          ...buildVars(appt, salonName),
+          discount: cancelDiscount,
+        });
+        const ok = await callSendApi(phone, text, { type: "cancellation", clientName: appt.clientName });
+        if (!ok && item.retries < MAX_RETRIES - 1) {
+          remaining.push({ id: item.id, retries: item.retries + 1 });
+        }
+      }
+    }
+    setQueue(CANCEL_QUEUE_KEY, remaining);
+  }
+
+  // 5. Low stock alerts
   await checkLowStockAlerts();
 
-  // 5. Birthday reminders
+  // 6. Birthday reminders
   await checkBirthdayReminders();
 }
 

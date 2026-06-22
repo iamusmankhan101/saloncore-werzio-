@@ -4,13 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import {
   MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw,
   Zap, Bell, ThumbsUp, Package, ChevronRight, Phone, Copy, Check,
-  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, AlertCircle, Cake,
+  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, AlertCircle, Cake, CalendarX,
 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
-import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone } from "@/lib/whatsapp-scheduler";
+import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, enqueueWhatsAppCancellation } from "@/lib/whatsapp-scheduler";
 import type { BirthdaySettings } from "@/app/api/wa/birthday-settings/route";
 import { getCurrentUser, userKey } from "@/lib/auth";
 import { getCurrentPlan } from "@/lib/plan-limits";
@@ -22,6 +22,7 @@ const TYPE_META: Record<WaMsgType, { label: string; color: string; bg: string; i
   reminder:     { label: "Reminder",     color: "#7C3AED", bg: "rgba(124,58,237,0.1)",  icon: Bell },
   confirmation: { label: "Confirmation", color: "#059669", bg: "rgba(5,150,105,0.1)",   icon: CheckCircle2 },
   followup:     { label: "Follow-up",    color: "#0284c7", bg: "rgba(2,132,199,0.1)",   icon: ThumbsUp },
+  cancellation: { label: "Cancellation", color: "#dc2626", bg: "rgba(220,38,38,0.1)",   icon: CalendarX },
   lowstock:     { label: "Low Stock",    color: "#ea580c", bg: "rgba(234,88,12,0.1)",   icon: Package },
   manual:       { label: "Manual",       color: "#6b7280", bg: "rgba(107,114,128,0.1)", icon: Send },
   birthday:     { label: "Birthday",     color: "#db2777", bg: "rgba(219,39,119,0.1)",  icon: Cake },
@@ -35,14 +36,16 @@ const SAMPLE_VARS: Record<string, string> = {
   salon_name: (settingsStore.salon as { name: string }).name,
   items: "Loreal Hair Color (2 left), OPI Nail Polish (1 left)",
   count: "2",
+  discount: "10%",
 };
 
-const TPL_CONFIG: { key: "reminder" | "confirmation" | "followup" | "lowstock" | "birthday"; label: string; description: string; vars: string[]; color: string; icon: React.ElementType }[] = [
-  { key: "reminder",     label: "Appointment Reminder", description: "Sent automatically X hours before the appointment",          vars: ["name","service","date","time","salon_name"], color: "#7C3AED", icon: Bell },
-  { key: "confirmation", label: "Booking Confirmation",  description: "Sent when a new appointment is booked",                    vars: ["name","service","date","time","salon_name"], color: "#059669", icon: CheckCircle2 },
-  { key: "followup",     label: "Follow-up Message",     description: "Sent after appointment is marked as completed",            vars: ["name","service","salon_name"],               color: "#0284c7", icon: ThumbsUp },
-  { key: "lowstock",     label: "Low Stock Alert",       description: "Sent once daily to your WhatsApp when stock is low",       vars: ["items","count","salon_name"],               color: "#ea580c", icon: Package },
-  { key: "birthday",     label: "Birthday Greeting",     description: "Auto-sent on client's birthday at 9 AM (server cron)",    vars: ["name","salon_name","discount"],             color: "#db2777", icon: Cake },
+const TPL_CONFIG: { key: "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "birthday"; label: string; description: string; vars: string[]; color: string; icon: React.ElementType }[] = [
+  { key: "reminder",     label: "Appointment Reminder",  description: "Sent automatically X hours before the appointment",              vars: ["name","service","date","time","salon_name"],  color: "#7C3AED", icon: Bell },
+  { key: "confirmation", label: "Booking Confirmation",  description: "Sent when a new appointment is booked",                          vars: ["name","service","date","time","salon_name"],  color: "#059669", icon: CheckCircle2 },
+  { key: "followup",     label: "Follow-up Message",     description: "Sent 24h after appointment is marked as completed",              vars: ["name","service","salon_name"],                color: "#0284c7", icon: ThumbsUp },
+  { key: "cancellation", label: "Cancellation Win-back", description: "Sent 24h after cancellation with a discount to re-book",        vars: ["name","salon_name","discount"],               color: "#dc2626", icon: CalendarX },
+  { key: "lowstock",     label: "Low Stock Alert",       description: "Sent once daily to your WhatsApp when stock is low",             vars: ["items","count","salon_name"],                 color: "#ea580c", icon: Package },
+  { key: "birthday",     label: "Birthday Greeting",     description: "Auto-sent on client's birthday at 9 AM (server cron)",          vars: ["name","salon_name","discount"],               color: "#db2777", icon: Cake },
 ];
 
 const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
@@ -50,6 +53,7 @@ const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
   { value: "reminder",     label: "Reminders" },
   { value: "confirmation", label: "Confirmations" },
   { value: "followup",     label: "Follow-ups" },
+  { value: "cancellation", label: "Cancellations" },
   { value: "birthday",     label: "Birthdays" },
   { value: "lowstock",     label: "Low Stock" },
   { value: "manual",       label: "Manual" },
@@ -331,7 +335,8 @@ export default function MessagesPage() {
 
   const ws = settingsStore.wasender as {
     apiKey: string; ownerPhone: string;
-    autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean; autoLowStock: boolean;
+    autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean;
+    autoCancellation: boolean; autoLowStock: boolean;
   };
   const waTpl = settingsStore.whatsapp as { reminder: string; confirmation: string; followup: string };
   const isConnected = !!ws.apiKey;
@@ -782,9 +787,10 @@ export default function MessagesPage() {
               <div style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 18, padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
                 <div style={{ fontSize: 14, fontWeight: 900, color: "#1d1d2f", marginBottom: 14 }}>Automation Status</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <AutoCard icon={Bell}         label="Appointment Reminder" enabled={ws.autoReminder}     color="#7C3AED" />
+                  <AutoCard icon={Bell}         label="Appointment Reminder"  enabled={ws.autoReminder}     color="#7C3AED" />
                   <AutoCard icon={CheckCircle2} label="Booking Confirmation"  enabled={ws.autoConfirmation} color="#059669" />
                   <AutoCard icon={ThumbsUp}     label="Follow-up Message"     enabled={ws.autoFollowup}     color="#0284c7" />
+                  <AutoCard icon={CalendarX}    label="Cancellation Win-back" enabled={ws.autoCancellation} color="#dc2626" />
                   <AutoCard icon={Package}      label="Low Stock Alert"       enabled={ws.autoLowStock}     color="#ea580c" />
                   <AutoCard icon={Cake}         label="Birthday Reminder"     enabled={bdEnabled}           color="#db2777" />
                 </div>

@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
 import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera } from "lucide-react";
-import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup } from "@/lib/whatsapp-scheduler";
+import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation } from "@/lib/whatsapp-scheduler";
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
@@ -714,6 +714,9 @@ export default function AppointmentsPage() {
             });
             setSelected((prev) => prev ? { ...prev, status: newStatus } : null);
 
+            if (newStatus === "cancelled" || newStatus === "no-show") {
+              enqueueWhatsAppCancellation(apptId);
+            }
             if (newStatus === "completed") {
               enqueueWhatsAppFollowup(apptId);
               const appt = appointments.find((a) => a.id === apptId);
