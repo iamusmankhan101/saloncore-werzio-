@@ -73,7 +73,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                 {/* Left: Werzio branding */}
                 <div>
                   <img src="/werzio%20logo.png" alt="Werzio"
-                    style={{ height: 52, width: "auto", display: "block", maxWidth: 240, filter: "invert(1)", marginBottom: 12 }} />
+                    style={{ height: 100, width: "auto", display: "block", maxWidth: 300, filter: "invert(1)", marginBottom: 12 }} />
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
                     <div>Salon Management Software</div>
                     <div>iamusmankhan101@gmail.com</div>

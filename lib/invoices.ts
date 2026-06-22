@@ -21,7 +21,7 @@ export interface Invoice {
   subtotal: number;
   tax: number;            // 0 for now
   total: number;
-  issuedDate: string;     // YYYY-MM-DD (always 1st of month)
+  issuedDate: string;     // YYYY-MM-DD (same day-of-month as plan activation)
   dueDate: string;        // YYYY-MM-DD (7 days after issued)
   status: InvoiceStatus;
   paidDate: string | null;
@@ -53,12 +53,16 @@ function invoiceNumber(year: number, month: number): string {
 function buildInvoice(
   year: number,
   month: number,
+  day: number,
   user: { id: string; ownerName: string; salonName: string; email: string; phone: string },
   plan: { id: string; name: string; price: number },
   status: InvoiceStatus,
   paidDate: string | null,
 ): Invoice {
-  const issuedDate = `${year}-${String(month).padStart(2, "0")}-01`;
+  // Clamp day to the last day of the given month (e.g. day 31 in April → 30)
+  const lastDay = new Date(year, month, 0).getDate();
+  const clampedDay = Math.min(day, lastDay);
+  const issuedDate = `${year}-${String(month).padStart(2, "0")}-${String(clampedDay).padStart(2, "0")}`;
   const dueDate = addDays(issuedDate, 7);
   const item: InvoiceItem = {
     description: `${plan.name} Plan — Monthly Subscription`,
@@ -104,6 +108,7 @@ export function syncInvoices(
 
   // Billing starts from the plan activation date
   const start = new Date(startDate);
+  const activationDay = start.getDate(); // e.g. 15 if signed up on June 15
 
   const newInvoices: Invoice[] = [];
 
@@ -113,11 +118,14 @@ export function syncInvoices(
   while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth() + 1)) {
     const id = `${user.id}_${y}_${m}`;
     if (!existingIds.has(id)) {
-      const issuedDate = `${y}-${String(m).padStart(2, "0")}-01`;
+      // Use actual activation day so invoice date matches when the user signed up
+      const lastDay = new Date(y, m, 0).getDate();
+      const day = Math.min(activationDay, lastDay);
+      const issuedDate = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const dueDate = addDays(issuedDate, 7);
       let status: InvoiceStatus = "unpaid";
       if (today > dueDate) status = "overdue";
-      newInvoices.push(buildInvoice(y, m, user, plan, status, null));
+      newInvoices.push(buildInvoice(y, m, activationDay, user, plan, status, null));
     }
     m++;
     if (m > 12) { m = 1; y++; }
