@@ -32,7 +32,7 @@ const PLANS = [
   {
     id: "premium",
     name: "Werzio Premium",
-    price: "PKR 15,000",
+    price: "PKR 20,000",
     icon: Crown,
     color: "#9333EA",
     bg: "#faf5ff",

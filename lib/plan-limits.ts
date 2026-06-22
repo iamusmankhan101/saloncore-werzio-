@@ -131,7 +131,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     name: "Premium",
     label: "Werzio Premium",
     badge: "PREMIUM",
-    price: 15000,
+    price: 20000,
     color: "#9333EA",
     bg: "#faf5ff",
     gradient: "linear-gradient(135deg,#7C3AED,#A855F7)",

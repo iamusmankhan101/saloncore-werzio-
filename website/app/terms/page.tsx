@@ -47,7 +47,7 @@ export default function TermsPage() {
         <ul>
           <li><strong>Werzio Free</strong> — Available at no cost with limited features.</li>
           <li><strong>Werzio Pro</strong> — ₨6,000/month, billed monthly.</li>
-          <li><strong>Werzio Premium</strong> — ₨10,000/month, billed monthly.</li>
+          <li><strong>Werzio Premium</strong> — ₨20,000/month, billed monthly.</li>
         </ul>
         <p>
           All paid plans are billed in advance on a monthly basis. You may cancel at any time. Cancellations take effect

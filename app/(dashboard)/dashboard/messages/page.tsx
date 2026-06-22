@@ -253,7 +253,7 @@ export default function MessagesPage() {
               Upgrade to Pro — PKR 6,000/mo →
             </a>
             <a href="/dashboard/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 12, background: "linear-gradient(135deg,#9333EA,#A855F7)", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 16px rgba(147,51,234,0.38)" }}>
-              Upgrade to Premium — PKR 10,000/mo →
+              Upgrade to Premium — PKR 20,000/mo →
             </a>
           </div>
         </div>
