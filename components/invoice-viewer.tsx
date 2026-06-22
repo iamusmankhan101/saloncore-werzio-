@@ -89,7 +89,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                   <img
                     src="/werzio%20logo.png"
                     alt="Werzio"
-                    style={{ height: 44, width: "auto", display: "block", maxWidth: 200, filter: "invert(1)" }}
+                    style={{ height: 80, width: "auto", display: "block", maxWidth: 320, filter: "invert(1)" }}
                   />
                   <div style={{ marginTop: 10, fontSize: 12, color: "#9898b0", lineHeight: 1.7 }}>
                     Salon Management Software<br />
