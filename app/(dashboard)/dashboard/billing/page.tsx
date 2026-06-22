@@ -196,7 +196,11 @@ export default function BillingPage() {
     const user = getCurrentUser();
     if (!user) return;
 
-    // Fetch plan from database
+    // Apply cached plan immediately to avoid flash on refresh
+    const cached = getCurrentPlanId();
+    if (cached !== "free") setActivePlanId(cached);
+
+    // Fetch authoritative plan from database
     fetch(`/api/billing/user?userId=${user.id}`)
       .then(res => res.json())
       .then(data => {
