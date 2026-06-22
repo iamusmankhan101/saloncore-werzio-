@@ -188,7 +188,8 @@ export default function OnlineBookingPage() {
         <div className="heroOverlay" />
         <div className="heroCenterContent">
           <h1 className="heroBrandName" suppressHydrationWarning>{salonName}</h1>
-          <h3 className="heroBrandSubtitle">BEAUTY BAR</h3>
+          <div className="heroRule"><span className="heroDiamond" /></div>
+          <p className="heroBrandSubtitle">Beauty Bar</p>
         </div>
       </section>
 
