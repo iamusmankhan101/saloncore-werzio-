@@ -11,6 +11,7 @@ import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings } from 
 import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
 import { syncFromDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
+import { getStoredInventory } from "@/lib/storage";
 
 // ─── Suspension gate overlay ──────────────────────────────────────────────────
 
@@ -94,6 +95,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     startTime: string;
     totalAmount: number;
   }>>([]);
+  const [lowStockCount, setLowStockCount]  = useState(0);
+  const [outStockCount, setOutStockCount]  = useState(0);
 
   // Auth guard
   useEffect(() => {
@@ -142,6 +145,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     runWhatsAppScheduler();
     const interval = window.setInterval(() => runWhatsAppScheduler(), 60_000);
     return () => window.clearInterval(interval);
+  }, [isReady]);
+
+  // Persistent low-stock badge
+  useEffect(() => {
+    if (!isReady) return;
+    function checkStock() {
+      const inv = getStoredInventory();
+      setOutStockCount(inv.filter((i) => i.currentStock === 0).length);
+      setLowStockCount(inv.filter((i) => i.currentStock > 0 && i.currentStock <= i.minStock).length);
+    }
+    checkStock();
+    const interval = window.setInterval(checkStock, 60_000);
+    window.addEventListener("focus", checkStock);
+    return () => { window.clearInterval(interval); window.removeEventListener("focus", checkStock); };
   }, [isReady]);
 
   // WhatsApp message toast notifications
@@ -285,6 +302,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Suspension gate — shown over everything except the billing page */}
       {suspended && !isBillingPage && <SuspensionGate reason={suspReason} />}
+
+      {/* Permanent low-stock badge */}
+      {(outStockCount > 0 || lowStockCount > 0) && (
+        <Link
+          href="/dashboard/inventory"
+          style={{
+            position: "fixed",
+            bottom: 90,
+            left: 16,
+            zIndex: 9998,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 14px",
+            borderRadius: 24,
+            background: outStockCount > 0 ? "linear-gradient(135deg,#dc2626,#ef4444)" : "linear-gradient(135deg,#d97706,#f59e0b)",
+            boxShadow: outStockCount > 0
+              ? "0 4px 20px rgba(220,38,38,0.4), 0 0 0 3px rgba(220,38,38,0.15)"
+              : "0 4px 20px rgba(217,119,6,0.4),  0 0 0 3px rgba(217,119,6,0.15)",
+            textDecoration: "none",
+            animation: "stockPulse 2.5s ease-in-out infinite",
+          }}
+        >
+          <AlertTriangle size={14} color="#fff" style={{ flexShrink: 0 }} />
+          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>
+              {outStockCount > 0 && `${outStockCount} Out of Stock`}
+              {outStockCount > 0 && lowStockCount > 0 && "  ·  "}
+              {lowStockCount > 0 && `${lowStockCount} Low Stock`}
+            </span>
+            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>Tap to restock</span>
+          </div>
+        </Link>
+      )}
 
       {/* New Booking Popup Alerts */}
       {bookingAlerts.length > 0 && (

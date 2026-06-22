@@ -872,3 +872,8 @@ input, textarea, select { font-family: inherit; }
   from { transform: scaleX(1); }
   to   { transform: scaleX(0); }
 }
+
+@keyframes stockPulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 4px 20px rgba(220,38,38,0.4), 0 0 0 3px rgba(220,38,38,0.15); }
+  50%       { transform: scale(1.04); box-shadow: 0 6px 28px rgba(220,38,38,0.55), 0 0 0 6px rgba(220,38,38,0.08); }
+}

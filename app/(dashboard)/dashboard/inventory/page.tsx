@@ -391,7 +391,8 @@ function ItemRow({ item, isLast, onEdit, onDelete }: {
   const status = stockStatus(item);
   const badge  = STATUS_BADGE[status];
   const cat    = CATEGORY_CONFIG[item.category];
-  const rowBg  = status === "out" ? "#fff8f8" : status === "low" ? "#fffdf6" : "transparent";
+  const rowBg  = status === "out" ? "#fff0f0" : status === "low" ? "#fffbeb" : "transparent";
+  const leftBorder = status === "out" ? "4px solid #dc2626" : status === "low" ? "4px solid #f59e0b" : "4px solid transparent";
 
   return (
     <div style={{
@@ -399,6 +400,7 @@ function ItemRow({ item, isLast, onEdit, onDelete }: {
       gridTemplateColumns: "2.2fr 110px 130px 100px 130px 110px 90px",
       padding: "13px 20px",
       borderBottom: isLast ? "none" : "1px solid #f4f4f8",
+      borderLeft: leftBorder,
       alignItems: "center",
       background: rowBg,
       transition: "background 0.15s",
@@ -669,7 +671,9 @@ export default function InventoryPage() {
                 const stockPct = Math.min(100, Math.round((item.currentStock / maxStock) * 100));
                 const barColor = status === "out" ? "#dc2626" : status === "low" ? "#d97706" : "#059669";
                 return (
-                  <div key={item.id} className="mobile-list-card" onClick={() => setEditItem(item)}>
+                  <div key={item.id} className="mobile-list-card" onClick={() => setEditItem(item)}
+                    style={status !== "ok" ? { borderLeft: `4px solid ${badge.color}`, background: status === "out" ? "#fff0f0" : "#fffbeb" } : {}}
+                  >
                     <div className="mobile-list-icon" style={{ background: cat.bg }}>
                       <Package size={17} color={cat.color} />
                     </div>
