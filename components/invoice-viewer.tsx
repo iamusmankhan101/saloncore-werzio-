@@ -88,9 +88,9 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                 <div>
                   {/* Real Werzio logo */}
                   <img
-                    src="/werzio-logo.png"
+                    src="/werzio%20logo.png"
                     alt="Werzio"
-                    style={{ height: 44, width: "auto", display: "block" }}
+                    style={{ height: 56, width: "auto", display: "block", maxWidth: 200 }}
                   />
                   <div style={{ marginTop: 10, fontSize: 12, color: "#9898b0", lineHeight: 1.7 }}>
                     Salon Management Software<br />
@@ -128,7 +128,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                 {/* From */}
                 <div style={{ padding: "20px 22px", borderRadius: 12, border: "1px solid #ebebf0", background: "#fafafd" }}>
                   <div style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 12 }}>Billed From</div>
-                  <img src="/werzio-logo.png" alt="Werzio" style={{ height: 28, width: "auto", display: "block", marginBottom: 8 }} />
+                  <img src="/werzio%20logo.png" alt="Werzio" style={{ height: 28, width: "auto", display: "block", marginBottom: 8 }} />
                   <div style={{ fontSize: 12, color: "#6b6b8a", lineHeight: 1.8 }}>
                     Salon Management Software<br />
                     iamusmankhan101@gmail.com<br />
