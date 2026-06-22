@@ -401,6 +401,23 @@ export async function sendOwnerNewBookingAlert(appt: {
 }): Promise<void> {
   if (typeof window === "undefined") return;
 
+  // Always fire the in-app popup — independent of WhatsApp settings
+  const alertPayload = {
+    clientName: appt.clientName,
+    serviceNames: appt.serviceNames,
+    date: appt.date,
+    startTime: appt.startTime,
+    totalAmount: appt.totalAmount,
+    ts: Date.now(),
+  };
+
+  // Same-tab: direct event (if booking page and dashboard somehow share a tab)
+  window.dispatchEvent(new CustomEvent("werzio_new_booking_alert", { detail: alertPayload }));
+
+  // Cross-tab: write to localStorage so the dashboard open in another tab picks it up
+  localStorage.setItem("werzio_new_booking_notify", JSON.stringify(alertPayload));
+
+  // WhatsApp notification — only if the owner has configured it
   const ws = settingsStore.wasender as {
     apiKey: string; ownerPhone: string; autoNewBooking?: boolean;
   };
@@ -419,19 +436,6 @@ export async function sendOwnerNewBookingAlert(appt: {
     salon_name: salonName,
     amount: String(appt.totalAmount),
   });
-
-  // Fire in-app alert event so the dashboard can show a popup + sound
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("werzio_new_booking_alert", {
-      detail: {
-        clientName: appt.clientName,
-        serviceNames: appt.serviceNames,
-        date: appt.date,
-        startTime: appt.startTime,
-        totalAmount: appt.totalAmount,
-      },
-    }));
-  }
 
   const phone = normalizePhone(ws.ownerPhone);
   await callSendApi(phone, text, { type: "new_booking", clientName: appt.clientName });

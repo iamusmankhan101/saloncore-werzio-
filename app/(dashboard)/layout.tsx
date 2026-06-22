@@ -13,6 +13,28 @@ import { syncFromDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
 import { getStoredInventory } from "@/lib/storage";
 
+// ─── Notification chime ───────────────────────────────────────────────────────
+
+function playChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    [[523.25, 0], [659.25, 0.18], [783.99, 0.36]].forEach(([freq, delay]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.35, now + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.9);
+      osc.start(now + delay);
+      osc.stop(now + delay + 0.9);
+    });
+  } catch { /* not supported */ }
+}
+
 // ─── Suspension gate overlay ──────────────────────────────────────────────────
 
 function SuspensionGate({ reason }: { reason: string | null }) {
@@ -177,31 +199,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // New booking popup + chime
   useEffect(() => {
-    function playChime() {
-      try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const ctx = new AudioCtx();
-        const now = ctx.currentTime;
-        [[523.25, 0], [659.25, 0.18], [783.99, 0.36]].forEach(([freq, delay]) => {
-          const osc  = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.type = "sine";
-          osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.35, now + delay);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.9);
-          osc.start(now + delay);
-          osc.stop(now + delay + 0.9);
-        });
-      } catch { /* not supported */ }
-    }
-
-    function onNewBooking(e: Event) {
-      const detail = (e as CustomEvent<{
-        clientName: string; serviceNames: string[];
-        date: string; startTime: string; totalAmount: number;
-      }>).detail;
+    function showBookingAlert(detail: { clientName: string; serviceNames: string[]; date: string; startTime: string; totalAmount: number }) {
       playChime();
       const alertId = Date.now();
       setBookingAlerts((prev) => [...prev, { ...detail, alertId }]);
@@ -210,8 +208,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }, 10_000);
     }
 
+    // Same-tab: custom event (edge case where booking and dashboard share a window)
+    function onNewBooking(e: Event) {
+      showBookingAlert((e as CustomEvent).detail);
+    }
+
+    // Cross-tab: localStorage storage event fires on every OTHER tab when the key changes
+    function onStorage(e: StorageEvent) {
+      if (e.key !== "werzio_new_booking_notify" || !e.newValue) return;
+      try { showBookingAlert(JSON.parse(e.newValue)); } catch { /* ignore */ }
+    }
+
     window.addEventListener("werzio_new_booking_alert", onNewBooking);
-    return () => window.removeEventListener("werzio_new_booking_alert", onNewBooking);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("werzio_new_booking_alert", onNewBooking);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   if (!isReady) {
