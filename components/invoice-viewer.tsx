@@ -1,11 +1,5 @@
 "use client";
 
-/**
- * InvoiceViewer — SaaS subscription billing invoice (Werzio → salon owner).
- * Uses a React portal so the @media print isolation selector works correctly
- * in Next.js (the portal div is a direct child of <body>).
- */
-
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Printer } from "lucide-react";
@@ -16,27 +10,24 @@ function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-PK", { year: "numeric", month: "long", day: "numeric" });
 }
 
-const STATUS_STYLE: Record<string, { color: string; bg: string; border: string; label: string }> = {
-  paid:    { color: "#059669", bg: "#ecfdf5", border: "#6ee7b7", label: "PAID"    },
-  unpaid:  { color: "#d97706", bg: "#fffbeb", border: "#fde68a", label: "UNPAID"  },
-  overdue: { color: "#dc2626", bg: "#fef2f2", border: "#fecaca", label: "OVERDUE" },
+const STATUS_STYLE: Record<string, { color: string; label: string }> = {
+  paid:    { color: "#059669", label: "PAID"    },
+  unpaid:  { color: "#d97706", label: "UNPAID"  },
+  overdue: { color: "#dc2626", label: "OVERDUE" },
 };
 
 const PRINT_STYLES = `
   @media print {
     body > *:not(#werzio-invoice-portal) { display: none !important; }
     #werzio-invoice-portal {
-      display: block !important;
-      position: fixed !important;
-      inset: 0 !important;
-      background: #fff !important;
-      z-index: 99999 !important;
-      overflow: visible !important;
+      display: block !important; position: fixed !important;
+      inset: 0 !important; background: #fff !important;
+      z-index: 99999 !important; overflow: visible !important;
     }
     .iv-overlay  { background: transparent !important; padding: 0 !important; overflow: visible !important; }
     .iv-no-print { display: none !important; }
     .iv-sheet    { box-shadow: none !important; border-radius: 0 !important; max-width: 100% !important; width: 100% !important; }
-    @page { size: A4 portrait; margin: 0; }
+    @page { size: A4 portrait; margin: 18mm 16mm; }
   }
 `;
 
@@ -45,19 +36,18 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
   useEffect(() => { setMounted(true); }, []);
   if (!mounted) return null;
 
-  const st = STATUS_STYLE[invoice.status];
+  const st = STATUS_STYLE[invoice.status] ?? STATUS_STYLE.unpaid;
 
   const content = (
     <div id="werzio-invoice-portal">
       <style>{PRINT_STYLES}</style>
 
-      {/* Dark overlay */}
       <div
         className="iv-overlay"
         onClick={onClose}
         style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 200, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "24px 16px", overflowY: "auto" }}
       >
-        <div id="invoice-print-root" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 760, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 760, display: "flex", flexDirection: "column", gap: 12 }}>
 
           {/* Toolbar */}
           <div className="iv-no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -74,162 +64,144 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
             </div>
           </div>
 
-          {/* Invoice sheet */}
-          <div className="iv-sheet" style={{ background: "#fff", borderRadius: 16, boxShadow: "0 24px 80px rgba(0,0,0,0.3)", overflow: "hidden" }}>
+          {/* Invoice Sheet */}
+          <div className="iv-sheet" style={{ background: "#fff", borderRadius: 4, boxShadow: "0 24px 80px rgba(0,0,0,0.3)", fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+            <div style={{ padding: "52px 56px" }}>
 
-            {/* Top gradient bar */}
-            <div style={{ height: 6, background: "linear-gradient(90deg,#5B21B6,#9333EA,#ec4899)" }} />
-
-            <div style={{ padding: "40px 48px" }}>
-
-              {/* Header row */}
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 40 }}>
-                {/* Werzio branding */}
+              {/* ── HEADER: Werzio left, INVOICE right ── */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 48 }}>
+                {/* Left: Werzio branding */}
                 <div>
-                  <img
-                    src="/werzio%20logo.png"
-                    alt="Werzio"
-                    style={{ height: 100, width: "auto", display: "block", maxWidth: 400, filter: "invert(1)" }}
-                  />
-                  <div style={{ marginTop: 10, fontSize: 12, color: "#9898b0", lineHeight: 1.7 }}>
-                    Salon Management Software<br />
-                    iamusmankhan101@gmail.com<br />
-                    +92 305 8562523
+                  <img src="/werzio%20logo.png" alt="Werzio"
+                    style={{ height: 52, width: "auto", display: "block", maxWidth: 240, filter: "invert(1)", marginBottom: 12 }} />
+                  <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
+                    <div>Salon Management Software</div>
+                    <div>iamusmankhan101@gmail.com</div>
+                    <div>+92 305 8562523</div>
+                    <div>Pakistan</div>
                   </div>
                 </div>
 
-                {/* INVOICE + number + status */}
+                {/* Right: INVOICE label + number + status */}
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: "#1a1a2e", letterSpacing: "-0.5px" }}>INVOICE</div>
-                  <div style={{ fontSize: 14, color: "#7C3AED", fontWeight: 700, marginTop: 4 }}>{invoice.number}</div>
-                  <div style={{ marginTop: 14, display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 14px", borderRadius: 20, background: st.bg, border: `1px solid ${st.border}`, fontSize: 12, fontWeight: 800, color: st.color, letterSpacing: "0.06em" }}>
+                  <div style={{ fontSize: 38, fontWeight: 900, color: "#111", letterSpacing: "-1px", lineHeight: 1 }}>INVOICE</div>
+                  <div style={{ fontSize: 14, color: "#7C3AED", fontWeight: 700, marginTop: 8 }}>{invoice.number}</div>
+                  <div style={{ marginTop: 12, display: "inline-block", padding: "4px 16px", border: `1.5px solid ${st.color}`, borderRadius: 20, fontSize: 11, fontWeight: 800, color: st.color, letterSpacing: "0.08em" }}>
                     {st.label}
                   </div>
                 </div>
               </div>
 
-              {/* Date row */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 36, padding: "18px 22px", background: "#f8f8fc", borderRadius: 12, border: "1px solid #ebebf0" }}>
+              {/* ── DATE ROW ── */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, marginBottom: 40, borderTop: "1px solid #ddd", borderBottom: "1px solid #ddd", padding: "16px 0" }}>
                 {[
                   { label: "Issue Date", value: fmtDate(invoice.issuedDate) },
                   { label: "Due Date",   value: fmtDate(invoice.dueDate) },
                   { label: "Paid Date",  value: invoice.paidDate ? fmtDate(invoice.paidDate) : "—" },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 5 }}>{label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{value}</div>
+                ].map(({ label, value }, i) => (
+                  <div key={label} style={{ paddingLeft: i === 0 ? 0 : 24, borderLeft: i > 0 ? "1px solid #e0e0e0" : "none" }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#888", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>{label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>{value}</div>
                   </div>
                 ))}
               </div>
 
-              {/* Billed from / to */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 36 }}>
-                {/* From */}
-                <div style={{ padding: "20px 22px", borderRadius: 12, border: "1px solid #ebebf0", background: "#fafafd" }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 12 }}>Billed From</div>
-                  <img src="/werzio%20logo.png" alt="Werzio" style={{ height: 28, width: "auto", display: "block", maxWidth: 150, marginBottom: 8, filter: "invert(1)" }} />
-                  <div style={{ fontSize: 12, color: "#6b6b8a", lineHeight: 1.8 }}>
-                    Salon Management Software<br />
-                    iamusmankhan101@gmail.com<br />
-                    +92 305 8562523<br />
-                    Pakistan
+              {/* ── BILLED FROM / TO ── */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, marginBottom: 40 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#888", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Billed From</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 4 }}>Werzio</div>
+                  <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
+                    <div>Salon Management Software</div>
+                    <div>iamusmankhan101@gmail.com</div>
+                    <div>+92 305 8562523</div>
+                    <div>Pakistan</div>
                   </div>
                 </div>
-                {/* To */}
-                <div style={{ padding: "20px 22px", borderRadius: 12, border: "2px solid #EDE9FE", background: "#faf8ff" }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 12 }}>Billed To</div>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", marginBottom: 4 }}>{invoice.salonName}</div>
-                  <div style={{ fontSize: 12, color: "#6b6b8a", lineHeight: 1.8 }}>
-                    {invoice.userName}<br />
-                    {invoice.userEmail}<br />
-                    {invoice.userPhone}<br />
-                    Pakistan
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#888", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Billed To</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 4 }}>{invoice.salonName}</div>
+                  <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
+                    {invoice.userName  && <div>{invoice.userName}</div>}
+                    {invoice.userEmail && <div>{invoice.userEmail}</div>}
+                    {invoice.userPhone && <div>{invoice.userPhone}</div>}
+                    <div>Pakistan</div>
                   </div>
                 </div>
               </div>
 
-              {/* Items table */}
-              <div style={{ marginBottom: 28 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ background: "linear-gradient(135deg,#5B21B6,#9333EA)" }}>
-                      {["Description", "Qty", "Unit Price", "Total"].map((h, i) => (
-                        <th key={h} style={{ padding: "12px 16px", fontSize: 11, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: "0.07em", textAlign: i === 0 ? "left" : "right", borderRadius: i === 0 ? "8px 0 0 8px" : i === 3 ? "0 8px 8px 0" : 0 }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoice.items.map((item, i) => (
-                      <tr key={i} style={{ borderBottom: "1px solid #f0f0f8" }}>
-                        <td style={{ padding: "14px 16px", fontSize: 13, color: "#1a1a2e", fontWeight: 500 }}>{item.description}</td>
-                        <td style={{ padding: "14px 16px", fontSize: 13, color: "#6b6b8a", textAlign: "right" }}>{item.qty}</td>
-                        <td style={{ padding: "14px 16px", fontSize: 13, color: "#6b6b8a", textAlign: "right" }}>{fmt(item.unitPrice)}</td>
-                        <td style={{ padding: "14px 16px", fontSize: 13, fontWeight: 700, color: "#1a1a2e", textAlign: "right" }}>{fmt(item.total)}</td>
-                      </tr>
+              {/* ── ITEMS TABLE ── */}
+              <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 28 }}>
+                <thead>
+                  <tr style={{ background: "#f0f0f0", borderTop: "1px solid #ccc", borderBottom: "1px solid #ccc" }}>
+                    {["Description", "Qty", "Unit Price", "Total"].map((h, i) => (
+                      <th key={h} style={{ padding: "10px 14px", fontSize: 11, fontWeight: 700, color: "#111", textTransform: "capitalize", textAlign: i === 0 ? "left" : "right", letterSpacing: "0.03em" }}>{h}</th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoice.items.map((item, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #e8e8e8" }}>
+                      <td style={{ padding: "13px 14px", fontSize: 13, color: "#111" }}>{item.description}</td>
+                      <td style={{ padding: "13px 14px", fontSize: 13, color: "#555", textAlign: "right" }}>{item.qty}</td>
+                      <td style={{ padding: "13px 14px", fontSize: 13, color: "#555", textAlign: "right" }}>{fmt(item.unitPrice)}</td>
+                      <td style={{ padding: "13px 14px", fontSize: 13, fontWeight: 700, color: "#111", textAlign: "right" }}>{fmt(item.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-              {/* Totals */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 36 }}>
+              {/* ── TOTALS ── */}
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 40 }}>
                 <div style={{ width: 280 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f8", fontSize: 13, color: "#6b6b8a" }}>
-                    <span>Subtotal</span><span>{fmt(invoice.subtotal)}</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13, color: "#555", borderBottom: "1px solid #e8e8e8" }}>
+                    <span style={{ fontWeight: 600 }}>Subtotal</span><span style={{ fontWeight: 700, color: "#111" }}>{fmt(invoice.subtotal)}</span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f8", fontSize: 13, color: "#6b6b8a" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: 13, color: "#555", borderBottom: "1px solid #e8e8e8" }}>
                     <span>Tax</span><span>PKR 0</span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px", marginTop: 8, background: "linear-gradient(135deg,#5B21B6,#9333EA)", borderRadius: 10 }}>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Total Due</span>
-                    <span style={{ fontSize: 16, fontWeight: 900, color: "#fff" }}>{fmt(invoice.total)}</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", fontSize: 15, borderTop: "2px solid #111", marginTop: 4 }}>
+                    <span style={{ fontWeight: 800, color: "#111" }}>Total Due</span>
+                    <span style={{ fontWeight: 900, color: "#111" }}>{fmt(invoice.total)}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Payment instructions */}
-              <div style={{ borderRadius: 12, border: "1px solid #ebebf0", overflow: "hidden", marginBottom: 32 }}>
-                <div style={{ padding: "12px 18px", background: "#f8f8fc", borderBottom: "1px solid #ebebf0", fontSize: 11, fontWeight: 800, color: "#7C3AED", textTransform: "uppercase", letterSpacing: "0.08em" }}>Payment Instructions</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-                  <div style={{ padding: "16px 18px", borderRight: "1px solid #ebebf0" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: 6, background: "#2DC84D", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontSize: 11, fontWeight: 900, color: "#fff" }}>e</span>
-                      </div>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: "#065f46" }}>EasyPaisa</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: "#6b6b8a", lineHeight: 1.8 }}>
-                      <strong>Name:</strong> Muhammad Usman Khan<br />
-                      <strong>Number:</strong> 03058562523
-                    </div>
+              {/* ── PAYMENT INSTRUCTIONS ── */}
+              <div style={{ marginBottom: 36 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Pay By Bank Transfer / Mobile Wallet</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, fontSize: 12, color: "#555", lineHeight: 2 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: "#111", marginBottom: 2 }}>EasyPaisa / JazzCash</div>
+                    <div>Name: Muhammad Usman Khan</div>
+                    <div>Number: 03058562523</div>
                   </div>
-                  <div style={{ padding: "16px 18px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: 6, background: "#0369a1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontSize: 9, fontWeight: 900, color: "#fff" }}>BNK</span>
-                      </div>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: "#0c4a6e" }}>Bank Transfer</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: "#6b6b8a", lineHeight: 1.8 }}>
-                      <strong>Bank:</strong> Meezan Bank<br />
-                      <strong>Title:</strong> Muhammad Usman Khan<br />
-                      <strong>Account:</strong> 02361019994452
-                    </div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: "#111", marginBottom: 2 }}>Meezan Bank</div>
+                    <div>Title: Muhammad Usman Khan</div>
+                    <div>Account: 02361019994452</div>
                   </div>
                 </div>
               </div>
 
-              {/* Footer */}
-              <div style={{ textAlign: "center", paddingTop: 20, borderTop: "1px solid #f0f0f8" }}>
-                <div style={{ fontSize: 12, color: "#9898b0", lineHeight: 1.7 }}>
-                  Thank you for choosing <strong style={{ color: "#7C3AED" }}>Werzio</strong> — powering your salon's success.<br />
-                  Questions? Contact us at iamusmankhan101@gmail.com
+              {/* ── TERMS ── */}
+              <div style={{ marginBottom: 36 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Terms</div>
+                <div style={{ fontSize: 12, color: "#555", lineHeight: 1.9 }}>
+                  Payment is due within 7 days of the invoice date. Late payments may result in service suspension.<br />
+                  For billing queries, contact iamusmankhan101@gmail.com or +92 305 8562523.
                 </div>
               </div>
+
+              {/* ── FOOTER ── */}
+              <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ fontSize: 12, color: "#555" }}>
+                  Thank you for choosing <strong style={{ color: "#111" }}>Werzio</strong> — powering your salon's success.
+                </div>
+                <img src="/werzio%20logo.png" alt="Werzio" style={{ height: 28, width: "auto", filter: "invert(1) brightness(0)" }} />
+              </div>
+
             </div>
-
-            {/* Bottom bar */}
-            <div style={{ height: 4, background: "linear-gradient(90deg,#5B21B6,#9333EA,#ec4899)" }} />
           </div>
         </div>
       </div>
