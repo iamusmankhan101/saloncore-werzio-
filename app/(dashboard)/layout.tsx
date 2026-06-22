@@ -203,9 +203,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       playChime();
       const alertId = Date.now();
       setBookingAlerts((prev) => [...prev, { ...detail, alertId }]);
-      window.setTimeout(() => {
-        setBookingAlerts((prev) => prev.filter((a) => a.alertId !== alertId));
-      }, 10_000);
     }
 
     // Same-tab: custom event (edge case where booking and dashboard share a window)
@@ -408,10 +405,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
               </div>
 
-              {/* Progress bar */}
-              <div style={{ height: 3, background: "#f0f0f0" }}>
-                <div style={{ height: "100%", background: "#7C3AED", animation: "bookingProgress 10s linear forwards", transformOrigin: "left" }} />
-              </div>
             </div>
           ))}
         </div>
