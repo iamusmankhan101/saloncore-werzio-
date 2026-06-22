@@ -331,13 +331,13 @@ export default function MessagesPage() {
   }, [refreshKey]);
 
   const bs = settingsStore.botsailor as {
-    apiToken: string; phoneNumberId: string; ownerPhone: string;
+    phoneNumberId: string; ownerPhone: string;
     autoReminder: boolean; reminderTemplateId: string; reminderHours: number;
     autoConfirmation: boolean; confirmationTemplateId: string;
     autoFollowup: boolean; followupTemplateId: string;
     autoLowStock: boolean; lowStockTemplateId: string;
   };
-  const isConnected = !!(bs.apiToken && bs.phoneNumberId);
+  const isConnected = !!bs.phoneNumberId;
 
   const filtered = useMemo(() =>
     filter === "all" ? logs : logs.filter((l) => l.type === filter),
@@ -390,7 +390,7 @@ export default function MessagesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          apiToken: bs.apiToken, phoneNumberId: bs.phoneNumberId,
+          phoneNumberId: bs.phoneNumberId,
           templateId, phone: normalizePhone(client.phone),
           variables: { name: client.name, service: manualService.trim() || "your service", date: dateLabel, time: manualTime.trim() || "your appointment time", salon_name: settingsStore.salon.name },
         }),
@@ -522,7 +522,7 @@ export default function MessagesPage() {
         <div className="mobile-only" style={{ padding: "0 16px 24px" }}>
           <div style={{ marginTop: 10, padding: "12px 14px", borderRadius: 14, background: "#f5f4ff", border: "1px solid #ddd6fe", marginBottom: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: "#5B21B6", marginBottom: 4 }}>💡 How templates work</div>
-            <div style={{ fontSize: 12, color: "#6a6a8a", lineHeight: 1.65 }}>Write your message, copy it, then paste when creating a template in BotSailor. Click variable chips to insert them.</div>
+            <div style={{ fontSize: 12, color: "#6a6a8a", lineHeight: 1.65 }}>Write your message, copy it, then paste when creating a template in Meta Business Manager. Click variable chips to insert them.</div>
           </div>
           {TPL_CONFIG.map((cfg) => <TemplateCard key={cfg.key} cfg={cfg} />)}
         </div>
@@ -617,7 +617,7 @@ export default function MessagesPage() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: "#5B21B6", marginBottom: 4 }}>How templates work</div>
                 <div style={{ fontSize: 12, color: "#6a6a8a", lineHeight: 1.65 }}>
-                  Write your message, <strong>Copy</strong> it, then paste it when creating a WhatsApp template in BotSailor.
+                  Write your message, <strong>Copy</strong> it, then paste it when creating a WhatsApp template in Meta Business Manager.
                   Click any <code style={{ background: "#ede9fe", borderRadius: 4, padding: "1px 5px", fontSize: 11 }}>{"{{variable}}"}</code> chip to insert it into the message.
                   Use <strong>Preview</strong> to see how it looks with sample client data.
                 </div>

@@ -432,8 +432,7 @@ function Security() {
   );
 }
 
-interface BotSailorSettings {
-  apiToken: string;
+interface WhatsAppSettings {
   phoneNumberId: string;
   ownerPhone: string;
   autoReminder: boolean;
@@ -491,12 +490,12 @@ function ReminderRow({
 }
 
 function WhatsAppSection() {
-  const [form, setForm] = useState<BotSailorSettings>({ ...(settingsStore.botsailor as BotSailorSettings) });
+  const [form, setForm] = useState<WhatsAppSettings>({ ...(settingsStore.botsailor as WhatsAppSettings) });
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  function set<K extends keyof BotSailorSettings>(key: K, value: BotSailorSettings[K]) {
+  function set<K extends keyof WhatsAppSettings>(key: K, value: WhatsAppSettings[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -508,8 +507,8 @@ function WhatsAppSection() {
   }
 
   async function testConnection() {
-    if (!form.apiToken || !form.phoneNumberId) {
-      setTestResult({ ok: false, msg: "Enter API Token and Phone Number ID first." });
+    if (!form.phoneNumberId) {
+      setTestResult({ ok: false, msg: "Enter Phone Number ID first." });
       return;
     }
     setTesting(true);
@@ -519,7 +518,6 @@ function WhatsAppSection() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          apiToken: form.apiToken,
           phoneNumberId: form.phoneNumberId,
           templateId: "test",
           phone: form.ownerPhone || "0000000000",
@@ -527,25 +525,24 @@ function WhatsAppSection() {
         }),
       });
       const data = await res.json();
-      if (res.ok && data.status !== 422 && data.status !== 401) {
-        setTestResult({ ok: true, msg: "BotSailor API reachable. Check your template IDs next." });
+      if (res.ok && data.status !== 401) {
+        setTestResult({ ok: true, msg: "Meta API reachable. Check your template names next." });
       } else {
-        setTestResult({ ok: false, msg: `API responded with status ${data.status ?? res.status}. Check your API Token.` });
+        setTestResult({ ok: false, msg: `API responded with status ${data.status ?? res.status}. Check your META_WHATSAPP_TOKEN env variable.` });
       }
     } catch {
-      setTestResult({ ok: false, msg: "Could not reach BotSailor. Check your internet connection." });
+      setTestResult({ ok: false, msg: "Could not reach Meta API. Check your internet connection." });
     }
     setTesting(false);
   }
 
-  const isConnected = !!(form.apiToken && form.phoneNumberId);
+  const isConnected = !!form.phoneNumberId;
 
   return (
     <section>
       <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>WhatsApp Automation</h2>
       <p style={{ margin: "0 0 24px", color: "#9999b0", fontSize: 12 }}>
-        Powered by BotSailor — connect your WhatsApp number at{" "}
-        <span style={{ color: "var(--accent)", fontWeight: 700 }}>botsailor.com</span>, then paste your credentials below.
+        Powered by <strong style={{ color: "#1d1d2f" }}>Meta WhatsApp Business API</strong> — set your Phone Number ID below and add your access token to the server environment.
       </p>
 
       {/* Connection status banner */}
@@ -553,7 +550,7 @@ function WhatsAppSection() {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: isConnected ? "var(--accent)" : "#d1d1e0" }} />
           <span style={{ fontSize: 13, fontWeight: 700, color: isConnected ? "var(--accent)" : "#9999b0" }}>
-            {isConnected ? "BotSailor Connected" : "Not configured"}
+            {isConnected ? "WhatsApp Connected" : "Not configured"}
           </span>
         </div>
         {isConnected && (
@@ -564,19 +561,10 @@ function WhatsAppSection() {
       {/* API Credentials */}
       <div style={{ marginBottom: 22 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: "#7c7c9a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
-          BotSailor Credentials
+          Meta WhatsApp Credentials
         </div>
         <div style={{ display: "grid", gap: 14 }}>
-          <Field label="API Token" hint="BotSailor dashboard → Settings → API Token">
-            <input
-              style={inputStyle}
-              type="password"
-              value={form.apiToken}
-              onChange={(e) => set("apiToken", e.target.value)}
-              placeholder="1|xxxxxxxxxxxxxxxxxxxxxxxx"
-            />
-          </Field>
-          <Field label="Phone Number ID" hint="BotSailor dashboard → WhatsApp → Phone Number ID">
+          <Field label="Phone Number ID" hint="Meta Business Manager → WhatsApp → Phone Number ID">
             <input
               style={inputStyle}
               value={form.phoneNumberId}

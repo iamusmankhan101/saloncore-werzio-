@@ -123,16 +123,13 @@ async function callSendApi(
   variables: Record<string, string>,
   logMeta: { type: WaMsgType; clientName: string },
 ): Promise<boolean> {
-  const { apiToken, phoneNumberId } = settingsStore.botsailor as {
-    apiToken: string;
-    phoneNumberId: string;
-  };
+  const { phoneNumberId } = settingsStore.botsailor as { phoneNumberId: string };
   let ok = false;
   try {
     const res = await fetch("/api/whatsapp/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apiToken, phoneNumberId, templateId, phone, variables }),
+      body: JSON.stringify({ phoneNumberId, templateId, phone, variables }),
     });
     const data = await res.json() as { ok?: boolean; status?: number };
     ok = data.ok === true;
@@ -233,7 +230,6 @@ export async function runWhatsAppScheduler(): Promise<void> {
   if (typeof window === "undefined") return;
 
   const bs = settingsStore.botsailor as {
-    apiToken: string;
     phoneNumberId: string;
     ownerPhone: string;
     autoReminder: boolean;

@@ -24,7 +24,6 @@ const defaults = {
     logo: "",
   },
   botsailor: {
-    apiToken: "",
     phoneNumberId: "",
     ownerPhone: "",
     autoReminder: true,

@@ -327,16 +327,16 @@ export default function POSPage() {
   // ── WhatsApp receipt ──────────────────────────────────────────────────────
   async function sendReceiptWA(invoice: SalonInvoice, client: Client | null) {
     if (!client?.phone) { setWaStatus("idle"); return; }
-    const bs = settingsStore.botsailor as { apiToken: string; phoneNumberId: string; autoFollowup: boolean; followupTemplateId: string };
+    const bs = settingsStore.botsailor as { phoneNumberId: string; autoFollowup: boolean; followupTemplateId: string };
     const salonName = (settingsStore.salon as { name: string }).name;
     const serviceList = invoice.items.filter(i => i.type === "service").map(i => i.description).join(", ") || invoice.items[0]?.description || "your service";
     const phone = normalizePhone(client.phone);
 
-    if (bs.apiToken && bs.phoneNumberId && bs.followupTemplateId) {
+    if (bs.phoneNumberId && bs.followupTemplateId) {
       try {
         const res = await fetch("/api/whatsapp/send", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apiToken: bs.apiToken, phoneNumberId: bs.phoneNumberId, templateId: bs.followupTemplateId, phone, variables: { name: client.name, service: serviceList, salon_name: salonName } }),
+          body: JSON.stringify({ phoneNumberId: bs.phoneNumberId, templateId: bs.followupTemplateId, phone, variables: { name: client.name, service: serviceList, salon_name: salonName } }),
         });
         const data = await res.json() as { ok: boolean; status: number };
         const ok = data.ok && data.status !== 401 && data.status !== 422 && data.status !== 400;
