@@ -323,7 +323,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           style={{
             position: "fixed",
             bottom: 90,
-            left: 16,
+            right: 16,
             zIndex: 9998,
             display: "flex",
             alignItems: "center",
