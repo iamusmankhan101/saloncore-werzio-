@@ -24,7 +24,7 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
-export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday";
+export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday" | "new_booking";
 export type WaMsgStatus = "sent" | "failed";
 
 export interface WaLogEntry {
@@ -56,6 +56,11 @@ export function appendLog(entry: Omit<WaLogEntry, "id" | "timestamp">) {
   logs.unshift(fullEntry);
   if (logs.length > MAX_LOG) logs.length = MAX_LOG;
   localStorage.setItem(userKey(LOG_KEY), JSON.stringify(logs));
+
+  // Notify the dashboard UI so it can show a toast
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("werzio_wa_message_logged", { detail: fullEntry }));
+  }
 
   // Persist to Turso so message history survives across devices / localStorage clears
   const user = getCurrentUser();
@@ -381,6 +386,42 @@ async function runSchedulerInternal(): Promise<void> {
 
   // 6. Birthday reminders
   await checkBirthdayReminders();
+}
+
+/**
+ * Call immediately after a new booking is saved from the online booking page.
+ * Sends an instant WhatsApp notification to the salon owner's number.
+ */
+export async function sendOwnerNewBookingAlert(appt: {
+  clientName: string;
+  serviceNames: string[];
+  date: string;
+  startTime: string;
+  totalAmount: number;
+}): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  const ws = settingsStore.wasender as {
+    apiKey: string; ownerPhone: string; autoNewBooking?: boolean;
+  };
+  if (!ws.ownerPhone) return;
+  if (ws.autoNewBooking === false) return;
+
+  const tpl = (settingsStore.whatsapp as { newBooking?: string }).newBooking;
+  if (!tpl) return;
+
+  const salonName = settingsStore.salon.name as string;
+  const text = fillTemplate(tpl, {
+    name: appt.clientName,
+    service: appt.serviceNames.join(", "),
+    date: appt.date,
+    time: to12h(appt.startTime),
+    salon_name: salonName,
+    amount: String(appt.totalAmount),
+  });
+
+  const phone = normalizePhone(ws.ownerPhone);
+  await callSendApi(phone, text, { type: "new_booking", clientName: appt.clientName });
 }
 
 /** Call this whenever inventory is saved to send alerts immediately for newly-low items. */

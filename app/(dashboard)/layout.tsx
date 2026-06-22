@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList } from "lucide-react";
+import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X } from "lucide-react";
+import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
 import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings } from "@/lib/settings-store";
@@ -84,6 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [suspended,  setSuspended]  = useState(false);
   const [suspReason, setSuspReason] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [toasts, setToasts] = useState<Array<WaLogEntry & { toastId: number }>>([]);
 
   // Auth guard
   useEffect(() => {
@@ -133,6 +135,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const interval = window.setInterval(() => runWhatsAppScheduler(), 60_000);
     return () => window.clearInterval(interval);
   }, [isReady]);
+
+  // WhatsApp message toast notifications
+  useEffect(() => {
+    function onWaMessage(e: Event) {
+      const entry = (e as CustomEvent<WaLogEntry>).detail;
+      const toastId = Date.now();
+      setToasts((prev) => [...prev.slice(-4), { ...entry, toastId }]);
+      window.setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.toastId !== toastId));
+      }, 5000);
+    }
+    window.addEventListener("werzio_wa_message_logged", onWaMessage);
+    return () => window.removeEventListener("werzio_wa_message_logged", onWaMessage);
+  }, []);
 
   if (!isReady) {
     return (
@@ -222,6 +238,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Suspension gate — shown over everything except the billing page */}
       {suspended && !isBillingPage && <SuspensionGate reason={suspReason} />}
+
+      {/* WhatsApp message toast notifications */}
+      {toasts.length > 0 && (
+        <div style={{ position: "fixed", bottom: 80, right: 20, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10, maxWidth: 320 }}>
+          {toasts.map((t) => (
+            <div key={t.toastId} style={{
+              background: "#fff",
+              borderRadius: 14,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+              border: `1.5px solid ${t.status === "sent" ? "#bbf7d0" : "#fecaca"}`,
+              padding: "12px 14px",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              animation: "slideInRight 0.25s ease",
+            }}>
+              {t.status === "sent"
+                ? <CheckCircle size={18} color="#059669" style={{ flexShrink: 0, marginTop: 1 }} />
+                : <XCircle    size={18} color="#dc2626" style={{ flexShrink: 0, marginTop: 1 }} />
+              }
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: t.status === "sent" ? "#059669" : "#dc2626" }}>
+                  {t.status === "sent" ? "WhatsApp Sent" : "WhatsApp Failed"}
+                </div>
+                <div style={{ fontSize: 12, color: "#4a4a6a", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {t.clientName} · {t.type.replace("_", " ")}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setToasts((prev) => prev.filter((x) => x.toastId !== t.toastId))}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: "#9ca3af", flexShrink: 0 }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
