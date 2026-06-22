@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { addPaymentRequest, getActivePlan, setActivePlan, getPaymentRequests, type PaymentMethod } from "@/lib/payment-requests";
-import { syncInvoices, isInTrial, trialDaysLeft, type Invoice, type InvoiceStatus } from "@/lib/invoices";
+import { syncInvoices, type Invoice, type InvoiceStatus } from "@/lib/invoices";
 import InvoiceViewer from "@/components/invoice-viewer";
 import MobilePageHeader from "@/components/mobile-page-header";
 import {
@@ -190,8 +190,6 @@ export default function BillingPage() {
   const [hasPending,   setHasPending]  = useState(false);
   const [invoices,     setInvoices]    = useState<Invoice[]>([]);
   const [viewInvoice,  setViewInvoice] = useState<Invoice | null>(null);
-  const [trialActive,  setTrialActive] = useState(false);
-  const [daysLeft,     setDaysLeft]    = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -212,8 +210,6 @@ export default function BillingPage() {
           }
           
           const plan = PLAN_CONFIGS[planId];
-          setTrialActive(isInTrial(user.createdAt));
-          setDaysLeft(trialDaysLeft(user.createdAt));
 
           if (plan.price > 0) {
             const synced = syncInvoices(
@@ -418,26 +414,8 @@ export default function BillingPage() {
       {/* Mobile app bar */}
       <MobilePageHeader
         title="Billing & Plans"
-        subtitle={trialActive ? `${daysLeft} days trial left · ${currentPlan.name}` : currentPlan.label}
+        subtitle={currentPlan.label}
       />
-
-      {/* Mobile trial banner */}
-      {trialActive && (
-        <div className="mobile-hero-card mobile-only">
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ fontSize: 30 }}>🎉</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 900, fontSize: 15 }}>14-Day Free Trial Active</div>
-              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 3 }}>
-                {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — full access, no charge yet.` : "Trial ends today."}
-              </div>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.22)", borderRadius: 20, padding: "6px 14px", fontSize: 15, fontWeight: 900, whiteSpace: "nowrap" }}>
-              {daysLeft}d left
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Mobile current plan card */}
       <div className="mobile-only" style={{ margin: "12px 16px 0" }}>
@@ -573,24 +551,6 @@ export default function BillingPage() {
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 3 }}>Manage your subscription and view invoice history</div>
         </div>
 
-        {/* Trial banner */}
-        {trialActive && (
-          <div style={{ background: "linear-gradient(135deg,#7C3AED,#9333EA)", borderRadius: 16, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", color: "#fff" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 46, height: 46, borderRadius: 13, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎉</div>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: 15 }}>14-Day Free Trial Active</div>
-                <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>
-                  {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining — full access, no charge yet.` : "Trial ends today."}
-                </div>
-              </div>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 18px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
-              {daysLeft}d left
-            </div>
-          </div>
-        )}
-
         {/* Pending notice */}
         {hasPending && (
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "#eff6ff", border: "1px solid #bae6fd", borderRadius: 12 }}>
@@ -700,7 +660,7 @@ export default function BillingPage() {
           <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #ebebf0", overflow: "hidden" }}>
             <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Invoice History</div>
-              <div style={{ fontSize: 12, color: "#9898b0" }}>Generated monthly after trial ends</div>
+              <div style={{ fontSize: 12, color: "#9898b0" }}>Generated monthly</div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 100px 48px", padding: "10px 24px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
               {["INVOICE", "ISSUED", "DUE DATE", "AMOUNT", "STATUS", ""].map(h => (

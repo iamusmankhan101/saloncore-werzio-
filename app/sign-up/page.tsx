@@ -183,9 +183,9 @@ export default function SignUpPage() {
           <div className={styles.brandContent}>
             <div className={styles.eyebrow}>Start organized</div>
             <h1 className={styles.headline}>Give your salon a workspace clients can trust.</h1>
-            <p className={styles.supportingText}>14-day free trial on Pro and Premium plans. No credit card required to start.</p>
+            <p className={styles.supportingText}>Choose a plan and get started immediately. No hidden fees.</p>
             <div className={styles.brandStats}>
-              <span className={styles.statPill}>14-day free trial</span>
+              <span className={styles.statPill}>No hidden fees</span>
               <span className={styles.statPill}>WhatsApp alerts</span>
               <span className={styles.statPill}>Online booking</span>
             </div>
@@ -209,7 +209,7 @@ export default function SignUpPage() {
                 {step === "verify" ? "Check your email" : step === "plan" ? "Choose your plan" : showAdmin ? "Admin registration" : `${plan.name} plan — details`}
               </h1>
               <p className={styles.formSubtitle}>
-                {step === "verify" ? `We sent a verification link to ${form.email}` : step === "plan" ? "14-day free trial on Pro and Premium plans. Cancel anytime." : "Fill in your salon details to get started."}
+                {step === "verify" ? `We sent a verification link to ${form.email}` : step === "plan" ? "Pick a plan to get started. Cancel anytime." : "Fill in your salon details to get started."}
               </p>
             </div>
 
@@ -242,7 +242,7 @@ export default function SignUpPage() {
                             </div>
                             <div>
                               <div style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e" }}>{p.name}</div>
-                              <div style={{ fontSize: 12, color: p.color, fontWeight: 700 }}>{p.price}<span style={{ color: "#9898b0", fontWeight: 400 }}>/mo after trial</span></div>
+                              <div style={{ fontSize: 12, color: p.color, fontWeight: 700 }}>{p.price}<span style={{ color: "#9898b0", fontWeight: 400 }}>/mo</span></div>
                             </div>
                           </div>
                           <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${selected ? p.color : "#d1d5db"}`, background: selected ? p.color : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>

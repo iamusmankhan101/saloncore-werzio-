@@ -223,7 +223,7 @@ export default function SchedulingFeaturePage() {
               </p>
               <div className={styles.heroActions}>
                 <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
-                  Start free trial <ArrowRight size={17} />
+                  Get started <ArrowRight size={17} />
                 </a>
                 <Link href="/#features" className={styles.secondaryCta}>
                   Explore features
@@ -261,7 +261,7 @@ export default function SchedulingFeaturePage() {
           </div>
           <div className={styles.ctaActions}>
             <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
-              Start free trial <ArrowRight size={17} />
+              Get started <ArrowRight size={17} />
             </a>
             <Link href="/#pricing" className={styles.secondaryDark}>View pricing</Link>
           </div>

@@ -12,7 +12,7 @@ export default function CTABand() {
       <div className={styles.btns}>
         <a href="#pricing" className={`btn btn-primary btn-lg ${styles.lightBtn}`}>
           <ArrowRight size={18} />
-          Start Free Trial — No Credit Card
+          Get Started Now
         </a>
         <a href="#" className={`btn btn-outline btn-lg ${styles.ghostBtn}`}>
           <Play size={16} />

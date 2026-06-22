@@ -4,8 +4,7 @@
  * Automated 30-day rolling billing engine. Called by Vercel Cron every day at 09:00 UTC.
  *
  * Each user has their own billing cycle:
- *   billing_anchor = trial_start + 14 days
- *   Invoice issued on: anchor, anchor+30, anchor+60, ...
+ *   Invoice issued on: activation_date, +30, +60, ...
  *   Due date         = issued_date + 10 days
  *   Overdue after    : due_date
  *   Suspended after  : due_date + 10 days  (20 days total window from invoice)
@@ -26,7 +25,6 @@ import {
   stampInvoiceNotification,
   logBillingRun,
   addDays,
-  isInTrial,
   BILLING_CYCLE_DAYS,
   SUSPENSION_GRACE_DAYS,
   type BillingUser,
@@ -168,9 +166,6 @@ async function runDaily(resend: Resend): Promise<{ invoicesGenerated: number; em
   const users = await getAllActiveBillingUsers();
 
   for (const user of users) {
-    // ── Skip trial users ──────────────────────────────────────────────────────
-    if (isInTrial(user.trialStart)) continue;
-
     // ── Step 1: Generate invoice for the current 30-day period (idempotent) ──
     const result = await getOrCreate30DayInvoice(user);
     if (result) {

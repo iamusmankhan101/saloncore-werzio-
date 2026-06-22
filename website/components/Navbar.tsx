@@ -86,10 +86,10 @@ export default function Navbar() {
                     <p className={styles.featuredBody}>Appointments, POS, inventory, staff, clients &amp; reports — no integrations needed.</p>
                     <div className={styles.featuredStats}>
                       <div><strong>9</strong><span>Features</span></div>
-                      <div><strong>14 days</strong><span>Free trial</span></div>
+                      
                     </div>
                     <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.featuredCta}>
-                      Start free trial →
+                      Get started →
                     </a>
                   </div>
                 </div>
@@ -114,7 +114,7 @@ export default function Navbar() {
 
         <div className={styles.cta}>
           <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className={`btn btn-outline ${styles.loginBtn}`}>Log In</a>
-          <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className="btn btn-primary">Start Free Trial</a>
+          <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className="btn btn-primary">Get Started</a>
         </div>
 
         <button className={styles.burger} onClick={() => setOpen(!open)} aria-label="Toggle menu">
@@ -164,7 +164,7 @@ export default function Navbar() {
         </ul>
         <div className={styles.drawerCta}>
           <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className="btn btn-outline" style={{ width: "100%", justifyContent: "center" }}>Log In</a>
-          <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => setOpen(false)}>Start Free Trial</a>
+          <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => setOpen(false)}>Get Started</a>
         </div>
       </div>
 

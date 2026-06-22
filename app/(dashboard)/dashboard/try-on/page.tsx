@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { Upload, Wand2, RefreshCw, Download, ChevronRight, Sparkles, ImagePlus, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { settingsStore } from "@/lib/settings-store";
 import { generateHairMask, compositeWithMask } from "@/lib/hair-mask";
-import { getCurrentUser } from "@/lib/auth";
 import { getCurrentPlan } from "@/lib/plan-limits";
 
 // ── Service catalogue ────────────────────────────────────────────────────────
@@ -125,9 +124,8 @@ export default function TryOnPage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const user = getCurrentUser();
     const plan = getCurrentPlan();
-    setIsAdmin(user?.role === "admin" || plan.tryOn);
+    setIsAdmin(plan.tryOn);
   }, []);
 
   const [originalImage, setOriginalImage] = useState<string | null>(null);

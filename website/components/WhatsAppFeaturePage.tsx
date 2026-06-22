@@ -447,7 +447,7 @@ export default function WhatsAppFeaturePage() {
                   rel="noopener noreferrer"
                   className={styles.primaryCta}
                 >
-                  Start free trial <ArrowRight size={17} />
+                  Get started <ArrowRight size={17} />
                 </a>
                 <Link href="/#pricing" className={styles.secondaryCta}>
                   View pricing
@@ -495,7 +495,7 @@ export default function WhatsAppFeaturePage() {
               rel="noopener noreferrer"
               className={styles.primaryCta}
             >
-              Start free trial <ArrowRight size={17} />
+              Get started <ArrowRight size={17} />
             </a>
             <Link href="/#pricing" className={styles.secondaryDark}>
               View pricing
