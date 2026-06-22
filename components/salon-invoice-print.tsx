@@ -193,17 +193,12 @@ export default function SalonInvoicePrint({
                 </div>
               </div>
 
-              {/* ── PAYMENT INFO ── */}
-              <div style={{ marginBottom: 32 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Payment Info</div>
-                <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
-                  <div><strong style={{ color: "#111" }}>EasyPaisa / JazzCash:</strong> Muhammad Usman Khan — 03058562523</div>
-                  <div><strong style={{ color: "#111" }}>Bank Transfer:</strong> Meezan Bank — Muhammad Usman Khan — 02361019994452</div>
-                  {isPaid && invoice.paymentMethod && (
-                    <div style={{ marginTop: 6, color: "#059669", fontWeight: 700 }}>✓ Paid via {METHOD_LABELS[invoice.paymentMethod] ?? invoice.paymentMethod}</div>
-                  )}
+              {/* ── PAYMENT STATUS ── */}
+              {isPaid && invoice.paymentMethod && (
+                <div style={{ marginBottom: 32 }}>
+                  <div style={{ fontSize: 12, color: "#059669", fontWeight: 700 }}>✓ Paid via {METHOD_LABELS[invoice.paymentMethod] ?? invoice.paymentMethod}</div>
                 </div>
-              </div>
+              )}
 
               {/* ── NOTES ── */}
               {invoice.notes && (
@@ -229,7 +224,7 @@ export default function SalonInvoicePrint({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 10, color: "#aaa" }}>Powered by</span>
-                  <img src="/werzio%20logo.png" alt="Werzio" style={{ height: 16, width: "auto", filter: "invert(1) brightness(0)" }} />
+                  <img src="/werzio%20logo.png" alt="Werzio" style={{ height: 32, width: "auto", filter: "invert(1) brightness(0)" }} />
                 </div>
               </div>
 
