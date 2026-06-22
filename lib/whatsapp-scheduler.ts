@@ -420,6 +420,19 @@ export async function sendOwnerNewBookingAlert(appt: {
     amount: String(appt.totalAmount),
   });
 
+  // Fire in-app alert event so the dashboard can show a popup + sound
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("werzio_new_booking_alert", {
+      detail: {
+        clientName: appt.clientName,
+        serviceNames: appt.serviceNames,
+        date: appt.date,
+        startTime: appt.startTime,
+        totalAmount: appt.totalAmount,
+      },
+    }));
+  }
+
   const phone = normalizePhone(ws.ownerPhone);
   await callSendApi(phone, text, { type: "new_booking", clientName: appt.clientName });
 }

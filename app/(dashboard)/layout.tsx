@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X } from "lucide-react";
+import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck } from "lucide-react";
 import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
@@ -86,6 +86,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [suspReason, setSuspReason] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toasts, setToasts] = useState<Array<WaLogEntry & { toastId: number }>>([]);
+  const [bookingAlerts, setBookingAlerts] = useState<Array<{
+    alertId: number;
+    clientName: string;
+    serviceNames: string[];
+    date: string;
+    startTime: string;
+    totalAmount: number;
+  }>>([]);
 
   // Auth guard
   useEffect(() => {
@@ -148,6 +156,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
     window.addEventListener("werzio_wa_message_logged", onWaMessage);
     return () => window.removeEventListener("werzio_wa_message_logged", onWaMessage);
+  }, []);
+
+  // New booking popup + chime
+  useEffect(() => {
+    function playChime() {
+      try {
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+        [[523.25, 0], [659.25, 0.18], [783.99, 0.36]].forEach(([freq, delay]) => {
+          const osc  = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = "sine";
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.35, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.9);
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.9);
+        });
+      } catch { /* not supported */ }
+    }
+
+    function onNewBooking(e: Event) {
+      const detail = (e as CustomEvent<{
+        clientName: string; serviceNames: string[];
+        date: string; startTime: string; totalAmount: number;
+      }>).detail;
+      playChime();
+      const alertId = Date.now();
+      setBookingAlerts((prev) => [...prev, { ...detail, alertId }]);
+      window.setTimeout(() => {
+        setBookingAlerts((prev) => prev.filter((a) => a.alertId !== alertId));
+      }, 10_000);
+    }
+
+    window.addEventListener("werzio_new_booking_alert", onNewBooking);
+    return () => window.removeEventListener("werzio_new_booking_alert", onNewBooking);
   }, []);
 
   if (!isReady) {
@@ -238,6 +285,73 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Suspension gate — shown over everything except the billing page */}
       {suspended && !isBillingPage && <SuspensionGate reason={suspReason} />}
+
+      {/* New Booking Popup Alerts */}
+      {bookingAlerts.length > 0 && (
+        <div style={{ position: "fixed", top: 20, right: 20, zIndex: 10000, display: "flex", flexDirection: "column", gap: 12, maxWidth: 340 }}>
+          {bookingAlerts.map((alert) => (
+            <div key={alert.alertId} style={{
+              background: "#fff",
+              borderRadius: 16,
+              boxShadow: "0 8px 40px rgba(0,0,0,0.18), 0 0 0 2px #7C3AED22",
+              overflow: "hidden",
+              animation: "slideInRight 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+            }}>
+              {/* Header */}
+              <div style={{ background: "linear-gradient(135deg,#5B21B6,#7C3AED)", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <CalendarCheck size={18} color="#fff" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.75)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Online Booking</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>New Booking!</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBookingAlerts((prev) => prev.filter((a) => a.alertId !== alert.alertId))}
+                  style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+                >
+                  <X size={14} color="#fff" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: "14px 16px" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#111", marginBottom: 8 }}>{alert.clientName}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {alert.serviceNames.length > 0 && (
+                    <div style={{ fontSize: 12, color: "#555" }}>
+                      <span style={{ fontWeight: 600, color: "#333" }}>Service: </span>{alert.serviceNames.join(", ")}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 12, color: "#555" }}>
+                    <span style={{ fontWeight: 600, color: "#333" }}>Date: </span>
+                    {new Date(alert.date + "T00:00:00").toLocaleDateString("en-PK", { weekday: "short", month: "short", day: "numeric" })}
+                    {" · "}
+                    {(() => {
+                      const [h, m] = alert.startTime.split(":").map(Number);
+                      const suffix = h >= 12 ? "PM" : "AM";
+                      return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${suffix}`;
+                    })()}
+                  </div>
+                  {alert.totalAmount > 0 && (
+                    <div style={{ fontSize: 12, color: "#555" }}>
+                      <span style={{ fontWeight: 600, color: "#333" }}>Amount: </span>PKR {alert.totalAmount.toLocaleString("en-PK")}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div style={{ height: 3, background: "#f0f0f0" }}>
+                <div style={{ height: "100%", background: "#7C3AED", animation: "bookingProgress 10s linear forwards", transformOrigin: "left" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* WhatsApp message toast notifications */}
       {toasts.length > 0 && (
