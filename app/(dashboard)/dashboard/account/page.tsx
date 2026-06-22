@@ -433,64 +433,44 @@ function Security() {
 }
 
 interface WhatsAppSettings {
-  phoneNumberId: string;
+  apiKey: string;
   ownerPhone: string;
   autoReminder: boolean;
   reminderHours: number;
-  reminderTemplateId: string;
   autoConfirmation: boolean;
-  confirmationTemplateId: string;
   autoFollowup: boolean;
-  followupTemplateId: string;
   autoLowStock: boolean;
-  lowStockTemplateId: string;
 }
 
-function ReminderRow({
+function AutoRow({
   label,
   hint,
   enabled,
   onToggle,
-  templateId,
-  onTemplateId,
   extra,
 }: {
   label: string;
   hint: string;
   enabled: boolean;
   onToggle: () => void;
-  templateId: string;
-  onTemplateId: (v: string) => void;
   extra?: React.ReactNode;
 }) {
   return (
     <div style={{ border: "1px solid #e8e8f4", borderRadius: 12, padding: "16px 18px", background: enabled ? "#faf9ff" : "#fafafd" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enabled ? 14 : 0 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enabled && extra ? 14 : 0 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 800, color: "#1d1d2f" }}>{label}</div>
           <div style={{ fontSize: 11, color: "#9999b0", marginTop: 2 }}>{hint}</div>
         </div>
         <Toggle value={enabled} onChange={onToggle} />
       </div>
-      {enabled && (
-        <div style={{ display: "grid", gap: 10 }}>
-          <Field label="WhatsApp Template Name" hint="Enter the exact template name from Meta (e.g. reminder, confirmm)">
-            <input
-              style={inputStyle}
-              value={templateId}
-              onChange={(e) => onTemplateId(e.target.value)}
-              placeholder="e.g. reminder"
-            />
-          </Field>
-          {extra}
-        </div>
-      )}
+      {enabled && extra}
     </div>
   );
 }
 
 function WhatsAppSection() {
-  const [form, setForm] = useState<WhatsAppSettings>({ ...(settingsStore.botsailor as WhatsAppSettings) });
+  const [form, setForm] = useState<WhatsAppSettings>({ ...(settingsStore.wasender as WhatsAppSettings) });
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -500,52 +480,52 @@ function WhatsAppSection() {
   }
 
   function save() {
-    Object.assign(settingsStore.botsailor, form);
+    Object.assign(settingsStore.wasender, form);
     saveSettings();
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2200);
   }
 
   async function testConnection() {
-    if (!form.phoneNumberId) {
-      setTestResult({ ok: false, msg: "Enter Phone Number ID first." });
+    if (!form.apiKey) {
+      setTestResult({ ok: false, msg: "Enter your WaSender API key first." });
       return;
     }
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch(`/api/whatsapp/send`, {
+      const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phoneNumberId: form.phoneNumberId,
-          templateId: "test",
-          phone: form.ownerPhone || "0000000000",
-          variables: {},
+          apiKey: form.apiKey,
+          phone: form.ownerPhone || "923000000000",
+          text: "Test connection from Werzio ✅",
         }),
       });
       const data = await res.json();
-      if (res.ok && data.status !== 401) {
-        setTestResult({ ok: true, msg: "Meta API reachable. Check your template names next." });
+      if (data.ok) {
+        setTestResult({ ok: true, msg: "Connected! Test message sent to your number." });
       } else {
-        setTestResult({ ok: false, msg: `API responded with status ${data.status ?? res.status}. Check your META_WHATSAPP_TOKEN env variable.` });
+        setTestResult({ ok: false, msg: `Failed (status ${data.status ?? res.status}). Check your API key.` });
       }
     } catch {
-      setTestResult({ ok: false, msg: "Could not reach Meta API. Check your internet connection." });
+      setTestResult({ ok: false, msg: "Could not reach WaSender API. Check your internet connection." });
     }
     setTesting(false);
   }
 
-  const isConnected = !!form.phoneNumberId;
+  const isConnected = !!form.apiKey;
 
   return (
     <section>
       <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>WhatsApp Automation</h2>
       <p style={{ margin: "0 0 24px", color: "#9999b0", fontSize: 12 }}>
-        Powered by <strong style={{ color: "#1d1d2f" }}>Meta WhatsApp Business API</strong> — set your Phone Number ID below and add your access token to the server environment.
+        Powered by <strong style={{ color: "#1d1d2f" }}>WaSenderAPI</strong> — connect your WhatsApp number at{" "}
+        <span style={{ color: "var(--accent)", fontWeight: 700 }}>wasenderapi.com</span>, then paste your API key below.
       </p>
 
-      {/* Connection status banner */}
+      {/* Connection status */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 12, border: `1px solid ${isConnected ? "#c4b5fd" : "#e8e8f4"}`, background: isConnected ? "rgba(124,58,237,0.06)" : "#fafafd", marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: isConnected ? "var(--accent)" : "#d1d1e0" }} />
@@ -553,26 +533,25 @@ function WhatsAppSection() {
             {isConnected ? "WhatsApp Connected" : "Not configured"}
           </span>
         </div>
-        {isConnected && (
-          <span style={{ fontSize: 11, color: "#9999b0" }}>Scheduler runs every 60 seconds</span>
-        )}
+        {isConnected && <span style={{ fontSize: 11, color: "#9999b0" }}>Scheduler runs every 60 seconds</span>}
       </div>
 
-      {/* API Credentials */}
+      {/* Credentials */}
       <div style={{ marginBottom: 22 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: "#7c7c9a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
-          Meta WhatsApp Credentials
+          WaSender Credentials
         </div>
         <div style={{ display: "grid", gap: 14 }}>
-          <Field label="Phone Number ID" hint="Meta Business Manager → WhatsApp → Phone Number ID">
+          <Field label="API Key" hint="wasenderapi.com → Dashboard → API Keys">
             <input
               style={inputStyle}
-              value={form.phoneNumberId}
-              onChange={(e) => set("phoneNumberId", e.target.value)}
-              placeholder="e.g. 123456789"
+              type="password"
+              value={form.apiKey}
+              onChange={(e) => set("apiKey", e.target.value)}
+              placeholder="your-api-key"
             />
           </Field>
-          <Field label="Your WhatsApp Number (for owner alerts)" hint="International format, e.g. 923001234567">
+          <Field label="Your WhatsApp Number" hint="International format — e.g. 923001234567 (for owner alerts)">
             <input
               style={inputStyle}
               value={form.ownerPhone}
@@ -598,18 +577,16 @@ function WhatsAppSection() {
         </div>
       </div>
 
-      {/* Automation rules */}
+      {/* Automation toggles */}
       <div style={{ fontSize: 11, fontWeight: 800, color: "#7c7c9a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
         Automatic Messages
       </div>
       <div style={{ display: "grid", gap: 12, marginBottom: 22 }}>
-        <ReminderRow
+        <AutoRow
           label="Appointment Reminder"
           hint="Sent automatically X hours before appointment"
           enabled={form.autoReminder}
           onToggle={() => set("autoReminder", !form.autoReminder)}
-          templateId={form.reminderTemplateId}
-          onTemplateId={(v) => set("reminderTemplateId", v)}
           extra={
             <Field label="Hours before appointment">
               <select style={inputStyle} value={form.reminderHours} onChange={(e) => set("reminderHours", Number(e.target.value))}>
@@ -623,37 +600,35 @@ function WhatsAppSection() {
             </Field>
           }
         />
-        <ReminderRow
+        <AutoRow
           label="Booking Confirmation"
           hint="Sent when a new appointment is booked"
           enabled={form.autoConfirmation}
           onToggle={() => set("autoConfirmation", !form.autoConfirmation)}
-          templateId={form.confirmationTemplateId}
-          onTemplateId={(v) => set("confirmationTemplateId", v)}
         />
-        <ReminderRow
+        <AutoRow
           label="Follow-up Message"
-          hint="Sent after appointment is marked completed"
+          hint="Sent 24 hours after appointment is completed"
           enabled={form.autoFollowup}
           onToggle={() => set("autoFollowup", !form.autoFollowup)}
-          templateId={form.followupTemplateId}
-          onTemplateId={(v) => set("followupTemplateId", v)}
         />
-        <ReminderRow
+        <AutoRow
           label="Low Stock Alert"
-          hint="Sent to owner once daily when items are running low"
+          hint="Sent to your number once daily when items run low"
           enabled={form.autoLowStock}
           onToggle={() => set("autoLowStock", !form.autoLowStock)}
-          templateId={form.lowStockTemplateId}
-          onTemplateId={(v) => set("lowStockTemplateId", v)}
         />
       </div>
 
-      {/* Template names guide */}
+      {/* Info box */}
       <div style={{ background: "#f5f4ff", border: "1px solid #ddd6fe", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", marginBottom: 6 }}>How it works</div>
         <div style={{ fontSize: 12, color: "#5a5a78", lineHeight: 1.6 }}>
-          Messages are sent directly via <strong>Meta WhatsApp Business API</strong>. Enter the exact template name from your Meta Business Manager (e.g. <code style={{ background: "#ede9fe", borderRadius: 4, padding: "1px 5px", color: "#5B21B6" }}>reminder</code>, <code style={{ background: "#ede9fe", borderRadius: 4, padding: "1px 5px", color: "#5B21B6" }}>confirmm</code>). Variables like client name, service, date and time are filled in automatically.
+          Messages use the templates you set in the <strong>Messages</strong> page. Variables like{" "}
+          <code style={{ background: "#ede9fe", borderRadius: 4, padding: "1px 5px", color: "#5B21B6" }}>{"{{name}}"}</code>,{" "}
+          <code style={{ background: "#ede9fe", borderRadius: 4, padding: "1px 5px", color: "#5B21B6" }}>{"{{service}}"}</code>,{" "}
+          <code style={{ background: "#ede9fe", borderRadius: 4, padding: "1px 5px", color: "#5B21B6" }}>{"{{date}}"}</code>{" "}
+          are filled in automatically. No template approval needed.
         </div>
       </div>
 

@@ -14,8 +14,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 
-const PHONE_NUMBER_ID = "1143945662132104";
-const META_URL = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
+const WASENDER_URL = "https://www.wasenderapi.com/api/send-message";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -41,16 +40,15 @@ async function ensureTables() {
 }
 
 async function getAllBirthdayUsers(): Promise<
-  { userId: string; templateName: string; discount: string }[]
+  { userId: string; discount: string }[]
 > {
   try {
     const result = await db.execute(
-      "SELECT user_id, template_name, discount FROM wa_birthday_settings WHERE enabled = 1 AND template_name != ''",
+      "SELECT user_id, discount FROM wa_birthday_settings WHERE enabled = 1",
     );
     return result.rows.map((r) => ({
-      userId:       r.user_id       as string,
-      templateName: r.template_name as string,
-      discount:     r.discount      as string,
+      userId:   r.user_id  as string,
+      discount: r.discount as string,
     }));
   } catch {
     return [];
@@ -117,47 +115,21 @@ function normalizePhone(raw: string): string {
 
 async function sendBirthdayMessage(
   phone: string,
-  templateName: string,
-  clientName: string,
-  salonName: string,
-  discount: string,
+  apiKey: string,
+  text: string,
 ): Promise<boolean> {
-  const token = process.env.META_WHATSAPP_TOKEN;
-  if (!token) return false;
-
-  // Build parameters — order must match {{1}},{{2}},... in Meta template
-  // Birthday template expected: "Happy birthday {{1}}! 🎂 {{2}} wishes you a wonderful day..."
-  // With discount: "...Here's a special gift for you: {{3}} off on your next visit 💜"
-  const parameters: { type: string; text: string }[] = [
-    { type: "text", text: clientName },
-    { type: "text", text: salonName },
-  ];
-  if (discount) {
-    parameters.push({ type: "text", text: discount });
-  }
-
-  const payload = {
-    messaging_product: "whatsapp",
-    to: phone,
-    type: "template",
-    template: {
-      name: templateName,
-      language: { code: "en" },
-      components: [{ type: "body", parameters }],
-    },
-  };
-
+  const to = phone.startsWith("+") ? phone : `+${phone}`;
   try {
-    const res = await fetch(META_URL, {
+    const res = await fetch(WASENDER_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
+        "Authorization": `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ to, text }),
     });
-    const data = await res.json() as { messages?: { id: string }[] };
-    return res.ok && !!data.messages?.[0]?.id;
+    const data = await res.json() as { success?: boolean };
+    return res.ok && data.success === true;
   } catch {
     return false;
   }
@@ -190,7 +162,9 @@ async function runBirthdayCron(): Promise<{ checked: number; sent: number; faile
   for (const user of users) {
     const clients = await getClients(user.userId);
 
-    // Get salon name from salon_data settings if available, fall back to generic
+    // Read wasender API key, birthday template, and salon name from stored settings
+    let apiKey = "";
+    let birthdayTemplate = "";
     let salonName = "Your Salon";
     try {
       const settingsResult = await db.execute({
@@ -198,10 +172,14 @@ async function runBirthdayCron(): Promise<{ checked: number; sent: number; faile
         args: [`${user.userId}_settings`],
       });
       if (settingsResult.rows.length > 0) {
-        const settingsData = JSON.parse(settingsResult.rows[0].data as string);
-        if (settingsData?.salon?.name) salonName = settingsData.salon.name;
+        const s = JSON.parse(settingsResult.rows[0].data as string);
+        if (s?.salon?.name) salonName = s.salon.name;
+        if (s?.wasender?.apiKey) apiKey = s.wasender.apiKey;
+        if (s?.whatsapp?.birthday) birthdayTemplate = s.whatsapp.birthday;
       }
-    } catch { /* use default */ }
+    } catch { /* use defaults */ }
+
+    if (!apiKey || !birthdayTemplate) continue;
 
     for (const client of clients) {
       if (!client.dob || !client.phone) continue;
@@ -218,8 +196,13 @@ async function runBirthdayCron(): Promise<{ checked: number; sent: number; faile
         continue;
       }
 
-      const ok = await sendBirthdayMessage(phone, user.templateName, client.name, salonName, user.discount);
-      await logMessage(user.userId, client.name, phone, user.templateName, ok ? "sent" : "failed");
+      const text = birthdayTemplate
+        .replace(/\{\{name\}\}/g, client.name)
+        .replace(/\{\{salon_name\}\}/g, salonName)
+        .replace(/\{\{discount\}\}/g, user.discount || "a special treat");
+
+      const ok = await sendBirthdayMessage(phone, apiKey, text);
+      await logMessage(user.userId, client.name, phone, "birthday", ok ? "sent" : "failed");
 
       if (ok) {
         await markSent(user.userId, client.id, year);

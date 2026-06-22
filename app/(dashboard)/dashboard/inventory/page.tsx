@@ -233,7 +233,7 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
   const [sending, setSending] = useState(false);
   const [apiResult, setApiResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const bs = settingsStore.botsailor as { ownerPhone: string; lowStockTemplateId: string };
+  const ws = settingsStore.wasender as { apiKey: string; ownerPhone: string };
   const salonName = settingsStore.salon.name as string;
 
   const message = [
@@ -263,32 +263,33 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
   };
 
   const sendViaApi = async () => {
-    if (!bs.lowStockTemplateId) {
-      setApiResult({ ok: false, msg: "Low Stock template name not set in Account → WhatsApp Settings" });
+    if (!ws.apiKey) {
+      setApiResult({ ok: false, msg: "WaSender API key not set in Account → WhatsApp Settings" });
       return;
     }
-    if (!bs.ownerPhone) {
+    if (!ws.ownerPhone) {
       setApiResult({ ok: false, msg: "Owner WhatsApp number not set in Account → WhatsApp Settings" });
       return;
     }
     setSending(true);
     setApiResult(null);
     try {
+      const lowstockTemplate = (settingsStore.whatsapp as { lowstock: string }).lowstock;
       const itemList = alertItems.map((i) => `${i.name} (${i.currentStock} ${i.unit} left)`).join(", ");
-      const phone = bs.ownerPhone.replace(/\D/g, "");
+      const phone = ws.ownerPhone.replace(/\D/g, "");
+      const text = (lowstockTemplate || "⚠️ Low Stock Alert from {{salon_name}}: {{count}} item(s) running low — {{items}}.")
+        .replace(/\{\{items\}\}/g, itemList)
+        .replace(/\{\{count\}\}/g, String(alertItems.length))
+        .replace(/\{\{salon_name\}\}/g, salonName);
       const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          templateId: bs.lowStockTemplateId,
-          phone,
-          variables: { items: itemList, count: String(alertItems.length), salon_name: salonName },
-        }),
+        body: JSON.stringify({ apiKey: ws.apiKey, phone, text }),
       });
-      const data = await res.json() as { ok: boolean; data?: unknown };
+      const data = await res.json() as { ok: boolean };
       setApiResult(data.ok
         ? { ok: true, msg: `Sent to ${phone}` }
-        : { ok: false, msg: `Failed: ${JSON.stringify(data.data || "").slice(0, 120)}` });
+        : { ok: false, msg: "Failed — check your WaSender API key" });
     } catch (err) {
       setApiResult({ ok: false, msg: String(err) });
     }

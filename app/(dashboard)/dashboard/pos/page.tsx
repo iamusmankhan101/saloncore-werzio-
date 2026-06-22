@@ -327,21 +327,25 @@ export default function POSPage() {
   // ── WhatsApp receipt ──────────────────────────────────────────────────────
   async function sendReceiptWA(invoice: SalonInvoice, client: Client | null) {
     if (!client?.phone) { setWaStatus("idle"); return; }
-    const bs = settingsStore.botsailor as { phoneNumberId: string; autoFollowup: boolean; followupTemplateId: string };
+    const ws = settingsStore.wasender as { apiKey: string; autoFollowup: boolean };
+    const followupTemplate = (settingsStore.whatsapp as { followup: string }).followup;
     const salonName = (settingsStore.salon as { name: string }).name;
     const serviceList = invoice.items.filter(i => i.type === "service").map(i => i.description).join(", ") || invoice.items[0]?.description || "your service";
     const phone = normalizePhone(client.phone);
 
-    if (bs.phoneNumberId && bs.followupTemplateId) {
+    if (ws.apiKey && ws.autoFollowup && followupTemplate) {
       try {
+        const text = followupTemplate
+          .replace(/\{\{name\}\}/g, client.name)
+          .replace(/\{\{service\}\}/g, serviceList)
+          .replace(/\{\{salon_name\}\}/g, salonName);
         const res = await fetch("/api/whatsapp/send", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phoneNumberId: bs.phoneNumberId, templateId: bs.followupTemplateId, phone, variables: { name: client.name, service: serviceList, salon_name: salonName } }),
+          body: JSON.stringify({ apiKey: ws.apiKey, phone, text }),
         });
-        const data = await res.json() as { ok: boolean; status: number };
-        const ok = data.ok && data.status !== 401 && data.status !== 422 && data.status !== 400;
-        appendLog({ type: "followup", clientName: client.name, phone, status: ok ? "sent" : "failed", templateId: bs.followupTemplateId });
-        setWaStatus(ok ? "sent" : "failed");
+        const data = await res.json() as { ok: boolean };
+        appendLog({ type: "followup", clientName: client.name, phone, status: data.ok ? "sent" : "failed", templateId: "direct" });
+        setWaStatus(data.ok ? "sent" : "failed");
         return;
       } catch { /* fallthrough */ }
     }

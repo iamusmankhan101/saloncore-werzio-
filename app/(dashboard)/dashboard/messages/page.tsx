@@ -106,22 +106,21 @@ function StatusChip({ status }: { status: "sent" | "failed" }) {
   );
 }
 
-function AutoCard({ icon: Icon, label, enabled, templateId, color }: {
-  icon: React.ElementType; label: string; enabled: boolean; templateId: string; color: string;
+function AutoCard({ icon: Icon, label, enabled, color }: {
+  icon: React.ElementType; label: string; enabled: boolean; color: string;
 }) {
-  const ready = enabled && !!templateId;
   return (
-    <div style={{ padding: "11px 14px", borderRadius: 10, border: `1px solid ${ready ? color + "25" : enabled ? "#fde68a" : "#e8e8f4"}`, background: ready ? color + "06" : enabled ? "#fffbeb" : "#fafafd", display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{ width: 30, height: 30, borderRadius: 8, background: ready ? color + "15" : "#f0f0f8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <Icon size={14} color={ready ? color : "#b0b0c8"} />
+    <div style={{ padding: "11px 14px", borderRadius: 10, border: `1px solid ${enabled ? color + "25" : "#e8e8f4"}`, background: enabled ? color + "06" : "#fafafd", display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ width: 30, height: 30, borderRadius: 8, background: enabled ? color + "15" : "#f0f0f8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Icon size={14} color={enabled ? color : "#b0b0c8"} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d2f" }}>{label}</div>
-        <div style={{ fontSize: 10, color: ready ? "#059669" : enabled ? "#d97706" : "#9999b0", marginTop: 1 }}>
-          {ready ? `✓ ${templateId}` : enabled ? "⚠ No template name set" : "Disabled"}
+        <div style={{ fontSize: 10, color: enabled ? "#059669" : "#9999b0", marginTop: 1 }}>
+          {enabled ? "✓ Active" : "Disabled"}
         </div>
       </div>
-      <div style={{ width: 7, height: 7, borderRadius: "50%", background: ready ? "#22c55e" : enabled ? "#f59e0b" : "#e0e0e8", flexShrink: 0, boxShadow: ready ? "0 0 6px #22c55e80" : "none" }} />
+      <div style={{ width: 7, height: 7, borderRadius: "50%", background: enabled ? "#22c55e" : "#e0e0e8", flexShrink: 0, boxShadow: enabled ? "0 0 6px #22c55e80" : "none" }} />
     </div>
   );
 }
@@ -330,14 +329,12 @@ export default function MessagesPage() {
     load();
   }, [refreshKey]);
 
-  const bs = settingsStore.botsailor as {
-    phoneNumberId: string; ownerPhone: string;
-    autoReminder: boolean; reminderTemplateId: string; reminderHours: number;
-    autoConfirmation: boolean; confirmationTemplateId: string;
-    autoFollowup: boolean; followupTemplateId: string;
-    autoLowStock: boolean; lowStockTemplateId: string;
+  const ws = settingsStore.wasender as {
+    apiKey: string; ownerPhone: string;
+    autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean; autoLowStock: boolean;
   };
-  const isConnected = !!bs.phoneNumberId;
+  const waTpl = settingsStore.whatsapp as { reminder: string; confirmation: string; followup: string };
+  const isConnected = !!ws.apiKey;
 
   const filtered = useMemo(() =>
     filter === "all" ? logs : logs.filter((l) => l.type === filter),
@@ -375,34 +372,33 @@ export default function MessagesPage() {
     setSending(true);
     setSendResult(null);
     try {
-      const templateId = msgType === "reminder"
-        ? bs.reminderTemplateId
-        : msgType === "confirmation"
-          ? bs.confirmationTemplateId
-          : bs.followupTemplateId;
-      if (!templateId) {
-        setSendResult({ ok: false, msg: `Template name for "${msgType}" not set in Account → WhatsApp.` });
+      const rawTemplate = msgType === "reminder" ? waTpl.reminder : msgType === "confirmation" ? waTpl.confirmation : waTpl.followup;
+      if (!rawTemplate) {
+        setSendResult({ ok: false, msg: `No template set for "${msgType}" — edit it in the Messages → Templates tab.` });
         setSending(false);
         return;
       }
       const dateLabel = new Date(manualDate).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" });
+      const salonName = settingsStore.salon.name as string;
+      const text = rawTemplate
+        .replace(/\{\{name\}\}/g, client.name)
+        .replace(/\{\{service\}\}/g, manualService.trim() || "your service")
+        .replace(/\{\{date\}\}/g, dateLabel)
+        .replace(/\{\{time\}\}/g, manualTime.trim() || "your appointment time")
+        .replace(/\{\{salon_name\}\}/g, salonName);
       const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phoneNumberId: bs.phoneNumberId,
-          templateId, phone: normalizePhone(client.phone),
-          variables: { name: client.name, service: manualService.trim() || "your service", date: dateLabel, time: manualTime.trim() || "your appointment time", salon_name: settingsStore.salon.name },
-        }),
+        body: JSON.stringify({ apiKey: ws.apiKey, phone: normalizePhone(client.phone), text }),
       });
-      const data = await res.json() as { ok: boolean; status: number; data?: unknown; raw?: string; error?: string };
-      const success = data.ok && data.status !== 401 && data.status !== 422 && data.status !== 400;
+      const data = await res.json() as { ok: boolean; status: number; error?: string };
+      const success = data.ok;
       setSendResult(success
         ? { ok: true, msg: `✓ Sent to ${client.name} (${normalizePhone(client.phone)})` }
-        : { ok: false, msg: `Failed (${data.status}): ${data.error || JSON.stringify(data.data || data.raw || "").slice(0, 100)}` },
+        : { ok: false, msg: `Failed (${data.status ?? ""}): ${data.error || "Check your WaSender API key"}` },
       );
       if (success) {
-        appendLog({ type: "manual", clientName: client.name, phone: normalizePhone(client.phone), status: "sent", templateId });
+        appendLog({ type: "manual", clientName: client.name, phone: normalizePhone(client.phone), status: "sent", templateId: "direct" });
         setTimeout(() => setRefreshKey((k) => k + 1), 600);
       }
     } catch (err) { setSendResult({ ok: false, msg: String(err) }); }
@@ -450,7 +446,7 @@ export default function MessagesPage() {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 800 }}>{isConnected ? "WhatsApp Connected" : "Not Configured"}</div>
-          <div style={{ fontSize: 10, opacity: 0.72, marginTop: 2 }}>{isConnected ? `Phone ID: ${bs.phoneNumberId}` : "Tap Settings to connect"}</div>
+          <div style={{ fontSize: 10, opacity: 0.72, marginTop: 2 }}>{isConnected ? "WaSenderAPI connected" : "Tap Settings to connect"}</div>
         </div>
         {isConnected && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80", flexShrink: 0 }} />}
       </div>
@@ -550,7 +546,7 @@ export default function MessagesPage() {
               </div>
               <div style={{ fontSize: 11, opacity: 0.72, marginTop: 3 }}>
                 {isConnected
-                  ? `Meta Business API · Phone ID: ${bs.phoneNumberId} · Scheduler runs every 60s`
+                  ? "WaSenderAPI connected · Scheduler runs every 60s"
                   : "Go to Account → WhatsApp Settings to connect your number"}
               </div>
             </div>
@@ -786,11 +782,11 @@ export default function MessagesPage() {
               <div style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 18, padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
                 <div style={{ fontSize: 14, fontWeight: 900, color: "#1d1d2f", marginBottom: 14 }}>Automation Status</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <AutoCard icon={Bell}         label="Appointment Reminder" enabled={bs.autoReminder}     templateId={bs.reminderTemplateId}     color="#7C3AED" />
-                  <AutoCard icon={CheckCircle2} label="Booking Confirmation"  enabled={bs.autoConfirmation} templateId={bs.confirmationTemplateId} color="#059669" />
-                  <AutoCard icon={ThumbsUp}     label="Follow-up Message"     enabled={bs.autoFollowup}     templateId={bs.followupTemplateId}     color="#0284c7" />
-                  <AutoCard icon={Package}      label="Low Stock Alert"       enabled={bs.autoLowStock}     templateId={bs.lowStockTemplateId}     color="#ea580c" />
-                  <AutoCard icon={Cake}         label="Birthday Reminder"     enabled={bdEnabled}           templateId={bdTemplate}                color="#db2777" />
+                  <AutoCard icon={Bell}         label="Appointment Reminder" enabled={ws.autoReminder}     color="#7C3AED" />
+                  <AutoCard icon={CheckCircle2} label="Booking Confirmation"  enabled={ws.autoConfirmation} color="#059669" />
+                  <AutoCard icon={ThumbsUp}     label="Follow-up Message"     enabled={ws.autoFollowup}     color="#0284c7" />
+                  <AutoCard icon={Package}      label="Low Stock Alert"       enabled={ws.autoLowStock}     color="#ea580c" />
+                  <AutoCard icon={Cake}         label="Birthday Reminder"     enabled={bdEnabled}           color="#db2777" />
                 </div>
 
                 {totalQueue > 0 && (

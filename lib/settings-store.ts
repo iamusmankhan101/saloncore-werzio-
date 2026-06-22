@@ -23,18 +23,14 @@ const defaults = {
     timezone: "Asia/Karachi",
     logo: "",
   },
-  botsailor: {
-    phoneNumberId: "",
+  wasender: {
+    apiKey: "",
     ownerPhone: "",
     autoReminder: true,
     reminderHours: 24,
-    reminderTemplateId: "",
     autoConfirmation: true,
-    confirmationTemplateId: "",
     autoFollowup: true,
-    followupTemplateId: "",
     autoLowStock: true,
-    lowStockTemplateId: "",
   },
   hours: [
     { day: "Monday",    open: true,  from: "09:00", to: "20:00" },
@@ -113,7 +109,7 @@ function load() {
           ? saved.salon.email
           : (user?.email || dynamicDefaults.salon.email),
       },
-      botsailor: { ...dynamicDefaults.botsailor, ...saved.botsailor },
+      wasender: { ...dynamicDefaults.wasender, ...saved.wasender },
       hours: saved.hours ?? structuredClone(dynamicDefaults.hours),
       notifications: { ...dynamicDefaults.notifications, ...saved.notifications },
       appearance: { ...dynamicDefaults.appearance, ...saved.appearance },

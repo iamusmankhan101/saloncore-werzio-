@@ -19,6 +19,11 @@ export function normalizePhone(raw: string, countryCode = "92"): string {
   return digits;
 }
 
+/** Replace {{variable}} placeholders in a template string with actual values. */
+function fillTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
+}
+
 export type WaMsgType = "reminder" | "confirmation" | "followup" | "lowstock" | "manual" | "birthday";
 export type WaMsgStatus = "sent" | "failed";
 
@@ -119,24 +124,23 @@ export function enqueueWhatsAppFollowup(apptId: string) {
 
 async function callSendApi(
   phone: string,
-  templateId: string,
-  variables: Record<string, string>,
+  text: string,
   logMeta: { type: WaMsgType; clientName: string },
 ): Promise<boolean> {
-  const { phoneNumberId } = settingsStore.botsailor as { phoneNumberId: string };
+  const { apiKey } = settingsStore.wasender as { apiKey: string };
   let ok = false;
   try {
     const res = await fetch("/api/whatsapp/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneNumberId, templateId, phone, variables }),
+      body: JSON.stringify({ apiKey, phone, text }),
     });
-    const data = await res.json() as { ok?: boolean; status?: number };
+    const data = await res.json() as { ok?: boolean };
     ok = data.ok === true;
   } catch {
     ok = false;
   }
-  appendLog({ type: logMeta.type, clientName: logMeta.clientName, phone, status: ok ? "sent" : "failed", templateId });
+  appendLog({ type: logMeta.type, clientName: logMeta.clientName, phone, status: ok ? "sent" : "failed", templateId: "direct" });
   return ok;
 }
 
@@ -174,14 +178,17 @@ const BIRTHDAY_SENT_KEY = "werzio_wa_birthday_sent";
 export async function checkBirthdayReminders(): Promise<void> {
   if (typeof window === "undefined") return;
 
+  const ws = settingsStore.wasender as { apiKey: string; autoReminder: boolean };
   const bd = settingsStore.birthday as {
     autoBirthday: boolean;
-    birthdayTemplateId: string;
     birthdayDiscount: string;
   };
 
   if (!bd.autoBirthday) return;
-  if (!bd.birthdayTemplateId) return;
+  if (!ws.apiKey) return;
+
+  const birthdayTemplate = (settingsStore.whatsapp as { birthday: string }).birthday;
+  if (!birthdayTemplate) return;
 
   const today = new Date();
   const todayKey = today.toISOString().slice(0, 10);
@@ -207,17 +214,14 @@ export async function checkBirthdayReminders(): Promise<void> {
     const phone = normalizePhone(client.phone);
     if (!phone) continue;
 
-    const variables: Record<string, string> = {
-      name:       client.name,
+    const text = fillTemplate(birthdayTemplate, {
+      name: client.name,
       salon_name: salonName,
-      discount:   bd.birthdayDiscount || "a special treat",
-    };
+      discount: bd.birthdayDiscount || "a special treat",
+    });
 
     console.log(`Birthday wish → ${client.name} (${phone})`);
-    const ok = await callSendApi(phone, bd.birthdayTemplateId, variables, {
-      type: "birthday",
-      clientName: client.name,
-    });
+    const ok = await callSendApi(phone, text, { type: "birthday", clientName: client.name });
 
     if (ok) {
       sent[sentKey] = todayKey;
@@ -229,21 +233,23 @@ export async function checkBirthdayReminders(): Promise<void> {
 export async function runWhatsAppScheduler(): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const bs = settingsStore.botsailor as {
-    phoneNumberId: string;
+  const ws = settingsStore.wasender as {
+    apiKey: string;
     ownerPhone: string;
     autoReminder: boolean;
     reminderHours: number;
-    reminderTemplateId: string;
     autoConfirmation: boolean;
-    confirmationTemplateId: string;
     autoFollowup: boolean;
-    followupTemplateId: string;
     autoLowStock: boolean;
-    lowStockTemplateId: string;
   };
 
-  if (!bs.phoneNumberId) return;
+  if (!ws.apiKey) return;
+
+  const waTpl = settingsStore.whatsapp as {
+    reminder: string;
+    confirmation: string;
+    followup: string;
+  };
 
   const appointments = getStoredAppointments();
   const clients = getStoredClients();
@@ -256,29 +262,31 @@ export async function runWhatsAppScheduler(): Promise<void> {
   }
 
   // 1. Appointment reminders — send X hours before appointment
-  if (bs.autoReminder && bs.reminderTemplateId) {
+  if (ws.autoReminder && waTpl.reminder) {
     for (const appt of appointments) {
       if (appt.status === "cancelled" || appt.status === "no-show" || appt.status === "completed") continue;
       const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
       const hoursUntil = (apptTime.getTime() - now.getTime()) / 3_600_000;
       const sentKey = `reminder_${appt.id}`;
       const phone = clientPhone(appt.clientId);
-      if (phone && !alreadySent(sentKey) && hoursUntil > 0 && hoursUntil <= bs.reminderHours) {
-        await callSendApi(phone, bs.reminderTemplateId, buildVars(appt, salonName), { type: "reminder", clientName: appt.clientName });
+      if (phone && !alreadySent(sentKey) && hoursUntil > 0 && hoursUntil <= ws.reminderHours) {
+        const text = fillTemplate(waTpl.reminder, buildVars(appt, salonName));
+        await callSendApi(phone, text, { type: "reminder", clientName: appt.clientName });
         markSent(sentKey);
       }
     }
   }
 
   // 2. Booking confirmations — drain the confirm queue (max 3 attempts per item)
-  if (bs.autoConfirmation && bs.confirmationTemplateId) {
+  if (ws.autoConfirmation && waTpl.confirmation) {
     const queue = getQueue(CONFIRM_QUEUE_KEY);
     const remaining: QueueItem[] = [];
     for (const item of queue) {
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
       if (appt && phone) {
-        const ok = await callSendApi(phone, bs.confirmationTemplateId, buildVars(appt, salonName), { type: "confirmation", clientName: appt.clientName });
+        const text = fillTemplate(waTpl.confirmation, buildVars(appt, salonName));
+        const ok = await callSendApi(phone, text, { type: "confirmation", clientName: appt.clientName });
         if (!ok && item.retries < MAX_RETRIES - 1) {
           remaining.push({ id: item.id, retries: item.retries + 1 });
         }
@@ -289,7 +297,7 @@ export async function runWhatsAppScheduler(): Promise<void> {
   }
 
   // 3. Follow-up messages — send 24h after completion (max 3 attempts)
-  if (bs.autoFollowup && bs.followupTemplateId) {
+  if (ws.autoFollowup && waTpl.followup) {
     const queue = getQueue(FOLLOWUP_QUEUE_KEY);
     const remaining: QueueItem[] = [];
     for (const item of queue) {
@@ -301,7 +309,8 @@ export async function runWhatsAppScheduler(): Promise<void> {
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
       if (appt && phone) {
-        const ok = await callSendApi(phone, bs.followupTemplateId, buildVars(appt, salonName), { type: "followup", clientName: appt.clientName });
+        const text = fillTemplate(waTpl.followup, buildVars(appt, salonName));
+        const ok = await callSendApi(phone, text, { type: "followup", clientName: appt.clientName });
         if (!ok && item.retries < MAX_RETRIES - 1) {
           remaining.push({ id: item.id, retries: item.retries + 1 });
         }
@@ -322,12 +331,15 @@ export async function runWhatsAppScheduler(): Promise<void> {
 export async function checkLowStockAlerts(): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const bs = settingsStore.botsailor as {
-    autoLowStock: boolean; lowStockTemplateId: string; ownerPhone: string;
+  const ws = settingsStore.wasender as {
+    apiKey: string; autoLowStock: boolean; ownerPhone: string;
   };
-  if (!bs.autoLowStock) { console.warn("⚠️ Low stock alerts disabled — enable in Account → WhatsApp Settings"); return; }
-  if (!bs.lowStockTemplateId) { console.warn("⚠️ No low stock template name set — add it in Account → WhatsApp Settings"); return; }
-  if (!bs.ownerPhone) { console.warn("⚠️ No owner phone set — add it in Account → WhatsApp Settings"); return; }
+  if (!ws.autoLowStock) { console.warn("⚠️ Low stock alerts disabled — enable in Account → WhatsApp Settings"); return; }
+  if (!ws.ownerPhone) { console.warn("⚠️ No owner phone set — add it in Account → WhatsApp Settings"); return; }
+  if (!ws.apiKey) { console.warn("⚠️ No WaSender API key set — add it in Account → WhatsApp Settings"); return; }
+
+  const lowstockTemplate = (settingsStore.whatsapp as { lowstock: string }).lowstock;
+  if (!lowstockTemplate) { console.warn("⚠️ No low stock template found in WhatsApp Settings"); return; }
 
   const today = new Date().toISOString().slice(0, 10);
   const sent: Record<string, string> = (() => {
@@ -343,16 +355,17 @@ export async function checkLowStockAlerts(): Promise<void> {
   const salonName = settingsStore.salon.name as string;
   const itemList = newlyLow.map((i) => `${i.name} (${i.currentStock} ${i.unit} left)`).join(", ");
 
-  console.log("📦 Sending low stock alert for:", newlyLow.map((i) => i.name), "→", normalizePhone(bs.ownerPhone));
-  const ok = await callSendApi(normalizePhone(bs.ownerPhone), bs.lowStockTemplateId, {
+  const text = fillTemplate(lowstockTemplate, {
     items: itemList,
     count: String(newlyLow.length),
     salon_name: salonName,
-  }, { type: "lowstock", clientName: "Owner" });
+  });
+
+  console.log("📦 Sending low stock alert for:", newlyLow.map((i) => i.name), "→", normalizePhone(ws.ownerPhone));
+  const ok = await callSendApi(normalizePhone(ws.ownerPhone), text, { type: "lowstock", clientName: "Owner" });
   console.log("📦 Low stock alert result:", ok ? "sent ✅" : "failed ❌");
 
   // Mark attempted regardless of outcome — low stock alerts send once per day only
   newlyLow.forEach((i) => { sent[i.id] = today; });
   localStorage.setItem(userKey(LOW_STOCK_SENT_KEY), JSON.stringify(sent));
 }
-
