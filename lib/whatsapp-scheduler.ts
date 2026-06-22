@@ -88,6 +88,10 @@ function alreadySent(key: string): boolean {
 
 const MAX_RETRIES = 3;
 const FOLLOWUP_DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours after completion
+const SEND_RATE_LIMIT_MS = 60_000; // WaSender free plan: 1 message per minute
+
+let lastSentAt = 0;
+let schedulerRunning = false;
 
 // sendAfter: unix ms timestamp — scheduler skips item until Date.now() >= sendAfter
 type QueueItem = { id: string; retries: number; sendAfter?: number };
@@ -127,6 +131,13 @@ async function callSendApi(
   text: string,
   logMeta: { type: WaMsgType; clientName: string },
 ): Promise<boolean> {
+  // Respect WaSender rate limit: wait until 60s have elapsed since the last send
+  const wait = SEND_RATE_LIMIT_MS - (Date.now() - lastSentAt);
+  if (lastSentAt > 0 && wait > 0) {
+    await new Promise<void>((resolve) => setTimeout(resolve, wait));
+  }
+  lastSentAt = Date.now();
+
   const { apiKey } = settingsStore.wasender as { apiKey: string };
   let ok = false;
   try {
@@ -232,7 +243,13 @@ export async function checkBirthdayReminders(): Promise<void> {
 
 export async function runWhatsAppScheduler(): Promise<void> {
   if (typeof window === "undefined") return;
+  if (schedulerRunning) return;
+  schedulerRunning = true;
 
+  try { await runSchedulerInternal(); } finally { schedulerRunning = false; }
+}
+
+async function runSchedulerInternal(): Promise<void> {
   const ws = settingsStore.wasender as {
     apiKey: string;
     ownerPhone: string;
