@@ -69,10 +69,12 @@ function formatCardNumber(id: string): string {
 }
 
 function DigitalCard({
-  client, settings, printRef,
+  client, settings, salonName, salonLogo, printRef,
 }: {
   client: Client;
   settings: LoyaltySettings;
+  salonName: string;
+  salonLogo: string;
   printRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const tier    = getTier(client.loyaltyPointsEarned ?? 0, settings);
@@ -102,18 +104,25 @@ function DigitalCard({
           pointerEvents: "none",
         }} />
 
-        {/* Top row: icon + program name */}
+        {/* Top row: salon logo/name + tier badge */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Logo or fallback icon */}
             <div style={{
-              width: 36, height: 36, borderRadius: 10,
+              width: 40, height: 40, borderRadius: 10,
               background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center",
+              overflow: "hidden", flexShrink: 0,
             }}>
-              <Gift size={18} color={cs.text} />
+              {salonLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={salonLogo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <Gift size={20} color={cs.text} />
+              )}
             </div>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: cs.sub, letterSpacing: "0.12em", textTransform: "uppercase" }}>Loyalty</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: cs.text, letterSpacing: "0.04em" }}>GlowBook</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: cs.sub, letterSpacing: "0.12em", textTransform: "uppercase" }}>Loyalty Card</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: cs.text, letterSpacing: "0.04em", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{salonName}</div>
             </div>
           </div>
           {/* Tier badge */}
@@ -457,7 +466,13 @@ function ClientModal({
                 </button>
               </div>
               {/* The card */}
-              <DigitalCard client={client} settings={settings} printRef={cardRef} />
+              <DigitalCard
+                client={client}
+                settings={settings}
+                salonName={(settingsStore.salon as { name: string }).name}
+                salonLogo={(settingsStore.salon as { logo: string }).logo}
+                printRef={cardRef}
+              />
             </div>
           )}
         </div>
