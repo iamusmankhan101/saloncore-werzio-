@@ -19,9 +19,34 @@ export async function syncFromDB(): Promise<void> {
           `/api/db?entity=${entity}&userId=${encodeURIComponent(user.id)}`,
         );
         if (!res.ok) return;
-        const data = await res.json() as unknown[];
-        if (Array.isArray(data) && data.length > 0) {
-          localStorage.setItem(userKey(`werzio_${entity}`), JSON.stringify(data));
+        const incoming = await res.json() as unknown[];
+        if (!Array.isArray(incoming) || incoming.length === 0) return;
+
+        if (entity === "clients") {
+          // Merge: never overwrite a client's numeric progress (loyalty pts, visits, spend)
+          // with a staler value from DB — guards against the race where a POS save
+          // completes after syncFromDB already started its fetch.
+          const lsRaw = localStorage.getItem(userKey("werzio_clients"));
+          const local: Record<string, Record<string, unknown>> = {};
+          if (lsRaw) {
+            try {
+              (JSON.parse(lsRaw) as Record<string, unknown>[]).forEach(c => { local[(c as { id: string }).id] = c; });
+            } catch { /* ignore */ }
+          }
+          const merged = (incoming as Record<string, unknown>[]).map(dbClient => {
+            const lc = local[(dbClient as { id: string }).id];
+            if (!lc) return dbClient;
+            return {
+              ...dbClient,
+              loyaltyPoints:       Math.max(Number(lc.loyaltyPoints       ?? 0), Number(dbClient.loyaltyPoints       ?? 0)),
+              loyaltyPointsEarned: Math.max(Number(lc.loyaltyPointsEarned ?? 0), Number(dbClient.loyaltyPointsEarned ?? 0)),
+              totalVisits:         Math.max(Number(lc.totalVisits          ?? 0), Number(dbClient.totalVisits          ?? 0)),
+              totalSpend:          Math.max(Number(lc.totalSpend           ?? 0), Number(dbClient.totalSpend           ?? 0)),
+            };
+          });
+          localStorage.setItem(userKey("werzio_clients"), JSON.stringify(merged));
+        } else {
+          localStorage.setItem(userKey(`werzio_${entity}`), JSON.stringify(incoming));
         }
       } catch { /* keep localStorage */ }
     }),
