@@ -35,6 +35,7 @@ export interface WaLogEntry {
   phone: string;
   status: WaMsgStatus;
   templateId: string;
+  error?: string;
 }
 
 const LOG_KEY = "werzio_wa_logs";
@@ -155,18 +156,21 @@ async function callSendApi(
 
   const { apiKey } = settingsStore.wasender as { apiKey: string };
   let ok = false;
+  let errorReason: string | undefined;
   try {
     const res = await fetch("/api/whatsapp/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ apiKey, phone, text }),
     });
-    const data = await res.json() as { ok?: boolean };
+    const data = await res.json() as { ok?: boolean; errorReason?: string };
     ok = data.ok === true;
-  } catch {
+    if (!ok) errorReason = data.errorReason || `HTTP ${res.status}`;
+  } catch (err) {
     ok = false;
+    errorReason = String(err);
   }
-  appendLog({ type: logMeta.type, clientName: logMeta.clientName, phone, status: ok ? "sent" : "failed", templateId: "direct" });
+  appendLog({ type: logMeta.type, clientName: logMeta.clientName, phone, status: ok ? "sent" : "failed", templateId: "direct", error: errorReason });
   return ok;
 }
 

@@ -6,7 +6,7 @@ import { getStoredClients, getStoredAppointments, saveClients, getStoredStaff } 
 import { BEAUTY_PROFILES } from "@/lib/mock-data";
 import type { Client, Appointment, Staff } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
-import { getTier, TIER_META, nextTierThreshold, pointsToRupees, recomputeClientPoints, type LoyaltySettings } from "@/lib/loyalty";
+import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { exportClientPdf } from "@/lib/export-pdf";
 import {
@@ -90,20 +90,11 @@ export default function ClientProfilePage() {
     const allAppts   = getStoredAppointments();
     const found = allClients.find((c) => c.id === clientId);
     if (found) {
-      // Recompute loyalty points from actual appointments at current rate
-      const ls = settingsStore.loyalty as LoyaltySettings;
-      const completedSpend = allAppts
-        .filter((a) => a.clientId === clientId && a.status === "completed")
-        .reduce((s, a) => s + a.totalAmount, 0);
-      const corrected = recomputeClientPoints(found, completedSpend, ls);
-      if (corrected !== found) {
-        saveClients(allClients.map((c) => c.id === clientId ? corrected : c));
-      }
-      setClient(corrected);
+      setClient(found);
       setEditForm({
-        name: corrected.name, phone: corrected.phone, email: corrected.email ?? "",
-        dob: corrected.dob ?? "", source: corrected.source, tag: corrected.tags[0] ?? "",
-        notes: corrected.notes ?? "",
+        name: found.name, phone: found.phone, email: found.email ?? "",
+        dob: found.dob ?? "", source: found.source, tag: found.tags[0] ?? "",
+        notes: found.notes ?? "",
       });
     }
     const appts = allAppts.filter((a) => a.clientId === clientId);

@@ -344,6 +344,23 @@ export default function MessagesPage() {
   };
   const waTpl = settingsStore.whatsapp as { reminder: string; confirmation: string; followup: string };
   const isConnected = !!ws.apiKey;
+  const [testingConn, setTestingConn] = useState(false);
+  const [connStatus, setConnStatus] = useState<{ ok: boolean; message?: string; status?: string } | null>(null);
+
+  async function testConnection() {
+    if (!ws.apiKey || testingConn) return;
+    setTestingConn(true);
+    setConnStatus(null);
+    try {
+      const res = await fetch(`/api/whatsapp/status?apiKey=${encodeURIComponent(ws.apiKey)}`);
+      const data = await res.json() as { ok: boolean; connected: boolean; status?: string; message?: string; error?: string };
+      setConnStatus({ ok: data.connected, message: data.message || data.error, status: data.status });
+    } catch {
+      setConnStatus({ ok: false, message: "Network error" });
+    } finally {
+      setTestingConn(false);
+    }
+  }
 
   const filtered = useMemo(() =>
     filter === "all" ? logs : logs.filter((l) => l.type === filter),
@@ -560,12 +577,24 @@ export default function MessagesPage() {
               </div>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {isConnected && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {isConnected && connStatus && (
+              <div style={{ display: "flex", alignItems: "center", gap: 5, background: connStatus.ok ? "rgba(74,222,128,0.15)" : "rgba(239,68,68,0.18)", borderRadius: 20, padding: "5px 10px", border: `1px solid ${connStatus.ok ? "rgba(74,222,128,0.4)" : "rgba(239,68,68,0.4)"}` }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: connStatus.ok ? "#4ade80" : "#ef4444", boxShadow: connStatus.ok ? "0 0 8px #4ade80" : "0 0 8px #ef4444" }} />
+                <span style={{ fontSize: 11, fontWeight: 700 }}>{connStatus.ok ? `Active (${connStatus.status || "CONNECTED"})` : (connStatus.message || "Session error")}</span>
+              </div>
+            )}
+            {isConnected && !connStatus && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.12)", borderRadius: 20, padding: "5px 12px" }}>
                 <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />
                 <span style={{ fontSize: 11, fontWeight: 700 }}>Live</span>
               </div>
+            )}
+            {isConnected && (
+              <button type="button" onClick={testConnection} disabled={testingConn}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 9, padding: "7px 12px", color: "#fff", fontSize: 11, fontWeight: 700, cursor: testingConn ? "wait" : "pointer", opacity: testingConn ? 0.7 : 1 }}>
+                <Wifi size={11} /> {testingConn ? "Testing…" : "Test Connection"}
+              </button>
             )}
             <a href="/dashboard/account"
               style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 9, padding: "8px 14px", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
@@ -702,6 +731,11 @@ export default function MessagesPage() {
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 700, color: "#1d1d2f" }}>{log.clientName}</div>
                             {log.templateId && <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 1 }}>tpl: {log.templateId}</div>}
+                            {log.status === "failed" && log.error && (
+                              <div style={{ fontSize: 10, color: "#dc2626", marginTop: 2, display: "flex", alignItems: "center", gap: 3 }}>
+                                <AlertCircle size={9} /> {log.error}
+                              </div>
+                            )}
                           </div>
                           <button type="button" onClick={() => openWa(log.phone)}
                             style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "1px solid #e8e8f0", borderRadius: 7, padding: "4px 10px", cursor: "pointer", color: "#6a6a8a", fontSize: 11, fontWeight: 600 }}>

@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
     console.log("📥 WaSender response:", res.status, JSON.stringify(data));
 
     const ok = res.ok && data.success === true;
-    return Response.json({ ok, status: res.status, data });
+    const errorReason = ok ? undefined : (data.message || data.error || `HTTP ${res.status}`);
+    return Response.json({ ok, status: res.status, data, errorReason });
   } catch (err) {
     console.error("❌ WaSender API error:", err);
     return Response.json({ ok: false, error: String(err) }, { status: 500 });
