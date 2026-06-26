@@ -657,20 +657,22 @@ export default function LoyaltyPage() {
       const allClients = getStoredClients();
       const allAppts   = getStoredAppointments();
 
-      // Recompute earned points from actual appointment history at the current rate.
-      // This self-heals whenever the rate changes and handles first-time backfill.
+      // Only increase earned points from appointment history — never decrease.
+      // POS transactions also earn points, so stored values can be higher than
+      // appointment-only calculations; decreasing them would wipe POS-earned points.
       let changed = false;
       const recalculated = allClients.map((c) => {
         const spent = allAppts
           .filter((a) => a.clientId === c.id && a.status === "completed")
           .reduce((s, a) => s + a.totalAmount, 0);
-        const correctEarned = Math.floor(spent * ls.pointsPerRupee);
-        if (c.loyaltyPointsEarned === correctEarned) return c;
-        // Preserve any manual redemptions (earned - balance = amount redeemed)
+        const apptEarned = Math.floor(spent * ls.pointsPerRupee);
+        // Skip if appointments show equal or fewer points than already stored
+        if (apptEarned <= (c.loyaltyPointsEarned ?? 0)) return c;
+        // Appointments show MORE — increase (preserve any redemptions)
         const redeemed = Math.max(0, (c.loyaltyPointsEarned ?? 0) - (c.loyaltyPoints ?? 0));
-        const newBalance = Math.max(0, correctEarned - redeemed);
+        const newBalance = Math.max(0, apptEarned - redeemed);
         changed = true;
-        return { ...c, loyaltyPointsEarned: correctEarned, loyaltyPoints: newBalance };
+        return { ...c, loyaltyPointsEarned: apptEarned, loyaltyPoints: newBalance };
       });
 
       if (changed) saveClients(recalculated);
