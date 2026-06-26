@@ -336,8 +336,14 @@ export default function POSPage() {
           }
           updatedClient = awardPoints(updatedClient, total, loyaltySettings, invoice.id);
         }
-        const updatedClients = clients.map(c => c.id === selectedClient.id ? updatedClient : c);
+        // Read fresh from localStorage so we never map over stale React state
+        const freshClients = getStoredClients();
+        const found = freshClients.some(c => c.id === selectedClient.id);
+        const updatedClients = found
+          ? freshClients.map(c => c.id === selectedClient.id ? updatedClient : c)
+          : [updatedClient, ...freshClients]; // client was quick-added and not yet in localStorage
         setClients(updatedClients);
+        setSelectedClient(updatedClient); // keep selectedClient fresh in the current session
         saveClients(updatedClients);
       }
 

@@ -62,7 +62,9 @@ export function saveToDB(entity: Entity, data: unknown[]): void {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ entity, data, userId: user.id }),
-  }).catch(() => {});
+  })
+    .then(r => { if (!r.ok) console.warn(`[saveToDB] ${entity} save failed:`, r.status); })
+    .catch(err => console.warn(`[saveToDB] ${entity} network error:`, err));
 }
 
 /**

@@ -517,13 +517,16 @@ export default function ClientsPage() {
     const storedAppts   = getStoredAppointments();
     const storedClients = getStoredClients();
 
-    // Recompute each client's stats from completed appointment history
+    // Recompute stats from completed appointments, but never decrease below POS-recorded values
     const synced = storedClients.map((c) => {
       const done = storedAppts.filter((a) => a.clientId === c.id && a.status === "completed");
       if (done.length === 0) return c;
-      const totalVisits   = done.length;
-      const totalSpend    = done.reduce((s, a) => s + a.totalAmount, 0);
+      const apptVisits    = done.length;
+      const apptSpend     = done.reduce((s, a) => s + a.totalAmount, 0);
       const lastVisitDate = done.sort((a, b) => b.date.localeCompare(a.date))[0].date;
+      // Use the higher of stored (POS-tracked) vs appointment-computed values
+      const totalVisits = Math.max(c.totalVisits || 0, apptVisits);
+      const totalSpend  = Math.max(c.totalSpend  || 0, apptSpend);
       return { ...c, totalVisits, totalSpend, lastVisitDate };
     });
 
