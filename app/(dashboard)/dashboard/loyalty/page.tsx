@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { getStoredClients, saveClients, getStoredAppointments } from "@/lib/storage";
 import type { Client } from "@/lib/types";
 import {
@@ -12,7 +12,7 @@ import { settingsStore, saveSettings } from "@/lib/settings-store";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
   Gift, Star, Search, Settings2, ChevronRight, TrendingUp,
-  Award, Users, Plus, Minus, X,
+  Award, Users, Plus, Minus, X, CreditCard, Printer, Share2,
 } from "lucide-react";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -53,6 +53,164 @@ function StatCard({ icon, label, value, sub, color }: {
   );
 }
 
+// ── Digital Loyalty Card ───────────────────────────────────────────────────────
+
+const TIER_CARD_STYLES: Record<ReturnType<typeof getTier>, { bg: string; shimmer: string; text: string; sub: string; chip: string }> = {
+  platinum: { bg: "linear-gradient(135deg,#3b0764 0%,#6b21a8 50%,#a855f7 100%)", shimmer: "rgba(255,255,255,0.12)", text: "#fff", sub: "rgba(255,255,255,0.7)", chip: "#c084fc" },
+  gold:     { bg: "linear-gradient(135deg,#78350f 0%,#b45309 50%,#f59e0b 100%)", shimmer: "rgba(255,255,255,0.14)", text: "#fff", sub: "rgba(255,255,255,0.72)", chip: "#fcd34d" },
+  silver:   { bg: "linear-gradient(135deg,#1e293b 0%,#334155 50%,#64748b 100%)", shimmer: "rgba(255,255,255,0.10)", text: "#fff", sub: "rgba(255,255,255,0.68)", chip: "#94a3b8" },
+  bronze:   { bg: "linear-gradient(135deg,#431407 0%,#9a3412 50%,#ea580c 100%)", shimmer: "rgba(255,255,255,0.10)", text: "#fff", sub: "rgba(255,255,255,0.68)", chip: "#fdba74" },
+  none:     { bg: "linear-gradient(135deg,#1e1b4b 0%,#4c1d95 50%,#7C3AED 100%)", shimmer: "rgba(255,255,255,0.10)", text: "#fff", sub: "rgba(255,255,255,0.68)", chip: "#a78bfa" },
+};
+
+function formatCardNumber(id: string): string {
+  const hex = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().padEnd(16, "0").slice(0, 16);
+  return `${hex.slice(0, 4)} ${hex.slice(4, 8)} ${hex.slice(8, 12)} ${hex.slice(12, 16)}`;
+}
+
+function DigitalCard({
+  client, settings, printRef,
+}: {
+  client: Client;
+  settings: LoyaltySettings;
+  printRef?: React.RefObject<HTMLDivElement | null>;
+}) {
+  const tier    = getTier(client.loyaltyPointsEarned ?? 0, settings);
+  const balance = client.loyaltyPoints ?? 0;
+  const earned  = client.loyaltyPointsEarned ?? 0;
+  const next    = nextTierThreshold(earned, settings);
+  const cs      = TIER_CARD_STYLES[tier];
+  const meta    = TIER_META[tier];
+  const cardNum = formatCardNumber(client.id);
+  const progress = next ? Math.min(100, (earned / (earned + next.needed)) * 100) : 100;
+
+  return (
+    <div ref={printRef} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Card face */}
+      <div style={{
+        position: "relative", borderRadius: 20, overflow: "hidden",
+        background: cs.bg, padding: "24px 26px 22px",
+        aspectRatio: "1.586", maxWidth: 420, width: "100%", margin: "0 auto",
+        boxShadow: "0 16px 48px rgba(0,0,0,0.28)",
+        fontFamily: "'Courier New', monospace",
+        userSelect: "none",
+      }}>
+        {/* Shimmer overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: `radial-gradient(ellipse at 20% 20%, ${cs.shimmer} 0%, transparent 60%)`,
+          pointerEvents: "none",
+        }} />
+
+        {/* Top row: icon + program name */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center",
+            }}>
+              <Gift size={18} color={cs.text} />
+            </div>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: cs.sub, letterSpacing: "0.12em", textTransform: "uppercase" }}>Loyalty</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: cs.text, letterSpacing: "0.04em" }}>GlowBook</div>
+            </div>
+          </div>
+          {/* Tier badge */}
+          <div style={{
+            background: "rgba(255,255,255,0.18)", borderRadius: 20,
+            padding: "4px 12px", fontSize: 11, fontWeight: 800, color: cs.text,
+            backdropFilter: "blur(4px)",
+          }}>
+            {meta.emoji} {meta.label}
+          </div>
+        </div>
+
+        {/* Chip */}
+        <div style={{
+          marginTop: 20, width: 40, height: 30, borderRadius: 6,
+          background: cs.chip, opacity: 0.9,
+          border: "1px solid rgba(255,255,255,0.3)",
+          display: "grid", placeItems: "center",
+        }}>
+          <div style={{
+            width: 28, height: 20, borderRadius: 3,
+            background: "rgba(0,0,0,0.15)",
+            border: "1px solid rgba(255,255,255,0.25)",
+          }} />
+        </div>
+
+        {/* Points */}
+        <div style={{ marginTop: 14, position: "relative" }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: cs.sub, letterSpacing: "0.12em", textTransform: "uppercase" }}>Points Balance</div>
+          <div style={{ fontSize: 36, fontWeight: 900, color: cs.text, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+            {balance.toLocaleString()}
+          </div>
+          <div style={{ fontSize: 10, color: cs.sub, marginTop: 1 }}>
+            ≈ {fmt(pointsToRupees(balance, settings.rupeePerPoint))} redeemable
+          </div>
+        </div>
+
+        {/* Bottom row */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 14, position: "relative" }}>
+          <div>
+            <div style={{ fontSize: 8, fontWeight: 700, color: cs.sub, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>Card Holder</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: cs.text, letterSpacing: "0.08em", textTransform: "uppercase" }}>{client.name}</div>
+            <div style={{ fontSize: 9, color: cs.sub, letterSpacing: "0.18em", marginTop: 3 }}>{cardNum}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 8, fontWeight: 700, color: cs.sub, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>Lifetime</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: cs.text }}>{earned.toLocaleString()} pts</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress to next tier */}
+      {next && (
+        <div style={{ background: "#f7f7fb", borderRadius: 14, padding: "14px 16px", maxWidth: 420, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>
+              Progress to {TIER_META[next.tier].emoji} {TIER_META[next.tier].label}
+            </div>
+            <div style={{ fontSize: 11, color: "#9898b0" }}>{next.needed} pts needed</div>
+          </div>
+          <div style={{ height: 8, borderRadius: 4, background: "#e8e8f0", overflow: "hidden" }}>
+            <div style={{
+              height: "100%", borderRadius: 4,
+              background: "linear-gradient(90deg,#7C3AED,#9333EA)",
+              width: `${progress}%`, transition: "width 0.6s ease",
+            }} />
+          </div>
+        </div>
+      )}
+      {!next && (
+        <div style={{ background: "#f3e8ff", borderRadius: 14, padding: "12px 16px", maxWidth: 420, width: "100%", margin: "0 auto", boxSizing: "border-box", textAlign: "center" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#6b21a8" }}>💎 Top Tier Achieved — Platinum Member!</div>
+        </div>
+      )}
+
+      {/* Tier benefits */}
+      <div style={{ background: "#f7f7fb", borderRadius: 14, padding: "14px 16px", maxWidth: 420, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e", marginBottom: 10 }}>Your Benefits</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {[
+            `Earn ${settings.pointsPerRupee} pts per Rs. 1 spent`,
+            `Every 100 pts = ${fmt(pointsToRupees(100, settings.rupeePerPoint))} discount`,
+            tier === "platinum" ? "Priority bookings + exclusive rewards" :
+            tier === "gold"     ? "Early access to promotions" :
+            tier === "silver"   ? "Monthly double-points days" : "Welcome bonus on next visit",
+          ].map((b, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#5a5a7a" }}>
+              <div style={{ width: 6, height: 6, borderRadius: 3, background: "#7C3AED", flexShrink: 0 }} />
+              {b}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Client Points Modal ────────────────────────────────────────────────────────
 
 function ClientModal({
@@ -68,12 +226,36 @@ function ClientModal({
   const earned   = client.loyaltyPointsEarned ?? 0;
   const next     = nextTierThreshold(earned, settings);
   const history  = getClientHistory(client.id);
+  const cardRef  = useRef<HTMLDivElement>(null);
 
-  const [tab, setTab]       = useState<"overview" | "history" | "adjust">("overview");
+  const [tab, setTab]         = useState<"overview" | "history" | "adjust" | "card">("overview");
   const [adjType, setAdjType] = useState<"add" | "redeem">("add");
   const [adjPts, setAdjPts]   = useState("");
   const [adjNote, setAdjNote] = useState("");
   const [saving, setSaving]   = useState(false);
+  const [copied, setCopied]   = useState(false);
+
+  function handlePrint() {
+    const el = cardRef.current;
+    if (!el) return;
+    const w = window.open("", "_blank", "width=520,height=640");
+    if (!w) return;
+    w.document.write(`
+      <html><head><title>Loyalty Card — ${client.name}</title>
+      <style>body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#f7f7fb;font-family:sans-serif}@media print{body{background:#fff}}</style>
+      </head><body>${el.innerHTML}<script>window.onload=()=>window.print()<\/script></body></html>
+    `);
+    w.document.close();
+  }
+
+  function handleShare() {
+    const cardNum = formatCardNumber(client.id);
+    const text = `${client.name}'s GlowBook Loyalty Card\nTier: ${TIER_META[tier].emoji} ${TIER_META[tier].label}\nPoints: ${balance.toLocaleString()}\nCard: ${cardNum}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   function handleAdjust() {
     const pts = parseInt(adjPts, 10);
@@ -135,14 +317,18 @@ function ClientModal({
 
         {/* Tabs */}
         <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #f0f0f8", padding: "0 24px" }}>
-          {(["overview", "history", "adjust"] as const).map((t) => (
+          {(["overview", "history", "adjust", "card"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} style={{
               background: "none", border: "none", cursor: "pointer",
               padding: "10px 14px", fontSize: 12, fontWeight: 700,
               color: tab === t ? "#7C3AED" : "#9898b0",
               borderBottom: tab === t ? "2px solid #7C3AED" : "2px solid transparent",
               textTransform: "capitalize",
-            }}>{t}</button>
+              display: "flex", alignItems: "center", gap: 5,
+            }}>
+              {t === "card" && <CreditCard size={12} />}
+              {t}
+            </button>
           ))}
         </div>
 
@@ -246,6 +432,32 @@ function ClientModal({
               }}>
                 {adjType === "add" ? "Add Points" : "Redeem Points"}
               </button>
+            </div>
+          )}
+
+          {tab === "card" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Action buttons */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={handlePrint} style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  padding: "10px", borderRadius: 10, border: "1.5px solid #e8e8f0",
+                  background: "#fff", fontSize: 13, fontWeight: 700, color: "#5a5a7a", cursor: "pointer",
+                }}>
+                  <Printer size={14} /> Print Card
+                </button>
+                <button onClick={handleShare} style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  padding: "10px", borderRadius: 10, border: "none",
+                  background: copied ? "#f0fdf4" : "linear-gradient(135deg,#7C3AED,#9333EA)",
+                  fontSize: 13, fontWeight: 700,
+                  color: copied ? "#059669" : "#fff", cursor: "pointer",
+                }}>
+                  <Share2 size={14} /> {copied ? "Copied!" : "Copy Details"}
+                </button>
+              </div>
+              {/* The card */}
+              <DigitalCard client={client} settings={settings} printRef={cardRef} />
             </div>
           )}
         </div>
