@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { ensureAllTables } from "@/lib/db-schema";
 import { getTier, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import type { Client } from "@/lib/types";
 
@@ -61,6 +62,89 @@ async function writeJson(key: string, data: unknown) {
   });
 }
 
+function rowToClient(row: Record<string, unknown>): Client {
+  return {
+    id: String(row.id),
+    name: String(row.name || "Loyalty Member"),
+    phone: String(row.phone || ""),
+    email: typeof row.email === "string" ? row.email : undefined,
+    tags: [],
+    source: "web",
+    createdAt: String(row.created_at || new Date().toISOString().slice(0, 10)),
+    totalVisits: Number(row.total_visits || 0),
+    totalSpend: Number(row.total_spent || 0),
+    lastVisitDate: typeof row.last_visit === "string" ? row.last_visit : undefined,
+    notes: typeof row.notes === "string" ? row.notes : undefined,
+    loyaltyPoints: 0,
+    loyaltyPointsEarned: 0,
+  };
+}
+
+async function readClients(salonId: string): Promise<Client[]> {
+  const jsonClients = await readJson<Client[]>(`${salonId}_clients`, []);
+  if (jsonClients.length > 0) return jsonClients;
+
+  await ensureAllTables();
+  const result = await db.execute({
+    sql: "SELECT * FROM clients WHERE user_id = ? ORDER BY created_at DESC",
+    args: [salonId],
+  });
+
+  return result.rows.map((row) => rowToClient(row as Record<string, unknown>));
+}
+
+async function insertRelationalClient(salonId: string, client: Client) {
+  await ensureAllTables();
+  await db.execute({
+    sql: `
+      INSERT OR IGNORE INTO clients (
+        id, user_id, name, phone, email, notes, total_visits, total_spent, last_visit, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    args: [
+      client.id,
+      salonId,
+      client.name,
+      client.phone,
+      client.email || null,
+      client.notes || null,
+      client.totalVisits || 0,
+      client.totalSpend || 0,
+      client.lastVisitDate || null,
+      client.createdAt,
+    ],
+  });
+}
+
+async function readSalonSettings(salonId: string): Promise<SalonSettings> {
+  const settings = await readJson<SalonSettings>(`${salonId}_settings`, {});
+  if (settings.salon?.name) return settings;
+
+  try {
+    await ensureAllTables();
+    const result = await db.execute({
+      sql: "SELECT salon_name, phone, email FROM users WHERE id = ?",
+      args: [salonId],
+    });
+    const user = result.rows[0] as Record<string, unknown> | undefined;
+    if (user) {
+      return {
+        ...settings,
+        salon: {
+          ...settings.salon,
+          name: typeof user.salon_name === "string" ? user.salon_name : settings.salon?.name,
+          phone: typeof user.phone === "string" ? user.phone : settings.salon?.phone,
+          email: typeof user.email === "string" ? user.email : settings.salon?.email,
+        },
+      };
+    }
+  } catch {
+    // Keep the public QR flow available even if the optional user fallback fails.
+  }
+
+  return settings;
+}
+
 function cardPayload(client: Client, settings: LoyaltySettings, salon: SalonSettings["salon"]) {
   const earned = client.loyaltyPointsEarned ?? 0;
   const balance = client.loyaltyPoints ?? 0;
@@ -93,9 +177,9 @@ export async function GET(req: NextRequest) {
 
   try {
     await ensureTable();
-    const settings = await readJson<SalonSettings>(`${salonId}_settings`, {});
+    const settings = await readSalonSettings(salonId);
     const loyalty = { ...defaultLoyalty, ...(settings.loyalty || {}) };
-    const clients = await readJson<Client[]>(`${salonId}_clients`, []);
+    const clients = await readClients(salonId);
 
     if (!phone) {
       return Response.json({
@@ -137,10 +221,10 @@ export async function POST(req: NextRequest) {
 
   try {
     await ensureTable();
-    const settings = await readJson<SalonSettings>(`${salonId}_settings`, {});
+    const settings = await readSalonSettings(salonId);
     const loyalty = { ...defaultLoyalty, ...(settings.loyalty || {}) };
     const key = `${salonId}_clients`;
-    const clients = await readJson<Client[]>(key, []);
+    const clients = await readClients(salonId);
     const normalized = normalizePhone(phone);
     let client = clients.find((item) => normalizePhone(item.phone) === normalized);
 
@@ -159,6 +243,7 @@ export async function POST(req: NextRequest) {
         loyaltyPointsEarned: 0,
       };
       await writeJson(key, [client, ...clients]);
+      await insertRelationalClient(salonId, client);
     }
 
     return Response.json({ ok: true, created: !clients.some((item) => item.id === client.id), ...cardPayload(client, loyalty, settings.salon) });
