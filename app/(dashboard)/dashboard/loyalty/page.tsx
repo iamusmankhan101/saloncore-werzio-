@@ -9,10 +9,12 @@ import {
   type LoyaltySettings,
 } from "@/lib/loyalty";
 import { settingsStore, saveSettings } from "@/lib/settings-store";
+import { getCurrentUser } from "@/lib/auth";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
   Gift, Star, Search, Settings2, ChevronRight, TrendingUp,
   Award, Users, Plus, Minus, X, CreditCard, Printer, Share2,
+  QrCode, Copy, ExternalLink, Smartphone,
 } from "lucide-react";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -243,6 +245,7 @@ function ClientModal({
   const [adjNote, setAdjNote] = useState("");
   const [saving, setSaving]   = useState(false);
   const [copied, setCopied]   = useState(false);
+  const [walletMsg, setWalletMsg] = useState("");
 
   function handlePrint() {
     const el = cardRef.current;
@@ -264,6 +267,23 @@ function ClientModal({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  async function handleWallet(platform: "apple" | "google") {
+    setWalletMsg("");
+    const salonId = getCurrentUser()?.id;
+    if (!salonId) {
+      setWalletMsg("Sign in is required before wallet passes can be issued.");
+      return;
+    }
+
+    const res = await fetch(`/api/wallet/loyalty?platform=${platform}&salonId=${encodeURIComponent(salonId)}&clientId=${encodeURIComponent(client.id)}`);
+    const json = await res.json() as { ok: boolean; url?: string; error?: string };
+    if (json.ok && json.url) {
+      window.location.href = json.url;
+      return;
+    }
+    setWalletMsg(json.error || `${platform === "apple" ? "Apple" : "Google"} Wallet is not configured yet.`);
   }
 
   function handleAdjust() {
@@ -465,6 +485,27 @@ function ClientModal({
                   <Share2 size={14} /> {copied ? "Copied!" : "Copy Details"}
                 </button>
               </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <button onClick={() => handleWallet("apple")} style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  padding: "10px", borderRadius: 10, border: "none",
+                  background: "#1a1a2e", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer",
+                }}>
+                  <Smartphone size={14} /> Apple Wallet
+                </button>
+                <button onClick={() => handleWallet("google")} style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  padding: "10px", borderRadius: 10, border: "1.5px solid #e8e8f0",
+                  background: "#fff", color: "#1a1a2e", fontSize: 13, fontWeight: 800, cursor: "pointer",
+                }}>
+                  <Smartphone size={14} /> Google Wallet
+                </button>
+              </div>
+              {walletMsg && (
+                <div style={{ padding: "10px 12px", borderRadius: 10, background: "#fffbeb", color: "#92400e", fontSize: 12, fontWeight: 700 }}>
+                  {walletMsg}
+                </div>
+              )}
               {/* The card */}
               <DigitalCard
                 client={client}
@@ -605,32 +646,43 @@ export default function LoyaltyPage() {
   const [selected, setSelected]       = useState<Client | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [tierFilter, setTierFilter]   = useState<string>("all");
+  const [claimUrl, setClaimUrl]       = useState("");
+  const [qrCopied, setQrCopied]       = useState(false);
 
   const settings = settingsStore.loyalty as LoyaltySettings;
 
   useEffect(() => {
-    const ls = settingsStore.loyalty as LoyaltySettings;
-    const allClients = getStoredClients();
-    const allAppts   = getStoredAppointments();
+    const timer = window.setTimeout(() => {
+      const ls = settingsStore.loyalty as LoyaltySettings;
+      const allClients = getStoredClients();
+      const allAppts   = getStoredAppointments();
 
-    // Recompute earned points from actual appointment history at the current rate.
-    // This self-heals whenever the rate changes and handles first-time backfill.
-    let changed = false;
-    const recalculated = allClients.map((c) => {
-      const spent = allAppts
-        .filter((a) => a.clientId === c.id && a.status === "completed")
-        .reduce((s, a) => s + a.totalAmount, 0);
-      const correctEarned = Math.floor(spent * ls.pointsPerRupee);
-      if (c.loyaltyPointsEarned === correctEarned) return c;
-      // Preserve any manual redemptions (earned - balance = amount redeemed)
-      const redeemed = Math.max(0, (c.loyaltyPointsEarned ?? 0) - (c.loyaltyPoints ?? 0));
-      const newBalance = Math.max(0, correctEarned - redeemed);
-      changed = true;
-      return { ...c, loyaltyPointsEarned: correctEarned, loyaltyPoints: newBalance };
-    });
+      // Recompute earned points from actual appointment history at the current rate.
+      // This self-heals whenever the rate changes and handles first-time backfill.
+      let changed = false;
+      const recalculated = allClients.map((c) => {
+        const spent = allAppts
+          .filter((a) => a.clientId === c.id && a.status === "completed")
+          .reduce((s, a) => s + a.totalAmount, 0);
+        const correctEarned = Math.floor(spent * ls.pointsPerRupee);
+        if (c.loyaltyPointsEarned === correctEarned) return c;
+        // Preserve any manual redemptions (earned - balance = amount redeemed)
+        const redeemed = Math.max(0, (c.loyaltyPointsEarned ?? 0) - (c.loyaltyPoints ?? 0));
+        const newBalance = Math.max(0, correctEarned - redeemed);
+        changed = true;
+        return { ...c, loyaltyPointsEarned: correctEarned, loyaltyPoints: newBalance };
+      });
 
-    if (changed) saveClients(recalculated);
-    setClients(recalculated);
+      if (changed) saveClients(recalculated);
+      setClients(recalculated);
+
+      const user = getCurrentUser();
+      if (user && typeof window !== "undefined") {
+        setClaimUrl(`${window.location.origin}/loyalty-card/${encodeURIComponent(user.id)}`);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   function handleUpdate(updated: Client) {
@@ -664,6 +716,9 @@ export default function LoyaltyPage() {
   const totalEarned   = clients.reduce((s, c) => s + (c.loyaltyPointsEarned ?? 0), 0);
   const activeMembers = clients.filter((c) => (c.loyaltyPointsEarned ?? 0) > 0).length;
   const platCount     = enriched.filter((e) => e.tier === "platinum").length;
+  const qrSrc = claimUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=12&data=${encodeURIComponent(claimUrl)}`
+    : "";
 
   const TIER_FILTERS = [
     { value: "all",      label: "All Members" },
@@ -703,6 +758,47 @@ export default function LoyaltyPage() {
           }}>
             {settings.enabled ? "● Active" : "● Paused"}
           </div>
+        </div>
+      </div>
+
+      {/* Universal QR */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "220px 1fr", gap: 20, alignItems: "center",
+        background: "#fff", border: "1px solid #e8e8f0", borderRadius: 18, padding: 18, marginBottom: 24,
+      }}>
+        <div style={{ width: 190, height: 190, borderRadius: 16, background: "#f7f7fb", border: "1px solid #eeeeF6", display: "grid", placeItems: "center", overflow: "hidden" }}>
+          {qrSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={qrSrc} alt="Universal salon loyalty QR code" width={168} height={168} />
+          ) : (
+            <QrCode size={64} color="#9898b0" />
+          )}
+        </div>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, color: "#7C3AED", fontSize: 12, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
+            <QrCode size={16} /> Universal Salon QR
+          </div>
+          <h2 style={{ margin: "0 0 8px", color: "#1a1a2e", fontSize: 22, lineHeight: 1.15 }}>One QR code for every customer loyalty card</h2>
+          <p style={{ margin: "0 0 14px", color: "#777790", fontSize: 13, lineHeight: 1.6, maxWidth: 720 }}>
+            Print this QR at reception or share the link. Customers scan it, enter their phone number, and instantly view or claim their digital loyalty card.
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(claimUrl);
+                setQrCopied(true);
+                setTimeout(() => setQrCopied(false), 1800);
+              }}
+              disabled={!claimUrl}
+              style={{ display: "flex", alignItems: "center", gap: 7, border: "none", borderRadius: 10, background: "#7C3AED", color: "#fff", padding: "10px 14px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}
+            >
+              <Copy size={15} /> {qrCopied ? "Copied" : "Copy Link"}
+            </button>
+            <a href={claimUrl || "#"} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 7, border: "1.5px solid #e8e8f0", borderRadius: 10, background: "#fff", color: "#5a5a7a", padding: "10px 14px", fontSize: 13, fontWeight: 800 }}>
+              <ExternalLink size={15} /> Open Claim Page
+            </a>
+          </div>
+          {claimUrl && <div style={{ marginTop: 12, color: "#9898b0", fontSize: 11, wordBreak: "break-all" }}>{claimUrl}</div>}
         </div>
       </div>
 
