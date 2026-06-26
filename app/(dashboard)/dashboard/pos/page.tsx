@@ -174,11 +174,14 @@ export default function POSPage() {
   const [posTab, setPosTab] = useState<"customer" | "catalog" | "cart">("catalog");
 
   // ── Flow ──────────────────────────────────────────────────────────────────
-  const [completing,   setCompleting]   = useState(false);
-  const [printInvoice, setPrintInvoice] = useState<SalonInvoice | null>(null);
-  const [completed,    setCompleted]    = useState(false);
-  const [lastInvoice,  setLastInvoice]  = useState<SalonInvoice | null>(null);
-  const [waStatus,     setWaStatus]     = useState<"idle" | "sent" | "failed">("idle");
+  const [completing,       setCompleting]       = useState(false);
+  const [printInvoice,     setPrintInvoice]     = useState<SalonInvoice | null>(null);
+  const [completed,        setCompleted]        = useState(false);
+  const [lastInvoice,      setLastInvoice]      = useState<SalonInvoice | null>(null);
+  const [waStatus,         setWaStatus]         = useState<"idle" | "sent" | "failed">("idle");
+  const [cbBalance,    setCbBalance]    = useState<number>(0);
+  const [cbRedeemAmt,  setCbRedeemAmt]  = useState(0);
+  const [cbEarned,     setCbEarned]     = useState(0);
 
   // ── Derived catalog ───────────────────────────────────────────────────────
   const catalogItems = useMemo<CatalogItem[]>(() => {
@@ -214,7 +217,10 @@ export default function POSPage() {
   const loyaltyDiscount       = loyaltySettings.enabled && cappedLoyaltyRedeem > 0
     ? Math.min(Math.floor(cappedLoyaltyRedeem * loyaltySettings.rupeePerPoint), Math.max(0, rawSubtotal - discountAmount))
     : 0;
-  const totalDiscountAmount   = discountAmount + loyaltyDiscount;
+  const cbSettings    = settingsStore.cashback as { enabled: boolean; apiKey: string };
+  const cbAvailable   = cbSettings.enabled && cbSettings.apiKey && selectedClient?.phone ? cbBalance : 0;
+  const cbDiscount    = Math.min(cbRedeemAmt, cbAvailable);
+  const totalDiscountAmount   = discountAmount + loyaltyDiscount + cbDiscount;
 
   const { subtotal, taxAmount, total } = calcTotals(cartLineItems, totalDiscountAmount);
   const totalQty = cart.reduce((s, e) => s + e.qty, 0);
@@ -256,14 +262,28 @@ export default function POSPage() {
     setNewName(""); setNewPhone("");
   }
 
-  // Reset redeemed points when client changes
-  useEffect(() => { setLoyaltyRedeem(0); }, [selectedClient?.id]);
+  // Reset redeemed points / cashback when client changes
+  useEffect(() => { setLoyaltyRedeem(0); setCbRedeemAmt(0); }, [selectedClient?.id]);
+
+  // Auto-fetch cashback balance when a client with phone is selected
+  useEffect(() => {
+    const cbs = settingsStore.cashback as { enabled: boolean; apiKey: string };
+    if (!cbs.enabled || !cbs.apiKey || !selectedClient?.phone) { setCbBalance(0); return; }
+    fetch(
+      `https://www.trydecidr.xyz/api/loyalty?action=cashback-balance&phone=${encodeURIComponent(selectedClient.phone)}`,
+      { headers: { "X-API-Key": cbs.apiKey } }
+    )
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setCbBalance((d as { balance?: number } | null)?.balance ?? 0))
+      .catch(() => setCbBalance(0));
+  }, [selectedClient?.id]);
 
   // ── New sale reset ────────────────────────────────────────────────────────
   function startNewSale() {
     setCart([]); setDiscount(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod("cash");
     setSelectedClient(null); setClientQ(""); setSelectedStaffId("");
     setCompleted(false); setLastInvoice(null); setWaStatus("idle");
+    setCbRedeemAmt(0); setCbEarned(0); setCbBalance(0);
   }
 
   // ── Complete sale ─────────────────────────────────────────────────────────
@@ -318,6 +338,31 @@ export default function POSPage() {
       setLastInvoice(invoice);
       setPrintInvoice(invoice);
       setCompleted(true);
+
+      // Decidr cashback — earn (and optionally redeem) via external loyalty API
+      if (cbSettings.enabled && cbSettings.apiKey && selectedClient?.phone && total > 0) {
+        if (cbDiscount > 0) {
+          try {
+            await fetch("https://www.trydecidr.xyz/api/loyalty?action=cashback-redeem", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-API-Key": cbSettings.apiKey },
+              body: JSON.stringify({ phone: selectedClient.phone, amountToRedeem: cbDiscount }),
+            });
+          } catch { /* don't block sale */ }
+        }
+        try {
+          const cbRes = await fetch("https://www.trydecidr.xyz/api/loyalty?action=cashback-earn", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-API-Key": cbSettings.apiKey },
+            body: JSON.stringify({ phone: selectedClient.phone, name: selectedClient.name || "Guest", amountSpent: total }),
+          });
+          if (cbRes.ok) {
+            const cbData = await cbRes.json() as { cashbackEarned?: number };
+            setCbEarned(cbData.cashbackEarned ?? 0);
+          }
+        } catch { /* don't block sale */ }
+      }
+
       await sendReceiptWA(invoice, selectedClient);
     } finally {
       setCompleting(false);
@@ -445,6 +490,7 @@ export default function POSPage() {
               <span>· {lastInvoice.clientName}</span>
               {waStatus === "sent" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#059669", fontWeight: 700 }}><CheckCircle2 size={11} /> WhatsApp sent</span>}
               {waStatus === "failed" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#d97706", fontWeight: 700 }}><AlertCircle size={11} /> WhatsApp failed</span>}
+              {cbEarned > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#059669", fontWeight: 800 }}><Banknote size={11} /> +{pkr(cbEarned)} cashback earned</span>}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -936,6 +982,45 @@ export default function POSPage() {
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#d97706", marginTop: 6, fontWeight: 700, padding: "0 2px" }}>
                         <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Gift size={11} />Points redeemed</span>
                         <span>− {pkr(loyaltyDiscount)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Decidr cashback balance row */}
+                {cbSettings.enabled && cbSettings.apiKey && selectedClient?.phone && cbAvailable > 0 && (
+                  <div style={{ marginTop: 8, padding: "10px", borderRadius: 9, background: "#f0fdf4", border: "1px solid #6ee7b7" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 7 }}>
+                      <Banknote size={12} color="#059669" style={{ flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#065f46", flex: 1 }}>Cashback Balance</span>
+                      <span style={{ fontSize: 10, color: "#059669", fontWeight: 800, background: "#dcfce7", padding: "1px 7px", borderRadius: 20 }}>
+                        {pkr(cbAvailable)}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                      <input
+                        type="number" min={0} max={cbAvailable}
+                        value={cbRedeemAmt || ""}
+                        onChange={e => setCbRedeemAmt(Math.min(Math.max(0, Number(e.target.value)), cbAvailable))}
+                        placeholder="0"
+                        style={{ flex: 1, height: 30, padding: "0 8px", borderRadius: 8, border: "1.5px solid #6ee7b7", fontSize: 12, textAlign: "right", outline: "none", background: "#fff", fontWeight: 700 }}
+                      />
+                      <span style={{ fontSize: 11, color: "#065f46", fontWeight: 600 }}>PKR</span>
+                      <button type="button" onClick={() => setCbRedeemAmt(cbAvailable)}
+                        style={{ padding: "4px 10px", borderRadius: 7, border: "1px solid #6ee7b7", background: "#dcfce7", fontSize: 10, fontWeight: 800, color: "#065f46", cursor: "pointer", whiteSpace: "nowrap" }}>
+                        Use All
+                      </button>
+                      {cbRedeemAmt > 0 && (
+                        <button type="button" onClick={() => setCbRedeemAmt(0)}
+                          style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                          <X size={11} color="#dc2626" />
+                        </button>
+                      )}
+                    </div>
+                    {cbDiscount > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#059669", marginTop: 6, fontWeight: 700, padding: "0 2px" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Banknote size={11} />Cashback redeemed</span>
+                        <span>− {pkr(cbDiscount)}</span>
                       </div>
                     )}
                   </div>

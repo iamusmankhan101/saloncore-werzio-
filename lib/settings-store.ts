@@ -82,6 +82,10 @@ const defaults = {
     goldMin: 2000,
     platinumMin: 5000,
   },
+  cashback: {
+    enabled: false,
+    apiKey: "",
+  },
 };
 
 function load() {
@@ -121,6 +125,7 @@ function load() {
       whatsapp: { ...dynamicDefaults.whatsapp, ...saved.whatsapp },
       birthday: { ...dynamicDefaults.birthday, ...saved.birthday },
       loyalty:  { ...dynamicDefaults.loyalty,  ...saved.loyalty  },
+      cashback: { ...dynamicDefaults.cashback, ...saved.cashback },
     };
   } catch {
     return structuredClone(defaults);
