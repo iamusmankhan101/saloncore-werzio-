@@ -182,6 +182,7 @@ export default function POSPage() {
   const [cbBalance,    setCbBalance]    = useState<number>(0);
   const [cbRedeemAmt,  setCbRedeemAmt]  = useState(0);
   const [cbEarned,     setCbEarned]     = useState(0);
+  const [cbError,      setCbError]      = useState<string>("");
 
   // ── Derived catalog ───────────────────────────────────────────────────────
   const catalogItems = useMemo<CatalogItem[]>(() => {
@@ -288,7 +289,7 @@ export default function POSPage() {
     setCart([]); setDiscount(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod("cash");
     setSelectedClient(null); setClientQ(""); setSelectedStaffId("");
     setCompleted(false); setLastInvoice(null); setWaStatus("idle");
-    setCbRedeemAmt(0); setCbEarned(0); setCbBalance(0);
+    setCbRedeemAmt(0); setCbEarned(0); setCbBalance(0); setCbError("");
   }
 
   // ── Complete sale ─────────────────────────────────────────────────────────
@@ -372,8 +373,13 @@ export default function POSPage() {
           if (cbRes.ok) {
             const cbData = await cbRes.json() as { cashbackEarned?: number };
             setCbEarned(cbData.cashbackEarned ?? 0);
+          } else {
+            const errData = await cbRes.json().catch(() => ({})) as { error?: string };
+            setCbError(errData.error || "Cashback sync failed");
           }
-        } catch { /* don't block sale */ }
+        } catch {
+          setCbError("Cashback service unreachable");
+        }
       }
 
       await sendReceiptWA(invoice, selectedClient);
@@ -504,6 +510,7 @@ export default function POSPage() {
               {waStatus === "sent" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#059669", fontWeight: 700 }}><CheckCircle2 size={11} /> WhatsApp sent</span>}
               {waStatus === "failed" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#d97706", fontWeight: 700 }}><AlertCircle size={11} /> WhatsApp failed</span>}
               {cbEarned > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#059669", fontWeight: 800 }}><Banknote size={11} /> +{pkr(cbEarned)} cashback earned</span>}
+              {cbError && cbEarned === 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#b45309", fontWeight: 700 }}><AlertCircle size={11} /> Cashback: {cbError}</span>}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
