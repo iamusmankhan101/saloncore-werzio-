@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Store, Clock, Bell, Palette, Shield, Smartphone, ChevronRight, Check, Sparkles } from "lucide-react";
+import { Store, Clock, Bell, Palette, Shield, Smartphone, ChevronRight, Check, Sparkles, Banknote } from "lucide-react";
 import { settingsStore, saveSettings } from "@/lib/settings-store";
 
 const SECTIONS = [
@@ -13,6 +13,7 @@ const SECTIONS = [
   { id: "security",      label: "Security",       icon: Shield },
   { id: "whatsapp",      label: "WhatsApp",       icon: Smartphone },
   { id: "ai",            label: "AI Integrations", icon: Sparkles },
+  { id: "decidr",        label: "Decidr Loyalty",  icon: Banknote },
 ];
 
 const inp: CSSProperties = {
@@ -308,6 +309,70 @@ function AIIntegrations() {
   );
 }
 
+function DecidrLoyalty() {
+  const cb = settingsStore.cashback as { enabled: boolean; apiKey: string };
+  const [form, setForm] = useState({ enabled: cb.enabled, apiKey: cb.apiKey });
+  const [saved, setSaved] = useState(false);
+  const save = () => {
+    Object.assign(settingsStore.cashback, form);
+    saveSettings();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+  const active = form.enabled && !!form.apiKey;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {saved && <SavedBanner />}
+
+      <div style={{ padding: "14px 16px", background: active ? "#f0fdf4" : "#faf8ff", borderRadius: 10, border: `1px solid ${active ? "#6ee7b7" : "#ede9fe"}`, display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: active ? "#dcfce7" : "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Banknote size={18} color={active ? "#059669" : "#7C3AED"} />
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: active ? "#065f46" : "#5b21b6" }}>
+            {active ? "Cashback active — customers earn on every sale" : "Connect your Decidr cashback account"}
+          </div>
+          <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2, lineHeight: 1.5 }}>
+            {active
+              ? "Balance is fetched automatically at checkout. Staff can also apply redemptions before completing a sale."
+              : "Paste your API key below to automatically award and redeem cashback at POS checkout."}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "#f9f9fb", borderRadius: 10 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>Enable Decidr Cashback</div>
+          <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>Award and redeem cashback at every POS checkout</div>
+        </div>
+        <Toggle value={form.enabled} onChange={() => setForm(f => ({ ...f, enabled: !f.enabled }))} />
+      </div>
+
+      <Field label="API Key" hint="Copy from your Decidr dashboard → POS tab → Generate Key">
+        <input
+          type="password"
+          value={form.apiKey}
+          onChange={e => setForm(f => ({ ...f, apiKey: e.target.value }))}
+          placeholder="dlk_••••••••••••••••••••••••••••••••"
+          style={inp}
+        />
+      </Field>
+
+      <div style={{ padding: "12px 14px", background: "#f9f9fb", borderRadius: 8, fontSize: 11, color: "#6b6b8a", lineHeight: 1.7 }}>
+        <div style={{ fontWeight: 700, color: "#1a1a2e", marginBottom: 6 }}>How to connect</div>
+        <ol style={{ margin: 0, paddingLeft: 18 }}>
+          <li>Sign in at <strong>loyalty.trydecidr.xyz</strong> with your Cashback Card account</li>
+          <li>Open the <strong>POS</strong> tab and click <strong>Generate API Key</strong></li>
+          <li>Copy the key (starts with <code style={{ fontFamily: "monospace", background: "#ededf4", padding: "1px 5px", borderRadius: 3 }}>dlk_</code>) and paste it above</li>
+          <li>Enable the toggle, save — cashback is live at checkout</li>
+        </ol>
+      </div>
+
+      <SaveBar onSave={save} />
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [active, setActive] = useState("salon");
 
@@ -345,6 +410,7 @@ export default function SettingsPage() {
               {id === "security"      && <Security />}
               {id === "whatsapp"      && <WhatsAppSection />}
               {id === "ai"            && <AIIntegrations />}
+              {id === "decidr"        && <DecidrLoyalty />}
             </div>
           ))}
         </div>
