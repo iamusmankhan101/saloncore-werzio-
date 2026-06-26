@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Check, ChevronLeft, ChevronRight, Clock, ImageIcon, LogOut, Save, Shield, Smartphone, Store, Trash2, User, Wand2 } from "lucide-react";
+import { Banknote, Check, ChevronLeft, ChevronRight, Clock, ImageIcon, LogOut, Save, Shield, Smartphone, Store, Trash2, User, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
 import MobilePageHeader from "@/components/mobile-page-header";
 
-type SectionId = "profile" | "salon" | "hours" | "security" | "whatsapp" | "tryon";
+type SectionId = "profile" | "salon" | "hours" | "security" | "whatsapp" | "decidr" | "tryon";
 
 interface SalonSettings {
   name: string;
@@ -34,6 +34,7 @@ const BASE_SECTIONS: { id: SectionId; label: string; icon: React.ElementType }[]
   { id: "hours",    label: "Business Hours",  icon: Clock },
   { id: "security", label: "Security",        icon: Shield },
   { id: "whatsapp", label: "WhatsApp",        icon: Smartphone },
+  { id: "decidr",   label: "Decidr Loyalty",  icon: Banknote },
 ];
 
 const inputStyle: CSSProperties = {
@@ -638,6 +639,97 @@ function WhatsAppSection() {
   );
 }
 
+interface DecidrSettings {
+  enabled: boolean;
+  apiKey: string;
+}
+
+function DecidrLoyaltySection() {
+  const cashback = settingsStore.cashback as DecidrSettings;
+  const [form, setForm] = useState<DecidrSettings>({
+    enabled: cashback.enabled,
+    apiKey: cashback.apiKey || "",
+  });
+  const [saved, setSaved] = useState(false);
+  const active = form.enabled && !!form.apiKey.trim();
+
+  function save() {
+    Object.assign(settingsStore.cashback, {
+      enabled: form.enabled,
+      apiKey: form.apiKey.trim(),
+    });
+    saveSettings();
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  }
+
+  return (
+    <section>
+      <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Decidr Loyalty</h2>
+      <p style={{ margin: "0 0 24px", color: "#9999b0", fontSize: 12 }}>
+        Connect your loyalty-saas cashback API key so POS can fetch balances, redeem cashback, and award cashback after checkout.
+      </p>
+
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "14px 16px",
+        borderRadius: 12,
+        border: `1px solid ${active ? "#bbf7d0" : "#ddd6fe"}`,
+        background: active ? "#ecfdf5" : "#f5f4ff",
+        marginBottom: 22,
+      }}>
+        <div style={{ width: 38, height: 38, borderRadius: 11, background: active ? "#dcfce7" : "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Banknote size={18} color={active ? "#059669" : "var(--accent)"} />
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: active ? "#047857" : "var(--accent)" }}>
+            {active ? "Cashback active in POS" : "Decidr cashback not connected"}
+          </div>
+          <div style={{ fontSize: 11, color: "#777790", marginTop: 3, lineHeight: 1.5 }}>
+            {active
+              ? "When a client is selected in POS, their balance is loaded automatically and updated after payment."
+              : "Generate an API key in loyalty-saas, paste it here, then enable cashback."}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 16 }}>
+        <AutoRow
+          label="Enable Decidr Cashback"
+          hint="Award and redeem cashback at every POS checkout"
+          enabled={form.enabled}
+          onToggle={() => setForm((current) => ({ ...current, enabled: !current.enabled }))}
+        />
+
+        <Field label="API Key" hint="loyalty-saas dashboard → POS Integration → Generate API Key">
+          <input
+            type="password"
+            style={inputStyle}
+            value={form.apiKey}
+            onChange={(event) => setForm((current) => ({ ...current, apiKey: event.target.value }))}
+            placeholder="dlk_..."
+          />
+        </Field>
+
+        <div style={{ background: "#fafafd", border: "1px solid #e8e8f4", borderRadius: 12, padding: "14px 16px", fontSize: 12, color: "#5f5f78", lineHeight: 1.65 }}>
+          <strong style={{ display: "block", color: "#1d1d2f", marginBottom: 6 }}>How to connect</strong>
+          <ol style={{ margin: 0, paddingLeft: 18 }}>
+            <li>Open your loyalty-saas dashboard.</li>
+            <li>Go to the POS Integration tab and generate an API key.</li>
+            <li>Paste the key here and enable Decidr Cashback.</li>
+            <li>Open POS, select a client with a phone number, and complete a sale.</li>
+          </ol>
+        </div>
+      </div>
+
+      {saved && <div style={{ marginTop: 16 }}><SavedBanner text="Decidr loyalty settings saved." /></div>}
+      <SaveButton onClick={save} />
+    </section>
+  );
+}
+
 function VirtualTryOnSection() {
   const [token, setToken] = useState(() => (settingsStore.huggingface as { apiToken: string }).apiToken || "");
   const [saved, setSaved] = useState(false);
@@ -705,6 +797,7 @@ function SectionContent({ active }: { active: SectionId }) {
   if (active === "salon")    return <SalonProfile />;
   if (active === "hours")    return <BusinessHours />;
   if (active === "security") return <Security />;
+  if (active === "decidr")   return <DecidrLoyaltySection />;
   if (active === "tryon")    return <VirtualTryOnSection />;
   return <WhatsAppSection />;
 }
@@ -793,11 +886,11 @@ export default function AccountPage() {
               const Icon = section.icon;
               const iconBgs: Record<string, string> = {
                 profile: "#EDE9FE", salon: "#e0f2fe", hours: "#fef9c3",
-                security: "#fef2f2", whatsapp: "#dcfce7", tryon: "#fdf4ff",
+                security: "#fef2f2", whatsapp: "#dcfce7", decidr: "#ecfdf5", tryon: "#fdf4ff",
               };
               const iconColors: Record<string, string> = {
                 profile: "#7C3AED", salon: "#0284c7", hours: "#ca8a04",
-                security: "#dc2626", whatsapp: "#16a34a", tryon: "#a21caf",
+                security: "#dc2626", whatsapp: "#16a34a", decidr: "#059669", tryon: "#a21caf",
               };
               return (
                 <button
