@@ -269,14 +269,19 @@ export default function POSPage() {
   useEffect(() => {
     const cbs = settingsStore.cashback as { enabled: boolean; apiKey: string };
     if (!cbs.enabled || !cbs.apiKey || !selectedClient?.phone) { setCbBalance(0); return; }
-    fetch(
-      `https://www.trydecidr.xyz/api/loyalty?action=cashback-balance&phone=${encodeURIComponent(selectedClient.phone)}`,
-      { headers: { "X-API-Key": cbs.apiKey } }
-    )
+    fetch("/api/loyalty-saas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "cashback-balance",
+        apiKey: cbs.apiKey,
+        payload: { phone: selectedClient.phone },
+      }),
+    })
       .then(r => r.ok ? r.json() : null)
       .then(d => setCbBalance((d as { balance?: number } | null)?.balance ?? 0))
       .catch(() => setCbBalance(0));
-  }, [selectedClient?.id]);
+  }, [selectedClient?.id, selectedClient?.phone]);
 
   // ── New sale reset ────────────────────────────────────────────────────────
   function startNewSale() {
@@ -343,18 +348,26 @@ export default function POSPage() {
       if (cbSettings.enabled && cbSettings.apiKey && selectedClient?.phone && total > 0) {
         if (cbDiscount > 0) {
           try {
-            await fetch("https://www.trydecidr.xyz/api/loyalty?action=cashback-redeem", {
+            await fetch("/api/loyalty-saas", {
               method: "POST",
-              headers: { "Content-Type": "application/json", "X-API-Key": cbSettings.apiKey },
-              body: JSON.stringify({ phone: selectedClient.phone, amountToRedeem: cbDiscount }),
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "cashback-redeem",
+                apiKey: cbSettings.apiKey,
+                payload: { phone: selectedClient.phone, amountToRedeem: cbDiscount },
+              }),
             });
           } catch { /* don't block sale */ }
         }
         try {
-          const cbRes = await fetch("https://www.trydecidr.xyz/api/loyalty?action=cashback-earn", {
+          const cbRes = await fetch("/api/loyalty-saas", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-API-Key": cbSettings.apiKey },
-            body: JSON.stringify({ phone: selectedClient.phone, name: selectedClient.name || "Guest", amountSpent: total }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "cashback-earn",
+              apiKey: cbSettings.apiKey,
+              payload: { phone: selectedClient.phone, name: selectedClient.name || "Guest", amountSpent: total },
+            }),
           });
           if (cbRes.ok) {
             const cbData = await cbRes.json() as { cashbackEarned?: number };
