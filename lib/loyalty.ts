@@ -81,9 +81,10 @@ export function awardPoints(
   settings: LoyaltySettings,
   appointmentId?: string,
 ): Client {
-  if (!settings.enabled) return client;
+  if (!settings.enabled) { console.log("[awardPoints] skipped: loyalty disabled"); return client; }
   const pts = calcPointsToEarn(amount, settings.pointsPerRupee);
-  if (pts <= 0) return client;
+  console.log("[awardPoints] amount:", amount, "ppr:", settings.pointsPerRupee, "pts:", pts);
+  if (pts <= 0) { console.log("[awardPoints] skipped: pts=0 (amount too small)"); return client; }
   appendHistory({
     clientId: client.id,
     type: "earn",
