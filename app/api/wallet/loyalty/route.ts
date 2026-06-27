@@ -108,7 +108,7 @@ function buildObjectPayload(objectId: string, client: Client, salonName: string,
     id: objectId,
     classId,
     state: "ACTIVE",
-    accountId: client.phone || client.id,
+    accountId: salonName,           // shows as sub-text under the name — displays salon name instantly
     accountName: client.name,
     loyaltyPoints: { balance: { int: balance }, label: "Points" },
     textModulesData: [
