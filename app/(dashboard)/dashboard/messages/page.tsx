@@ -10,8 +10,7 @@ import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
-import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, enqueueWhatsAppCancellation } from "@/lib/whatsapp-scheduler";
-import type { BirthdaySettings } from "@/app/api/wa/birthday-settings/route";
+import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, enqueueWhatsAppCancellation, checkBirthdayReminders } from "@/lib/whatsapp-scheduler";
 import { getCurrentUser, userKey } from "@/lib/auth";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import type { Client } from "@/lib/types";
@@ -269,36 +268,42 @@ export default function MessagesPage() {
   const [loadingLogs, setLoadingLogs] = useState(true);
 
   // Birthday reminder settings
-  const bdDefaults = settingsStore.birthday as { autoBirthday: boolean; birthdayTemplateId: string; birthdayDiscount: string };
+  const bdDefaults = settingsStore.birthday as { autoBirthday: boolean; birthdayDiscount: string };
   const [bdEnabled,    setBdEnabled]    = useState(bdDefaults.autoBirthday);
-  const [bdTemplate,   setBdTemplate]   = useState(bdDefaults.birthdayTemplateId);
   const [bdDiscount,   setBdDiscount]   = useState(bdDefaults.birthdayDiscount);
   const [bdSaving,     setBdSaving]     = useState(false);
   const [bdSaved,      setBdSaved]      = useState(false);
+  const [bdSending,    setBdSending]    = useState(false);
+  const [bdSendDone,   setBdSendDone]   = useState(false);
+
+  const todayBirthdayClients = useMemo(() => {
+    const today = new Date();
+    return clients.filter((c) => {
+      if (!c.dob || !c.phone) return false;
+      const [, m, d] = c.dob.split("-").map(Number);
+      return m === today.getMonth() + 1 && d === today.getDate();
+    });
+  }, [clients]);
 
   async function saveBirthdaySettings() {
     setBdSaving(true);
     // Persist locally
     const bd = settingsStore.birthday as Record<string, unknown>;
-    bd.autoBirthday       = bdEnabled;
-    bd.birthdayTemplateId = bdTemplate;
-    bd.birthdayDiscount   = bdDiscount;
+    bd.autoBirthday     = bdEnabled;
+    bd.birthdayDiscount = bdDiscount;
     saveSettings();
-    // Persist to Turso so the server cron can read it
-    const user = getCurrentUser();
-    if (user) {
-      await fetch("/api/wa/birthday-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-          settings: { enabled: bdEnabled, templateName: bdTemplate, discount: bdDiscount } satisfies BirthdaySettings,
-        }),
-      }).catch(() => {});
-    }
     setBdSaving(false);
     setBdSaved(true);
     setTimeout(() => setBdSaved(false), 2500);
+  }
+
+  async function sendBirthdayNow() {
+    setBdSending(true);
+    await checkBirthdayReminders();
+    setBdSending(false);
+    setBdSendDone(true);
+    setTimeout(() => setBdSendDone(false), 3000);
+    setRefreshKey((k) => k + 1);
   }
 
   // Manual send state
@@ -867,17 +872,11 @@ export default function MessagesPage() {
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Meta Template Name
-                    </label>
-                    <input
-                      value={bdTemplate}
-                      onChange={(e) => setBdTemplate(e.target.value)}
-                      placeholder="e.g. birthday_wishes"
-                      style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", outline: "none", boxSizing: "border-box" }}
-                    />
-                    <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>Must match the approved template name in Meta Business Manager</div>
+                  {/* Today's birthday clients */}
+                  <div style={{ padding: "10px 12px", borderRadius: 9, background: todayBirthdayClients.length > 0 ? "#fdf2f8" : "#f8f8fc", border: `1px solid ${todayBirthdayClients.length > 0 ? "#fce7f3" : "#e8e8f0"}`, fontSize: 11, color: todayBirthdayClients.length > 0 ? "#9d174d" : "#6b6b8a", lineHeight: 1.6 }}>
+                    {todayBirthdayClients.length > 0
+                      ? <><strong>🎂 {todayBirthdayClients.length} client{todayBirthdayClients.length > 1 ? "s have" : " has"} a birthday today:</strong> {todayBirthdayClients.map((c) => c.name).join(", ")}</>
+                      : "No clients have a birthday today. Make sure clients have their Date of Birth saved in their profile."}
                   </div>
 
                   <div>
@@ -890,18 +889,20 @@ export default function MessagesPage() {
                       placeholder="e.g. 15% off or a free blow-dry"
                       style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", outline: "none", boxSizing: "border-box" }}
                     />
-                    <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>Inserted as {"{{discount}}"} in the template — leave blank if not using</div>
+                    <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>Inserted as {"{{discount}}"} in the birthday template</div>
                   </div>
 
-                  <div style={{ padding: "10px 12px", borderRadius: 9, background: "#fdf2f8", border: "1px solid #fce7f3", fontSize: 11, color: "#9d174d", lineHeight: 1.6 }}>
-                    <strong>Template variables:</strong> {"{{name}}"} {"{{salon_name}}"} {"{{discount}}"}<br />
-                    Clients must have a date of birth saved in their profile to receive birthday messages.
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" onClick={saveBirthdaySettings} disabled={bdSaving}
+                      style={{ flex: 1, border: "none", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: bdSaving ? "not-allowed" : "pointer", background: bdSaved ? "#ecfdf5" : "linear-gradient(135deg,#be185d,#db2777)", color: bdSaved ? "#059669" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, boxShadow: bdSaved ? "none" : "0 3px 10px rgba(219,39,119,0.3)" }}>
+                      {bdSaved ? <><Check size={13} /> Saved</> : bdSaving ? "Saving…" : <><Save size={13} /> Save</>}
+                    </button>
+                    <button type="button" onClick={sendBirthdayNow} disabled={bdSending || !isConnected || todayBirthdayClients.length === 0}
+                      title={!isConnected ? "WaSender API key not configured" : todayBirthdayClients.length === 0 ? "No clients have a birthday today" : "Send birthday messages now"}
+                      style={{ flex: 1, border: "1px solid #fce7f3", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: (bdSending || !isConnected || todayBirthdayClients.length === 0) ? "not-allowed" : "pointer", background: bdSendDone ? "#ecfdf5" : "#fff3f8", color: bdSendDone ? "#059669" : "#db2777", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: (!isConnected || todayBirthdayClients.length === 0) ? 0.5 : 1 }}>
+                      {bdSendDone ? <><Check size={13} /> Sent!</> : bdSending ? "Sending…" : <><Send size={13} /> Send Now</>}
+                    </button>
                   </div>
-
-                  <button type="button" onClick={saveBirthdaySettings} disabled={bdSaving}
-                    style={{ width: "100%", border: "none", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: bdSaving ? "not-allowed" : "pointer", background: bdSaved ? "#ecfdf5" : "linear-gradient(135deg,#be185d,#db2777)", color: bdSaved ? "#059669" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, boxShadow: bdSaved ? "none" : "0 3px 10px rgba(219,39,119,0.3)" }}>
-                    {bdSaved ? <><Check size={13} /> Saved</> : bdSaving ? "Saving…" : <><Save size={13} /> Save Birthday Settings</>}
-                  </button>
                 </div>
               </div>
             </div>
