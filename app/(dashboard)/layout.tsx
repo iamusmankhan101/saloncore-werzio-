@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck } from "lucide-react";
+import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff } from "lucide-react";
 import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
-import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings } from "@/lib/settings-store";
+import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings, settingsStore } from "@/lib/settings-store";
 import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
 import { syncFromDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
@@ -119,6 +119,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }>>([]);
   const [lowStockCount, setLowStockCount]  = useState(0);
   const [outStockCount, setOutStockCount]  = useState(0);
+  const [waStatus,      setWaStatus]       = useState<"unknown" | "connected" | "disconnected">("unknown");
+  const [waBannerDismissed, setWaBannerDismissed] = useState(false);
 
   // Auth guard
   useEffect(() => {
@@ -167,6 +169,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!isReady) return;
     const interval = window.setInterval(() => runWhatsAppScheduler(), 60_000);
     return () => window.clearInterval(interval);
+  }, [isReady]);
+
+  // WhatsApp connection status check
+  useEffect(() => {
+    if (!isReady) return;
+    const apiKey = (settingsStore.wasender as { apiKey: string }).apiKey;
+    if (!apiKey) return; // not configured — don't check
+
+    async function checkWa() {
+      try {
+        const res  = await fetch(`/api/whatsapp/status?apiKey=${encodeURIComponent(apiKey)}`);
+        const data = await res.json() as { connected?: boolean };
+        setWaStatus(data.connected ? "connected" : "disconnected");
+        if (data.connected) setWaBannerDismissed(false); // auto-restore banner on reconnect
+      } catch {
+        setWaStatus("disconnected");
+      }
+    }
+
+    checkWa();
+    const interval = window.setInterval(checkWa, 5 * 60_000); // every 5 min
+    window.addEventListener("focus", checkWa);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", checkWa);
+    };
   }, [isReady]);
 
   // Persistent low-stock badge
@@ -263,6 +291,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         borderRadius: "20px 0 0 20px",
         boxShadow: "-4px 0 24px rgba(0,0,0,0.08)",
       }}>
+        {/* WhatsApp disconnection banner */}
+        {waStatus === "disconnected" && !waBannerDismissed && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "11px 20px",
+            background: "linear-gradient(90deg,#78350f,#92400e)",
+            borderRadius: "20px 0 0 0",
+          }}>
+            <WifiOff size={16} color="#fcd34d" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: 13, color: "#fef3c7", fontWeight: 600 }}>
+              WhatsApp disconnected — your phone may have lost internet. Automated messages are paused until reconnected.
+            </div>
+            <a
+              href="/dashboard/settings"
+              style={{ fontSize: 12, fontWeight: 700, color: "#fcd34d", textDecoration: "none",
+                       background: "rgba(255,255,255,0.12)", padding: "5px 12px", borderRadius: 8, whiteSpace: "nowrap" }}
+            >
+              Open Settings
+            </a>
+            <button
+              type="button"
+              onClick={() => setWaBannerDismissed(true)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#fcd34d", padding: 4, flexShrink: 0 }}
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
         {children}
       </main>
 
