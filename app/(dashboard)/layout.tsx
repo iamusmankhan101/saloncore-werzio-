@@ -190,12 +190,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     checkWa();
-    const interval = window.setInterval(checkWa, 5 * 60_000); // every 5 min
-    window.addEventListener("focus", checkWa);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", checkWa);
-    };
+    // 30 min interval — WaSender free plan allows only 1 req/min total.
+    // The server also caches for 15 min, so two browser polls in quick succession
+    // will only hit WaSender once.
+    const interval = window.setInterval(checkWa, 30 * 60_000);
+    // Don't re-check on every focus — that burns rate limit needlessly.
+    return () => { window.clearInterval(interval); };
   }, [isReady]);
 
   // Persistent low-stock badge

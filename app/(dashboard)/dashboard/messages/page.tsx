@@ -372,7 +372,7 @@ export default function MessagesPage() {
     setTestingConn(true);
     setConnStatus(null);
     try {
-      const res = await fetch(`/api/whatsapp/status?apiKey=${encodeURIComponent(ws.apiKey)}`);
+      const res = await fetch(`/api/whatsapp/status?apiKey=${encodeURIComponent(ws.apiKey)}&force=1`);
       const data = await res.json() as { ok: boolean; connected: boolean; status?: string; message?: string; error?: string };
       setConnStatus({ ok: data.connected, message: data.message || data.error, status: data.status });
     } catch {
