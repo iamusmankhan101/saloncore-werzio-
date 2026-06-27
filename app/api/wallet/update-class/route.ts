@@ -53,9 +53,10 @@ export async function POST(req: NextRequest) {
   const appOrigin = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
 
   // Google Wallet requires a public HTTPS PNG/JPEG URL — never base64
+  // werzio-logo-wallet.png has a purple background so the white logo is visible in the circle
   const logoUrl = body.logoUrl?.startsWith("https://") && !body.logoUrl.startsWith("data:")
     ? body.logoUrl
-    : `${appOrigin}/werzio-logo.png`;
+    : `${appOrigin}/werzio-logo-wallet.png`;
 
   const classId = `${ISSUER_ID}.werzio-loyalty`;
   const classUrl = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${encodeURIComponent(classId)}`;
