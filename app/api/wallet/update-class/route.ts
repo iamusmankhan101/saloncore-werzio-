@@ -80,7 +80,10 @@ export async function POST(req: NextRequest) {
       hexBackgroundColor: bgColor,
       loyaltyPointsLabel: "Points",
       reviewStatus:       "UNDER_REVIEW",
-      programLogo:        null, // null clears it — removes the white circle from the card
+      programLogo: {
+        sourceUri: { uri: logoUrl },
+        contentDescription: { defaultValue: { language: "en-US", value: `${salonName} logo` } },
+      },
     };
 
     // Use PUT (full replace) when creating; PATCH (partial) when updating
