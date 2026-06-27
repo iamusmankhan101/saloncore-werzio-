@@ -205,7 +205,7 @@ const BIRTHDAY_SENT_KEY = "werzio_wa_birthday_sent";
  * The server-side cron (/api/cron/birthday) is the primary mechanism;
  * this acts as a same-day backup when the dashboard is open.
  */
-export async function checkBirthdayReminders(): Promise<void> {
+export async function checkBirthdayReminders(force = false): Promise<void> {
   if (typeof window === "undefined") return;
 
   const ws = settingsStore.wasender as { apiKey: string; autoReminder: boolean };
@@ -214,7 +214,7 @@ export async function checkBirthdayReminders(): Promise<void> {
     birthdayDiscount: string;
   };
 
-  if (!bd.autoBirthday) return;
+  if (!force && !bd.autoBirthday) return;
   if (!ws.apiKey) return;
 
   const birthdayTemplate = (settingsStore.whatsapp as { birthday: string }).birthday;
@@ -239,7 +239,7 @@ export async function checkBirthdayReminders(): Promise<void> {
     if (!isToday) continue;
 
     const sentKey = `${client.id}_${year}`;
-    if (sent[sentKey]) continue;
+    if (!force && sent[sentKey]) continue; // skip only on auto-run, not manual Send Now
 
     const phone = normalizePhone(client.phone);
     if (!phone) continue;

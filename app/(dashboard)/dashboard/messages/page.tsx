@@ -299,7 +299,7 @@ export default function MessagesPage() {
 
   async function sendBirthdayNow() {
     setBdSending(true);
-    await checkBirthdayReminders();
+    await checkBirthdayReminders(true); // force=true bypasses the "already sent" dedup
     setBdSending(false);
     setBdSendDone(true);
     setTimeout(() => setBdSendDone(false), 3000);
