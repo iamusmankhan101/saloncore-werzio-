@@ -10,7 +10,7 @@ import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
-import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, enqueueWhatsAppCancellation, checkBirthdayReminders } from "@/lib/whatsapp-scheduler";
+import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, checkBirthdayReminders } from "@/lib/whatsapp-scheduler";
 import { getCurrentUser, userKey } from "@/lib/auth";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import type { Client } from "@/lib/types";
@@ -361,9 +361,11 @@ export default function MessagesPage() {
     autoCancellation: boolean; autoLowStock: boolean; autoNewBooking: boolean;
   };
   const waTpl = settingsStore.whatsapp as { reminder: string; confirmation: string; followup: string };
-  const isConnected = !!ws.apiKey;
+  const isConfigured = !!ws.apiKey;
   const [testingConn, setTestingConn] = useState(false);
   const [connStatus, setConnStatus] = useState<{ ok: boolean; message?: string; status?: string } | null>(null);
+  // Use the real API result when available; null = still checking, true/false = known
+  const isConnected = isConfigured ? (connStatus === null ? null : connStatus.ok) : false;
 
   async function testConnection() {
     if (!ws.apiKey || testingConn) return;
@@ -379,6 +381,12 @@ export default function MessagesPage() {
       setTestingConn(false);
     }
   }
+
+  // Auto-check real connection status on mount so the banner reflects reality
+  useEffect(() => {
+    if (ws.apiKey) testConnection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(() =>
     filter === "all" ? logs : logs.filter((l) => l.type === filter),
@@ -574,41 +582,49 @@ export default function MessagesPage() {
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "16px 22px", borderRadius: 16, marginBottom: 22,
-          background: isConnected
+          background: isConnected === true
             ? "linear-gradient(135deg, #4C1D95 0%, #7C3AED 60%, #9333EA 100%)"
-            : "#1a1a2e",
-          boxShadow: isConnected ? "0 4px 24px rgba(124,58,237,0.35)" : "0 2px 12px rgba(0,0,0,0.12)",
+            : isConnected === false
+              ? "linear-gradient(135deg,#7f1d1d,#991b1b)"
+              : "#1a1a2e",
+          boxShadow: isConnected === true ? "0 4px 24px rgba(124,58,237,0.35)" : "0 2px 12px rgba(0,0,0,0.12)",
           color: "#fff",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 44, height: 44, borderRadius: 13, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              {isConnected ? <Wifi size={22} /> : <WifiOff size={22} />}
+              {isConnected === true ? <Wifi size={22} /> : <WifiOff size={22} />}
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: "-0.01em" }}>
-                {isConnected ? "WhatsApp Connected" : "WhatsApp Not Configured"}
+                {isConnected === true  && "WhatsApp Connected"}
+                {isConnected === false && "WhatsApp Disconnected"}
+                {isConnected === null  && "WhatsApp — Checking…"}
+                {!isConfigured         && "WhatsApp Not Configured"}
               </div>
               <div style={{ fontSize: 11, opacity: 0.72, marginTop: 3 }}>
-                {isConnected
-                  ? "WaSenderAPI connected · Scheduler runs every 60s"
-                  : "Go to Account → WhatsApp Settings to connect your number"}
+                {isConnected === true  && "WaSenderAPI connected · Scheduler runs every 60s"}
+                {isConnected === false && (connStatus?.message || "Phone may have lost internet — automated messages paused")}
+                {isConnected === null  && "Verifying connection with WaSender…"}
+                {!isConfigured         && "Go to Account → WhatsApp Settings to connect your number"}
               </div>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            {isConnected && connStatus && (
+            {/* Status pill — only when we have a real result */}
+            {isConfigured && connStatus && (
               <div style={{ display: "flex", alignItems: "center", gap: 5, background: connStatus.ok ? "rgba(74,222,128,0.15)" : "rgba(239,68,68,0.18)", borderRadius: 20, padding: "5px 10px", border: `1px solid ${connStatus.ok ? "rgba(74,222,128,0.4)" : "rgba(239,68,68,0.4)"}` }}>
                 <div style={{ width: 7, height: 7, borderRadius: "50%", background: connStatus.ok ? "#4ade80" : "#ef4444", boxShadow: connStatus.ok ? "0 0 8px #4ade80" : "0 0 8px #ef4444" }} />
                 <span style={{ fontSize: 11, fontWeight: 700 }}>{connStatus.ok ? `Active (${connStatus.status || "CONNECTED"})` : (connStatus.message || "Session error")}</span>
               </div>
             )}
-            {isConnected && !connStatus && (
+            {/* Checking spinner pill */}
+            {isConfigured && isConnected === null && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.12)", borderRadius: 20, padding: "5px 12px" }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 8px #4ade80" }} />
-                <span style={{ fontSize: 11, fontWeight: 700 }}>Live</span>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#fcd34d", boxShadow: "0 0 8px #fcd34d" }} />
+                <span style={{ fontSize: 11, fontWeight: 700 }}>Checking…</span>
               </div>
             )}
-            {isConnected && (
+            {isConfigured && (
               <button type="button" onClick={testConnection} disabled={testingConn}
                 style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 9, padding: "7px 12px", color: "#fff", fontSize: 11, fontWeight: 700, cursor: testingConn ? "wait" : "pointer", opacity: testingConn ? 0.7 : 1 }}>
                 <Wifi size={11} /> {testingConn ? "Testing…" : "Test Connection"}
@@ -616,7 +632,7 @@ export default function MessagesPage() {
             )}
             <a href="/dashboard/account"
               style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 9, padding: "8px 14px", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
-              {isConnected ? "Settings" : "Configure"} <ChevronRight size={12} />
+              {isConfigured ? "Settings" : "Configure"} <ChevronRight size={12} />
             </a>
           </div>
         </div>
