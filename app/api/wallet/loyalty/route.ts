@@ -67,7 +67,7 @@ function safeId(str: string) {
   return str.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
 }
 
-function generateWalletUrl(salonId: string, client: Client, salonName: string, ls: LoyaltySettings, salonLogo = ""): string {
+function generateWalletUrl(salonId: string, client: Client, _salonName: string, ls: LoyaltySettings, _salonLogo = "", appBaseUrl = ""): string {
   const privateKey = getPrivateKey();
   const balance = client.loyaltyPoints ?? 0;
   const earned  = client.loyaltyPointsEarned ?? 0;
@@ -80,29 +80,13 @@ function generateWalletUrl(salonId: string, client: Client, salonName: string, l
     silver: "Silver 🥈",    bronze: "Bronze 🥉", none: "Member ⭐",
   };
 
-  const classId  = `${ISSUER_ID}.werzio_${safeId(salonId)}_loyalty_v1`;
-  const objectId = `${ISSUER_ID}.werzio_${safeId(salonId)}_loyalty_v1_${safeId(client.id)}`;
+  // Use the pre-created class registered in Google Pay Business Console.
+  // classId format: {issuerId}.{classSuffix}
+  const classId  = `${ISSUER_ID}.werzio-loyalty`;
+  const objectId = `${ISSUER_ID}.werzio-loyalty_${safeId(client.id)}`;
 
-  // Use salon logo only if it's a public HTTPS URL (not a base64 data URL)
-  const logoUri = salonLogo && salonLogo.startsWith("https://")
-    ? salonLogo
-    : "https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg"; // reliable public fallback
-
-  // Embed class + object inline — Google creates the class on first save.
-  // Do NOT include reviewStatus here; it is only valid when creating/updating
-  // a class via the REST API and causes JWT validation errors when embedded.
-  const loyaltyClass = {
-    id: classId,
-    issuerName: salonName,
-    programName: `${salonName} Loyalty`,
-    programLogo: {
-      sourceUri: { uri: logoUri },
-      contentDescription: { defaultValue: { language: "en-US", value: `${salonName} logo` } },
-    },
-    hexBackgroundColor: "#5B21B6",
-    loyaltyPointsLabel: "Points",
-  };
-
+  // Since the class already exists in the console, only embed the object.
+  // Embedding the class too would attempt to overwrite it and cause errors.
   const loyaltyObject = {
     id: objectId,
     classId,
@@ -121,7 +105,7 @@ function generateWalletUrl(salonId: string, client: Client, salonName: string, l
     ],
     barcode: {
       type: "QR_CODE",
-      value: `https://app.werzio.com/loyalty-card/${encodeURIComponent(salonId)}`,
+      value: `${appBaseUrl}/loyalty-card/${encodeURIComponent(salonId)}`,
       alternateText: client.phone || client.id,
     },
   };
@@ -132,7 +116,6 @@ function generateWalletUrl(salonId: string, client: Client, salonName: string, l
     typ: "savetowallet",
     iat: Math.floor(Date.now() / 1000),
     payload: {
-      loyaltyClasses: [loyaltyClass],
       loyaltyObjects: [loyaltyObject],
     },
   };
@@ -173,7 +156,8 @@ export async function GET(req: NextRequest) {
       return Response.json({ ok: false, error: "Client not found." }, { status: 404 });
     }
 
-    const url = generateWalletUrl(salonId, client, salonName, settings, salonLogo);
+    const appBaseUrl = `${req.nextUrl.protocol}//${req.nextUrl.host}`;
+    const url = generateWalletUrl(salonId, client, salonName, settings, salonLogo, appBaseUrl);
     return Response.json({ ok: true, url });
   } catch (err) {
     console.error("[wallet/loyalty] error:", err);
