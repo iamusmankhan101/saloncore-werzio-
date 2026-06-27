@@ -146,7 +146,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const user = getCurrentUser();
     if (!user) return;
 
-    syncFromDB().then(() => reloadSettings());
+    syncFromDB().then(() => { reloadSettings(); runWhatsAppScheduler(); });
     checkInvoiceNotifications();
 
     // Check suspension status from Turso (server-side source of truth)
@@ -161,10 +161,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .catch(() => { /* fail open — don't block on network error */ });
   }, [isReady]);
 
-  // WhatsApp scheduler
+  // WhatsApp scheduler — first run is triggered by syncFromDB.then() above
+  // so existing clients are already in localStorage when it first fires
   useEffect(() => {
     if (!isReady) return;
-    runWhatsAppScheduler();
     const interval = window.setInterval(() => runWhatsAppScheduler(), 60_000);
     return () => window.clearInterval(interval);
   }, [isReady]);
