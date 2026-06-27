@@ -322,13 +322,18 @@ async function runSchedulerInternal(): Promise<void> {
     for (const item of queue) {
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
-      if (appt && phone) {
-        const text = fillTemplate(waTpl.confirmation, buildVars(appt, salonName));
-        const ok = await callSendApi(phone, text, { type: "confirmation", clientName: appt.clientName });
-        if (!ok && item.retries < MAX_RETRIES - 1) {
-          remaining.push({ id: item.id, retries: item.retries + 1 });
-        }
-        // On success or after MAX_RETRIES attempts: drop from queue
+      if (!appt || !phone) continue; // appointment not found or no phone — drop from queue
+      const sentKey = `confirm_${appt.id}`;
+      if (alreadySent(sentKey)) continue; // already confirmed — drop duplicate
+      // Skip stale confirmations for appointments that have already passed
+      const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
+      if (apptTime < now) continue;
+      const text = fillTemplate(waTpl.confirmation, buildVars(appt, salonName));
+      const ok = await callSendApi(phone, text, { type: "confirmation", clientName: appt.clientName });
+      if (ok) {
+        markSent(sentKey);
+      } else if (item.retries < MAX_RETRIES - 1) {
+        remaining.push({ id: item.id, retries: item.retries + 1 });
       }
     }
     setQueue(CONFIRM_QUEUE_KEY, remaining);
@@ -346,13 +351,15 @@ async function runSchedulerInternal(): Promise<void> {
       }
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
-      if (appt && phone) {
-        const text = fillTemplate(waTpl.followup, buildVars(appt, salonName));
-        const ok = await callSendApi(phone, text, { type: "followup", clientName: appt.clientName });
-        if (!ok && item.retries < MAX_RETRIES - 1) {
-          remaining.push({ id: item.id, retries: item.retries + 1 });
-        }
-        // On success or after MAX_RETRIES attempts: drop from queue
+      if (!appt || !phone) continue; // appointment not found or no phone — drop from queue
+      const sentKey = `followup_${appt.id}`;
+      if (alreadySent(sentKey)) continue; // already followed up — drop duplicate
+      const text = fillTemplate(waTpl.followup, buildVars(appt, salonName));
+      const ok = await callSendApi(phone, text, { type: "followup", clientName: appt.clientName });
+      if (ok) {
+        markSent(sentKey);
+      } else if (item.retries < MAX_RETRIES - 1) {
+        remaining.push({ id: item.id, retries: item.retries + 1 });
       }
     }
     setQueue(FOLLOWUP_QUEUE_KEY, remaining);
@@ -370,16 +377,19 @@ async function runSchedulerInternal(): Promise<void> {
       }
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
-      if (appt && phone) {
-        const cancelDiscount = (settingsStore.wasender as { cancelDiscount?: string }).cancelDiscount || "10%";
-        const text = fillTemplate(cancelTpl, {
-          ...buildVars(appt, salonName),
-          discount: cancelDiscount,
-        });
-        const ok = await callSendApi(phone, text, { type: "cancellation", clientName: appt.clientName });
-        if (!ok && item.retries < MAX_RETRIES - 1) {
-          remaining.push({ id: item.id, retries: item.retries + 1 });
-        }
+      if (!appt || !phone) continue; // appointment not found or no phone — drop from queue
+      const sentKey = `cancel_${appt.id}`;
+      if (alreadySent(sentKey)) continue; // already sent win-back — drop duplicate
+      const cancelDiscount = (settingsStore.wasender as { cancelDiscount?: string }).cancelDiscount || "10%";
+      const text = fillTemplate(cancelTpl, {
+        ...buildVars(appt, salonName),
+        discount: cancelDiscount,
+      });
+      const ok = await callSendApi(phone, text, { type: "cancellation", clientName: appt.clientName });
+      if (ok) {
+        markSent(sentKey);
+      } else if (item.retries < MAX_RETRIES - 1) {
+        remaining.push({ id: item.id, retries: item.retries + 1 });
       }
     }
     setQueue(CANCEL_QUEUE_KEY, remaining);

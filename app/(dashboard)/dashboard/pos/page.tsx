@@ -19,7 +19,7 @@ import {
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
-import { normalizePhone, appendLog } from "@/lib/whatsapp-scheduler";
+import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
 
@@ -331,40 +331,23 @@ export default function POSPage() {
       setPrintInvoice(invoice);
       setCompleted(true);
 
-      await sendReceiptWA(invoice, selectedClient);
+      sendReceiptWA(invoice, selectedClient);
     } finally {
       setCompleting(false);
     }
   }
 
   // ── WhatsApp receipt ──────────────────────────────────────────────────────
-  async function sendReceiptWA(invoice: SalonInvoice, client: Client | null) {
+  // Opens a wa.me receipt link only. Follow-ups are handled by the 24h scheduler,
+  // not sent immediately here — that caused duplicate/immediate sends on every checkout.
+  function sendReceiptWA(invoice: SalonInvoice, client: Client | null) {
     if (!client?.phone) { setWaStatus("idle"); return; }
-    const ws = settingsStore.wasender as { apiKey: string; autoFollowup: boolean };
-    const followupTemplate = (settingsStore.whatsapp as { followup: string }).followup;
     const salonName = (settingsStore.salon as { name: string }).name;
     const serviceList = invoice.items.filter(i => i.type === "service").map(i => i.description).join(", ") || invoice.items[0]?.description || "your service";
     const phone = normalizePhone(client.phone);
 
-    if (ws.apiKey && ws.autoFollowup && followupTemplate) {
-      try {
-        const text = followupTemplate
-          .replace(/\{\{name\}\}/g, client.name)
-          .replace(/\{\{service\}\}/g, serviceList)
-          .replace(/\{\{salon_name\}\}/g, salonName);
-        const res = await fetch("/api/whatsapp/send", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apiKey: ws.apiKey, phone, text }),
-        });
-        const data = await res.json() as { ok: boolean };
-        appendLog({ type: "followup", clientName: client.name, phone, status: data.ok ? "sent" : "failed", templateId: "direct" });
-        setWaStatus(data.ok ? "sent" : "failed");
-        return;
-      } catch { /* fallthrough */ }
-    }
-
     const wa = settingsStore.whatsapp as Record<string, string>;
-    const tpl = wa.followup || "";
+    const tpl = wa.receipt || "";
     const msg = tpl
       ? tpl.replace(/\{\{name\}\}/g, client.name).replace(/\{\{service\}\}/g, serviceList).replace(/\{\{salon_name\}\}/g, salonName)
       : `Hi ${client.name}! 🧾 Thanks for visiting *${salonName}*.\n\n*Receipt ${invoice.number}*\n` +
