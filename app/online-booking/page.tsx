@@ -1,7 +1,7 @@
 "use client";
 
 import './onlineBooking.css';
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle, Clock, Calendar, User, Scissors, ChevronRight, ChevronLeft, MessageSquare, Check } from "lucide-react";
 import {
@@ -64,7 +64,7 @@ function fmtDate(s: string) {
   });
 }
 
-export default function OnlineBookingPage() {
+function OnlineBookingInner() {
   const searchParams = useSearchParams();
   const salonId = searchParams.get("salon"); // present when accessed by external customers
 
@@ -447,5 +447,13 @@ export default function OnlineBookingPage() {
         <MessageSquare size={22} />
       </div>
     </div>
+  );
+}
+
+export default function OnlineBookingPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0a0a0f" }} />}>
+      <OnlineBookingInner />
+    </Suspense>
   );
 }

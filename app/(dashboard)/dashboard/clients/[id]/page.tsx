@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getStoredClients, getStoredAppointments, saveClients, getStoredStaff } from "@/lib/storage";
+import { getStoredClients, getStoredAppointments, saveClients } from "@/lib/storage";
 import { BEAUTY_PROFILES } from "@/lib/mock-data";
-import type { Client, Appointment, Staff } from "@/lib/types";
+import type { Client, Appointment } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
@@ -77,7 +77,6 @@ export default function ClientProfilePage() {
 
   const [client, setClient] = useState<Client | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [staffList, setStaffList] = useState<Staff[]>([]);
   const [visitPhotos, setVisitPhotos] = useState<Record<string, { before?: string; after?: string }>>({});
   const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -99,7 +98,6 @@ export default function ClientProfilePage() {
     }
     const appts = allAppts.filter((a) => a.clientId === clientId);
     setAppointments(appts);
-    setStaffList(getStoredStaff());
 
     try {
       const stored = localStorage.getItem(`werzio_photos_${clientId}`);
@@ -157,10 +155,11 @@ export default function ClientProfilePage() {
   const upcomingAppts  = appointments.filter((a) => !["completed", "cancelled", "no-show"].includes(a.status)).sort((a, b) => a.date.localeCompare(b.date));
   const cancelledAppts = appointments.filter((a) => a.status === "cancelled" || a.status === "no-show").sort((a, b) => b.date.localeCompare(a.date));
 
-  const totalVisits = completedAppts.length;
-  const totalSpend  = completedAppts.reduce((s, a) => s + a.totalAmount, 0);
+  // Use stored accumulated values (include POS + all devices) — they're always >= local appointment count
+  const totalVisits = Math.max(client.totalVisits ?? 0, completedAppts.length);
+  const totalSpend  = Math.max(client.totalSpend  ?? 0, completedAppts.reduce((s, a) => s + a.totalAmount, 0));
   const avgTicket   = totalVisits ? Math.round(totalSpend / totalVisits) : 0;
-  const lastVisit   = completedAppts[0]?.date;
+  const lastVisit   = client.lastVisitDate ?? completedAppts[0]?.date;
 
   const serviceFreq: Record<string, { count: number; spend: number }> = {};
   completedAppts.forEach((a) => {
