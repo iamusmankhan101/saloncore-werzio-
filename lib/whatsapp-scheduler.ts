@@ -268,6 +268,19 @@ export async function runWhatsAppScheduler(): Promise<void> {
   try { await runSchedulerInternal(); } finally { schedulerRunning = false; }
 }
 
+/** Returns true when the current local time falls within the salon's opening hours for today. */
+function isWithinSalonHours(): boolean {
+  const hoursConfig = settingsStore.hours as Array<{ day: string; open: boolean; from: string; to: string }>;
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const now = new Date();
+  const todayHours = hoursConfig.find(h => h.day === dayNames[now.getDay()]);
+  if (!todayHours || !todayHours.open) return false;
+  const [fromH, fromM] = todayHours.from.split(":").map(Number);
+  const [toH, toM]     = todayHours.to.split(":").map(Number);
+  const nowMin  = now.getHours() * 60 + now.getMinutes();
+  return nowMin >= fromH * 60 + fromM && nowMin <= toH * 60 + toM;
+}
+
 async function runSchedulerInternal(): Promise<void> {
   const ws = settingsStore.wasender as {
     apiKey: string;
@@ -294,13 +307,18 @@ async function runSchedulerInternal(): Promise<void> {
   const salonName = settingsStore.salon.name as string;
   const now = new Date();
 
+  // Reminders, follow-ups, cancellations, birthdays, and low-stock alerts only
+  // fire during salon opening hours so clients aren't messaged at midnight.
+  // Booking confirmations always fire immediately regardless of the hour.
+  const openNow = isWithinSalonHours();
+
   function clientPhone(clientId: string): string {
     const client = clients.find((c) => c.id === clientId);
     return client?.phone ? normalizePhone(client.phone) : "";
   }
 
-  // 1. Appointment reminders — send X hours before appointment
-  if (ws.autoReminder && waTpl.reminder) {
+  // 1. Appointment reminders — send X hours before appointment (only during salon hours)
+  if (openNow && ws.autoReminder && waTpl.reminder) {
     for (const appt of appointments) {
       if (appt.status === "cancelled" || appt.status === "no-show" || appt.status === "completed") continue;
       const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
@@ -339,8 +357,8 @@ async function runSchedulerInternal(): Promise<void> {
     setQueue(CONFIRM_QUEUE_KEY, remaining);
   }
 
-  // 3. Follow-up messages — send 24h after completion (max 3 attempts)
-  if (ws.autoFollowup && waTpl.followup) {
+  // 3. Follow-up messages — send 24h after completion, only during salon hours
+  if (openNow && ws.autoFollowup && waTpl.followup) {
     const queue = getQueue(FOLLOWUP_QUEUE_KEY);
     const remaining: QueueItem[] = [];
     for (const item of queue) {
@@ -365,9 +383,9 @@ async function runSchedulerInternal(): Promise<void> {
     setQueue(FOLLOWUP_QUEUE_KEY, remaining);
   }
 
-  // 4. Cancellation win-back messages — sent 24h after cancellation
+  // 4. Cancellation win-back messages — sent 24h after cancellation, only during salon hours
   const cancelTpl = (settingsStore.whatsapp as { cancellation: string }).cancellation;
-  if (ws.autoCancellation && cancelTpl) {
+  if (openNow && ws.autoCancellation && cancelTpl) {
     const queue = getQueue(CANCEL_QUEUE_KEY);
     const remaining: QueueItem[] = [];
     for (const item of queue) {
@@ -395,11 +413,11 @@ async function runSchedulerInternal(): Promise<void> {
     setQueue(CANCEL_QUEUE_KEY, remaining);
   }
 
-  // 5. Low stock alerts
-  await checkLowStockAlerts();
+  // 5. Low stock alerts (only during salon hours)
+  if (openNow) await checkLowStockAlerts();
 
-  // 6. Birthday reminders
-  await checkBirthdayReminders();
+  // 6. Birthday reminders (only during salon hours)
+  if (openNow) await checkBirthdayReminders();
 }
 
 /**
