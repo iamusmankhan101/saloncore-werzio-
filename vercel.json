@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/daily-report",
       "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/followup",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/lowstock",
+      "schedule": "0 5 * * *"
     }
   ]
 }

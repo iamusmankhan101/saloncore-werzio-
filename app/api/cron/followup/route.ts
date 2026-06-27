@@ -137,7 +137,7 @@ async function runFollowupCron() {
       });
       if (apptRow.rows.length === 0) continue;
 
-      const appointments: Appointment[] = JSON.parse(apptRow.data as string ?? apptRow.rows[0].data as string);
+      const appointments: Appointment[] = JSON.parse(apptRow.rows[0].data as string);
       const clientsRow = await db.execute({
         sql: "SELECT data FROM salon_data WHERE entity = ?",
         args: [`${userId}_clients`],
