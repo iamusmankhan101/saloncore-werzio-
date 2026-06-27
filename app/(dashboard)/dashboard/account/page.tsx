@@ -644,6 +644,55 @@ interface DecidrSettings {
   apiKey: string;
 }
 
+function GoogleWalletClassUpdater() {
+  const [status, setStatus] = useState<"idle"|"loading"|"ok"|"error">("idle");
+  const [msg, setMsg]       = useState("");
+
+  async function updateClass() {
+    setStatus("loading"); setMsg("");
+    try {
+      const salon   = settingsStore.salon as { name?: string; logo?: string };
+      const logoUrl = salon.logo?.startsWith("https://") ? salon.logo : undefined;
+      const res  = await fetch("/api/wallet/update-class", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ salonName: salon.name || "Werzio", logoUrl, bgColor: "#5B21B6" }),
+      });
+      const data = await res.json() as { ok: boolean; message?: string; error?: string };
+      if (data.ok) { setStatus("ok");  setMsg(data.message ?? "Card updated!"); }
+      else         { setStatus("error"); setMsg(data.error ?? "Update failed"); }
+    } catch (e) {
+      setStatus("error"); setMsg(String(e));
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 24, padding: "18px 20px", border: "1px solid #ddd6fe", borderRadius: 14, background: "#faf9ff" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#1d1d2f" }}>🎫 Google Wallet Card Branding</div>
+          <div style={{ fontSize: 11, color: "#9999b0", marginTop: 2 }}>
+            Push your salon name, logo &amp; purple background to the loyalty card class in Google Wallet.
+          </div>
+        </div>
+        <button onClick={updateClass} disabled={status === "loading"}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "none", fontSize: 12, fontWeight: 700, cursor: status === "loading" ? "wait" : "pointer", whiteSpace: "nowrap",
+            background: status === "ok" ? "#dcfce7" : status === "error" ? "#fee2e2" : "linear-gradient(135deg,#5B21B6,#9333EA)",
+            color:      status === "ok" ? "#14532d" : status === "error" ? "#991b1b" : "#fff",
+          }}>
+          {status === "loading" ? "Updating…" : status === "ok" ? "✓ Updated!" : status === "error" ? "✗ Failed" : "Update Card"}
+        </button>
+      </div>
+      {msg && (
+        <div style={{ fontSize: 11, color: status === "ok" ? "#059669" : "#dc2626", marginTop: 4, fontWeight: 500 }}>{msg}</div>
+      )}
+      <div style={{ fontSize: 11, color: "#9999b0", marginTop: 8, lineHeight: 1.6 }}>
+        ⚠️ Salon logo must be an <strong>https://</strong> public URL (not base64). The card will show the updated branding within a few minutes.
+      </div>
+    </div>
+  );
+}
+
 function DecidrLoyaltySection() {
   const cashback = settingsStore.cashback as DecidrSettings;
   const [form, setForm] = useState<DecidrSettings>({
@@ -726,6 +775,8 @@ function DecidrLoyaltySection() {
 
       {saved && <div style={{ marginTop: 16 }}><SavedBanner text="Decidr loyalty settings saved." /></div>}
       <SaveButton onClick={save} />
+
+      <GoogleWalletClassUpdater />
     </section>
   );
 }
