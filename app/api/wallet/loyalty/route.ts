@@ -113,7 +113,7 @@ function buildObjectPayload(objectId: string, client: Client, salonName: string,
     messages: [
       {
         header:      salonName,
-        body:        "Thank you for your loyalty!",
+        body:        "",
         id:          "salon_name",
         messageType: "TEXT",
       },
