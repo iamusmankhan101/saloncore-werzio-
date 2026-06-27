@@ -108,8 +108,16 @@ function buildObjectPayload(objectId: string, client: Client, salonName: string,
     id: objectId,
     classId,
     state: "ACTIVE",
-    accountId: salonName,           // shows as sub-text under the name — displays salon name instantly
+    accountId:   client.phone || client.id,
     accountName: client.name,
+    messages: [
+      {
+        header:      salonName,
+        body:        "Thank you for your loyalty!",
+        id:          "salon_name",
+        messageType: "TEXT",
+      },
+    ],
     loyaltyPoints: {
       balance: { int: balance },
       label: "Points",
