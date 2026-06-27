@@ -215,7 +215,7 @@ export async function checkBirthdayReminders(force = false): Promise<void> {
   };
 
   if (!force && !bd.autoBirthday) return;
-  if (!ws.apiKey) return;
+  if (!force && !ws.apiKey) return; // on manual Send Now, let the server use its fallback key
 
   const birthdayTemplate = (settingsStore.whatsapp as { birthday: string }).birthday;
   if (!birthdayTemplate) return;

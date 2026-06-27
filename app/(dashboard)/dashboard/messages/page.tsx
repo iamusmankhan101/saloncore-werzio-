@@ -897,9 +897,9 @@ export default function MessagesPage() {
                       style={{ flex: 1, border: "none", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: bdSaving ? "not-allowed" : "pointer", background: bdSaved ? "#ecfdf5" : "linear-gradient(135deg,#be185d,#db2777)", color: bdSaved ? "#059669" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, boxShadow: bdSaved ? "none" : "0 3px 10px rgba(219,39,119,0.3)" }}>
                       {bdSaved ? <><Check size={13} /> Saved</> : bdSaving ? "Saving…" : <><Save size={13} /> Save</>}
                     </button>
-                    <button type="button" onClick={sendBirthdayNow} disabled={bdSending || !isConnected || todayBirthdayClients.length === 0}
-                      title={!isConnected ? "WaSender API key not configured" : todayBirthdayClients.length === 0 ? "No clients have a birthday today" : "Send birthday messages now"}
-                      style={{ flex: 1, border: "1px solid #fce7f3", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: (bdSending || !isConnected || todayBirthdayClients.length === 0) ? "not-allowed" : "pointer", background: bdSendDone ? "#ecfdf5" : "#fff3f8", color: bdSendDone ? "#059669" : "#db2777", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: (!isConnected || todayBirthdayClients.length === 0) ? 0.5 : 1 }}>
+                    <button type="button" onClick={sendBirthdayNow} disabled={bdSending || todayBirthdayClients.length === 0}
+                      title={todayBirthdayClients.length === 0 ? "No clients have a birthday today" : "Send birthday messages now"}
+                      style={{ flex: 1, border: "1px solid #fce7f3", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: (bdSending || todayBirthdayClients.length === 0) ? "not-allowed" : "pointer", background: bdSendDone ? "#ecfdf5" : "#fff3f8", color: bdSendDone ? "#059669" : "#db2777", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: todayBirthdayClients.length === 0 ? 0.5 : 1 }}>
                       {bdSendDone ? <><Check size={13} /> Sent!</> : bdSending ? "Sending…" : <><Send size={13} /> Send Now</>}
                     </button>
                   </div>
