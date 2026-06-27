@@ -1,7 +1,8 @@
 "use client";
 
 import './onlineBooking.css';
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle, Clock, Calendar, User, Scissors, ChevronRight, ChevronLeft, MessageSquare, Check } from "lucide-react";
 import {
   getStoredAppointments,
@@ -33,12 +34,6 @@ function createId(prefix: string) {
   return `${prefix}_${Date.now()}`;
 }
 
-function getBusinessHoursForDate(date: string): BusinessHour | undefined {
-  if (!date) return undefined;
-  const [y, m, d] = date.split("-").map(Number);
-  const dayName = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long" });
-  return (settingsStore.hours as BusinessHour[]).find((h) => h.day === dayName);
-}
 
 function timeToMinutes(t: string) {
   const [h, m] = t.split(":").map(Number);
@@ -70,10 +65,29 @@ function fmtDate(s: string) {
 }
 
 export default function OnlineBookingPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>(getStoredAppointments());
-  const [clients, setClients]           = useState<Client[]>(getStoredClients());
-  const [staffList]                     = useState<Staff[]>(getStoredStaff());
-  const [services]                      = useState<Service[]>(getStoredServices());
+  const searchParams = useSearchParams();
+  const salonId = searchParams.get("salon"); // present when accessed by external customers
+
+  const [appointments, setAppointments] = useState<Appointment[]>(() => salonId ? [] : getStoredAppointments());
+  const [clients, setClients]           = useState<Client[]>(() => salonId ? [] : getStoredClients());
+  const [staffList, setStaffList]       = useState<Staff[]>(() => salonId ? [] : getStoredStaff());
+  const [services, setServices]         = useState<Service[]>(() => salonId ? [] : getStoredServices());
+  const [remoteSettings, setRemoteSettings] = useState<Record<string, unknown> | null>(null);
+
+  // When accessed with ?salon=xxx, load everything from the DB instead of localStorage
+  useEffect(() => {
+    if (!salonId) return;
+    fetch(`/api/public/salon?salonId=${encodeURIComponent(salonId)}`)
+      .then((r) => r.json())
+      .then((data: { ok: boolean; services: Service[]; staff: Staff[]; settings: Record<string, unknown>; appointments: Appointment[] }) => {
+        if (!data.ok) return;
+        setServices(data.services ?? []);
+        setStaffList(data.staff ?? []);
+        setAppointments(data.appointments ?? []);
+        setRemoteSettings(data.settings ?? null);
+      })
+      .catch(() => {});
+  }, [salonId]);
 
   const [step, setStep]                         = useState<1 | 2 | 3 | "success">(1);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
@@ -84,13 +98,25 @@ export default function OnlineBookingPage() {
   const [phone, setPhone]                       = useState("");
   const [notes, setNotes]                       = useState("");
 
+  // Use remote settings (when external customer) or local settingsStore (owner's device)
+  const hoursSource = salonId
+    ? ((remoteSettings?.hours ?? []) as BusinessHour[])
+    : (settingsStore.hours as BusinessHour[]);
+
+  function getHoursForDate(date: string): BusinessHour | undefined {
+    if (!date) return undefined;
+    const [y, m, d] = date.split("-").map(Number);
+    const dayName = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long" });
+    return hoursSource.find((h) => h.day === dayName);
+  }
+
   const availableServices  = selectedStaffId
     ? services.filter((s) => s.assignedStaffIds.includes(selectedStaffId))
     : services;
   const selectedServices   = services.filter((s) => selectedServiceIds.includes(s.id));
   const totalDuration      = selectedServices.reduce((sum, s) => sum + s.durationMin, 0);
   const totalPrice         = selectedServices.reduce((sum, s) => sum + s.price, 0);
-  const selectedHours      = getBusinessHoursForDate(selectedDate);
+  const selectedHours      = getHoursForDate(selectedDate);
   const dateIsOpen         = !selectedDate || !selectedHours || selectedHours.open;
   const today              = new Date().toISOString().split("T")[0];
 
@@ -110,22 +136,14 @@ export default function OnlineBookingPage() {
     const existing = clients.find(
       (c) => c.phone.replace(/\D/g, "") === phone.replace(/\D/g, "")
     );
-    let finalClientId = "";
-    let newClientObj: Client | undefined;
-
-    if (existing) {
-      finalClientId = existing.id;
-    } else {
-      const newId = createId("c");
-      newClientObj = {
-        id: newId, name, phone, gender: "female",
-        tags: ["New"], source: "web",
-        createdAt: selectedDate || new Date().toISOString().split("T")[0],
-        totalVisits: 1, totalSpend: totalPrice,
-        lastVisitDate: selectedDate, averageRating: 5.0,
-      };
-      finalClientId = newId;
-    }
+    let finalClientId = existing ? existing.id : createId("c");
+    const newClientObj: Client | undefined = existing ? undefined : {
+      id: finalClientId, name, phone, gender: "female",
+      tags: ["New"], source: "web",
+      createdAt: selectedDate || new Date().toISOString().split("T")[0],
+      totalVisits: 1, totalSpend: totalPrice,
+      lastVisitDate: selectedDate, averageRating: 5.0,
+    };
 
     const startTime = selectedTime || selectedHours?.from || "10:00";
     const appt: Appointment = {
@@ -147,21 +165,32 @@ export default function OnlineBookingPage() {
       notes:        notes || undefined,
     };
 
-    const updatedAppts = [appt, ...appointments];
-    setAppointments(updatedAppts);
-    saveAppointments(updatedAppts);
-
-    if (newClientObj) {
-      const updated = [newClientObj, ...clients];
-      setClients(updated); saveClients(updated);
+    if (salonId) {
+      // External customer — save directly to DB under the salon's userId
+      fetch("/api/public/booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ salonId, appointment: appt, client: newClientObj ?? undefined }),
+      }).catch(() => {});
     } else {
-      const updated = clients.map((c) =>
-        c.id === finalClientId
-          ? { ...c, totalVisits: c.totalVisits + 1, totalSpend: c.totalSpend + appt.totalAmount, lastVisitDate: appt.date }
-          : c
-      );
-      setClients(updated); saveClients(updated);
+      // On the salon's own device — use localStorage + saveToDB as before
+      const updatedAppts = [appt, ...appointments];
+      setAppointments(updatedAppts);
+      saveAppointments(updatedAppts);
+
+      if (newClientObj) {
+        const updated = [newClientObj, ...clients];
+        setClients(updated); saveClients(updated);
+      } else {
+        const updated = clients.map((c) =>
+          c.id === finalClientId
+            ? { ...c, totalVisits: c.totalVisits + 1, totalSpend: c.totalSpend + appt.totalAmount, lastVisitDate: appt.date }
+            : c
+        );
+        setClients(updated); saveClients(updated);
+      }
     }
+
     setStep("success");
 
     // Notify salon owner via WhatsApp
@@ -181,7 +210,9 @@ export default function OnlineBookingPage() {
     setStep(1);
   }
 
-  const salonName = settingsStore.salon.name as string;
+  const salonName = salonId
+    ? ((remoteSettings?.salon as { name?: string })?.name ?? "Salon")
+    : (settingsStore.salon.name as string);
 
   return (
     <div className="pageWrapper">

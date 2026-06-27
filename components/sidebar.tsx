@@ -8,7 +8,7 @@ import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
 import { SETTINGS_CHANGED_EVENT, settingsStore, reloadSettings } from "@/lib/settings-store";
 import { getCurrentPlan } from "@/lib/plan-limits";
  
-const APP_NAV = [
+const APP_NAV: { href: string; icon: React.ElementType; label: string; dynamicHref?: boolean }[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/dashboard/calendar", icon: CalendarDays, label: "Calendar" },
   { href: "/dashboard/appointments", icon: ClipboardList, label: "Appointments" },
@@ -21,7 +21,7 @@ const APP_NAV = [
   { href: "/dashboard/invoices", icon: ReceiptText, label: "Invoices" },
   { href: "/dashboard/pos", icon: ShoppingCart, label: "POS" },
   { href: "/dashboard/loyalty", icon: Gift, label: "Loyalty" },
-  { href: "/online-booking", icon: Globe, label: "Online Booking" },
+  { href: "/online-booking", icon: Globe, label: "Online Booking", dynamicHref: true },
   { href: "/dashboard/try-on", icon: Wand2, label: "Virtual Try-On" },
 ];
  
@@ -162,7 +162,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       {/* Nav */}
       <nav style={{ flex: 1, padding: "16px 10px 8px", overflowY: "auto" }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: "#3a3a58", letterSpacing: "0.1em", padding: "0 14px 8px", textTransform: "uppercase" }}>Application</div>
-        {APP_NAV.map((item) => <NavItem key={item.href} {...item} />)}
+        {APP_NAV.map((item) => (
+          <NavItem
+            key={item.href}
+            href={item.dynamicHref && user ? `${item.href}?salon=${encodeURIComponent(user.id)}` : item.href}
+            icon={item.icon}
+            label={item.label}
+          />
+        ))}
 
         <div style={{ fontSize: 10, fontWeight: 700, color: "#3a3a58", letterSpacing: "0.1em", padding: "16px 14px 8px", textTransform: "uppercase" }}>Settings</div>
         {SETTINGS_NAV.map((item) => <NavItem key={item.href} {...item} />)}
