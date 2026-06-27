@@ -6,7 +6,7 @@ import { CLIENTS, APPOINTMENTS, BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
-import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown, Camera, ExternalLink, Trash2 } from "lucide-react";
+import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
 const STATUS_CONFIG = {
@@ -551,6 +551,205 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (c: Cl
   );
 }
 
+// ── Export helpers ────────────────────────────────────────────────────────────
+const EXPORT_COLS = [
+  "Name","Phone","Email","Gender","Date of Birth","Source","Tags","Notes",
+  "Total Visits","Total Spend","Loyalty Points","Created At",
+];
+
+function clientsToRows(list: Client[]) {
+  return list.map((c) => ({
+    "Name":           c.name,
+    "Phone":          c.phone,
+    "Email":          c.email ?? "",
+    "Gender":         c.gender ?? "",
+    "Date of Birth":  c.dob ?? "",
+    "Source":         c.source,
+    "Tags":           c.tags.join(", "),
+    "Notes":          c.notes ?? "",
+    "Total Visits":   c.totalVisits,
+    "Total Spend":    c.totalSpend,
+    "Loyalty Points": c.loyaltyPoints ?? 0,
+    "Created At":     c.createdAt,
+  }));
+}
+
+async function exportClients(list: Client[], format: "xlsx" | "csv") {
+  const XLSX = await import("xlsx");
+  const ws   = XLSX.utils.json_to_sheet(clientsToRows(list), { header: EXPORT_COLS });
+  const wb   = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Clients");
+  const date = new Date().toISOString().slice(0,10);
+  if (format === "csv") {
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `clients-${date}.csv`; a.click();
+  } else {
+    XLSX.writeFile(wb, `clients-${date}.xlsx`);
+  }
+}
+
+// ── Import Modal ──────────────────────────────────────────────────────────────
+type ImportResult = { added: number; skipped: number; errors: string[] };
+
+function ImportModal({ existing, onClose, onImport }: {
+  existing: Client[];
+  onClose: () => void;
+  onImport: (newClients: Client[]) => void;
+}) {
+  const [step, setStep]     = useState<"pick" | "preview" | "done">("pick");
+  const [parsed, setParsed] = useState<Client[]>([]);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [error, setError]   = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleFile(file: File) {
+    setError(""); setLoading(true);
+    try {
+      const XLSX   = await import("xlsx");
+      const buf    = await file.arrayBuffer();
+      const wb     = XLSX.read(buf, { type: "array" });
+      const ws     = wb.Sheets[wb.SheetNames[0]];
+      const rows   = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+      if (rows.length === 0) { setError("File is empty or unreadable."); setLoading(false); return; }
+
+      const existingPhones = new Set(existing.map((c) => c.phone.replace(/\s/g, "")));
+      const newClients: Client[] = [];
+
+      for (const row of rows) {
+        const name  = String(row["Name"] ?? row["name"] ?? "").trim();
+        const phone = String(row["Phone"] ?? row["phone"] ?? row["Phone Number"] ?? "").replace(/\s/g,"").trim();
+        if (!name || !phone) continue; // skip blank rows
+        if (existingPhones.has(phone)) continue; // skip duplicates
+        existingPhones.add(phone);
+
+        const gender = String(row["Gender"] ?? "").toLowerCase();
+        newClients.push({
+          id:          `imp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+          name,
+          phone,
+          email:       String(row["Email"] ?? row["email"] ?? "").trim() || undefined,
+          gender:      (["female","male","other"].includes(gender) ? gender : undefined) as Client["gender"],
+          dob:         String(row["Date of Birth"] ?? row["DOB"] ?? row["dob"] ?? "").trim() || undefined,
+          source:      "manual",
+          tags:        String(row["Tags"] ?? row["tags"] ?? "").split(",").map(t=>t.trim()).filter(Boolean),
+          notes:       String(row["Notes"] ?? row["notes"] ?? "").trim() || undefined,
+          totalVisits: Number(row["Total Visits"] ?? 0) || 0,
+          totalSpend:  Number(row["Total Spend"]  ?? 0) || 0,
+          loyaltyPoints: Number(row["Loyalty Points"] ?? 0) || 0,
+          createdAt:   String(row["Created At"] ?? new Date().toISOString().slice(0,10)),
+        });
+      }
+      setParsed(newClients);
+      setStep("preview");
+    } catch (e) {
+      setError(`Could not read file: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    setLoading(false);
+  }
+
+  function confirmImport() {
+    const skipped = 0;
+    onImport(parsed);
+    setResult({ added: parsed.length, skipped, errors: [] });
+    setStep("done");
+  }
+
+  return (
+    <div onClick={onClose} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:"#fff",borderRadius:18,width:"100%",maxWidth:520,padding:28,boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
+
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20 }}>
+          <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+            <div style={{ width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#5B21B6,#9333EA)",display:"flex",alignItems:"center",justifyContent:"center" }}>
+              <FileSpreadsheet size={18} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontSize:15,fontWeight:800,color:"#1a1a2e" }}>Import Clients</div>
+              <div style={{ fontSize:11,color:"#9898b0" }}>XLSX or CSV file</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:"none",border:"none",cursor:"pointer",display:"flex" }}><X size={18} color="#9898b0" /></button>
+        </div>
+
+        {/* Step: pick file */}
+        {step === "pick" && (
+          <>
+            <label style={{ display:"block",border:"2px dashed #ddd6fe",borderRadius:14,padding:"32px 20px",textAlign:"center",cursor:"pointer",background:"#faf9ff",transition:"border-color 0.2s" }}
+              onDragOver={e=>{e.preventDefault();}} onDrop={e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleFile(f);}}>
+              <input type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={e=>{const f=e.target.files?.[0];if(f)handleFile(f);}} />
+              <Upload size={28} color="#7C3AED" style={{ marginBottom:10 }} />
+              <div style={{ fontSize:14,fontWeight:700,color:"#5B21B6",marginBottom:4 }}>Click to choose file or drag & drop</div>
+              <div style={{ fontSize:12,color:"#9898b0" }}>Supports .xlsx, .xls, .csv</div>
+            </label>
+            {loading && <div style={{ textAlign:"center",marginTop:16,color:"#7C3AED",fontSize:13,fontWeight:600 }}>Reading file…</div>}
+            {error  && <div style={{ marginTop:12,padding:"10px 14px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,fontSize:13,color:"#dc2626" }}>{error}</div>}
+
+            <div style={{ marginTop:18,padding:"12px 16px",background:"#f5f3ff",borderRadius:12,fontSize:12,color:"#5B21B6",lineHeight:1.7 }}>
+              <strong>Required columns:</strong> Name, Phone<br/>
+              <strong>Optional:</strong> Email, Gender, Date of Birth, Tags (comma-separated), Notes, Source<br/>
+              <strong>Tip:</strong> Export existing clients first to see the exact column format.
+            </div>
+          </>
+        )}
+
+        {/* Step: preview */}
+        {step === "preview" && (
+          <>
+            <div style={{ padding:"12px 16px",background:"#f0fdf4",border:"1px solid #86efac",borderRadius:12,marginBottom:16,fontSize:13,color:"#14532d",fontWeight:600 }}>
+              ✓ Found <strong>{parsed.length}</strong> new client{parsed.length!==1?"s":""} ready to import
+            </div>
+            {parsed.length > 0 && (
+              <div style={{ maxHeight:240,overflowY:"auto",border:"1px solid #e8e8f0",borderRadius:12,marginBottom:16 }}>
+                <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+                  <thead><tr style={{ background:"#f5f3ff" }}>
+                    {["Name","Phone","Email","Tags"].map(h=><th key={h} style={{ padding:"8px 12px",textAlign:"left",fontWeight:700,color:"#5B21B6",fontSize:11 }}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {parsed.slice(0,50).map((c,i)=>(
+                      <tr key={c.id} style={{ borderTop:"1px solid #f0f0f8",background:i%2===0?"#fff":"#fdfcff" }}>
+                        <td style={{ padding:"7px 12px",fontWeight:600,color:"#1a1a2e" }}>{c.name}</td>
+                        <td style={{ padding:"7px 12px",color:"#6b6b8a" }}>{c.phone}</td>
+                        <td style={{ padding:"7px 12px",color:"#6b6b8a" }}>{c.email||"—"}</td>
+                        <td style={{ padding:"7px 12px",color:"#6b6b8a" }}>{c.tags.join(", ")||"—"}</td>
+                      </tr>
+                    ))}
+                    {parsed.length>50&&<tr><td colSpan={4} style={{ padding:"8px 12px",color:"#9898b0",fontSize:11,textAlign:"center" }}>…and {parsed.length-50} more</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {parsed.length === 0 && (
+              <div style={{ padding:"20px",textAlign:"center",color:"#9898b0",fontSize:13 }}>No new clients found — all rows already exist or are missing Name/Phone.</div>
+            )}
+            <div style={{ display:"flex",gap:10 }}>
+              <button onClick={()=>setStep("pick")} style={{ flex:1,padding:"11px 0",borderRadius:10,border:"1px solid #e8e8f0",background:"#fff",fontSize:13,fontWeight:600,color:"#6b6b8a",cursor:"pointer" }}>Back</button>
+              <button onClick={confirmImport} disabled={parsed.length===0}
+                style={{ flex:2,padding:"11px 0",borderRadius:10,border:"none",background:parsed.length>0?"linear-gradient(135deg,#5B21B6,#9333EA)":"#e8e8f0",fontSize:13,fontWeight:700,color:parsed.length>0?"#fff":"#b0b0c8",cursor:parsed.length>0?"pointer":"not-allowed" }}>
+                Import {parsed.length} Client{parsed.length!==1?"s":""}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step: done */}
+        {step === "done" && result && (
+          <div style={{ textAlign:"center",padding:"12px 0" }}>
+            <div style={{ fontSize:44,marginBottom:12 }}>🎉</div>
+            <div style={{ fontSize:18,fontWeight:800,color:"#1a1a2e",marginBottom:6 }}>Import Complete!</div>
+            <div style={{ fontSize:14,color:"#6b6b8a",marginBottom:20 }}>
+              <strong style={{ color:"#059669" }}>{result.added}</strong> client{result.added!==1?"s":""} added successfully
+            </div>
+            <button onClick={onClose} style={{ padding:"11px 36px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#5B21B6,#9333EA)",fontSize:13,fontWeight:700,color:"#fff",cursor:"pointer" }}>Done</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ClientsPage() {
   const router = useRouter();
@@ -564,6 +763,8 @@ export default function ClientsPage() {
   const [showDeleteAll, setShowDeleteAll] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteSelected, setShowDeleteSelected] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -693,6 +894,20 @@ export default function ClientsPage() {
           }}
         />
       )}
+      {showImport && (
+        <ImportModal
+          existing={clients}
+          onClose={() => setShowImport(false)}
+          onImport={(newClients) => {
+            setClients((prev) => {
+              const merged = [...newClients, ...prev];
+              saveClients(merged);
+              return merged;
+            });
+          }}
+        />
+      )}
+
       {showDeleteSelected && (
         <DeleteAllConfirmModal
           count={selectedIds.size}
@@ -718,7 +933,7 @@ export default function ClientsPage() {
             {plan.clientLimit !== -1 && <span style={{ marginLeft: 8, color: clientLimited ? "#dc2626" : "#b0b0c8" }}>· {clients.length}/{plan.clientLimit} on Free plan</span>}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {clients.length > 0 && (
             <button
               onClick={() => setShowDeleteAll(true)}
@@ -726,6 +941,47 @@ export default function ClientsPage() {
               <Trash2 size={15} /> Delete All
             </button>
           )}
+
+          {/* Import button */}
+          <button
+            onClick={() => setShowImport(true)}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 10, border: "1px solid #ddd6fe", background: "#f5f3ff", fontSize: 13, fontWeight: 600, color: "#5B21B6", cursor: "pointer" }}>
+            <Upload size={15} /> Import
+          </button>
+
+          {/* Export dropdown */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowExportMenu((v) => !v)}
+              disabled={clients.length === 0}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 10, border: "1px solid #ddd6fe", background: "#f5f3ff", fontSize: 13, fontWeight: 600, color: clients.length === 0 ? "#b0b0c8" : "#5B21B6", cursor: clients.length === 0 ? "not-allowed" : "pointer" }}>
+              <Download size={15} /> Export <ChevronDown size={13} style={{ transform: showExportMenu ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+            </button>
+            {showExportMenu && (
+              <>
+                <div onClick={() => setShowExportMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 10 }} />
+                <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20, minWidth: 160, overflow: "hidden" }}>
+                  {[
+                    { fmt: "xlsx" as const, label: "Excel (.xlsx)", icon: "📊" },
+                    { fmt: "csv"  as const, label: "CSV (.csv)",   icon: "📄" },
+                  ].map(({ fmt, label, icon }) => (
+                    <button key={fmt} onClick={() => { setShowExportMenu(false); exportClients(filtered.length < clients.length ? filtered : clients, fmt); }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", fontSize: 13, fontWeight: 600, color: "#1a1a2e", cursor: "pointer", textAlign: "left" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#f5f3ff")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                      <span>{icon}</span>{label}
+                    </button>
+                  ))}
+                  {filtered.length < clients.length && (
+                    <div style={{ padding: "6px 16px 10px", fontSize: 11, color: "#9898b0", borderTop: "1px solid #f0f0f8" }}>
+                      Exports {filtered.length} filtered clients
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
           <button
             onClick={() => !clientLimited && setShowAdd(true)}
             className="page-header-btn"
