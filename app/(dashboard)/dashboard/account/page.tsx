@@ -34,7 +34,7 @@ const BASE_SECTIONS: { id: SectionId; label: string; icon: React.ElementType }[]
   { id: "hours",    label: "Business Hours",  icon: Clock },
   { id: "security", label: "Security",        icon: Shield },
   { id: "whatsapp", label: "WhatsApp",        icon: Smartphone },
-  { id: "decidr",   label: "Decidr Loyalty",  icon: Banknote },
+  { id: "decidr",   label: "Loyalty",          icon: Banknote },
 ];
 
 const inputStyle: CSSProperties = {
@@ -639,13 +639,8 @@ function WhatsAppSection() {
   );
 }
 
-interface DecidrSettings {
-  enabled: boolean;
-  apiKey: string;
-}
-
-function GoogleWalletClassUpdater() {
-  const [status, setStatus] = useState<"idle"|"loading"|"ok"|"error">("idle");
+function DecidrLoyaltySection() {
+  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [msg, setMsg]       = useState("");
 
   async function updateClass() {
@@ -659,124 +654,60 @@ function GoogleWalletClassUpdater() {
         body: JSON.stringify({ salonName: salon.name || "Werzio", logoUrl, bgColor: "#5B21B6" }),
       });
       const data = await res.json() as { ok: boolean; message?: string; error?: string };
-      if (data.ok) { setStatus("ok");  setMsg(data.message ?? "Card updated!"); }
-      else         { setStatus("error"); setMsg(data.error ?? "Update failed"); }
+      if (data.ok) { setStatus("ok");    setMsg(data.message ?? "Card updated!"); }
+      else         { setStatus("error"); setMsg(data.error  ?? "Update failed");  }
     } catch (e) {
       setStatus("error"); setMsg(String(e));
     }
   }
 
   return (
-    <div style={{ marginTop: 24, padding: "18px 20px", border: "1px solid #ddd6fe", borderRadius: 14, background: "#faf9ff" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#1d1d2f" }}>🎫 Google Wallet Card Branding</div>
-          <div style={{ fontSize: 11, color: "#9999b0", marginTop: 2 }}>
-            Push your salon name, logo &amp; purple background to the loyalty card class in Google Wallet.
+    <section>
+      <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Loyalty</h2>
+      <p style={{ margin: "0 0 28px", color: "#9999b0", fontSize: 12 }}>
+        Manage your Google Wallet loyalty card branding. Push your salon name and Werzio theme to all client passes.
+      </p>
+
+      {/* Google Wallet card preview */}
+      <div style={{ marginBottom: 24, borderRadius: 18, overflow: "hidden", background: "linear-gradient(135deg,#5B21B6,#7C3AED)", padding: "22px 24px", color: "#fff", position: "relative" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Google Wallet</div>
+        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 2 }}>{(settingsStore.salon as { name?: string }).name || "Your Salon"} Loyalty</div>
+        <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 18 }}>Powered by Werzio</div>
+        <div style={{ display: "flex", gap: 16 }}>
+          <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 16px", fontSize: 11 }}>
+            <div style={{ opacity: 0.7, marginBottom: 2 }}>Points</div>
+            <div style={{ fontWeight: 900, fontSize: 18 }}>0</div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 16px", fontSize: 11 }}>
+            <div style={{ opacity: 0.7, marginBottom: 2 }}>Tier</div>
+            <div style={{ fontWeight: 900, fontSize: 18 }}>Member</div>
           </div>
         </div>
-        <button onClick={updateClass} disabled={status === "loading"}
-          style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "none", fontSize: 12, fontWeight: 700, cursor: status === "loading" ? "wait" : "pointer", whiteSpace: "nowrap",
+      </div>
+
+      {/* Update button */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", border: "1px solid #ddd6fe", borderRadius: 14, background: "#faf9ff" }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#1d1d2f" }}>Push branding to Google Wallet</div>
+          <div style={{ fontSize: 11, color: "#9999b0", marginTop: 2 }}>Updates the salon name on all client loyalty cards.</div>
+        </div>
+        <button
+          onClick={updateClass}
+          disabled={status === "loading"}
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "10px 20px", borderRadius: 10, border: "none",
+            fontSize: 13, fontWeight: 700, cursor: status === "loading" ? "wait" : "pointer", whiteSpace: "nowrap",
             background: status === "ok" ? "#dcfce7" : status === "error" ? "#fee2e2" : "linear-gradient(135deg,#5B21B6,#9333EA)",
             color:      status === "ok" ? "#14532d" : status === "error" ? "#991b1b" : "#fff",
-          }}>
+          }}
+        >
           {status === "loading" ? "Updating…" : status === "ok" ? "✓ Updated!" : status === "error" ? "✗ Failed" : "Update Card"}
         </button>
       </div>
       {msg && (
-        <div style={{ fontSize: 11, color: status === "ok" ? "#059669" : "#dc2626", marginTop: 4, fontWeight: 500 }}>{msg}</div>
+        <div style={{ fontSize: 11, color: status === "ok" ? "#059669" : "#dc2626", marginTop: 8, fontWeight: 500, paddingLeft: 4 }}>{msg}</div>
       )}
-      <div style={{ fontSize: 11, color: "#9999b0", marginTop: 8, lineHeight: 1.6 }}>
-        ⚠️ Salon logo must be an <strong>https://</strong> public URL (not base64). The card will show the updated branding within a few minutes.
-      </div>
-    </div>
-  );
-}
-
-function DecidrLoyaltySection() {
-  const cashback = settingsStore.cashback as DecidrSettings;
-  const [form, setForm] = useState<DecidrSettings>({
-    enabled: cashback.enabled,
-    apiKey: cashback.apiKey || "",
-  });
-  const [saved, setSaved] = useState(false);
-  const active = form.enabled && !!form.apiKey.trim();
-
-  function save() {
-    Object.assign(settingsStore.cashback, {
-      enabled: form.enabled,
-      apiKey: form.apiKey.trim(),
-    });
-    saveSettings();
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2200);
-  }
-
-  return (
-    <section>
-      <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Decidr Loyalty</h2>
-      <p style={{ margin: "0 0 24px", color: "#9999b0", fontSize: 12 }}>
-        Connect your loyalty-saas cashback API key so POS can fetch balances, redeem cashback, and award cashback after checkout.
-      </p>
-
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "14px 16px",
-        borderRadius: 12,
-        border: `1px solid ${active ? "#bbf7d0" : "#ddd6fe"}`,
-        background: active ? "#ecfdf5" : "#f5f4ff",
-        marginBottom: 22,
-      }}>
-        <div style={{ width: 38, height: 38, borderRadius: 11, background: active ? "#dcfce7" : "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Banknote size={18} color={active ? "#059669" : "var(--accent)"} />
-        </div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: active ? "#047857" : "var(--accent)" }}>
-            {active ? "Cashback active in POS" : "Decidr cashback not connected"}
-          </div>
-          <div style={{ fontSize: 11, color: "#777790", marginTop: 3, lineHeight: 1.5 }}>
-            {active
-              ? "When a client is selected in POS, their balance is loaded automatically and updated after payment."
-              : "Generate an API key in loyalty-saas, paste it here, then enable cashback."}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gap: 16 }}>
-        <AutoRow
-          label="Enable Decidr Cashback"
-          hint="Award and redeem cashback at every POS checkout"
-          enabled={form.enabled}
-          onToggle={() => setForm((current) => ({ ...current, enabled: !current.enabled }))}
-        />
-
-        <Field label="API Key" hint="loyalty-saas dashboard → POS Integration → Generate API Key">
-          <input
-            type="password"
-            style={inputStyle}
-            value={form.apiKey}
-            onChange={(event) => setForm((current) => ({ ...current, apiKey: event.target.value }))}
-            placeholder="dlk_..."
-          />
-        </Field>
-
-        <div style={{ background: "#fafafd", border: "1px solid #e8e8f4", borderRadius: 12, padding: "14px 16px", fontSize: 12, color: "#5f5f78", lineHeight: 1.65 }}>
-          <strong style={{ display: "block", color: "#1d1d2f", marginBottom: 6 }}>How to connect</strong>
-          <ol style={{ margin: 0, paddingLeft: 18 }}>
-            <li>Open your loyalty-saas dashboard.</li>
-            <li>Go to the POS Integration tab and generate an API key.</li>
-            <li>Paste the key here and enable Decidr Cashback.</li>
-            <li>Open POS, select a client with a phone number, and complete a sale.</li>
-          </ol>
-        </div>
-      </div>
-
-      {saved && <div style={{ marginTop: 16 }}><SavedBanner text="Decidr loyalty settings saved." /></div>}
-      <SaveButton onClick={save} />
-
-      <GoogleWalletClassUpdater />
     </section>
   );
 }
