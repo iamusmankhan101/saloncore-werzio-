@@ -9,28 +9,45 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const res = await fetch("https://www.wasenderapi.com/api/session-status", {
-      headers: { "Authorization": `Bearer ${apiKey}` },
+    // WaSender has no reliable dedicated status endpoint — use the send-message
+    // endpoint with an obviously-invalid number instead.
+    // • "Session not connected / not found / disconnected" → session is DOWN
+    // • Any other response (invalid number, not on WA, even success) → session is UP
+    const res = await fetch("https://www.wasenderapi.com/api/send-message", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ phoneNumber: "000000000000", message: "__ping__" }),
+      cache: "no-store",
     });
-    // WaSender wraps the real status inside a nested `data` object:
-    // { success: true, data: { status: "CONNECTED", phoneNumber: "..." } }
-    const body = await res.json() as {
-      success?: boolean;
-      status?: string;
-      message?: string;
-      data?: { status?: string; phoneNumber?: string };
-    };
-    console.log("📶 WaSender status:", res.status, JSON.stringify(body));
 
-    // Resolve status from either the top-level or nested data field, case-insensitive
-    const rawStatus = (body.data?.status ?? body.status ?? "").toUpperCase();
-    const connected = res.ok && (body.success === true || rawStatus === "CONNECTED");
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      // HTML response means the API endpoint itself is unreachable
+      console.error("📶 WaSender ping: non-JSON", res.status);
+      return Response.json({ ok: false, connected: false, error: `WaSender HTTP ${res.status}` });
+    }
+
+    const body = await res.json() as { success?: boolean; message?: string; error?: string };
+    console.log("📶 WaSender ping:", res.status, JSON.stringify(body));
+
+    const msg = (body.message ?? body.error ?? "").toLowerCase();
+    // These strings indicate the WhatsApp session itself is not active
+    const isSessionDown = msg.includes("not connected")
+      || msg.includes("not found")
+      || msg.includes("disconnected")
+      || msg.includes("session")
+      || msg.includes("unauthorized")
+      || res.status === 401;
+
+    const connected = !isSessionDown;
     return Response.json({
       ok: connected,
       connected,
-      status: rawStatus || undefined,
-      message: body.message,
-      httpStatus: res.status,
+      status: connected ? "CONNECTED" : "DISCONNECTED",
+      message: connected ? "Session is active" : (body.message ?? "Session not connected"),
     });
   } catch (err) {
     return Response.json({ ok: false, connected: false, error: String(err) });
