@@ -57,6 +57,7 @@ interface ChartBar {
 export default function RevenuePage() {
   const [period, setPeriod]             = useState<Period>("30d");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [posInvoices, setPosInvoices]   = useState<ReturnType<typeof getSalonInvoices>>([]);
   const [today, setToday]               = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [hoveredBar, setHoveredBar]     = useState<number | null>(null);
@@ -64,6 +65,8 @@ export default function RevenuePage() {
   useEffect(() => {
     setToday(toDateStr(new Date()));
     setAppointments(getStoredAppointments());
+    // POS invoices that are paid and not linked to an appointment (avoid double-counting)
+    setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && !inv.appointmentId));
   }, []);
 
   // Reset drill-down when period changes
@@ -97,12 +100,27 @@ export default function RevenuePage() {
     appointments.filter(a => a.status === "completed" && a.date >= prevStart && a.date <= prevEnd),
     [appointments, prevStart, prevEnd]);
 
-  const totalRevenue = useMemo(() => currentAppts.reduce((s, a) => s + a.totalAmount, 0), [currentAppts]);
-  const prevRevenue  = useMemo(() => prevAppts.reduce((s, a) => s + a.totalAmount, 0), [prevAppts]);
-  const totalCount   = currentAppts.length;
-  const prevCount    = prevAppts.length;
-  const avgTicket    = totalCount ? totalRevenue / totalCount : 0;
-  const prevAvg      = prevCount  ? prevRevenue  / prevCount  : 0;
+  // POS invoices in current / previous range
+  const currentPos = useMemo(() =>
+    posInvoices.filter(inv => inv.date >= rangeStart && inv.date <= today),
+    [posInvoices, rangeStart, today]);
+
+  const prevPos = useMemo(() =>
+    posInvoices.filter(inv => inv.date >= prevStart && inv.date <= prevEnd),
+    [posInvoices, prevStart, prevEnd]);
+
+  const totalRevenue = useMemo(() =>
+    currentAppts.reduce((s, a) => s + a.totalAmount, 0) + currentPos.reduce((s, inv) => s + inv.total, 0),
+    [currentAppts, currentPos]);
+
+  const prevRevenue = useMemo(() =>
+    prevAppts.reduce((s, a) => s + a.totalAmount, 0) + prevPos.reduce((s, inv) => s + inv.total, 0),
+    [prevAppts, prevPos]);
+
+  const totalCount = currentAppts.length + currentPos.length;
+  const prevCount  = prevAppts.length  + prevPos.length;
+  const avgTicket  = totalCount ? totalRevenue / totalCount : 0;
+  const prevAvg    = prevCount  ? prevRevenue  / prevCount  : 0;
   const tipsTotal    = Math.round(totalRevenue * 0.08);
 
   const revChange = prevRevenue ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
@@ -118,10 +136,13 @@ export default function RevenuePage() {
         const d = new Date(today); d.setDate(1); d.setMonth(d.getMonth() - i);
         const key = toDateStr(d).substring(0, 7);
         const label = d.toLocaleDateString("en-PK", { month: "short" });
-        const value = appointments
+        const apptVal = appointments
           .filter(a => a.status === "completed" && a.date.startsWith(key))
           .reduce((s, a) => s + a.totalAmount, 0);
-        months.push({ label, value, isCurrentPeriod: i === 0, monthKey: key });
+        const posVal = posInvoices
+          .filter(inv => inv.date.startsWith(key))
+          .reduce((s, inv) => s + inv.total, 0);
+        months.push({ label, value: apptVal + posVal, isCurrentPeriod: i === 0, monthKey: key });
       }
       return months;
     }
@@ -131,12 +152,15 @@ export default function RevenuePage() {
     appointments.forEach(a => {
       if (a.status === "completed" && a.date in byDay) byDay[a.date] += a.totalAmount;
     });
+    posInvoices.forEach(inv => {
+      if (inv.date in byDay) byDay[inv.date] += inv.total;
+    });
     return days.map((date, idx) => {
       const d = new Date(date + "T12:00:00");
       const label = period === "30d" ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
       return { label, value: byDay[date], isCurrentPeriod: idx === days.length - 1, monthKey: date };
     });
-  }, [appointments, period, today]);
+  }, [appointments, posInvoices, period, today]);
 
   // ── Drill-down: daily rows for the selected month ─────────────────────────
   const drillRows = useMemo(() => {
@@ -147,11 +171,16 @@ export default function RevenuePage() {
     for (let day = 1; day <= daysInMonth; day++) {
       const date = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const appts = appointments.filter(a => a.status === "completed" && a.date === date);
-      const dow = new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" });
-      rows.push({ date, dow, count: appts.length, revenue: appts.reduce((s, a) => s + a.totalAmount, 0) });
+      const pos   = posInvoices.filter(inv => inv.date === date);
+      const dow   = new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" });
+      rows.push({
+        date, dow,
+        count:   appts.length + pos.length,
+        revenue: appts.reduce((s, a) => s + a.totalAmount, 0) + pos.reduce((s, inv) => s + inv.total, 0),
+      });
     }
     return rows.reverse();
-  }, [selectedMonth, appointments]);
+  }, [selectedMonth, appointments, posInvoices]);
 
   // Drill-down totals
   const drillTotal   = drillRows ? drillRows.reduce((s, r) => s + r.revenue, 0) : 0;
@@ -167,12 +196,15 @@ export default function RevenuePage() {
     currentAppts.forEach(a => {
       if (a.date in byDay) { byDay[a.date].count++; byDay[a.date].revenue += a.totalAmount; }
     });
+    currentPos.forEach(inv => {
+      if (inv.date in byDay) { byDay[inv.date].count++; byDay[inv.date].revenue += inv.total; }
+    });
     return days.map(date => ({
       date,
       dow: new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" }),
       ...byDay[date],
     })).reverse();
-  }, [currentAppts, period, today]);
+  }, [currentAppts, currentPos, period, today]);
 
   const methodBreakdown = useMemo(() => {
     // Build from paid salon invoices that fall within the current period
@@ -197,8 +229,15 @@ export default function RevenuePage() {
       if (!map[k]) map[k] = { name: k, count: 0, revenue: 0 };
       map[k].count++; map[k].revenue += a.totalAmount;
     });
+    currentPos.forEach(inv => {
+      inv.items.forEach(item => {
+        const k = item.description || "POS Sale";
+        if (!map[k]) map[k] = { name: k, count: 0, revenue: 0 };
+        map[k].count += item.qty; map[k].revenue += item.total;
+      });
+    });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 6);
-  }, [currentAppts]);
+  }, [currentAppts, currentPos]);
 
   const maxChart = Math.max(...chartData.map(d => d.value), 1);
 
@@ -544,7 +583,7 @@ export default function RevenuePage() {
       </div>
 
       {/* Empty state banner */}
-      {appointments.filter(a => a.status === "completed").length === 0 && (
+      {appointments.filter(a => a.status === "completed").length === 0 && posInvoices.length === 0 && (
         <div style={{ background: "#f8f9ff", border: "1px solid #e0e0f8", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#6b6b8a", display: "flex", alignItems: "center", gap: 10 }}>
           <TrendingUp size={16} color="#a0a0c8" />
           No completed appointments yet — revenue figures will appear here once you complete your first appointment.
