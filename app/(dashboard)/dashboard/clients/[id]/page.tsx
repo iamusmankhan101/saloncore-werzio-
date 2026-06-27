@@ -304,7 +304,7 @@ export default function ClientProfilePage() {
                                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
                                     <span style={{ fontSize: 10, fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: 20, border: "1px solid #bbf7d0" }}>POS</span>
                                     <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
-                                      {inv.items.map((it) => it.name).join(", ")}
+                                      {inv.items.map((it) => it.description).join(", ")}
                                     </span>
                                   </div>
                                   <div style={{ fontSize: 11, color: "#9898b0" }}>
@@ -325,8 +325,8 @@ export default function ClientProfilePage() {
                                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                     {inv.items.map((it, i) => (
                                       <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#1a1a2e" }}>
-                                        <span>{it.name} {it.qty > 1 ? `×${it.qty}` : ""}</span>
-                                        <span style={{ fontWeight: 700 }}>{fmt(it.price * it.qty)}</span>
+                                        <span>{it.description} {it.qty > 1 ? `×${it.qty}` : ""}</span>
+                                        <span style={{ fontWeight: 700 }}>{fmt(it.unitPrice * it.qty)}</span>
                                       </div>
                                     ))}
                                   </div>

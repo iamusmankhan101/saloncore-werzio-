@@ -119,6 +119,66 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // ── Send WhatsApp confirmation to client ──────────────────────────────────
+    const phone = client?.phone ?? appointment.clientId;
+    if (phone) {
+      try {
+        const settingsRow = await db.execute({
+          sql: "SELECT data FROM salon_data WHERE entity = ?",
+          args: [`${salonId}_settings`],
+        });
+        const settings = settingsRow.rows.length > 0
+          ? JSON.parse(settingsRow.rows[0].data as string)
+          : {};
+
+        const apiKey: string = settings?.wasender?.apiKey || process.env.WASENDER_API_KEY || "";
+        const salonName: string = settings?.salon?.name || "the salon";
+        const ownerPhone: string = settings?.wasender?.ownerPhone || "";
+
+        if (apiKey) {
+          const to12h = (t: string) => {
+            const [h, m] = t.split(":").map(Number);
+            return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+          };
+          const confirmText =
+            `✅ Booking Confirmed!\n\n` +
+            `Hi ${appointment.clientName}, your appointment at *${salonName}* is confirmed.\n\n` +
+            `📅 Date: ${appointment.date}\n` +
+            `⏰ Time: ${to12h(appointment.startTime)}\n` +
+            `💇 Service: ${appointment.serviceNames.join(", ")}\n` +
+            (appointment.staffName ? `👤 Staff: ${appointment.staffName}\n` : "") +
+            `\nSee you soon! 🌟`;
+
+          const normalizedPhone = phone.replace(/\D/g, "");
+          const to = normalizedPhone.startsWith("+") ? normalizedPhone : `+${normalizedPhone}`;
+          await fetch("https://www.wasenderapi.com/api/send-message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({ to, text: confirmText }),
+          });
+
+          // Notify salon owner of new online booking
+          if (ownerPhone) {
+            const ownerTo = ownerPhone.replace(/\D/g, "");
+            const ownerMsg =
+              `🔔 New Online Booking!\n\n` +
+              `Client: ${appointment.clientName}\n` +
+              `Phone: ${phone}\n` +
+              `📅 ${appointment.date} at ${to12h(appointment.startTime)}\n` +
+              `💇 ${appointment.serviceNames.join(", ")}`;
+            await fetch("https://www.wasenderapi.com/api/send-message", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+              body: JSON.stringify({ to: ownerTo.startsWith("+") ? ownerTo : `+${ownerTo}`, text: ownerMsg }),
+            });
+          }
+        }
+      } catch (waErr) {
+        // Non-fatal — booking is saved regardless
+        console.warn("[public/booking] WhatsApp send failed:", waErr);
+      }
+    }
+
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[public/booking] error:", err);
