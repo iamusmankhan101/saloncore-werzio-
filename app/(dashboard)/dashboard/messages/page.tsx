@@ -90,8 +90,8 @@ function getQueueLength(baseKey: string): number {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Badge({ type }: { type: WaMsgType }) {
-  const m = TYPE_META[type];
+function Badge({ type }: { type: string }) {
+  const m = TYPE_META[type as WaMsgType] ?? TYPE_META.manual;
   const Icon = m.icon;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 20, background: m.bg, color: m.color, fontSize: 11, fontWeight: 700 }}>
@@ -540,7 +540,7 @@ export default function MessagesPage() {
               </div>
               <div className="mobile-list">
                 {filtered.map((log) => {
-                  const m = TYPE_META[log.type];
+                  const m = TYPE_META[log.type as WaMsgType] ?? TYPE_META.manual;
                   const Icon = m.icon;
                   return (
                     <div key={log.id} className="mobile-list-card">
