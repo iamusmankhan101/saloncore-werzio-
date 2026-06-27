@@ -98,6 +98,7 @@ function generateWalletUrl(salonId: string, client: Client, _salonName: string, 
       label: "Points",
     },
     textModulesData: [
+      { header: "Salon",            body: _salonName,                                                                      id: "salon"    },
       { header: "Redeemable Value", body: `PKR ${value.toLocaleString()}`,                                                 id: "value"    },
       { header: "Lifetime Earned",  body: `${earned.toLocaleString()} pts`,                                                id: "earned"   },
       { header: "Tier",             body: tierLabels[tier] ?? "Member ⭐",                                                 id: "tier"     },
@@ -122,6 +123,18 @@ function generateWalletUrl(salonId: string, client: Client, _salonName: string, 
 
   const token = jwt.sign(claims, privateKey, { algorithm: "RS256" });
   return `https://pay.google.com/gp/v/save/${token}`;
+}
+
+async function fireAndForgetClassUpdate(appBaseUrl: string, salonName: string, salonLogo: string) {
+  try {
+    await fetch(`${appBaseUrl}/api/wallet/update-class`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ salonName, logoUrl: salonLogo || undefined, bgColor: "#5B21B6" }),
+    });
+  } catch {
+    // non-critical — class update failure doesn't block pass generation
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -156,8 +169,12 @@ export async function GET(req: NextRequest) {
       return Response.json({ ok: false, error: "Client not found." }, { status: 404 });
     }
 
-    const appBaseUrl = `${req.nextUrl.protocol}//${req.nextUrl.host}`;
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
     const url = generateWalletUrl(salonId, client, salonName, settings, salonLogo, appBaseUrl);
+
+    // Fire-and-forget: keep the Wallet class branding in sync with the salon name
+    void fireAndForgetClassUpdate(appBaseUrl, salonName, salonLogo);
+
     return Response.json({ ok: true, url });
   } catch (err) {
     console.error("[wallet/loyalty] error:", err);
