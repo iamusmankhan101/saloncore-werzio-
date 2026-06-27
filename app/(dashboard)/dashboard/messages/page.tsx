@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw,
   Zap, Bell, ThumbsUp, Package, ChevronRight, Phone, Copy, Check,
-  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, AlertCircle, Cake, CalendarX, CalendarPlus,
+  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, AlertCircle, Cake, CalendarX,
 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -25,7 +25,6 @@ const TYPE_META: Record<WaMsgType, { label: string; color: string; bg: string; i
   lowstock:     { label: "Low Stock",    color: "#ea580c", bg: "rgba(234,88,12,0.1)",   icon: Package },
   manual:       { label: "Manual",       color: "#6b7280", bg: "rgba(107,114,128,0.1)", icon: Send },
   birthday:     { label: "Birthday",     color: "#db2777", bg: "rgba(219,39,119,0.1)",  icon: Cake },
-  new_booking:  { label: "New Booking",  color: "#0284c7", bg: "rgba(2,132,199,0.1)",   icon: CalendarPlus },
 };
 
 const SAMPLE_VARS: Record<string, string> = {
