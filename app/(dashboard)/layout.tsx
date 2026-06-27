@@ -180,11 +180,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     async function checkWa() {
       try {
         const res  = await fetch(`/api/whatsapp/status?apiKey=${encodeURIComponent(apiKey)}`);
+        if (!res.ok) return; // server error — keep current status, don't flip to disconnected
         const data = await res.json() as { connected?: boolean };
         setWaStatus(data.connected ? "connected" : "disconnected");
-        if (data.connected) setWaBannerDismissed(false); // auto-restore banner on reconnect
+        if (data.connected) setWaBannerDismissed(false); // reset so banner can reappear on next disconnect
       } catch {
-        setWaStatus("disconnected");
+        // Network error — don't change state; avoid false-positive "disconnected" banner
       }
     }
 
