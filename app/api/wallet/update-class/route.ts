@@ -67,9 +67,9 @@ export async function POST(req: NextRequest) {
       "Content-Type":  "application/json",
     };
 
-    // First GET the class to see its current reviewStatus
+    // GET first to decide whether to PUT (create) or PATCH (update)
     const getRes  = await fetch(classUrl, { headers });
-    const getData = await getRes.json() as { id?: string; reviewStatus?: string; error?: { message?: string } };
+    const getData = await getRes.json() as { id?: string; error?: { message?: string } };
     console.log("[wallet/update-class] GET", getRes.status, JSON.stringify(getData));
 
     const patch: Record<string, unknown> = {
@@ -78,17 +78,12 @@ export async function POST(req: NextRequest) {
       programName:        `${salonName} Loyalty`,
       hexBackgroundColor: bgColor,
       loyaltyPointsLabel: "Points",
+      reviewStatus:       "UNDER_REVIEW",
       programLogo: {
         sourceUri: { uri: logoUrl },
         contentDescription: { defaultValue: { language: "en-US", value: `${salonName} logo` } },
       },
     };
-
-    // Only include reviewStatus when creating or when still in review (APPROVED classes reject it)
-    const currentStatus = getData.reviewStatus ?? "";
-    if (!getRes.ok || currentStatus === "UNDER_REVIEW" || currentStatus === "DRAFT") {
-      patch.reviewStatus = "UNDER_REVIEW";
-    }
 
     // Use PUT (full replace) when creating; PATCH (partial) when updating
     const method     = getRes.ok ? "PATCH" : "PUT";
