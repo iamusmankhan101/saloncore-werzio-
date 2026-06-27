@@ -132,7 +132,6 @@ export async function POST(req: NextRequest) {
 
       const apiKey: string = settings?.wasender?.apiKey || process.env.WASENDER_API_KEY || "";
       const salonName: string = settings?.salon?.name || "the salon";
-      const ownerPhone: string = settings?.wasender?.ownerPhone || "";
       const tpl = settings?.whatsapp ?? {};
 
       if (apiKey) {
@@ -170,18 +169,6 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // New-booking alert to owner — use saved newBooking template or fallback
-        if (ownerPhone) {
-          const newBookingTpl: string =
-            tpl.newBooking ||
-            "📅 New Booking! {{name}} has booked {{service}} on {{date}} at {{time}} at {{salon_name}}. Total: PKR {{amount}}.";
-          const ownerText = fillTemplate(newBookingTpl, vars);
-          await fetch("https://www.wasenderapi.com/api/send-message", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({ to: toE164(ownerPhone), text: ownerText }),
-          });
-        }
       }
     } catch (waErr) {
       // Non-fatal — booking is saved regardless

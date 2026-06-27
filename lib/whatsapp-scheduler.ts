@@ -24,7 +24,7 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
-export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday" | "new_booking";
+export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday";
 export type WaMsgStatus = "sent" | "failed";
 
 export interface WaLogEntry {
@@ -420,58 +420,6 @@ async function runSchedulerInternal(): Promise<void> {
   if (openNow) await checkBirthdayReminders();
 }
 
-/**
- * Call immediately after a new booking is saved from the online booking page.
- * Sends an instant WhatsApp notification to the salon owner's number.
- */
-export async function sendOwnerNewBookingAlert(appt: {
-  clientName: string;
-  serviceNames: string[];
-  date: string;
-  startTime: string;
-  totalAmount: number;
-}): Promise<void> {
-  if (typeof window === "undefined") return;
-
-  // Always fire the in-app popup — independent of WhatsApp settings
-  const alertPayload = {
-    clientName: appt.clientName,
-    serviceNames: appt.serviceNames,
-    date: appt.date,
-    startTime: appt.startTime,
-    totalAmount: appt.totalAmount,
-    ts: Date.now(),
-  };
-
-  // Same-tab: direct event (if booking page and dashboard somehow share a tab)
-  window.dispatchEvent(new CustomEvent("werzio_new_booking_alert", { detail: alertPayload }));
-
-  // Cross-tab: write to localStorage so the dashboard open in another tab picks it up
-  localStorage.setItem("werzio_new_booking_notify", JSON.stringify(alertPayload));
-
-  // WhatsApp notification — only if the owner has configured it
-  const ws = settingsStore.wasender as {
-    apiKey: string; ownerPhone: string; autoNewBooking?: boolean;
-  };
-  if (!ws.ownerPhone) return;
-  if (ws.autoNewBooking === false) return;
-
-  const tpl = (settingsStore.whatsapp as { newBooking?: string }).newBooking;
-  if (!tpl) return;
-
-  const salonName = settingsStore.salon.name as string;
-  const text = fillTemplate(tpl, {
-    name: appt.clientName,
-    service: appt.serviceNames.join(", "),
-    date: appt.date,
-    time: to12h(appt.startTime),
-    salon_name: salonName,
-    amount: String(appt.totalAmount),
-  });
-
-  const phone = normalizePhone(ws.ownerPhone);
-  await callSendApi(phone, text, { type: "new_booking", clientName: appt.clientName });
-}
 
 /** Call this whenever inventory is saved to send alerts immediately for newly-low items. */
 export async function checkLowStockAlerts(): Promise<void> {

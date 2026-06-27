@@ -40,14 +40,13 @@ const SAMPLE_VARS: Record<string, string> = {
   amount: "2500",
 };
 
-const TPL_CONFIG: { key: "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "birthday" | "newBooking"; label: string; description: string; vars: string[]; color: string; icon: React.ElementType }[] = [
-  { key: "reminder",     label: "Appointment Reminder",    description: "Sent automatically X hours before the appointment",              vars: ["name","service","date","time","salon_name"],          color: "#7C3AED", icon: Bell },
-  { key: "confirmation", label: "Booking Confirmation",    description: "Sent when a new appointment is booked",                          vars: ["name","service","date","time","salon_name"],          color: "#059669", icon: CheckCircle2 },
-  { key: "followup",     label: "Follow-up Message",       description: "Sent 24h after appointment is marked as completed",              vars: ["name","service","salon_name"],                        color: "#0284c7", icon: ThumbsUp },
-  { key: "cancellation", label: "Cancellation Win-back",   description: "Sent 24h after cancellation with a discount to re-book",        vars: ["name","salon_name","discount"],                       color: "#dc2626", icon: CalendarX },
-  { key: "newBooking",   label: "New Online Booking Alert",description: "Sent to salon owner when a client books via the online page",    vars: ["name","service","date","time","salon_name","amount"], color: "#0284c7", icon: CalendarPlus },
-  { key: "lowstock",     label: "Low Stock Alert",         description: "Sent once daily to your WhatsApp when stock is low",             vars: ["items","count","salon_name"],                         color: "#ea580c", icon: Package },
-  { key: "birthday",     label: "Birthday Greeting",       description: "Auto-sent on client's birthday at 9 AM (server cron)",          vars: ["name","salon_name","discount"],                       color: "#db2777", icon: Cake },
+const TPL_CONFIG: { key: "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "birthday"; label: string; description: string; vars: string[]; color: string; icon: React.ElementType }[] = [
+  { key: "reminder",     label: "Appointment Reminder",    description: "Sent automatically X hours before the appointment",         vars: ["name","service","date","time","salon_name"], color: "#7C3AED", icon: Bell },
+  { key: "confirmation", label: "Booking Confirmation",    description: "Sent when a new appointment is booked",                     vars: ["name","service","date","time","salon_name"], color: "#059669", icon: CheckCircle2 },
+  { key: "followup",     label: "Follow-up Message",       description: "Sent 24h after appointment is marked as completed",         vars: ["name","service","salon_name"],               color: "#0284c7", icon: ThumbsUp },
+  { key: "cancellation", label: "Cancellation Win-back",   description: "Sent 24h after cancellation with a discount to re-book",   vars: ["name","salon_name","discount"],              color: "#dc2626", icon: CalendarX },
+  { key: "lowstock",     label: "Low Stock Alert",         description: "Sent once daily to your WhatsApp when stock is low",        vars: ["items","count","salon_name"],                color: "#ea580c", icon: Package },
+  { key: "birthday",     label: "Birthday Greeting",       description: "Auto-sent on client's birthday at 9 AM (server cron)",     vars: ["name","salon_name","discount"],              color: "#db2777", icon: Cake },
 ];
 
 const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
@@ -56,7 +55,6 @@ const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
   { value: "confirmation", label: "Confirmations" },
   { value: "followup",     label: "Follow-ups" },
   { value: "cancellation", label: "Cancellations" },
-  { value: "new_booking",  label: "New Bookings" },
   { value: "birthday",     label: "Birthdays" },
   { value: "lowstock",     label: "Low Stock" },
   { value: "manual",       label: "Manual" },
@@ -358,7 +356,7 @@ export default function MessagesPage() {
   const ws = settingsStore.wasender as {
     apiKey: string; ownerPhone: string;
     autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean;
-    autoCancellation: boolean; autoLowStock: boolean; autoNewBooking: boolean;
+    autoCancellation: boolean; autoLowStock: boolean;
   };
   const waTpl = settingsStore.whatsapp as { reminder: string; confirmation: string; followup: string };
   const isConfigured = !!ws.apiKey;
@@ -863,7 +861,6 @@ export default function MessagesPage() {
                   <AutoCard icon={CheckCircle2} label="Booking Confirmation"  enabled={ws.autoConfirmation} color="#059669" />
                   <AutoCard icon={ThumbsUp}     label="Follow-up Message"     enabled={ws.autoFollowup}     color="#0284c7" />
                   <AutoCard icon={CalendarX}    label="Cancellation Win-back"    enabled={ws.autoCancellation} color="#dc2626" />
-                  <AutoCard icon={CalendarPlus} label="New Online Booking Alert" enabled={ws.autoNewBooking}    color="#0284c7" />
                   <AutoCard icon={Package}      label="Low Stock Alert"          enabled={ws.autoLowStock}     color="#ea580c" />
                   <AutoCard icon={Cake}         label="Birthday Reminder"     enabled={bdEnabled}           color="#db2777" />
                 </div>

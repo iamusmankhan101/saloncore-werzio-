@@ -15,7 +15,6 @@ import {
 import type { Appointment, Client, Staff, Service } from "@/lib/types";
 import { settingsStore } from "@/lib/settings-store";
 import { fmtCurrency as fmt } from "@/lib/format";
-import { sendOwnerNewBookingAlert } from "@/lib/whatsapp-scheduler";
 
 interface BusinessHour {
   day: string;
@@ -192,15 +191,6 @@ function OnlineBookingInner() {
     }
 
     setStep("success");
-
-    // Notify salon owner via WhatsApp
-    sendOwnerNewBookingAlert({
-      clientName: name,
-      serviceNames: selectedServices.map((s) => s.name),
-      date: selectedDate,
-      startTime,
-      totalAmount: totalPrice,
-    });
   }
 
   function resetAll() {
