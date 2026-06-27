@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getStoredClients, getStoredAppointments, saveClients } from "@/lib/storage";
+import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import { BEAUTY_PROFILES } from "@/lib/mock-data";
 import type { Client, Appointment } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -77,6 +78,7 @@ export default function ClientProfilePage() {
 
   const [client, setClient] = useState<Client | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [posInvoices, setPosInvoices] = useState<SalonInvoice[]>([]);
   const [visitPhotos, setVisitPhotos] = useState<Record<string, { before?: string; after?: string }>>({});
   const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -98,6 +100,8 @@ export default function ClientProfilePage() {
     }
     const appts = allAppts.filter((a) => a.clientId === clientId);
     setAppointments(appts);
+    const invoices = getSalonInvoices().filter((inv) => inv.clientId === clientId && inv.source === "pos");
+    setPosInvoices(invoices);
 
     try {
       const stored = localStorage.getItem(`werzio_photos_${clientId}`);
@@ -268,84 +272,140 @@ export default function ClientProfilePage() {
           {/* LEFT column */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-            {/* Visit history */}
-            <SectionCard title="Visit History" sub={`${completedAppts.length} completed visit${completedAppts.length !== 1 ? "s" : ""}`}>
-              {completedAppts.length === 0 ? (
-                <div style={{ padding: "40px 22px", textAlign: "center", color: "#b0b0c8", fontSize: 14 }}>No completed visits yet.</div>
-              ) : (
-                <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-                  {completedAppts.map((appt) => {
-                    const photos    = visitPhotos[appt.id] ?? {};
-                    const photoCount = [photos.before, photos.after].filter(Boolean).length;
-                    const isExpanded = expandedVisit === appt.id;
-                    return (
-                      <div key={appt.id} style={{ border: "1px solid #f0f0f8", borderRadius: 12, overflow: "hidden" }}>
-
-                        {/* Row */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 10, alignItems: "center", padding: "13px 16px", background: isExpanded ? "#faf8ff" : "#fff" }}>
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{appt.serviceNames.join(", ")}</div>
-                            <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>
-                              {fmtDate(appt.date)} · {fmtTime(appt.startTime)} · {appt.staffName || "—"}
-                            </div>
-                          </div>
-                          <div style={{ fontSize: 14, fontWeight: 800, color: "#7C3AED", whiteSpace: "nowrap" }}>{fmt(appt.totalAmount)}</div>
-                          <button
-                            onClick={() => setExpandedVisit(isExpanded ? null : appt.id)}
-                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 20, border: "none", cursor: "pointer", background: photoCount > 0 ? "#ede9fe" : "#f3f4f6", whiteSpace: "nowrap" }}
-                          >
-                            <Camera size={12} color={photoCount > 0 ? "#7C3AED" : "#9ca3af"} />
-                            <span style={{ fontSize: 11, fontWeight: 700, color: photoCount > 0 ? "#7C3AED" : "#9ca3af" }}>
-                              {photoCount > 0 ? `${photoCount} photo${photoCount > 1 ? "s" : ""}` : "Add photos"}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() => setExpandedVisit(isExpanded ? null : appt.id)}
-                            style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 4 }}
-                          >
-                            {isExpanded ? <ChevronUp size={14} color="#9898b0" /> : <ChevronDown size={14} color="#9898b0" />}
-                          </button>
-                        </div>
-
-                        {/* Before/after panel */}
-                        {isExpanded && (
-                          <div style={{ borderTop: "1px solid #ede9fe", background: "#f9f8ff", padding: "18px 16px" }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>
-                              Before &amp; After Photos
-                            </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                              {(["before", "after"] as const).map((side) => (
-                                <div key={side}>
-                                  <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>{side}</div>
-                                  {photos[side] ? (
-                                    <div style={{ position: "relative", borderRadius: 10, overflow: "hidden" }}>
-                                      <img src={photos[side]} alt={side} style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
-                                      <button
-                                        onClick={() => handleRemovePhoto(appt.id, side)}
-                                        style={{ position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: "50%", border: "none", background: "rgba(0,0,0,0.55)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                                      >
-                                        <X size={11} color="#fff" />
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 7, height: 140, borderRadius: 10, border: "2px dashed #c4b5fd", background: "#faf5ff", cursor: "pointer" }}>
-                                      <Camera size={22} color="#c4b5fd" />
-                                      <span style={{ fontSize: 12, fontWeight: 600, color: "#a78bfa" }}>Upload {side}</span>
-                                      <input type="file" accept="image/*" style={{ display: "none" }}
-                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(appt.id, side, f); }} />
-                                    </label>
-                                  )}
+            {/* Visit history — appointments + POS, merged by date */}
+            {(() => {
+              type HistoryEntry =
+                | { kind: "appt"; data: Appointment }
+                | { kind: "pos";  data: SalonInvoice };
+              const entries: HistoryEntry[] = [
+                ...completedAppts.map((a): HistoryEntry => ({ kind: "appt", data: a })),
+                ...posInvoices.map((inv): HistoryEntry => ({ kind: "pos", data: inv })),
+              ].sort((a, b) => {
+                const da = a.kind === "appt" ? a.data.date : a.data.date;
+                const db = b.kind === "appt" ? b.data.date : b.data.date;
+                return db.localeCompare(da);
+              });
+              return (
+                <SectionCard
+                  title="Visit History"
+                  sub={`${entries.length} record${entries.length !== 1 ? "s" : ""}`}
+                >
+                  {entries.length === 0 ? (
+                    <div style={{ padding: "40px 22px", textAlign: "center", color: "#b0b0c8", fontSize: 14 }}>No completed visits yet.</div>
+                  ) : (
+                    <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+                      {entries.map((entry) => {
+                        if (entry.kind === "pos") {
+                          const inv = entry.data;
+                          return (
+                            <div key={inv.id} style={{ border: "1px solid #f0f0f8", borderRadius: 12, overflow: "hidden" }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "center", padding: "13px 16px" }}>
+                                <div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: "#059669", background: "#ecfdf5", padding: "2px 8px", borderRadius: 20, border: "1px solid #bbf7d0" }}>POS</span>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
+                                      {inv.items.map((it) => it.name).join(", ")}
+                                    </span>
+                                  </div>
+                                  <div style={{ fontSize: 11, color: "#9898b0" }}>
+                                    {fmtDate(inv.date)} · {inv.staffName || "—"} · {inv.paymentMethod || "cash"}
+                                  </div>
                                 </div>
-                              ))}
+                                <div style={{ fontSize: 14, fontWeight: 800, color: "#059669", whiteSpace: "nowrap" }}>{fmt(inv.total)}</div>
+                                <button
+                                  onClick={() => setExpandedVisit(expandedVisit === inv.id ? null : inv.id)}
+                                  style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 4 }}
+                                >
+                                  {expandedVisit === inv.id ? <ChevronUp size={14} color="#9898b0" /> : <ChevronDown size={14} color="#9898b0" />}
+                                </button>
+                              </div>
+                              {expandedVisit === inv.id && (
+                                <div style={{ borderTop: "1px solid #ecfdf5", background: "#f9fffe", padding: "14px 16px" }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: "#059669", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Items</div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    {inv.items.map((it, i) => (
+                                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#1a1a2e" }}>
+                                        <span>{it.name} {it.qty > 1 ? `×${it.qty}` : ""}</span>
+                                        <span style={{ fontWeight: 700 }}>{fmt(it.price * it.qty)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
+                          );
+                        }
+
+                        const appt = entry.data;
+                        const photos    = visitPhotos[appt.id] ?? {};
+                        const photoCount = [photos.before, photos.after].filter(Boolean).length;
+                        const isExpanded = expandedVisit === appt.id;
+                        return (
+                          <div key={appt.id} style={{ border: "1px solid #f0f0f8", borderRadius: 12, overflow: "hidden" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 10, alignItems: "center", padding: "13px 16px", background: isExpanded ? "#faf8ff" : "#fff" }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{appt.serviceNames.join(", ")}</div>
+                                <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>
+                                  {fmtDate(appt.date)} · {fmtTime(appt.startTime)} · {appt.staffName || "—"}
+                                </div>
+                              </div>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: "#7C3AED", whiteSpace: "nowrap" }}>{fmt(appt.totalAmount)}</div>
+                              <button
+                                onClick={() => setExpandedVisit(isExpanded ? null : appt.id)}
+                                style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 20, border: "none", cursor: "pointer", background: photoCount > 0 ? "#ede9fe" : "#f3f4f6", whiteSpace: "nowrap" }}
+                              >
+                                <Camera size={12} color={photoCount > 0 ? "#7C3AED" : "#9ca3af"} />
+                                <span style={{ fontSize: 11, fontWeight: 700, color: photoCount > 0 ? "#7C3AED" : "#9ca3af" }}>
+                                  {photoCount > 0 ? `${photoCount} photo${photoCount > 1 ? "s" : ""}` : "Add photos"}
+                                </span>
+                              </button>
+                              <button
+                                onClick={() => setExpandedVisit(isExpanded ? null : appt.id)}
+                                style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 4 }}
+                              >
+                                {isExpanded ? <ChevronUp size={14} color="#9898b0" /> : <ChevronDown size={14} color="#9898b0" />}
+                              </button>
+                            </div>
+                            {isExpanded && (
+                              <div style={{ borderTop: "1px solid #ede9fe", background: "#f9f8ff", padding: "18px 16px" }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>
+                                  Before &amp; After Photos
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                                  {(["before", "after"] as const).map((side) => (
+                                    <div key={side}>
+                                      <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>{side}</div>
+                                      {photos[side] ? (
+                                        <div style={{ position: "relative", borderRadius: 10, overflow: "hidden" }}>
+                                          <img src={photos[side]} alt={side} style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+                                          <button
+                                            onClick={() => handleRemovePhoto(appt.id, side)}
+                                            style={{ position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: "50%", border: "none", background: "rgba(0,0,0,0.55)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                          >
+                                            <X size={11} color="#fff" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 7, height: 140, borderRadius: 10, border: "2px dashed #c4b5fd", background: "#faf5ff", cursor: "pointer" }}>
+                                          <Camera size={22} color="#c4b5fd" />
+                                          <span style={{ fontSize: 12, fontWeight: 600, color: "#a78bfa" }}>Upload {side}</span>
+                                          <input type="file" accept="image/*" style={{ display: "none" }}
+                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(appt.id, side, f); }} />
+                                        </label>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </SectionCard>
+                        );
+                      })}
+                    </div>
+                  )}
+                </SectionCard>
+              );
+            })()}
 
             {/* Services breakdown */}
             {topServices.length > 0 && (
