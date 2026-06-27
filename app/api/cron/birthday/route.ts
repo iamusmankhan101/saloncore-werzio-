@@ -39,20 +39,49 @@ async function ensureTables() {
   // wa_birthday_settings and wa_message_logs created by their own routes on first use
 }
 
-async function getAllBirthdayUsers(): Promise<
-  { userId: string; discount: string }[]
-> {
+interface BirthdayUser {
+  userId: string;
+  discount: string;
+  apiKey: string;
+  birthdayTemplate: string;
+  salonName: string;
+}
+
+/**
+ * Scan salon_data for every salon that has autoBirthday enabled.
+ * This avoids the wa_birthday_settings pre-registration requirement —
+ * settings saved via the app are sufficient to trigger birthday messages.
+ */
+async function getAllBirthdayUsers(): Promise<BirthdayUser[]> {
+  const users: BirthdayUser[] = [];
   try {
+    // Pull all settings rows — entity format is "{userId}_settings"
     const result = await db.execute(
-      "SELECT user_id, discount FROM wa_birthday_settings WHERE enabled = 1",
+      "SELECT entity, data FROM salon_data WHERE entity LIKE '%_settings'",
     );
-    return result.rows.map((r) => ({
-      userId:   r.user_id  as string,
-      discount: r.discount as string,
-    }));
-  } catch {
-    return [];
-  }
+    for (const row of result.rows) {
+      try {
+        const entity = row.entity as string;
+        const userId = entity.replace(/_settings$/, "");
+        const s = JSON.parse(row.data as string);
+
+        const autoBirthday = s?.birthday?.autoBirthday;
+        const apiKey       = s?.wasender?.apiKey;
+        const template     = s?.whatsapp?.birthday;
+
+        if (!autoBirthday || !apiKey || !template) continue;
+
+        users.push({
+          userId,
+          discount:        s?.birthday?.birthdayDiscount || "a special treat",
+          apiKey,
+          birthdayTemplate: template,
+          salonName:        s?.salon?.name || "Your Salon",
+        });
+      } catch { /* skip malformed row */ }
+    }
+  } catch { /* table may not exist yet */ }
+  return users;
 }
 
 async function getClients(userId: string): Promise<{ id: string; name: string; phone: string; dob?: string }[]> {
@@ -162,25 +191,6 @@ async function runBirthdayCron(): Promise<{ checked: number; sent: number; faile
   for (const user of users) {
     const clients = await getClients(user.userId);
 
-    // Read wasender API key, birthday template, and salon name from stored settings
-    let apiKey = "";
-    let birthdayTemplate = "";
-    let salonName = "Your Salon";
-    try {
-      const settingsResult = await db.execute({
-        sql: "SELECT data FROM salon_data WHERE entity = ?",
-        args: [`${user.userId}_settings`],
-      });
-      if (settingsResult.rows.length > 0) {
-        const s = JSON.parse(settingsResult.rows[0].data as string);
-        if (s?.salon?.name) salonName = s.salon.name;
-        if (s?.wasender?.apiKey) apiKey = s.wasender.apiKey;
-        if (s?.whatsapp?.birthday) birthdayTemplate = s.whatsapp.birthday;
-      }
-    } catch { /* use defaults */ }
-
-    if (!apiKey || !birthdayTemplate) continue;
-
     for (const client of clients) {
       if (!client.dob || !client.phone) continue;
       if (!isBirthdayToday(client.dob)) continue;
@@ -196,12 +206,12 @@ async function runBirthdayCron(): Promise<{ checked: number; sent: number; faile
         continue;
       }
 
-      const text = birthdayTemplate
+      const text = user.birthdayTemplate
         .replace(/\{\{name\}\}/g, client.name)
-        .replace(/\{\{salon_name\}\}/g, salonName)
+        .replace(/\{\{salon_name\}\}/g, user.salonName)
         .replace(/\{\{discount\}\}/g, user.discount || "a special treat");
 
-      const ok = await sendBirthdayMessage(phone, apiKey, text);
+      const ok = await sendBirthdayMessage(phone, user.apiKey, text);
       await logMessage(user.userId, client.name, phone, "birthday", ok ? "sent" : "failed");
 
       if (ok) {
