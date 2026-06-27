@@ -12,15 +12,24 @@ export async function GET(request: NextRequest) {
     const res = await fetch("https://www.wasenderapi.com/api/session-status", {
       headers: { "Authorization": `Bearer ${apiKey}` },
     });
-    const data = await res.json() as { success?: boolean; status?: string; message?: string };
-    console.log("📶 WaSender status:", res.status, JSON.stringify(data));
+    // WaSender wraps the real status inside a nested `data` object:
+    // { success: true, data: { status: "CONNECTED", phoneNumber: "..." } }
+    const body = await res.json() as {
+      success?: boolean;
+      status?: string;
+      message?: string;
+      data?: { status?: string; phoneNumber?: string };
+    };
+    console.log("📶 WaSender status:", res.status, JSON.stringify(body));
 
-    const connected = res.ok && (data.success === true || data.status === "CONNECTED");
+    // Resolve status from either the top-level or nested data field, case-insensitive
+    const rawStatus = (body.data?.status ?? body.status ?? "").toUpperCase();
+    const connected = res.ok && (body.success === true || rawStatus === "CONNECTED");
     return Response.json({
       ok: connected,
       connected,
-      status: data.status,
-      message: data.message,
+      status: rawStatus || undefined,
+      message: body.message,
       httpStatus: res.status,
     });
   } catch (err) {
