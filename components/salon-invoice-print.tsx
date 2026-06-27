@@ -47,13 +47,49 @@ export default function SalonInvoicePrint({
   invoice, salonName, salonPhone, salonEmail, salonAddress,
   onClose, onMarkPaid,
 }: Props) {
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted]           = useState(false);
+  const [thermalStatus, setThermalStatus] = useState<"idle" | "printing" | "ok" | "error">("idle");
+  const [thermalError, setThermalError]   = useState("");
+
   useEffect(() => { setMounted(true); }, []);
   if (!mounted) return null;
 
-  const isPaid = invoice.status === "paid";
-  const logo = (settingsStore.salon as { logo?: string }).logo || "";
+  const isPaid   = invoice.status === "paid";
+  const logo     = (settingsStore.salon as { logo?: string }).logo || "";
   const initials = salonName.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+  const printer  = settingsStore.printer as { enabled: boolean; ip: string; port: number };
+
+  async function thermalPrint() {
+    if (!printer.ip) {
+      setThermalError("No printer IP set. Go to Settings → Thermal Printer.");
+      setThermalStatus("error");
+      return;
+    }
+    setThermalStatus("printing");
+    setThermalError("");
+    try {
+      const res = await fetch("/api/print", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          printerIp: printer.ip,
+          printerPort: printer.port || 9100,
+          salonName,
+          salonPhone,
+          salonAddress,
+          currency: "PKR",
+          invoice,
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Print failed");
+      setThermalStatus("ok");
+      setTimeout(() => setThermalStatus("idle"), 3000);
+    } catch (e: unknown) {
+      setThermalError(e instanceof Error ? e.message : "Print failed");
+      setThermalStatus("error");
+    }
+  }
 
   const content = (
     <div id="salon-invoice-portal">
@@ -75,6 +111,21 @@ export default function SalonInvoicePrint({
                   style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid #6ee7b7", background: "rgba(5,150,105,0.25)", fontSize: 12, fontWeight: 700, color: "#6ee7b7", cursor: "pointer" }}>
                   <CheckCircle size={13} /> Mark Paid
                 </button>
+              )}
+              {printer.enabled && (
+                <button onClick={thermalPrint} disabled={thermalStatus === "printing"}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.3)", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    background: thermalStatus === "ok" ? "rgba(5,150,105,0.35)" : thermalStatus === "error" ? "rgba(220,38,38,0.35)" : "rgba(124,58,237,0.35)",
+                    color: "#fff", opacity: thermalStatus === "printing" ? 0.6 : 1,
+                  }}>
+                  <Printer size={14} />
+                  {thermalStatus === "printing" ? "Printing…" : thermalStatus === "ok" ? "Sent!" : thermalStatus === "error" ? "Failed" : "Thermal Print"}
+                </button>
+              )}
+              {thermalStatus === "error" && thermalError && (
+                <span style={{ fontSize: 11, color: "#fca5a5", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={thermalError}>
+                  {thermalError}
+                </span>
               )}
               <button onClick={() => window.print()}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
@@ -156,7 +207,7 @@ export default function SalonInvoicePrint({
                   </tr>
                 </thead>
                 <tbody>
-                  {invoice.items.map((item, i) => (
+                  {invoice.items.map((item) => (
                     <tr key={item.id} style={{ borderBottom: "1px solid #e8e8e8" }}>
                       <td style={{ padding: "11px 12px", fontSize: 12, color: "#111" }}>{item.description}</td>
                       <td style={{ padding: "11px 12px", fontSize: 12, color: "#555", textAlign: "right" }}>{item.qty}</td>

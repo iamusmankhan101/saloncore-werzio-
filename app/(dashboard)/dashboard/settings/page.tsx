@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Store, Clock, Bell, Palette, Shield, Smartphone, ChevronRight, Check, Sparkles, Banknote } from "lucide-react";
+import { Store, Clock, Bell, Palette, Shield, Smartphone, ChevronRight, Check, Sparkles, Banknote, PrinterIcon } from "lucide-react";
 import { settingsStore, saveSettings } from "@/lib/settings-store";
 
 const SECTIONS = [
@@ -14,6 +14,7 @@ const SECTIONS = [
   { id: "whatsapp",      label: "WhatsApp",       icon: Smartphone },
   { id: "ai",            label: "AI Integrations", icon: Sparkles },
   { id: "decidr",        label: "Decidr Loyalty",  icon: Banknote },
+  { id: "printer",       label: "Thermal Printer", icon: PrinterIcon },
 ];
 
 const inp: CSSProperties = {
@@ -373,6 +374,136 @@ function DecidrLoyalty() {
   );
 }
 
+function ThermalPrinterSection() {
+  const p = settingsStore.printer as { enabled: boolean; ip: string; port: number };
+  const [form, setForm] = useState({ enabled: p.enabled, ip: p.ip, port: p.port || 9100 });
+  const [saved, setSaved]     = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState("");
+
+  function save() {
+    Object.assign(settingsStore.printer, form);
+    saveSettings();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
+
+  async function testPrint() {
+    if (!form.ip) { setTestMsg("Enter a printer IP first."); return; }
+    setTesting(true);
+    setTestMsg("");
+    try {
+      const res = await fetch("/api/print", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          printerIp: form.ip, printerPort: form.port,
+          salonName: (settingsStore.salon as { name: string }).name,
+          salonPhone: (settingsStore.salon as { phone: string }).phone,
+          salonAddress: (settingsStore.salon as { address: string }).address,
+          currency: "PKR",
+          invoice: {
+            number: "TEST-001", date: new Date().toISOString().slice(0, 10),
+            clientName: "Test Client", clientPhone: "", staffName: "Staff",
+            items: [{ description: "Connection Test", qty: 1, total: 0 }],
+            subtotal: 0, discountAmount: 0, taxAmount: 0, total: 0,
+            paymentMethod: "cash", status: "paid", notes: "Printer test — if you see this, it works!",
+          },
+        }),
+      });
+      const json = await res.json();
+      setTestMsg(json.ok ? "✓ Test receipt printed successfully!" : `✗ ${json.error}`);
+    } catch (e: unknown) {
+      setTestMsg(`✗ ${e instanceof Error ? e.message : "Failed"}`);
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  const connected = form.enabled && !!form.ip;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {saved && <SavedBanner />}
+
+      {/* Status banner */}
+      <div style={{ padding: "14px 16px", background: connected ? "#f0fdf4" : "#faf8ff", borderRadius: 10, border: `1px solid ${connected ? "#6ee7b7" : "#ede9fe"}`, display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: connected ? "#dcfce7" : "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <PrinterIcon size={18} color={connected ? "#059669" : "#7C3AED"} />
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: connected ? "#065f46" : "#5b21b6" }}>
+            {connected ? "Thermal printer connected" : "No printer configured"}
+          </div>
+          <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>
+            {connected ? `Sending to ${form.ip}:${form.port} — Speed-X 400ul (ESC/POS)` : "Enter the printer's LAN IP address to enable direct receipt printing."}
+          </div>
+        </div>
+      </div>
+
+      {/* Enable toggle */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "#f9f9fb", borderRadius: 10 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>Enable Thermal Printing</div>
+          <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>Show thermal print button on invoices</div>
+        </div>
+        <Toggle value={form.enabled} onChange={() => setForm(f => ({ ...f, enabled: !f.enabled }))} />
+      </div>
+
+      {/* IP */}
+      <Field label="Printer IP Address" hint="Assign a static IP to the printer in your router. e.g. 192.168.1.100">
+        <input
+          type="text" value={form.ip} placeholder="192.168.1.100"
+          onChange={e => setForm(f => ({ ...f, ip: e.target.value }))}
+          style={inp}
+        />
+      </Field>
+
+      {/* Port */}
+      <Field label="Port" hint="Default is 9100 for all ESC/POS LAN printers — don't change unless needed.">
+        <input
+          type="number" value={form.port} min={1} max={65535}
+          onChange={e => setForm(f => ({ ...f, port: parseInt(e.target.value) || 9100 }))}
+          style={{ ...inp, maxWidth: 140 }}
+        />
+      </Field>
+
+      {/* Setup guide */}
+      <div style={{ padding: "12px 14px", background: "#f9f9fb", borderRadius: 8, fontSize: 11, color: "#6b6b8a", lineHeight: 1.7 }}>
+        <div style={{ fontWeight: 700, color: "#1a1a2e", marginBottom: 6 }}>Setup guide (Speed-X 400ul)</div>
+        <ol style={{ margin: 0, paddingLeft: 18 }}>
+          <li>Connect the printer to your router with an RJ-45 LAN cable</li>
+          <li>Print a self-test page (hold Feed button on power-on) — note the IP shown</li>
+          <li>In your router admin, assign that IP as a static/reserved address</li>
+          <li>Enter the IP above, save, then click <strong>Test Print</strong></li>
+        </ol>
+      </div>
+
+      {/* Test result */}
+      {testMsg && (
+        <div style={{ padding: "10px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+          background: testMsg.startsWith("✓") ? "#f0fdf4" : "#fef2f2",
+          color: testMsg.startsWith("✓") ? "#065f46" : "#991b1b",
+          border: `1px solid ${testMsg.startsWith("✓") ? "#6ee7b7" : "#fca5a5"}`,
+        }}>
+          {testMsg}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <button onClick={testPrint} disabled={testing} style={{
+          padding: "10px 20px", borderRadius: 9, border: "1.5px solid #e8e8f0",
+          background: "#fff", fontSize: 13, fontWeight: 700, color: "#5a5a7a",
+          cursor: testing ? "not-allowed" : "pointer", opacity: testing ? 0.6 : 1,
+        }}>
+          {testing ? "Printing…" : "Test Print"}
+        </button>
+        <SaveBar onSave={save} />
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [active, setActive] = useState("salon");
 
@@ -411,6 +542,7 @@ export default function SettingsPage() {
               {id === "whatsapp"      && <WhatsAppSection />}
               {id === "ai"            && <AIIntegrations />}
               {id === "decidr"        && <DecidrLoyalty />}
+              {id === "printer"       && <ThermalPrinterSection />}
             </div>
           ))}
         </div>

@@ -86,6 +86,11 @@ const defaults = {
     enabled: false,
     apiKey: "",
   },
+  printer: {
+    enabled: false,
+    ip: "",
+    port: 9100,
+  },
 };
 
 function load() {
@@ -126,6 +131,7 @@ function load() {
       birthday: { ...dynamicDefaults.birthday, ...saved.birthday },
       loyalty:  { ...dynamicDefaults.loyalty,  ...saved.loyalty  },
       cashback: { ...dynamicDefaults.cashback, ...saved.cashback },
+      printer:  { ...dynamicDefaults.printer,  ...saved.printer  },
     };
   } catch {
     return structuredClone(defaults);
