@@ -50,34 +50,34 @@ export async function POST(req: NextRequest) {
     bgColor?: string;
   };
 
-  const salonName = body.salonName || "Werzio";
-  const bgColor   = body.bgColor   || "#5B21B6";
-  // Only use HTTPS non-base64 URLs — Google Wallet requires a public PNG/JPEG
-  const logoUrl   = body.logoUrl?.startsWith("https://") && !body.logoUrl.startsWith("data:")
-    ? body.logoUrl
-    : null;
+  const salonName = (body.salonName || "Werzio").trim();
+  const bgColor   = body.bgColor || "#5B21B6";
+  // Use salon logo only if it's a real public HTTPS URL (not base64).
+  // Fall back to Werzio logo hosted in the app's own public folder.
+  const appOrigin = `${req.nextUrl.protocol}//${req.nextUrl.host}`;
+  const logoUrl   =
+    body.logoUrl?.startsWith("https://") && !body.logoUrl.startsWith("data:")
+      ? body.logoUrl
+      : `${appOrigin}/werzio-logo.png`;
 
   const classId = `${ISSUER_ID}.werzio-loyalty`;
 
   try {
     const accessToken = await getAccessToken();
 
-    // Build the patch payload with all branding fields
+    // Build the patch payload — logoUrl always has a value (falls back to werzio-logo.png)
     const patch: Record<string, unknown> = {
-      id:               classId,
-      issuerName:       salonName,
-      programName:      `${salonName} Loyalty`,
+      id:                 classId,
+      issuerName:         salonName,
+      programName:        `${salonName} Loyalty`,
       hexBackgroundColor: bgColor,
       loyaltyPointsLabel: "Points",
-      reviewStatus:     "UNDER_REVIEW",
-    };
-
-    if (logoUrl) {
-      patch.programLogo = {
+      reviewStatus:       "UNDER_REVIEW",
+      programLogo: {
         sourceUri: { uri: logoUrl },
         contentDescription: { defaultValue: { language: "en-US", value: `${salonName} logo` } },
-      };
-    }
+      },
+    };
 
     // Try PATCH first (update existing class), fall back to PUT
     const patchRes = await fetch(
