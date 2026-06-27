@@ -171,7 +171,7 @@ function OnlineBookingInner() {
       fetch("/api/public/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ salonId, appointment: appt, client: newClientObj ?? undefined }),
+        body: JSON.stringify({ salonId, appointment: appt, client: newClientObj ?? undefined, clientPhone: phone }),
       }).catch(() => {});
     } else {
       // On the salon's own device — use localStorage

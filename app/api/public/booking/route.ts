@@ -52,7 +52,7 @@ async function ensureTable() {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { salonId: string; appointment: AppointmentPayload; client?: ClientPayload };
+  let body: { salonId: string; appointment: AppointmentPayload; client?: ClientPayload; clientPhone?: string };
   try {
     body = await req.json();
   } catch {
@@ -120,7 +120,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Send WhatsApp messages using salon's saved templates ─────────────────
-    const phone = client?.phone ?? "";
+    // clientPhone is always sent from the booking form (covers both new and returning clients)
+    const phone = body.clientPhone || client?.phone || "";
     try {
       const settingsRow = await db.execute({
         sql: "SELECT data FROM salon_data WHERE entity = ?",
