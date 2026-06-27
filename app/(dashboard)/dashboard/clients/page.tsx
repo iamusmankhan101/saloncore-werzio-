@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CLIENTS, APPOINTMENTS, BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
+import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
 import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown, Camera, ExternalLink, Trash2 } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
@@ -86,11 +87,27 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
   const panelRouter = useRouter();
   const allClientAppts   = appointments.filter((a) => a.clientId === client.id);
   const completedAppts   = allClientAppts.filter((a) => a.status === "completed").sort((a, b) => b.date.localeCompare(a.date));
-  const liveVisits       = completedAppts.length;
-  const liveSpend        = completedAppts.reduce((s, a) => s + a.totalAmount, 0);
-  const liveLastVisit    = completedAppts[0]?.date;
-  const liveAvgTicket    = liveVisits ? Math.round(liveSpend / liveVisits) : 0;
+  const posInvoices      = getSalonInvoices().filter((inv) => inv.clientId === client.id && inv.source === "pos");
   const upcomingAppts    = allClientAppts.filter((a) => !["completed","cancelled","no-show"].includes(a.status)).sort((a, b) => a.date.localeCompare(b.date));
+
+  // Use stored accumulated values (include POS + all devices)
+  const apptVisits   = completedAppts.length;
+  const apptSpend    = completedAppts.reduce((s, a) => s + a.totalAmount, 0);
+  const liveVisits   = Math.max(client.totalVisits ?? 0, apptVisits + posInvoices.length);
+  const liveSpend    = Math.max(client.totalSpend  ?? 0, apptSpend + posInvoices.reduce((s, inv) => s + inv.total, 0));
+  const liveLastVisit = client.lastVisitDate ?? completedAppts[0]?.date;
+  const liveAvgTicket = liveVisits ? Math.round(liveSpend / liveVisits) : 0;
+
+  // Unified visit history: completed appointments + POS invoices, sorted by date desc
+  type HistoryEntry = { kind: "appt"; data: Appointment } | { kind: "pos"; data: SalonInvoice };
+  const historyEntries: HistoryEntry[] = [
+    ...completedAppts.map((a): HistoryEntry => ({ kind: "appt", data: a })),
+    ...posInvoices.map((inv): HistoryEntry => ({ kind: "pos", data: inv })),
+  ].sort((a, b) => {
+    const da = a.data.date;
+    const db = b.data.date;
+    return db.localeCompare(da);
+  });
   const profile = BEAUTY_PROFILES.find((p) => p.clientId === client.id);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({

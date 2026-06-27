@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw,
   Zap, Bell, ThumbsUp, Package, ChevronRight, Phone, Copy, Check,
@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
-import { saveSettings, settingsStore } from "@/lib/settings-store";
+import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
 import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, enqueueWhatsAppCancellation, checkBirthdayReminders } from "@/lib/whatsapp-scheduler";
 import { getCurrentUser, userKey } from "@/lib/auth";
@@ -140,9 +140,21 @@ function TemplateCard({ cfg }: { cfg: typeof TPL_CONFIG[0] }) {
   const [showPreview, setShowPreview] = useState(false);
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const dirtyRef = useRef(false); // true once user has manually edited
   const Icon = cfg.icon;
   const preview = previewText(text);
   const charCount = text.length;
+
+  // Sync from settingsStore when Turso data loads (SETTINGS_CHANGED_EVENT)
+  useEffect(() => {
+    function onSettingsChanged() {
+      if (dirtyRef.current) return; // don't overwrite user's unsaved edits
+      const fresh = (settingsStore.whatsapp as Record<string, string>)[cfg.key] || "";
+      setText(fresh);
+    }
+    window.addEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
+    return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
+  }, [cfg.key]);
 
   function copy() {
     navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
@@ -150,6 +162,7 @@ function TemplateCard({ cfg }: { cfg: typeof TPL_CONFIG[0] }) {
   function save() {
     (settingsStore.whatsapp as Record<string, string>)[cfg.key] = text;
     saveSettings();
+    dirtyRef.current = false; // saved — allow future syncs to overwrite again
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -186,7 +199,7 @@ function TemplateCard({ cfg }: { cfg: typeof TPL_CONFIG[0] }) {
           ))}
         </div>
 
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4}
+        <textarea value={text} onChange={(e) => { dirtyRef.current = true; setText(e.target.value); }} rows={4}
           placeholder={`Write your ${cfg.label.toLowerCase()} message here…`}
           style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, color: "#1d1d2f", lineHeight: 1.65, resize: "vertical", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
 
