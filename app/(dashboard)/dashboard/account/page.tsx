@@ -34,7 +34,6 @@ const BASE_SECTIONS: { id: SectionId; label: string; icon: React.ElementType }[]
   { id: "hours",    label: "Business Hours",  icon: Clock },
   { id: "security", label: "Security",        icon: Shield },
   { id: "whatsapp", label: "WhatsApp",        icon: Smartphone },
-  { id: "decidr",   label: "Loyalty",          icon: Banknote },
 ];
 
 const inputStyle: CSSProperties = {
@@ -789,7 +788,10 @@ export default function AccountPage() {
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === "admin";
   const SECTIONS = isAdmin
-    ? [...BASE_SECTIONS, { id: "tryon" as SectionId, label: "Virtual Try-On", icon: Wand2 }]
+    ? [...BASE_SECTIONS,
+        { id: "decidr" as SectionId, label: "Loyalty",        icon: Banknote },
+        { id: "tryon"  as SectionId, label: "Virtual Try-On", icon: Wand2    },
+      ]
     : BASE_SECTIONS;
   const [active, setActive]               = useState<SectionId>("profile");
   const [mobileScreen, setMobileScreen]   = useState<"menu" | SectionId>("menu");
