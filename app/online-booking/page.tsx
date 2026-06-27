@@ -15,6 +15,7 @@ import {
 import type { Appointment, Client, Staff, Service } from "@/lib/types";
 import { settingsStore } from "@/lib/settings-store";
 import { fmtCurrency as fmt } from "@/lib/format";
+import { enqueueWhatsAppConfirmation } from "@/lib/whatsapp-scheduler";
 
 interface BusinessHour {
   day: string;
@@ -165,14 +166,15 @@ function OnlineBookingInner() {
     };
 
     if (salonId) {
-      // External customer — save directly to DB under the salon's userId
+      // External customer — save directly to DB under the salon's userId.
+      // Server handles the WhatsApp confirmation to the client.
       fetch("/api/public/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ salonId, appointment: appt, client: newClientObj ?? undefined }),
       }).catch(() => {});
     } else {
-      // On the salon's own device — use localStorage + saveToDB as before
+      // On the salon's own device — use localStorage
       const updatedAppts = [appt, ...appointments];
       setAppointments(updatedAppts);
       saveAppointments(updatedAppts);
@@ -188,6 +190,23 @@ function OnlineBookingInner() {
         );
         setClients(updated); saveClients(updated);
       }
+
+      // Queue confirmation message to client via the scheduler
+      enqueueWhatsAppConfirmation(appt.id);
+    }
+
+    // Fire the dashboard popup notification (cross-tab via localStorage, same-tab via event)
+    const alertPayload = {
+      clientName: name,
+      serviceNames: selectedServices.map((s) => s.name),
+      date: selectedDate,
+      startTime,
+      totalAmount: totalPrice,
+      ts: Date.now(),
+    };
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("werzio_new_booking_alert", { detail: alertPayload }));
+      localStorage.setItem("werzio_new_booking_notify", JSON.stringify(alertPayload));
     }
 
     setStep("success");

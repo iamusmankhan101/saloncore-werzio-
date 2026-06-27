@@ -151,9 +151,11 @@ export async function POST(req: NextRequest) {
           amount:     String(appointment.totalAmount),
         };
 
-        const toE164 = (p: string) => {
-          const d = p.replace(/\D/g, "");
-          return d.startsWith("+") ? d : `+${d}`;
+        const toE164 = (p: string): string => {
+          let d = p.replace(/\D/g, "");
+          if (d.startsWith("0")) d = "92" + d.slice(1);          // 03001234567 → 923001234567
+          else if (d.length === 10 && d.startsWith("3")) d = "92" + d; // 3001234567 → 923001234567
+          return `+${d}`;
         };
 
         // Confirmation to client — use saved template or sensible fallback
