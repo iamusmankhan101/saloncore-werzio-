@@ -2,11 +2,11 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { CLIENTS, APPOINTMENTS, BEAUTY_PROFILES } from "@/lib/mock-data";
+import { BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
-import { Search, X, Plus, Phone, Mail, Calendar, Star, TrendingUp, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Search, X, Plus, Phone, Mail, Calendar, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
 const STATUS_CONFIG = {
@@ -687,10 +687,54 @@ function ImportModal({ existing, onClose, onImport }: {
             {loading && <div style={{ textAlign:"center",marginTop:16,color:"#7C3AED",fontSize:13,fontWeight:600 }}>Reading file…</div>}
             {error  && <div style={{ marginTop:12,padding:"10px 14px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,fontSize:13,color:"#dc2626" }}>{error}</div>}
 
-            <div style={{ marginTop:18,padding:"12px 16px",background:"#f5f3ff",borderRadius:12,fontSize:12,color:"#5B21B6",lineHeight:1.7 }}>
-              <strong>Required columns:</strong> Name, Phone<br/>
-              <strong>Optional:</strong> Email, Gender, Date of Birth, Tags (comma-separated), Notes, Source<br/>
-              <strong>Tip:</strong> Export existing clients first to see the exact column format.
+            {/* Column guide + download template */}
+            <div style={{ marginTop:18,padding:"14px 16px",background:"#f5f3ff",borderRadius:12,fontSize:12,color:"#5B21B6",lineHeight:1.8 }}>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6 }}>
+                <strong style={{ fontSize:12 }}>Column format</strong>
+                <button
+                  onClick={async () => {
+                    const XLSX = await import("xlsx");
+                    const sample = [
+                      { "Name":"Sara Ahmed",  "Phone":"923001234567","Email":"sara@example.com","Gender":"female","Date of Birth":"1995-04-12","Source":"walk-in","Tags":"VIP, Regular","Notes":"Prefers mornings","Total Visits":5,"Total Spend":12500,"Loyalty Points":350,"Created At":"2024-01-15" },
+                      { "Name":"Ali Hassan",  "Phone":"923009876543","Email":"ali@example.com", "Gender":"male",  "Date of Birth":"1988-11-30","Source":"whatsapp","Tags":"Regular",      "Notes":"",              "Total Visits":2,"Total Spend":4800, "Loyalty Points":120,"Created At":"2024-03-22" },
+                      { "Name":"Hina Malik",  "Phone":"923011112233","Email":"",                "Gender":"female","Date of Birth":"",          "Source":"manual",  "Tags":"Bridal",       "Notes":"Bridal package", "Total Visits":1,"Total Spend":8000, "Loyalty Points":200,"Created At":"2024-06-01" },
+                    ];
+                    const ws = XLSX.utils.json_to_sheet(sample, { header: EXPORT_COLS });
+                    // Bold the header row
+                    const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+                    for (let c = range.s.c; c <= range.e.c; c++) {
+                      const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
+                      if (cell) cell.s = { font: { bold: true } };
+                    }
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Clients Template");
+                    XLSX.writeFile(wb, "clients-import-template.xlsx");
+                  }}
+                  style={{ display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:8,border:"1px solid #c4b5fd",background:"#fff",fontSize:11,fontWeight:700,color:"#5B21B6",cursor:"pointer",whiteSpace:"nowrap" }}>
+                  <Download size={12} /> Download Template
+                </button>
+              </div>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 16px",fontSize:11 }}>
+                {[
+                  ["Name","Required — client full name"],
+                  ["Phone","Required — with country code"],
+                  ["Email","Optional"],
+                  ["Gender","female / male / other"],
+                  ["Date of Birth","YYYY-MM-DD format"],
+                  ["Source","walk-in / whatsapp / manual"],
+                  ["Tags","Comma-separated, e.g. VIP, Regular"],
+                  ["Notes","Any freeform note"],
+                  ["Total Visits","Number"],
+                  ["Total Spend","Amount in PKR"],
+                  ["Loyalty Points","Number"],
+                  ["Created At","YYYY-MM-DD format"],
+                ].map(([col, hint]) => (
+                  <div key={col}>
+                    <span style={{ fontWeight:700,color:"#4c1d95" }}>{col}</span>
+                    <span style={{ color:"#7c3aed",marginLeft:4 }}>— {hint}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         )}
