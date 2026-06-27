@@ -147,34 +147,27 @@ function generateWalletUrl(client: Client, salonName: string, ls: LoyaltySetting
   return `https://pay.google.com/gp/v/save/${token}`;
 }
 
-async function patchExistingObject(client: Client, salonName: string, ls: LoyaltySettings, appBaseUrl: string) {
-  try {
-    const objectId  = `${ISSUER_ID}.werzio-loyalty_${safeId(client.id)}`;
-    const objectUrl = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(objectId)}`;
-    const token     = await getAccessToken();
-    const headers   = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
+async function upsertObject(client: Client, salonName: string, ls: LoyaltySettings, appBaseUrl: string): Promise<void> {
+  const objectId  = `${ISSUER_ID}.werzio-loyalty_${safeId(client.id)}`;
+  const objectUrl = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(objectId)}`;
+  const token     = await getAccessToken();
+  const headers   = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
+  const payload   = buildObjectPayload(objectId, client, salonName, ls, appBaseUrl);
 
-    // Only patch if the object already exists
-    const check = await fetch(objectUrl, { headers });
-    if (!check.ok) return; // object doesn't exist yet — JWT will create it on first save
-
-    const patch = buildObjectPayload(objectId, client, salonName, ls, appBaseUrl);
-    await fetch(objectUrl, { method: "PATCH", headers, body: JSON.stringify(patch) });
-  } catch {
-    // non-critical
+  // Try PATCH first; if 404 (object not yet on server) use INSERT
+  const patchRes  = await fetch(objectUrl, { method: "PATCH", headers, body: JSON.stringify(payload) });
+  if (patchRes.status === 404) {
+    await fetch("https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject",
+      { method: "POST", headers, body: JSON.stringify(payload) });
   }
 }
 
-async function fireAndForgetClassUpdate(appBaseUrl: string, salonName: string, salonLogo: string) {
-  try {
-    await fetch(`${appBaseUrl}/api/wallet/update-class`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ salonName, logoUrl: salonLogo || undefined, bgColor: "#5B21B6" }),
-    });
-  } catch {
-    // non-critical
-  }
+async function updateClass(appBaseUrl: string, salonName: string, salonLogo: string): Promise<void> {
+  await fetch(`${appBaseUrl}/api/wallet/update-class`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ salonName, logoUrl: salonLogo || undefined, bgColor: "#5B21B6" }),
+  });
 }
 
 export async function GET(req: NextRequest) {
@@ -207,12 +200,14 @@ export async function GET(req: NextRequest) {
     }
 
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
-    const url        = generateWalletUrl(client, salonName, settings, appBaseUrl);
 
-    // Fire-and-forget: patch existing object (updates heroImage + points on saved passes)
-    // and keep class branding in sync
-    void patchExistingObject(client, salonName, settings, appBaseUrl);
-    void fireAndForgetClassUpdate(appBaseUrl, salonName, salonLogo);
+    // Run JWT generation, object upsert, and class update in parallel.
+    // Awaiting ensures Vercel doesn't kill the REST calls before they complete.
+    const [url] = await Promise.all([
+      Promise.resolve(generateWalletUrl(client, salonName, settings, appBaseUrl)),
+      upsertObject(client, salonName, settings, appBaseUrl).catch(() => {}),
+      updateClass(appBaseUrl, salonName, salonLogo).catch(() => {}),
+    ]);
 
     return Response.json({ ok: true, url });
   } catch (err) {
