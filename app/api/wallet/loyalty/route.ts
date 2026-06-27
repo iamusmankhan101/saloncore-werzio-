@@ -104,6 +104,10 @@ function generateWalletUrl(salonId: string, client: Client, _salonName: string, 
       { header: "Tier",             body: tierLabels[tier] ?? "Member ⭐",                                                 id: "tier"     },
       { header: "Next Tier",        body: next ? `${next.needed} pts needed for ${tierLabels[next.tier]}` : "Top tier 🏆", id: "next_tier" },
     ],
+    heroImage: {
+      sourceUri: { uri: `${appBaseUrl}/werzio-banner.png` },
+      contentDescription: { defaultValue: { language: "en-US", value: "Werzio Loyalty" } },
+    },
     barcode: {
       type: "QR_CODE",
       value: `${appBaseUrl}/loyalty-card/${encodeURIComponent(salonId)}`,
