@@ -67,8 +67,32 @@ function safeId(str: string) {
   return str.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
 }
 
-function generateWalletUrl(salonId: string, client: Client, _salonName: string, ls: LoyaltySettings, _salonLogo = "", appBaseUrl = ""): string {
+async function getAccessToken(): Promise<string> {
   const privateKey = getPrivateKey();
+  const now = Math.floor(Date.now() / 1000);
+  const assertion = jwt.sign(
+    {
+      iss:   SERVICE_ACCOUNT_EMAIL,
+      scope: "https://www.googleapis.com/auth/wallet_object.issuer",
+      aud:   "https://oauth2.googleapis.com/token",
+      iat:   now,
+      exp:   now + 3600,
+    },
+    privateKey,
+    { algorithm: "RS256" },
+  );
+  const res  = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
+  });
+  const data = await res.json() as { access_token?: string };
+  if (!data.access_token) throw new Error("Failed to get access token");
+  return data.access_token;
+}
+
+function buildObjectPayload(objectId: string, client: Client, salonName: string, ls: LoyaltySettings, appBaseUrl: string) {
+  const classId = `${ISSUER_ID}.werzio-loyalty`;
   const balance = client.loyaltyPoints ?? 0;
   const earned  = client.loyaltyPointsEarned ?? 0;
   const tier    = getTier(earned, ls);
@@ -80,28 +104,18 @@ function generateWalletUrl(salonId: string, client: Client, _salonName: string, 
     silver: "Silver 🥈",    bronze: "Bronze 🥉", none: "Member ⭐",
   };
 
-  // Use the pre-created class registered in Google Pay Business Console.
-  // classId format: {issuerId}.{classSuffix}
-  const classId  = `${ISSUER_ID}.werzio-loyalty`;
-  const objectId = `${ISSUER_ID}.werzio-loyalty_${safeId(client.id)}`;
-
-  // Since the class already exists in the console, only embed the object.
-  // Embedding the class too would attempt to overwrite it and cause errors.
-  const loyaltyObject = {
+  return {
     id: objectId,
     classId,
     state: "ACTIVE",
     accountId: client.phone || client.id,
     accountName: client.name,
-    loyaltyPoints: {
-      balance: { int: balance },
-      label: "Points",
-    },
+    loyaltyPoints: { balance: { int: balance }, label: "Points" },
     textModulesData: [
-      { header: "Salon",            body: _salonName,                                                                      id: "salon"    },
-      { header: "Redeemable Value", body: `PKR ${value.toLocaleString()}`,                                                 id: "value"    },
-      { header: "Lifetime Earned",  body: `${earned.toLocaleString()} pts`,                                                id: "earned"   },
-      { header: "Tier",             body: tierLabels[tier] ?? "Member ⭐",                                                 id: "tier"     },
+      { header: "Salon",            body: salonName,                                                                      id: "salon"    },
+      { header: "Redeemable Value", body: `PKR ${value.toLocaleString()}`,                                                id: "value"    },
+      { header: "Lifetime Earned",  body: `${earned.toLocaleString()} pts`,                                               id: "earned"   },
+      { header: "Tier",             body: tierLabels[tier] ?? "Member ⭐",                                                id: "tier"     },
       { header: "Next Tier",        body: next ? `${next.needed} pts needed for ${tierLabels[next.tier]}` : "Top tier 🏆", id: "next_tier" },
     ],
     heroImage: {
@@ -110,23 +124,45 @@ function generateWalletUrl(salonId: string, client: Client, _salonName: string, 
     },
     barcode: {
       type: "QR_CODE",
-      value: `${appBaseUrl}/loyalty-card/${encodeURIComponent(salonId)}`,
+      value: `${appBaseUrl}/loyalty-card/${encodeURIComponent(client.id)}`,
       alternateText: client.phone || client.id,
     },
   };
+}
+
+function generateWalletUrl(client: Client, salonName: string, ls: LoyaltySettings, appBaseUrl: string): string {
+  const privateKey = getPrivateKey();
+  const objectId   = `${ISSUER_ID}.werzio-loyalty_${safeId(client.id)}`;
+  const payload    = buildObjectPayload(objectId, client, salonName, ls, appBaseUrl);
 
   const claims = {
     iss: SERVICE_ACCOUNT_EMAIL,
     aud: "google",
     typ: "savetowallet",
     iat: Math.floor(Date.now() / 1000),
-    payload: {
-      loyaltyObjects: [loyaltyObject],
-    },
+    payload: { loyaltyObjects: [payload] },
   };
 
   const token = jwt.sign(claims, privateKey, { algorithm: "RS256" });
   return `https://pay.google.com/gp/v/save/${token}`;
+}
+
+async function patchExistingObject(client: Client, salonName: string, ls: LoyaltySettings, appBaseUrl: string) {
+  try {
+    const objectId  = `${ISSUER_ID}.werzio-loyalty_${safeId(client.id)}`;
+    const objectUrl = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(objectId)}`;
+    const token     = await getAccessToken();
+    const headers   = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
+
+    // Only patch if the object already exists
+    const check = await fetch(objectUrl, { headers });
+    if (!check.ok) return; // object doesn't exist yet — JWT will create it on first save
+
+    const patch = buildObjectPayload(objectId, client, salonName, ls, appBaseUrl);
+    await fetch(objectUrl, { method: "PATCH", headers, body: JSON.stringify(patch) });
+  } catch {
+    // non-critical
+  }
 }
 
 async function fireAndForgetClassUpdate(appBaseUrl: string, salonName: string, salonLogo: string) {
@@ -137,7 +173,7 @@ async function fireAndForgetClassUpdate(appBaseUrl: string, salonName: string, s
       body: JSON.stringify({ salonName, logoUrl: salonLogo || undefined, bgColor: "#5B21B6" }),
     });
   } catch {
-    // non-critical — class update failure doesn't block pass generation
+    // non-critical
   }
 }
 
@@ -150,15 +186,12 @@ export async function GET(req: NextRequest) {
   if (!platform || !salonId || !clientId) {
     return Response.json({ ok: false, error: "Missing platform, salonId, or clientId" }, { status: 400 });
   }
-
   if (platform === "apple") {
     return Response.json({ ok: false, error: "Apple Wallet is not configured yet." }, { status: 501 });
   }
-
   if (platform !== "google") {
     return Response.json({ ok: false, error: "Unsupported wallet platform" }, { status: 400 });
   }
-
   if (!ISSUER_ID || !SERVICE_ACCOUNT_EMAIL || !getPrivateKey()) {
     return Response.json({ ok: false, error: "Google Wallet credentials are not configured." }, { status: 501 });
   }
@@ -174,9 +207,11 @@ export async function GET(req: NextRequest) {
     }
 
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
-    const url = generateWalletUrl(salonId, client, salonName, settings, salonLogo, appBaseUrl);
+    const url        = generateWalletUrl(client, salonName, settings, appBaseUrl);
 
-    // Fire-and-forget: keep the Wallet class branding in sync with the salon name
+    // Fire-and-forget: patch existing object (updates heroImage + points on saved passes)
+    // and keep class branding in sync
+    void patchExistingObject(client, salonName, settings, appBaseUrl);
     void fireAndForgetClassUpdate(appBaseUrl, salonName, salonLogo);
 
     return Response.json({ ok: true, url });
