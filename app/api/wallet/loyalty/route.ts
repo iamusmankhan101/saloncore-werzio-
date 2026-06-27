@@ -110,7 +110,14 @@ function buildObjectPayload(objectId: string, client: Client, salonName: string,
     state: "ACTIVE",
     accountId: salonName,           // shows as sub-text under the name — displays salon name instantly
     accountName: client.name,
-    loyaltyPoints: { balance: { int: balance }, label: "Points" },
+    loyaltyPoints: {
+      balance: { int: balance },
+      label: "Points",
+    },
+    secondaryLoyaltyPoints: {
+      balance: { money: { currencyCode: "PKR", micros: value * 1_000_000 } },
+      label: "Cashback",
+    },
     textModulesData: [
       { header: "Salon",            body: salonName,                                                                      id: "salon"    },
       { header: "Redeemable Value", body: `PKR ${value.toLocaleString()}`,                                                id: "value"    },
