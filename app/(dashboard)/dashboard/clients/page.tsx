@@ -203,12 +203,51 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
             ))}
           </div>
 
-          {/* Visit History */}
-          {completedAppts.length > 0 && (
+          {/* Visit History — appointments + POS merged */}
+          {historyEntries.length > 0 && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Visit History</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
+                Visit History <span style={{ fontWeight: 400 }}>({historyEntries.length})</span>
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {completedAppts.slice(0, 8).map((a) => {
+                {historyEntries.slice(0, 10).map((entry) => {
+                  if (entry.kind === "pos") {
+                    const inv = entry.data;
+                    const isExpanded = expandedVisit === inv.id;
+                    return (
+                      <div key={inv.id}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: isExpanded ? "10px 10px 0 0" : 10, background: "#f0fdf4", border: "1px solid #bbf7d0", borderBottom: isExpanded ? "none" : undefined }}>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: "#059669", background: "#dcfce7", padding: "1px 6px", borderRadius: 20, border: "1px solid #bbf7d0" }}>POS</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>{inv.items.map((it) => it.description).join(", ")}</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>{fmtDate(inv.date)} · {inv.staffName || "—"} · {inv.paymentMethod || "cash"}</div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: "#059669" }}>{fmt(inv.total)}</div>
+                            <button onClick={() => setExpandedVisit(isExpanded ? null : inv.id)}
+                              style={{ display: "flex", alignItems: "center", padding: "4px 7px", borderRadius: 20, border: "none", cursor: "pointer", background: "#dcfce7", fontSize: 10, fontWeight: 700, color: "#059669" }}>
+                              {isExpanded ? "▲" : "▼"}
+                            </button>
+                          </div>
+                        </div>
+                        {isExpanded && (
+                          <div style={{ background: "#f9fffe", border: "1px solid #bbf7d0", borderTop: "none", borderRadius: "0 0 10px 10px", padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: "#059669", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 7 }}>Items</div>
+                            {inv.items.map((it, i) => (
+                              <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#1a1a2e", marginBottom: 4 }}>
+                                <span>{it.description}{it.qty > 1 ? ` ×${it.qty}` : ""}</span>
+                                <span style={{ fontWeight: 700 }}>{fmt(it.unitPrice * it.qty)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  const a = entry.data;
                   const photos = visitPhotos[a.id] ?? {};
                   const photoCount = [photos.before, photos.after].filter(Boolean).length;
                   const isExpanded = expandedVisit === a.id;
@@ -232,7 +271,6 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
                           </button>
                         </div>
                       </div>
-
                       {isExpanded && (
                         <div style={{ background: "#f5f3ff", border: "1px solid #ede9fe", borderTop: "none", borderRadius: "0 0 10px 10px", padding: "12px" }}>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
