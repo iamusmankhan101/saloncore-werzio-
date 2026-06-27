@@ -277,7 +277,9 @@ function ClientModal({
       return;
     }
 
-    const res = await fetch(`/api/wallet/loyalty?platform=${platform}&salonId=${encodeURIComponent(salonId)}&clientId=${encodeURIComponent(client.id)}`);
+    const logo = settingsStore.salon?.logo ?? "";
+    const logoParam = logo.startsWith("https://") ? `&salonLogo=${encodeURIComponent(logo)}` : "";
+    const res = await fetch(`/api/wallet/loyalty?platform=${platform}&salonId=${encodeURIComponent(salonId)}&clientId=${encodeURIComponent(client.id)}${logoParam}`);
     const json = await res.json() as { ok: boolean; url?: string; error?: string };
     if (json.ok && json.url) {
       window.location.href = json.url;

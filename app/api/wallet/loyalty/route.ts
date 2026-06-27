@@ -67,7 +67,7 @@ function safeId(str: string) {
   return str.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
 }
 
-function generateWalletUrl(salonId: string, client: Client, salonName: string, ls: LoyaltySettings): string {
+function generateWalletUrl(salonId: string, client: Client, salonName: string, ls: LoyaltySettings, salonLogo = ""): string {
   const privateKey = getPrivateKey();
   const balance = client.loyaltyPoints ?? 0;
   const earned  = client.loyaltyPointsEarned ?? 0;
@@ -83,18 +83,24 @@ function generateWalletUrl(salonId: string, client: Client, salonName: string, l
   const classId  = `${ISSUER_ID}.werzio_${safeId(salonId)}_loyalty_v1`;
   const objectId = `${ISSUER_ID}.werzio_${safeId(salonId)}_loyalty_v1_${safeId(client.id)}`;
 
-  // Include both class + object inline — Google creates them on first save
+  // Use salon logo only if it's a public HTTPS URL (not a base64 data URL)
+  const logoUri = salonLogo && salonLogo.startsWith("https://")
+    ? salonLogo
+    : "https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg"; // reliable public fallback
+
+  // Embed class + object inline — Google creates the class on first save.
+  // Do NOT include reviewStatus here; it is only valid when creating/updating
+  // a class via the REST API and causes JWT validation errors when embedded.
   const loyaltyClass = {
     id: classId,
     issuerName: salonName,
     programName: `${salonName} Loyalty`,
     programLogo: {
-      sourceUri: { uri: "https://app.werzio.com/icon.png" },
+      sourceUri: { uri: logoUri },
       contentDescription: { defaultValue: { language: "en-US", value: `${salonName} logo` } },
     },
     hexBackgroundColor: "#5B21B6",
     loyaltyPointsLabel: "Points",
-    reviewStatus: "UNDER_REVIEW",
   };
 
   const loyaltyObject = {
@@ -136,9 +142,10 @@ function generateWalletUrl(salonId: string, client: Client, salonName: string, l
 }
 
 export async function GET(req: NextRequest) {
-  const platform = req.nextUrl.searchParams.get("platform");
-  const salonId  = req.nextUrl.searchParams.get("salonId");
-  const clientId = req.nextUrl.searchParams.get("clientId");
+  const platform  = req.nextUrl.searchParams.get("platform");
+  const salonId   = req.nextUrl.searchParams.get("salonId");
+  const clientId  = req.nextUrl.searchParams.get("clientId");
+  const salonLogo = req.nextUrl.searchParams.get("salonLogo") ?? "";
 
   if (!platform || !salonId || !clientId) {
     return Response.json({ ok: false, error: "Missing platform, salonId, or clientId" }, { status: 400 });
@@ -166,7 +173,7 @@ export async function GET(req: NextRequest) {
       return Response.json({ ok: false, error: "Client not found." }, { status: 404 });
     }
 
-    const url = generateWalletUrl(salonId, client, salonName, settings);
+    const url = generateWalletUrl(salonId, client, salonName, settings, salonLogo);
     return Response.json({ ok: true, url });
   } catch (err) {
     console.error("[wallet/loyalty] error:", err);
