@@ -285,7 +285,7 @@ export default function BillingPage() {
     { feature: "Inventory",             pro: "Full",            premium: "Full" },
     { feature: "WhatsApp automation",   pro: "✓",               premium: "✓" },
     { feature: "Virtual Try-On (AI)",   pro: "—",               premium: "✓" },
-    { feature: "Price",                 pro: "PKR 10,000/mo",   premium: "PKR 20,000/mo" },
+    { feature: "Price",                 pro: "PKR 12,000/mo",   premium: "PKR 20,000/mo" },
   ];
 
   return (
@@ -638,7 +638,7 @@ export default function BillingPage() {
             { feature: "Online booking page",   pro: "✓",              premium: "✓" },
             { feature: "WhatsApp automation",   pro: "✓",              premium: "✓" },
             { feature: "Virtual Try-On (AI)",   pro: "—",              premium: "✓" },
-            { feature: "Price",                 pro: "PKR 10,000/mo",  premium: "PKR 20,000/mo" },
+            { feature: "Price",                 pro: "PKR 12,000/mo",  premium: "PKR 20,000/mo" },
           ].map((row, i) => (
             <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>

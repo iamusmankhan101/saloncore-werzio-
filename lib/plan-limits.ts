@@ -9,9 +9,9 @@
  *  │ Werzio Free  │ 0 PKR   │ Appts 30/mo, POS 5 products, staff 5,         │
  *  │              │         │ clients 5, invoicing ✓                        │
  *  ├──────────────┼─────────┼───────────────────────────────────────────────┤
- *  │ Werzio Pro   │ 6000    │ Everything unlimited, no WhatsApp, no Try-On  │
+ *  │ Werzio Pro   │ 12000   │ Everything unlimited + WhatsApp               │
  *  ├──────────────┼─────────┼───────────────────────────────────────────────┤
- *  │ Werzio Prem. │ 10000   │ Everything unlimited + WhatsApp + Try-On      │
+ *  │ Werzio Prem. │ 20000   │ Everything unlimited + WhatsApp + Try-On      │
  *  └──────────────┴─────────┴───────────────────────────────────────────────┘
  */
 
@@ -91,7 +91,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     name: "Pro",
     label: "Werzio Pro",
     badge: "PRO",
-    price: 10000,
+    price: 12000,
     color: "#7C3AED",
     bg: "#f5f3ff",
     gradient: "linear-gradient(135deg,#5B21B6,#9333EA)",
