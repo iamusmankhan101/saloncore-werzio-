@@ -103,7 +103,8 @@ export default function ClientProfilePage() {
         const posSpend = allInvoices
           .filter((inv) => inv.clientId === clientId && inv.source === "pos")
           .reduce((s, inv) => s + inv.total, 0);
-        const totalEarned = Math.floor((apptSpend + posSpend) * ls.pointsPerRupee);
+        const totalSpend = Math.max(found.totalSpend ?? 0, apptSpend + posSpend);
+        const totalEarned = Math.floor(totalSpend * ls.pointsPerRupee);
         if (totalEarned > (found.loyaltyPointsEarned ?? 0)) {
           const redeemed = Math.max(0, (found.loyaltyPointsEarned ?? 0) - (found.loyaltyPoints ?? 0));
           resolved = { ...found, loyaltyPointsEarned: totalEarned, loyaltyPoints: Math.max(0, totalEarned - redeemed) };

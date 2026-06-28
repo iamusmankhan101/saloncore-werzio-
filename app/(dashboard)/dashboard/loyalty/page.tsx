@@ -672,7 +672,9 @@ export default function LoyaltyPage() {
         const posSpend = allInvoices
           .filter((inv) => inv.clientId === c.id && inv.source === "pos")
           .reduce((s, inv) => s + inv.total, 0);
-        const totalSpend = apptSpend + posSpend;
+        // Use stored totalSpend as a floor — it captures cross-device and POS
+        // sales that may not be reflected in local appointments/invoices lists.
+        const totalSpend = Math.max(c.totalSpend ?? 0, apptSpend + posSpend);
         const totalEarned = Math.floor(totalSpend * ls.pointsPerRupee);
         // Only increase — never lower stored points
         if (totalEarned <= (c.loyaltyPointsEarned ?? 0)) return c;
