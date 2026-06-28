@@ -101,7 +101,8 @@ let lastSentAt = 0;
 let schedulerRunning = false;
 
 // sendAfter: unix ms timestamp — scheduler skips item until Date.now() >= sendAfter
-type QueueItem = { id: string; retries: number; sendAfter?: number };
+// phone: stored at enqueue time so the message can still send even if the appointment is later deleted
+type QueueItem = { id: string; retries: number; sendAfter?: number; phone?: string; clientName?: string };
 
 function getQueue(storageKey: string): QueueItem[] {
   try {
@@ -138,7 +139,12 @@ export function enqueueWhatsAppCancellation(apptId: string) {
   if (typeof window === "undefined") return;
   const q = getQueue(CANCEL_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
-    setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + FOLLOWUP_DELAY_MS }]);
+    // Snapshot phone + name now so the message can fire even if the appointment record is deleted
+    const appt = getStoredAppointments().find(a => a.id === apptId);
+    const clients = getStoredClients();
+    const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
+    const phone = client?.phone ? normalizePhone(client.phone) : "";
+    setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + FOLLOWUP_DELAY_MS, phone, clientName: appt?.clientName }]);
   }
 }
 
@@ -393,21 +399,22 @@ async function runSchedulerInternal(): Promise<void> {
         remaining.push(item);
         continue;
       }
-      const appt = appointments.find((a) => a.id === item.id);
-      const phone = appt ? clientPhone(appt.clientId) : "";
-      if (!appt || !phone) continue; // appointment not found or no phone — drop from queue
-      const sentKey = `cancel_${appt.id}`;
+      const sentKey = `cancel_${item.id}`;
       if (alreadySent(sentKey)) continue; // already sent win-back — drop duplicate
+      // Use snapshotted phone (stored at enqueue) as fallback if appointment was deleted
+      const appt = appointments.find((a) => a.id === item.id);
+      const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
+      const clientName = appt?.clientName ?? item.clientName ?? "there";
+      if (!phone) continue; // no phone at all — drop
       const cancelDiscount = (settingsStore.wasender as { cancelDiscount?: string }).cancelDiscount || "10%";
-      const text = fillTemplate(cancelTpl, {
-        ...buildVars(appt, salonName),
-        discount: cancelDiscount,
-      });
-      const ok = await callSendApi(phone, text, { type: "cancellation", clientName: appt.clientName });
+      const text = appt
+        ? fillTemplate(cancelTpl, { ...buildVars(appt, salonName), discount: cancelDiscount })
+        : fillTemplate(cancelTpl, { name: clientName, salon_name: salonName, discount: cancelDiscount, service: "", date: "", time: "", staff: "" });
+      const ok = await callSendApi(phone, text, { type: "cancellation", clientName });
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
-        remaining.push({ id: item.id, retries: item.retries + 1 });
+        remaining.push({ ...item, retries: item.retries + 1 });
       }
     }
     setQueue(CANCEL_QUEUE_KEY, remaining);

@@ -439,6 +439,8 @@ interface WhatsAppSettings {
   reminderHours: number;
   autoConfirmation: boolean;
   autoFollowup: boolean;
+  autoCancellation: boolean;
+  cancelDiscount: string;
   autoLowStock: boolean;
 }
 
@@ -611,6 +613,22 @@ function WhatsAppSection() {
           hint="Sent 24 hours after appointment is completed"
           enabled={form.autoFollowup}
           onToggle={() => set("autoFollowup", !form.autoFollowup)}
+        />
+        <AutoRow
+          label="Cancellation Win-back"
+          hint="Sent 24 hours after cancellation with a discount to encourage re-booking"
+          enabled={form.autoCancellation}
+          onToggle={() => set("autoCancellation", !form.autoCancellation)}
+          extra={
+            <Field label="Discount to offer" hint="Used in {{discount}} variable in the template">
+              <input
+                style={inputStyle}
+                value={form.cancelDiscount ?? "10%"}
+                onChange={(e) => set("cancelDiscount", e.target.value)}
+                placeholder="e.g. 10% or PKR 500"
+              />
+            </Field>
+          }
         />
         <AutoRow
           label="Low Stock Alert"
