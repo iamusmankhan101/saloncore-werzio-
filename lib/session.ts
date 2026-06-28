@@ -6,13 +6,15 @@
 
 import { createHmac, timingSafeEqual, createHash } from "crypto";
 
-// Must be set in .env.local (and Vercel env vars).
-// If missing in production the server will refuse to start.
-const RAW_SECRET = process.env.SESSION_SECRET;
-if (!RAW_SECRET && process.env.NODE_ENV === "production") {
-  throw new Error("SESSION_SECRET environment variable is required in production.");
+// Resolved lazily at call time so the module can be imported during build
+// without throwing (SESSION_SECRET is only available at runtime, not build time).
+function getSecret(): string {
+  const s = process.env.SESSION_SECRET;
+  if (!s && process.env.NODE_ENV === "production") {
+    throw new Error("SESSION_SECRET environment variable is required in production.");
+  }
+  return s ?? "dev-only-insecure-secret-change-before-deploy";
 }
-const SECRET = RAW_SECRET ?? "dev-only-insecure-secret-change-before-deploy";
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -21,7 +23,7 @@ const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export function createSessionToken(userId: string): string {
   const expiry = Date.now() + SESSION_DURATION_MS;
   const payload = `${userId}:${expiry}`;
-  const sig = createHmac("sha256", SECRET).update(payload).digest("hex");
+  const sig = createHmac("sha256", getSecret()).update(payload).digest("hex");
   return Buffer.from(payload).toString("base64url") + "." + sig;
 }
 
@@ -34,7 +36,7 @@ export function verifySessionToken(token: string): string | null {
     const sig  = token.slice(dot + 1);
 
     const payload  = Buffer.from(b64, "base64url").toString("utf8");
-    const expected = createHmac("sha256", SECRET).update(payload).digest("hex");
+    const expected = createHmac("sha256", getSecret()).update(payload).digest("hex");
 
     // Reject if sig is the wrong length before timingSafeEqual (would throw)
     const expectedBuf = Buffer.from(expected, "hex");
