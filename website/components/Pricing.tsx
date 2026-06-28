@@ -69,7 +69,7 @@ export default function Pricing() {
       <div className="text-center">
         <div className="section-label" data-animate data-delay="0">✦ Pricing</div>
         <h2 className="section-title" data-animate data-delay="0.1">Simple, PKR Pricing.<br />No Hidden Fees.</h2>
-        <p className="section-sub" data-animate data-delay="0.2">Start free. Upgrade when you&apos;re ready. Cancel anytime.</p>
+        <p className="section-sub" data-animate data-delay="0.2">Simple monthly plans. No hidden fees. Cancel anytime.</p>
       </div>
       <div className={styles.grid}>
         {plans.map((p, i) => (

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users, Package } from "lucide-react";
 import styles from "./Navbar.module.css";
+import DemoModal from "./DemoModal";
 
 const featureLinks = [
   { label: "Appointment Scheduling", desc: "Calendar, bookings & reminders", href: "/features/appointment-scheduling", Icon: CalendarDays },
@@ -29,6 +30,7 @@ export default function Navbar() {
   const [open, setOpen]               = useState(false);
   const [dropOpen, setDropOpen]       = useState(false);
   const [mobileFeatures, setMobileFeatures] = useState(false);
+  const [demoOpen, setDemoOpen]       = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const openDrop  = () => { clearTimeout(closeTimer.current); setDropOpen(true); };
@@ -113,8 +115,7 @@ export default function Navbar() {
         </ul>
 
         <div className={styles.cta}>
-          <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className={`btn btn-outline ${styles.loginBtn}`}>Log In</a>
-          <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className="btn btn-primary">Get Started</a>
+          <button type="button" onClick={() => setDemoOpen(true)} className="btn btn-primary">Book a Demo</button>
         </div>
 
         <button className={styles.burger} onClick={() => setOpen(!open)} aria-label="Toggle menu">
@@ -163,12 +164,12 @@ export default function Navbar() {
           ))}
         </ul>
         <div className={styles.drawerCta}>
-          <a href="https://app.werzio.com/" target="_blank" rel="noopener noreferrer" className="btn btn-outline" style={{ width: "100%", justifyContent: "center" }}>Log In</a>
-          <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => setOpen(false)}>Get Started</a>
+          <button type="button" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => { setOpen(false); setDemoOpen(true); }}>Book a Demo</button>
         </div>
       </div>
 
       {open && <div className={styles.overlay} onClick={() => setOpen(false)} />}
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
   );
 }
