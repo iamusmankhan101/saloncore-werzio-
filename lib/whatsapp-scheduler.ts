@@ -337,8 +337,8 @@ async function runSchedulerInternal(): Promise<void> {
       const phone = clientPhone(appt.clientId);
       if (phone && !alreadySent(sentKey) && hoursUntil > 0 && hoursUntil <= ws.reminderHours) {
         const text = fillTemplate(waTpl.reminder, buildVars(appt, salonName));
-        await callSendApi(phone, text, { type: "reminder", clientName: appt.clientName });
-        markSent(sentKey);
+        const ok = await callSendApi(phone, text, { type: "reminder", clientName: appt.clientName });
+        if (ok) markSent(sentKey); // only mark sent on success so failures are retried
       }
     }
   }
