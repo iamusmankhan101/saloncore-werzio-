@@ -15,8 +15,15 @@ export function getDb(): Client {
 }
 
 // Re-export as `db` for backward compatibility with existing imports.
+// Methods must be bound to the real Client so private fields (#promiseLimitFunction)
+// resolve on the correct instance, not on the Proxy target.
 export const db = new Proxy({} as Client, {
   get(_target, prop) {
-    return (getDb() as unknown as Record<string | symbol, unknown>)[prop];
+    const client = getDb();
+    const value = (client as unknown as Record<string | symbol, unknown>)[prop];
+    if (typeof value === "function") {
+      return (value as (...args: unknown[]) => unknown).bind(client);
+    }
+    return value;
   },
 });

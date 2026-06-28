@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       salonName: salonName || ownerName,
       phone: phone || "",
       role: isAdmin ? "admin" : "owner",
-      emailVerified: isAdmin, // Admin accounts skip email verification
+      emailVerified: isAdmin,
     });
 
     return Response.json({
@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[auth/signup] Error:", err);
     const message = err instanceof Error ? err.message : "Failed to create account.";
-    return Response.json({ ok: false, error: message }, { status: 400 });
+
+    // User-facing errors (email taken, etc.) → 400; server/DB errors → 500
+    const isUserError = message.includes("already exists") || message.includes("Invalid admin");
+    return Response.json({ ok: false, error: isUserError ? message : "Failed to create account. Please try again." }, { status: isUserError ? 400 : 500 });
   }
 }
