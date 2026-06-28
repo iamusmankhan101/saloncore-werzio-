@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare, UserCog, BarChart3, Package, Globe, Sparkles, Search, CreditCard, Scissors, CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart, X, Gift } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare, UserCog, BarChart3, Package, Globe, Sparkles, Search, CreditCard, Scissors, CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart, X, Gift, Banknote } from "lucide-react";
 import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
 import { SETTINGS_CHANGED_EVENT, settingsStore, reloadSettings } from "@/lib/settings-store";
 import { getCurrentPlan } from "@/lib/plan-limits";
@@ -17,6 +17,7 @@ const APP_NAV: { href: string; icon: React.ElementType; label: string; dynamicHr
   { href: "/dashboard/messages", icon: MessageSquare, label: "WhatsApp" },
   { href: "/dashboard/staff", icon: UserCog, label: "Staff" },
   { href: "/dashboard/revenue", icon: BarChart3, label: "Revenue" },
+  { href: "/dashboard/cash-flow", icon: Banknote, label: "Cash Flow" },
   { href: "/dashboard/inventory", icon: Package, label: "Inventory" },
   { href: "/dashboard/invoices", icon: ReceiptText, label: "Invoices" },
   { href: "/dashboard/pos", icon: ShoppingCart, label: "POS" },
