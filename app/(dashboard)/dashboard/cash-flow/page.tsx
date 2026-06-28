@@ -297,6 +297,8 @@ export default function CashFlowPage() {
     .total-row td{font-weight:700;background:#fef2f2;color:#ef4444;border-top:1px solid #f0f0f8}
     .cat-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
     .net-pos{color:#059669}.net-neg{color:#ef4444}
+    .income-total td{font-weight:700;background:#F5F3FF;color:#7C3AED;border-top:1px solid #f0f0f8}
+    .src-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
     .footer{margin-top:36px;padding-top:20px;border-top:1px solid #f0f0f8;display:flex;justify-content:space-between}
     .footer-txt{font-size:11px;color:#c0c0d0}
     @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:24px 32px}}
@@ -333,6 +335,29 @@ export default function CashFlowPage() {
       <div class="stat-sub">${netCashFlow >= 0 ? "Surplus" : "Deficit"}</div>
     </div>
   </div>
+
+  ${periodIncomeRows.length > 0 ? `
+  <div class="section">
+    <div class="section-title">Income Log</div>
+    <div class="section-sub">All income entries for this period</div>
+    <table>
+      <thead><tr><th>Date</th><th>Client</th><th>Description</th><th>Source</th><th style="text-align:right">Amount</th></tr></thead>
+      <tbody>
+        ${periodIncomeRows.map(row => `
+        <tr>
+          <td>${row.date}</td>
+          <td style="font-weight:600">${row.client}</td>
+          <td style="color:#6b6b8a">${row.description}</td>
+          <td><span class="src-badge" style="background:${row.source === "pos" ? "#fffbeb" : "#F5F3FF"};color:${row.source === "pos" ? "#d97706" : "#7C3AED"}">${row.source === "pos" ? "POS Sale" : "Appointment"}</span></td>
+          <td style="text-align:right;font-weight:700;color:#7C3AED">${fmt(row.amount)}</td>
+        </tr>`).join("")}
+        <tr class="income-total">
+          <td colspan="4"><strong>Total Income</strong></td>
+          <td style="text-align:right"><strong>${fmt(periodIncome)}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>` : ""}
 
   ${categoryBreakdown.length > 0 ? `
   <div class="section">
