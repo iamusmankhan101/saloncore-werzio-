@@ -12,7 +12,6 @@ import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
 import { syncFromDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
 import { getStoredInventory } from "@/lib/storage";
-import { getSalonInvoices } from "@/lib/salon-invoices";
 
 // ─── Notification chime ───────────────────────────────────────────────────────
 
@@ -120,9 +119,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }>>([]);
   const [lowStockCount,     setLowStockCount]     = useState(0);
   const [outStockCount,     setOutStockCount]     = useState(0);
-  const [unpaidInvoiceCount, setUnpaidInvoiceCount] = useState(0);
-  const [overdueInvoiceCount, setOverdueInvoiceCount] = useState(0);
-  const [topUnpaidInvoice, setTopUnpaidInvoice]   = useState<{ clientName: string; total: number; number: string; daysSince: number } | null>(null);
+  const [unpaidInvoice, setUnpaidInvoice] = useState<{ number: string; amount: number; status: string; dueDate: string } | null>(null);
   const [invoiceBadgeDismissed, setInvoiceBadgeDismissed] = useState(false);
   const [waStatus,      setWaStatus]       = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
@@ -156,16 +153,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     syncFromDB().then(() => { reloadSettings(); runWhatsAppScheduler(); });
     checkInvoiceNotifications();
 
-    // Check suspension status from Turso (server-side source of truth)
+    // Check suspension + unpaid subscription invoice from Turso
     fetch(`/api/billing/status?userId=${encodeURIComponent(user.id)}`)
       .then((r) => r.json())
-      .then((data: { ok: boolean; suspended?: boolean; reason?: string | null }) => {
+      .then((data: { ok: boolean; suspended?: boolean; reason?: string | null; unpaidInvoice?: { number: string; amount: number; status: string; dueDate: string } | null }) => {
         if (data.ok && data.suspended) {
           setSuspended(true);
           setSuspReason(data.reason ?? null);
         }
+        if (data.ok && data.unpaidInvoice) {
+          setUnpaidInvoice(data.unpaidInvoice);
+          setInvoiceBadgeDismissed(false);
+        }
       })
-      .catch(() => { /* fail open — don't block on network error */ });
+      .catch(() => { /* fail open */ });
   }, [isReady]);
 
   // WhatsApp scheduler — first run is triggered by syncFromDB.then() above
@@ -217,30 +218,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => { window.clearInterval(interval); window.removeEventListener("focus", checkStock); };
   }, [isReady]);
 
-  // Persistent unpaid-invoice badge
-  useEffect(() => {
-    if (!isReady) return;
-    function checkInvoices() {
-      const invs   = getSalonInvoices();
-      const today  = new Date().toISOString().slice(0, 10);
-      const unpaid = invs.filter((i) => i.status === "unpaid");
-      setUnpaidInvoiceCount(unpaid.length);
-      setOverdueInvoiceCount(unpaid.filter((i) => i.date < today).length);
-      // Most urgent = oldest unpaid
-      if (unpaid.length > 0) {
-        const oldest = unpaid.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
-        const daysSince = Math.floor((Date.now() - new Date(oldest.createdAt).getTime()) / 86_400_000);
-        setTopUnpaidInvoice({ clientName: oldest.clientName, total: oldest.total, number: oldest.number, daysSince });
-        setInvoiceBadgeDismissed(false);
-      } else {
-        setTopUnpaidInvoice(null);
-      }
-    }
-    checkInvoices();
-    const interval = window.setInterval(checkInvoices, 60_000);
-    window.addEventListener("focus", checkInvoices);
-    return () => { window.clearInterval(interval); window.removeEventListener("focus", checkInvoices); };
-  }, [isReady]);
 
   // WhatsApp message toast notifications
   useEffect(() => {
@@ -403,33 +380,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Bottom-right persistent alert badges (stacked) */}
       <div style={{ position: "fixed", bottom: 90, right: 16, zIndex: 9998, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
 
-        {/* Unpaid invoice reminder card */}
-        {topUnpaidInvoice && !invoiceBadgeDismissed && (
+        {/* Werzio subscription invoice reminder */}
+        {unpaidInvoice && !invoiceBadgeDismissed && (
           <div style={{
             background: "#fff",
             borderRadius: 16,
             boxShadow: "0 8px 32px rgba(0,0,0,0.14), 0 0 0 1px rgba(217,119,6,0.15)",
             overflow: "hidden",
-            width: 240,
+            width: 248,
             animation: "stockPulse 3s ease-in-out infinite",
           }}>
             {/* Coloured top bar */}
             <div style={{
-              background: overdueInvoiceCount > 0
+              background: unpaidInvoice.status === "overdue"
                 ? "linear-gradient(135deg,#dc2626,#ef4444)"
                 : "linear-gradient(135deg,#d97706,#f59e0b)",
               padding: "10px 12px",
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {/* Pulsing dot */}
                 <div style={{ position: "relative", width: 8, height: 8 }}>
                   <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#fff", opacity: 0.6, animation: "stockPulse 1.5s ease-in-out infinite" }} />
                   <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#fff" }} />
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.04em" }}>
-                  {unpaidInvoiceCount} Unpaid Invoice{unpaidInvoiceCount > 1 ? "s" : ""}
-                  {overdueInvoiceCount > 0 && ` · ${overdueInvoiceCount} overdue`}
+                  {unpaidInvoice.status === "overdue" ? "Invoice Overdue" : "Invoice Due"}
                 </span>
               </div>
               <button
@@ -444,27 +419,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Invoice detail */}
             <div style={{ padding: "12px 14px" }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e", marginBottom: 2 }}>
-                {topUnpaidInvoice.clientName}
+                Werzio Subscription
               </div>
               <div style={{ fontSize: 11, color: "#9898b0", marginBottom: 10 }}>
-                {topUnpaidInvoice.number}
-                {topUnpaidInvoice.daysSince > 0 && ` · ${topUnpaidInvoice.daysSince}d ago`}
+                {unpaidInvoice.number} · Due {unpaidInvoice.dueDate}
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 16, fontWeight: 800, color: overdueInvoiceCount > 0 ? "#dc2626" : "#d97706" }}>
-                  PKR {topUnpaidInvoice.total.toLocaleString()}
+                <span style={{ fontSize: 16, fontWeight: 800, color: unpaidInvoice.status === "overdue" ? "#dc2626" : "#d97706" }}>
+                  PKR {unpaidInvoice.amount.toLocaleString()}
                 </span>
                 <Link
-                  href="/dashboard/invoices"
+                  href="/dashboard/billing"
                   style={{
                     fontSize: 11, fontWeight: 700,
                     color: "#fff",
-                    background: overdueInvoiceCount > 0 ? "#dc2626" : "#d97706",
+                    background: unpaidInvoice.status === "overdue" ? "#dc2626" : "#d97706",
                     padding: "5px 12px", borderRadius: 8,
                     textDecoration: "none",
                   }}
                 >
-                  Collect →
+                  Pay Now →
                 </Link>
               </div>
             </div>

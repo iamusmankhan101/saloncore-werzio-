@@ -34,7 +34,12 @@ async function ensureTable() {
 }
 
 function normalizePhone(phone: string) {
-  return phone.replace(/\D/g, "");
+  const digits = phone.replace(/\D/g, "");
+  // Normalize Pakistani numbers to 10-digit form (3XXXXXXXXX) so that
+  // 03XXXXXXXXX, 923XXXXXXXXX, +923XXXXXXXXX all match each other.
+  if (digits.startsWith("92") && digits.length >= 12) return digits.slice(2);
+  if (digits.startsWith("0") && digits.length === 11)  return digits.slice(1);
+  return digits;
 }
 
 function formatCardNumber(id: string): string {

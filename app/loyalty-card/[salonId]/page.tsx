@@ -43,6 +43,7 @@ export default function PublicLoyaltyCardPage({ params }: { params: Promise<{ sa
     event.preventDefault();
     if (!salonId || !phone.trim()) return;
     setLoading(true);
+    setData(null);
     setWalletMsg("");
     try {
       const method = needsName ? "POST" : "GET";

@@ -174,6 +174,7 @@ export default function POSPage() {
   const [posTab, setPosTab] = useState<"customer" | "catalog" | "cart">("catalog");
 
   // ── Flow ──────────────────────────────────────────────────────────────────
+  const [isCredit,         setIsCredit]         = useState(false);
   const [completing,       setCompleting]       = useState(false);
   const [printInvoice,     setPrintInvoice]     = useState<SalonInvoice | null>(null);
   const [completed,        setCompleted]        = useState(false);
@@ -263,7 +264,7 @@ export default function POSPage() {
   function startNewSale() {
     setCart([]); setDiscount(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod("cash");
     setSelectedClient(null); setClientQ(""); setSelectedStaffId("");
-    setCompleted(false); setLastInvoice(null); setWaStatus("idle");
+    setCompleted(false); setLastInvoice(null); setWaStatus("idle"); setIsCredit(false);
   }
 
   // ── Complete sale ─────────────────────────────────────────────────────────
@@ -281,8 +282,8 @@ export default function POSPage() {
         staffName:     staffMember?.name || "",
         items:         cartLineItems,
         subtotal, discountAmount: totalDiscountAmount, taxAmount, total,
-        paymentMethod: payMethod,
-        date: today, status: "paid",
+        paymentMethod: isCredit ? "" : payMethod,
+        date: today, status: isCredit ? "unpaid" : "paid",
         notes: saleNotes.trim(),
         source: "pos",
       });
@@ -331,7 +332,7 @@ export default function POSPage() {
       setPrintInvoice(invoice);
       setCompleted(true);
 
-      sendReceiptWA(invoice, selectedClient);
+      if (!isCredit) sendReceiptWA(invoice, selectedClient);
     } finally {
       setCompleting(false);
     }
@@ -427,28 +428,33 @@ export default function POSPage() {
 
       {/* ══ SUCCESS BANNER ══ */}
       {completed && lastInvoice && (
-        <div style={{ background: "linear-gradient(135deg,#ecfdf5,#f0fdf4)", borderBottom: "2px solid #6ee7b7", display: "flex", alignItems: "center", padding: "12px 24px", gap: 14, flexShrink: 0 }}>
-          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#059669", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(5,150,105,0.35)" }}>
-            <CheckCircle2 size={20} color="#fff" />
+        <div style={{
+          background: lastInvoice.status === "unpaid" ? "linear-gradient(135deg,#fffbeb,#fef9c3)" : "linear-gradient(135deg,#ecfdf5,#f0fdf4)",
+          borderBottom: `2px solid ${lastInvoice.status === "unpaid" ? "#fcd34d" : "#6ee7b7"}`,
+          display: "flex", alignItems: "center", padding: "12px 24px", gap: 14, flexShrink: 0,
+        }}>
+          <div style={{ width: 40, height: 40, borderRadius: "50%", background: lastInvoice.status === "unpaid" ? "#d97706" : "#059669", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 2px 8px rgba(${lastInvoice.status === "unpaid" ? "217,119,6" : "5,150,105"},0.35)` }}>
+            {lastInvoice.status === "unpaid" ? <Clock size={20} color="#fff" /> : <CheckCircle2 size={20} color="#fff" />}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#065f46" }}>
-              Sale Complete
-              <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 600, color: "#6ee7b7", background: "#065f46", borderRadius: 6, padding: "1px 8px" }}>{lastInvoice.number}</span>
+            <div style={{ fontSize: 15, fontWeight: 800, color: lastInvoice.status === "unpaid" ? "#92400e" : "#065f46" }}>
+              {lastInvoice.status === "unpaid" ? "Credit Invoice Created" : "Sale Complete"}
+              <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 600, color: lastInvoice.status === "unpaid" ? "#fcd34d" : "#6ee7b7", background: lastInvoice.status === "unpaid" ? "#92400e" : "#065f46", borderRadius: 6, padding: "1px 8px" }}>{lastInvoice.number}</span>
             </div>
-            <div style={{ fontSize: 12, color: "#047857", marginTop: 3, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 12, color: lastInvoice.status === "unpaid" ? "#b45309" : "#047857", marginTop: 3, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={{ fontWeight: 800 }}>{pkr(lastInvoice.total)}</span>
               <span>· {lastInvoice.clientName}</span>
+              {lastInvoice.status === "unpaid" && <span style={{ fontWeight: 700 }}>· Awaiting payment</span>}
               {waStatus === "sent" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#059669", fontWeight: 700 }}><CheckCircle2 size={11} /> WhatsApp sent</span>}
               {waStatus === "failed" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#d97706", fontWeight: 700 }}><AlertCircle size={11} /> WhatsApp failed</span>}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" onClick={() => setPrintInvoice(lastInvoice)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #059669", background: "#fff", color: "#059669", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: `1.5px solid ${lastInvoice.status === "unpaid" ? "#d97706" : "#059669"}`, background: "#fff", color: lastInvoice.status === "unpaid" ? "#d97706" : "#059669", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               <Printer size={14} /> Print
             </button>
-            {selectedClient?.phone && (
+            {selectedClient?.phone && lastInvoice.status !== "unpaid" && (
               <button type="button" onClick={() => sendReceiptWA(lastInvoice, selectedClient)}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                 <MessageSquare size={14} /> Resend WA
@@ -972,15 +978,33 @@ export default function POSPage() {
                 </div>
               </div>
 
+              {/* Pay Later toggle */}
+              <button
+                type="button"
+                onClick={() => setIsCredit(c => !c)}
+                style={{
+                  width: "100%", padding: "9px 0", borderRadius: 10, marginBottom: 8,
+                  border: `2px solid ${isCredit ? "#d97706" : "#e8e8f4"}`,
+                  background: isCredit ? "#fffbeb" : "#fafafe",
+                  color: isCredit ? "#d97706" : "#9999b0",
+                  fontSize: 12, fontWeight: 800, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                  transition: "all 0.15s",
+                }}
+              >
+                <Clock size={13} />
+                {isCredit ? "Pay Later — Credit Sale" : "Pay Later / Credit"}
+              </button>
+
               {/* Complete button */}
               <button type="button" onClick={completeSale} disabled={completing}
                 style={{
                   width: "100%", padding: "14px 0", borderRadius: 13, border: "none",
-                  background: completing ? "#e8e8f0" : "linear-gradient(135deg,#5B21B6,#9333EA)",
+                  background: completing ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
                   color: completing ? "#aaaabc" : "#fff",
                   fontSize: 15, fontWeight: 900, cursor: completing ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-                  boxShadow: completing ? "none" : "0 5px 20px rgba(91,33,182,0.42)",
+                  boxShadow: completing ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
                   letterSpacing: "-0.01em", transition: "all 0.15s",
                 }}
                 onMouseEnter={e => { if (!completing) e.currentTarget.style.transform = "translateY(-1px)"; }}
@@ -988,7 +1012,9 @@ export default function POSPage() {
               >
                 {completing
                   ? <><RefreshCw size={16} style={{ animation: "spin 1s linear infinite" }} /> Processing…</>
-                  : <><ReceiptText size={17} /> Complete Sale &amp; Print</>
+                  : isCredit
+                    ? <><Clock size={17} /> Create Credit Invoice</>
+                    : <><ReceiptText size={17} /> Complete Sale &amp; Print</>
                 }
               </button>
 
