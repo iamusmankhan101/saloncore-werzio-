@@ -6,7 +6,7 @@ import { BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
-import { Search, X, Plus, Phone, Mail, Calendar, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Search, X, Plus, Phone, Mail, Calendar, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet, TrendingUp, Clock } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 
 const STATUS_CONFIG = {
@@ -809,6 +809,8 @@ export default function ClientsPage() {
   const [showDeleteSelected, setShowDeleteSelected] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [sortMode, setSortMode] = useState<"spend" | "visits" | "absent">("spend");
+  const [absentDays, setAbsentDays] = useState(60);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -843,16 +845,36 @@ export default function ClientsPage() {
   const clientLimited = isAtLimit(plan.clientLimit, clients.length);
 
   const filtered = useMemo(() => {
-    return clients.filter((c) => {
+    const todayMs = new Date().setHours(0, 0, 0, 0);
+    let result = clients.filter((c) => {
       if (tagFilter !== "all" && !c.tags.includes(tagFilter)) return false;
       if (sourceFilter !== "all" && c.source !== sourceFilter) return false;
+      if (sortMode === "absent") {
+        const diffDays = c.lastVisitDate
+          ? Math.floor((todayMs - new Date(c.lastVisitDate).getTime()) / 86400000)
+          : Infinity;
+        if (diffDays < absentDays) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         return c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email ?? "").toLowerCase().includes(q);
       }
       return true;
-    }).sort((a, b) => b.totalSpend - a.totalSpend);
-  }, [clients, search, tagFilter, sourceFilter]);
+    });
+    if (sortMode === "visits") {
+      result = result.sort((a, b) => b.totalVisits - a.totalVisits);
+    } else if (sortMode === "absent") {
+      result = result.sort((a, b) => {
+        if (!a.lastVisitDate && !b.lastVisitDate) return 0;
+        if (!a.lastVisitDate) return -1;
+        if (!b.lastVisitDate) return 1;
+        return a.lastVisitDate.localeCompare(b.lastVisitDate);
+      });
+    } else {
+      result = result.sort((a, b) => b.totalSpend - a.totalSpend);
+    }
+    return result;
+  }, [clients, search, tagFilter, sourceFilter, sortMode, absentDays]);
 
   const allTags = Array.from(new Set(clients.flatMap((c) => c.tags)));
   const allSources = Array.from(new Set(clients.map((c) => c.source)));
@@ -1059,6 +1081,40 @@ export default function ClientsPage() {
           {activeFilters > 0 && <span style={{ background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeFilters}</span>}
           <ChevronDown size={13} style={{ transform: showFilters ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
         </button>
+      </div>
+
+      {/* Sort / quick-filter pills */}
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        {([
+          { key: "spend",  label: "Top Spenders",   icon: <TrendingUp size={12} /> },
+          { key: "visits", label: "Most Frequent",  icon: <TrendingUp size={12} /> },
+          { key: "absent", label: "Long Absent",    icon: <Clock size={12} /> },
+        ] as const).map(({ key, label, icon }) => (
+          <button key={key} onClick={() => setSortMode(key)}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 13px", borderRadius: 20,
+              border: `1px solid ${sortMode === key ? "#7C3AED" : "#e8e8f0"}`,
+              background: sortMode === key ? "#7C3AED" : "#fff",
+              fontSize: 12, fontWeight: 600,
+              color: sortMode === key ? "#fff" : "#6b6b8a",
+              cursor: "pointer" }}>
+            {icon}{label}
+          </button>
+        ))}
+        {sortMode === "absent" && (
+          <select value={absentDays} onChange={(e) => setAbsentDays(Number(e.target.value))}
+            style={{ padding: "5px 10px", borderRadius: 20, border: "1px solid #ddd6fe", background: "#f5f3ff",
+              fontSize: 12, fontWeight: 600, color: "#5B21B6", cursor: "pointer", outline: "none" }}>
+            <option value={30}>30+ days</option>
+            <option value={60}>60+ days</option>
+            <option value={90}>90+ days</option>
+            <option value={180}>6+ months</option>
+          </select>
+        )}
+        {sortMode !== "spend" && (
+          <span style={{ fontSize: 12, color: "#b0b0c8", marginLeft: 4 }}>
+            {filtered.length} client{filtered.length !== 1 ? "s" : ""}
+          </span>
+        )}
       </div>
 
       {showFilters && (
