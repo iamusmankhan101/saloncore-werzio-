@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       writeUrl = classUrl;
       const { id: _id, ...mutableFields } = classPayload;
       void _id;
-      writeBody = mutableFields;
+      writeBody = { ...mutableFields, reviewStatus: "UNDER_REVIEW" };
     } else if (getRes.status === 404) {
       method = "POST";
       writeUrl = "https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass";
