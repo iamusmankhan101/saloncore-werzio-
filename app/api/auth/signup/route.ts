@@ -72,6 +72,6 @@ export async function POST(req: NextRequest) {
 
     // User-facing errors (email taken, etc.) → 400; server/DB errors → 500
     const isUserError = message.includes("already exists") || message.includes("Invalid admin");
-    return Response.json({ ok: false, error: isUserError ? message : "Failed to create account. Please try again." }, { status: isUserError ? 400 : 500 });
+    return Response.json({ ok: false, error: isUserError ? message : message }, { status: isUserError ? 400 : 500 });
   }
 }
