@@ -46,7 +46,7 @@ export default function TermsPage() {
         <p>Werzio offers the following subscription plans:</p>
         <ul>
           <li><strong>Werzio Free</strong> — Available at no cost with limited features.</li>
-          <li><strong>Werzio Pro</strong> — ₨6,000/month, billed monthly.</li>
+          <li><strong>Werzio Pro</strong> — ₨12,000/month, billed monthly.</li>
           <li><strong>Werzio Premium</strong> — ₨20,000/month, billed monthly.</li>
         </ul>
         <p>

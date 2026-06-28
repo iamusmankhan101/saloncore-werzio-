@@ -40,7 +40,7 @@ const plans: Array<{
     badgeStyle: {},
     name: "werzio pro",
     desc: "The complete toolkit for growing salons.",
-    price: "6,000",
+    price: "12,000",
     period: " pkr/month",
     features: [
       "Point of Sale (POS)",
@@ -63,7 +63,7 @@ const plans: Array<{
     badgeStyle: { background: "#fef3c7", color: "#d97706" },
     name: "werzio premium",
     desc: "Everything in Pro plus virtual try on.",
-    price: "10,000",
+    price: "20,000",
     period: " pkr/month",
     features: [
       "Point of Sale (POS)",
