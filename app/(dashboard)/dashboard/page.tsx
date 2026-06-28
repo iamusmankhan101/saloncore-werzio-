@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { APPOINTMENTS, REVENUE_LAST_7_DAYS, CLIENTS } from "@/lib/mock-data";
+import { useState, useEffect, useMemo } from "react";
 import { getStoredAppointments, getStoredClients, getStoredStaff } from "@/lib/storage";
 import type { AppointmentStatus, Appointment, Client, Staff } from "@/lib/types";
-import Link from "next/link";
 import DashboardHeader from "@/components/dashboard-header";
 import { MoreHorizontal } from "lucide-react";
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -48,18 +46,38 @@ export default function DashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
-  const [today, setToday] = useState("2026-05-20");
+  const [today] = useState(() => new Date().toLocaleDateString("en-CA"));
 
   useEffect(() => {
-    setToday(new Date().toLocaleDateString("en-CA"));
-    setAppointments(getStoredAppointments());
-    setClients(getStoredClients());
-    setStaffList(getStoredStaff());
+    const timer = window.setTimeout(() => {
+      setAppointments(getStoredAppointments());
+      setClients(getStoredClients());
+      setStaffList(getStoredStaff());
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const todayAppts = appointments.filter((a) => a.date === today);
-  const weekTotal = REVENUE_LAST_7_DAYS.reduce((s, d) => s + d.total, 0);
-  const maxRevenue = Math.max(...REVENUE_LAST_7_DAYS.map((d) => d.total));
+  const revenueLast7Days = useMemo(() => {
+    const totals = new Map<string, number>();
+    appointments.forEach((appointment) => {
+      if (appointment.status === "completed") {
+        totals.set(appointment.date, (totals.get(appointment.date) ?? 0) + appointment.totalAmount);
+      }
+    });
+
+    const endDate = new Date(`${today}T12:00:00`);
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(endDate);
+      date.setDate(endDate.getDate() - (6 - index));
+      const dateKey = date.toLocaleDateString("en-CA");
+      return { date: dateKey, total: totals.get(dateKey) ?? 0 };
+    });
+  }, [appointments, today]);
+  const maxRevenue = Math.max(...revenueLast7Days.map((day) => day.total), 0);
+  const axisMax = maxRevenue > 0 ? Math.ceil(maxRevenue / 1000) * 1000 : 60000;
+  const yAxisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0]
+    .map((value) => value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(Math.round(value)));
   const topClients = [...clients].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
   const todayTotal = todayAppts.reduce((s, a) => s + a.totalAmount, 0);
 
@@ -139,7 +157,7 @@ export default function DashboardPage() {
           <div style={{ display: "flex", gap: 12, flex: 1 }}>
             {/* Y-axis labels */}
             <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", paddingBottom: 22 }}>
-              {["60K", "45K", "30K", "15K", "0"].map((l) => (
+              {yAxisLabels.map((l) => (
                 <div key={l} style={{ fontSize: 10, color: "#c0c0d0", textAlign: "right", lineHeight: 1 }}>{l}</div>
               ))}
             </div>
@@ -153,20 +171,28 @@ export default function DashboardPage() {
                 ))}
                 {/* Bars */}
                 <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: 10 }}>
-                  {REVENUE_LAST_7_DAYS.map((day) => {
-                    const pct = (day.total / maxRevenue) * 100;
+                  {revenueLast7Days.map((day) => {
+                    const pct = (day.total / axisMax) * 100;
                     const isToday = day.date === today;
                     return (
                       <div key={day.date} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
-                        <div style={{ width: "100%", height: `${pct}%`, background: isToday ? "#7C3AED" : "#DDD6FE", borderRadius: "6px 6px 0 0", transition: "height 0.3s" }} />
+                        <div
+                          title={`${day.date}: ${fmt(day.total)}`}
+                          style={{ width: "100%", height: `${pct}%`, background: isToday ? "#7C3AED" : "#DDD6FE", borderRadius: "6px 6px 0 0", transition: "height 0.3s" }}
+                        />
                       </div>
                     );
                   })}
                 </div>
+                {maxRevenue === 0 && (
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#a0a0b8", fontSize: 12, textAlign: "center", padding: 20 }}>
+                    Complete an appointment to see revenue here.
+                  </div>
+                )}
               </div>
               {/* X-axis labels */}
               <div style={{ display: "flex", gap: 10, paddingTop: 8 }}>
-                {REVENUE_LAST_7_DAYS.map((day) => {
+                {revenueLast7Days.map((day) => {
                   const isToday = day.date === today;
                   const label = new Date(day.date).toLocaleDateString("en-PK", { weekday: "short" });
                   return (
@@ -228,8 +254,6 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-
 
 
 
