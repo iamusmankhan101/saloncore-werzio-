@@ -1,24 +1,38 @@
 "use client";
 
-import { Bell, X, AlertTriangle, FileText } from "lucide-react";
+import { Bell, X, AlertTriangle, FileText, Calendar } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getStoredInventory } from "@/lib/storage";
-import { getInvoices } from "@/lib/invoices";
+import { getStoredInventory, getStoredAppointments } from "@/lib/storage";
+import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { InventoryItem } from "@/lib/types";
-import type { Invoice } from "@/lib/invoices";
 
 type Notif = {
   id: string;
   text: string;
   sub: string;
   color: string;
-  icon: "stock" | "invoice";
+  icon: "stock" | "invoice" | "appointment";
 };
 
 function buildNotifications(): Notif[] {
   const notifs: Notif[] = [];
 
-  // Low stock items
+  // 1. New appointments from online booking (source=web, not yet confirmed)
+  try {
+    const appts = getStoredAppointments();
+    const pending = appts.filter((a) => a.source === "web" && a.status === "booked");
+    pending.forEach((a) => {
+      notifs.push({
+        id: `appt_${a.id}`,
+        icon: "appointment",
+        color: "#7C3AED",
+        text: `New online booking — ${a.clientName}`,
+        sub: `${a.serviceNames.join(", ") || "Service"} · ${a.date} at ${a.startTime}`,
+      });
+    });
+  } catch { /* ignore */ }
+
+  // 2. Low stock / out of stock inventory
   try {
     const items: InventoryItem[] = getStoredInventory();
     const low = items.filter((i) => i.currentStock <= i.minStock);
@@ -33,18 +47,22 @@ function buildNotifications(): Notif[] {
     });
   } catch { /* ignore */ }
 
-  // Overdue / unpaid invoices
+  // 3. Unpaid customer invoices — repeat reminder the older they are
   try {
-    const invoices: Invoice[] = getInvoices();
-    const due = invoices.filter((inv) => inv.status === "overdue" || inv.status === "unpaid");
-    due.forEach((inv) => {
-      const isOverdue = inv.status === "overdue";
+    const salonInvs = getSalonInvoices();
+    const unpaid = salonInvs.filter((inv) => inv.status === "unpaid");
+    unpaid.forEach((inv) => {
+      const daysSince = Math.floor(
+        (Date.now() - new Date(inv.createdAt).getTime()) / 86_400_000,
+      );
+      const isLate = daysSince >= 7;
+      const reminder = daysSince >= 14 ? ` · 2nd reminder` : daysSince >= 7 ? ` · reminder` : "";
       notifs.push({
-        id: `inv_${inv.id}`,
+        id: `sinv_${inv.id}`,
         icon: "invoice",
-        color: isOverdue ? "#dc2626" : "#7C3AED",
-        text: `Invoice ${inv.number} is ${isOverdue ? "overdue" : "unpaid"}`,
-        sub: `Due ${inv.dueDate} · PKR ${inv.total.toLocaleString()}`,
+        color: isLate ? "#dc2626" : "#f97316",
+        text: `Invoice ${inv.number} unpaid${reminder}`,
+        sub: `${inv.clientName} · PKR ${inv.total.toLocaleString()}${daysSince > 0 ? ` · ${daysSince}d ago` : ""}`,
       });
     });
   } catch { /* ignore */ }
@@ -109,7 +127,9 @@ export default function DashboardHeader({ title = "Dashboard Performances", subt
                   {notifs.map((n) => (
                     <div key={n.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f8f8fc", display: "flex", gap: 10, alignItems: "flex-start" }}>
                       <div style={{ width: 28, height: 28, borderRadius: 8, background: n.color + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                        {n.icon === "stock"
+                        {n.icon === "appointment"
+                          ? <Calendar size={13} color={n.color} />
+                          : n.icon === "stock"
                           ? <AlertTriangle size={13} color={n.color} />
                           : <FileText size={13} color={n.color} />}
                       </div>
