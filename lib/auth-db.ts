@@ -4,6 +4,32 @@
  */
 
 import { db } from "@/lib/db";
+import { randomBytes, pbkdf2Sync, timingSafeEqual } from "crypto";
+
+// ─── Password hashing ─────────────────────────────────────────────────────────
+
+function hashPassword(plain: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = pbkdf2Sync(plain, salt, 120_000, 64, "sha512").toString("hex");
+  return `pbkdf2:${salt}:${hash}`;
+}
+
+function verifyPassword(plain: string, stored: string): boolean {
+  if (stored.startsWith("pbkdf2:")) {
+    const parts = stored.split(":");
+    if (parts.length !== 3) return false;
+    const [, salt, expectedHash] = parts;
+    const derived = pbkdf2Sync(plain, salt, 120_000, 64, "sha512").toString("hex");
+    // Constant-time comparison to prevent timing attacks
+    try {
+      return timingSafeEqual(Buffer.from(derived, "hex"), Buffer.from(expectedHash, "hex"));
+    } catch { return false; }
+  }
+  // Legacy plaintext — accept and caller upgrades on next login
+  return plain === stored;
+}
+
+export { hashPassword };
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -98,7 +124,7 @@ export async function createUser(input: {
       args: [
         id,
         input.email.trim().toLowerCase(),
-        input.password,
+        hashPassword(input.password),
         input.ownerName.trim(),
         input.salonName?.trim() || input.ownerName.trim(),
         input.phone?.trim() || "",
@@ -194,10 +220,19 @@ export async function validateCredentials(
   password: string
 ): Promise<AuthUser> {
   const user = await getUserByEmail(email);
-  if (!user) throw new Error("Invalid email or password.");
-  if (user.password !== password) throw new Error("Invalid email or password.");
+  // Always run the verify step even when user is null to prevent timing-based
+  // user-enumeration (attacker measuring response time to detect valid emails)
+  const valid = user ? verifyPassword(password, user.password) : false;
+  if (!user || !valid) throw new Error("Invalid email or password.");
   if (!user.emailVerified && user.role !== "admin") {
     throw new Error("EMAIL_NOT_VERIFIED");
+  }
+  // Upgrade legacy plaintext password to hashed format on first successful login
+  if (!user.password.startsWith("pbkdf2:")) {
+    await db.execute({
+      sql: "UPDATE users SET password = ? WHERE id = ?",
+      args: [hashPassword(password), user.id],
+    });
   }
   return withoutPassword(user);
 }

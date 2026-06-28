@@ -6,7 +6,8 @@
 import { NextRequest } from "next/server";
 import { createUser } from "@/lib/auth-db";
 
-const ADMIN_ACCESS_CODE = "GLOW@ADMIN2026";
+// Set ADMIN_ACCESS_CODE in .env.local — never hard-code secrets in source.
+const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE ?? "";
 
 export async function POST(req: NextRequest) {
   let body: {

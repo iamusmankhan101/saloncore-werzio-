@@ -13,6 +13,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [rateLocked, setRateLocked] = useState(false);
   const [verifiedMessage, setVerifiedMessage] = useState(false);
 
   useEffect(() => {
@@ -26,29 +27,33 @@ export default function SignInPage() {
   }, [router]);
 
   function handleSubmit() {
+    if (rateLocked) return;
     setError("");
 
-    // Use database-backed authentication
     fetch("/api/auth/signin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     })
-      .then(res => res.json())
-      .then(data => {
+      .then(async res => {
+        const data = await res.json() as { ok: boolean; error?: string; retryAfter?: number; user?: { id: string } & Record<string, unknown> };
         if (!data.ok) {
-          if (data.error === "EMAIL_NOT_VERIFIED") {
+          if (res.status === 429) {
+            setRateLocked(true);
+            setError(data.error || "Too many attempts. Please wait before trying again.");
+            // Auto-unlock the button after retryAfter seconds
+            if (data.retryAfter) {
+              setTimeout(() => { setRateLocked(false); setError(""); }, data.retryAfter * 1000);
+            }
+          } else if (data.error === "EMAIL_NOT_VERIFIED") {
             setError("Please verify your email before signing in. Check your inbox for the verification link.");
           } else {
             setError(data.error || "Unable to sign in.");
           }
           return;
         }
-
-        // Set session in localStorage
-        localStorage.setItem("werzio_auth_session", data.user.id);
-        localStorage.setItem(`werzio_user_cache_${data.user.id}`, JSON.stringify(data.user));
-        
+        localStorage.setItem("werzio_auth_session", data.user!.id);
+        localStorage.setItem(`werzio_user_cache_${data.user!.id}`, JSON.stringify(data.user));
         router.replace("/dashboard");
       })
       .catch(err => {
@@ -125,8 +130,9 @@ export default function SignInPage() {
 
             {error && <div className={styles.error}>{error}</div>}
 
-            <button type="button" onClick={handleSubmit} className={styles.primaryButton}>
-              Sign in <ArrowRight size={14} />
+            <button type="button" onClick={handleSubmit} disabled={rateLocked} className={styles.primaryButton}
+              style={rateLocked ? { opacity: 0.5, cursor: "not-allowed" } : undefined}>
+              {rateLocked ? "Too many attempts — wait and retry" : <><span>Sign in</span> <ArrowRight size={14} /></>}
             </button>
 
             <p className={styles.footerText}>

@@ -28,18 +28,6 @@ const demoUser: StoredUser = {
   emailVerified: true,
 };
 
-const adminUser: StoredUser = {
-  id: "werzio-admin",
-  ownerName: "Muhammad Usman Khan",
-  salonName: "Werzio",
-  email: "iamusmankhan101@gmail.com",
-  phone: "+92 305 8562523",
-  role: "admin",
-  createdAt: "2026-01-01",
-  password: "Babarthegoat12@_",
-  emailVerified: true,
-};
-
 function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
@@ -56,7 +44,9 @@ function withoutPassword(user: StoredUser): AuthUser {
   };
 }
 
-const SEED_USERS = [demoUser, adminUser];
+// Admin authenticates via the /api/auth/signin route (Turso DB) only —
+// never stored in client-side localStorage seed data.
+const SEED_USERS = [demoUser];
 
 export function getUsers(): StoredUser[] {
   if (!canUseStorage()) return SEED_USERS;
@@ -121,8 +111,6 @@ export function signIn(email: string, password: string): AuthUser {
   return withoutPassword(user);
 }
 
-const ADMIN_ACCESS_CODE = "GLOW@ADMIN2026";
-
 export function signUp(input: {
   ownerName: string;
   salonName: string;
@@ -138,11 +126,8 @@ export function signUp(input: {
     throw new Error("An account with this email already exists.");
   }
 
-  if (input.adminCode && input.adminCode !== ADMIN_ACCESS_CODE) {
-    throw new Error("Invalid admin access code.");
-  }
-
-  const isAdmin = input.adminCode === ADMIN_ACCESS_CODE;
+  // Admin sign-up is handled server-side via /api/auth/signup — not client-side.
+  const isAdmin = false;
   const user: StoredUser = {
     id: "user_" + Date.now(),
     ownerName: input.ownerName.trim(),
