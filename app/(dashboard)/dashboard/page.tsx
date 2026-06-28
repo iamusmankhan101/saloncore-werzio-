@@ -75,7 +75,7 @@ export default function DashboardPage() {
     });
   }, [appointments, today]);
   const maxRevenue = Math.max(...revenueLast7Days.map((day) => day.total), 0);
-  const axisMax = maxRevenue > 0 ? Math.ceil(maxRevenue / 1000) * 1000 : 60000;
+  const axisMax = maxRevenue > 0 ? Math.ceil((maxRevenue * 1.2) / 1000) * 1000 : 60000;
   const yAxisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0]
     .map((value) => value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(Math.round(value)));
   const topClients = [...clients].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
@@ -175,10 +175,24 @@ export default function DashboardPage() {
                     const pct = (day.total / axisMax) * 100;
                     const isToday = day.date === today;
                     return (
-                      <div key={day.date} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
+                      <div key={day.date} style={{ flex: 1, position: "relative", height: "100%" }}>
+                        {day.total > 0 && (
+                          <div style={{
+                            position: "absolute",
+                            bottom: `calc(${pct}% + 5px)`,
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            color: isToday ? "#7C3AED" : "#6D28D9",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                          }}>
+                            {fmt(day.total)}
+                          </div>
+                        )}
                         <div
                           title={`${day.date}: ${fmt(day.total)}`}
-                          style={{ width: "100%", height: `${pct}%`, background: isToday ? "#7C3AED" : "#DDD6FE", borderRadius: "6px 6px 0 0", transition: "height 0.3s" }}
+                          style={{ position: "absolute", bottom: 0, width: "100%", height: `${pct}%`, background: isToday ? "#7C3AED" : "#DDD6FE", borderRadius: "6px 6px 0 0", transition: "height 0.3s" }}
                         />
                       </div>
                     );
@@ -254,6 +268,5 @@ export default function DashboardPage() {
     </div>
   );
 }
-
 
 
