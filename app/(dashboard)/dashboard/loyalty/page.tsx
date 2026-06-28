@@ -645,6 +645,8 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
 
 export default function LoyaltyPage() {
   const [clients, setClients]         = useState<Client[]>([]);
+  const [allAppts, setAllAppts]       = useState<ReturnType<typeof getStoredAppointments>>([]);
+  const [allInvoices, setAllInvoices] = useState<ReturnType<typeof getSalonInvoices>>([]);
   const [search, setSearch]           = useState("");
   const [selected, setSelected]       = useState<Client | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -657,35 +659,32 @@ export default function LoyaltyPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const ls = settingsStore.loyalty as LoyaltySettings;
-      const allClients = getStoredClients();
-      const allAppts   = getStoredAppointments();
-      const allInvoices = getSalonInvoices();
+      const storedClients  = getStoredClients();
+      const storedAppts    = getStoredAppointments();
+      const storedInvoices = getSalonInvoices();
 
-      // Recalculate earned points from appointments + POS invoices combined.
-      // Only ever increase — never decrease — so manual adjustments and
-      // points earned on other devices are preserved.
+      // Persist any upward corrections to localStorage (only increase, never lower).
       let changed = false;
-      const recalculated = allClients.map((c) => {
-        const apptSpend = allAppts
+      const corrected = storedClients.map((c) => {
+        const apptSpend = storedAppts
           .filter((a) => a.clientId === c.id && a.status === "completed")
           .reduce((s, a) => s + a.totalAmount, 0);
-        const posSpend = allInvoices
+        const posSpend = storedInvoices
           .filter((inv) => inv.clientId === c.id && inv.source === "pos")
           .reduce((s, inv) => s + inv.total, 0);
-        // Use stored totalSpend as a floor — it captures cross-device and POS
-        // sales that may not be reflected in local appointments/invoices lists.
-        const totalSpend = Math.max(c.totalSpend ?? 0, apptSpend + posSpend);
-        const totalEarned = Math.floor(totalSpend * ls.pointsPerRupee);
-        // Only increase — never lower stored points
-        if (totalEarned <= (c.loyaltyPointsEarned ?? 0)) return c;
-        const redeemed = Math.max(0, (c.loyaltyPointsEarned ?? 0) - (c.loyaltyPoints ?? 0));
-        const newBalance = Math.max(0, totalEarned - redeemed);
+        const liveSpend   = Math.max(c.totalSpend ?? 0, apptSpend + posSpend);
+        const computed    = Math.floor(liveSpend * ls.pointsPerRupee);
+        const newEarned   = Math.max(c.loyaltyPointsEarned ?? 0, computed);
+        if (newEarned === (c.loyaltyPointsEarned ?? 0)) return c;
+        const redeemed    = Math.max(0, (c.loyaltyPointsEarned ?? 0) - (c.loyaltyPoints ?? 0));
         changed = true;
-        return { ...c, loyaltyPointsEarned: totalEarned, loyaltyPoints: newBalance };
+        return { ...c, loyaltyPointsEarned: newEarned, loyaltyPoints: Math.max(0, newEarned - redeemed) };
       });
 
-      if (changed) saveClients(recalculated);
-      setClients(recalculated);
+      if (changed) saveClients(corrected);
+      setClients(corrected);
+      setAllAppts(storedAppts);
+      setAllInvoices(storedInvoices);
 
       const user = getCurrentUser();
       if (user && typeof window !== "undefined") {
@@ -705,12 +704,25 @@ export default function LoyaltyPage() {
     setSelected(updated);
   }
 
-  const enriched = useMemo(() => clients.map((c) => ({
-    client: c,
-    tier:    getTier(c.loyaltyPointsEarned ?? 0, settings),
-    balance: c.loyaltyPoints ?? 0,
-    earned:  c.loyaltyPointsEarned ?? 0,
-  })), [clients, settings]);
+  // Compute live loyalty values per client — same formula as the client quick-view
+  // panel so leaderboard and panel always agree.
+  const enriched = useMemo(() => {
+    const ls = settings;
+    return clients.map((c) => {
+      const apptSpend = allAppts
+        .filter((a) => a.clientId === c.id && a.status === "completed")
+        .reduce((s, a) => s + a.totalAmount, 0);
+      const posSpend = allInvoices
+        .filter((inv) => inv.clientId === c.id && inv.source === "pos")
+        .reduce((s, inv) => s + inv.total, 0);
+      const liveSpend    = Math.max(c.totalSpend ?? 0, apptSpend + posSpend);
+      const computed     = Math.floor(liveSpend * (ls.pointsPerRupee ?? 0.01));
+      const earned       = Math.max(c.loyaltyPointsEarned ?? 0, computed);
+      const redeemed     = Math.max(0, (c.loyaltyPointsEarned ?? 0) - (c.loyaltyPoints ?? 0));
+      const balance      = Math.max(c.loyaltyPoints ?? 0, earned - redeemed);
+      return { client: c, tier: getTier(earned, ls), balance, earned };
+    });
+  }, [clients, allAppts, allInvoices, settings]);
 
   const filtered = useMemo(() => {
     return enriched
@@ -723,9 +735,9 @@ export default function LoyaltyPage() {
       .sort((a, b) => b.earned - a.earned);
   }, [enriched, search, tierFilter]);
 
-  const totalPts      = clients.reduce((s, c) => s + (c.loyaltyPoints ?? 0), 0);
-  const totalEarned   = clients.reduce((s, c) => s + (c.loyaltyPointsEarned ?? 0), 0);
-  const activeMembers = clients.filter((c) => (c.loyaltyPointsEarned ?? 0) > 0).length;
+  const totalPts      = enriched.reduce((s, e) => s + e.balance, 0);
+  const totalEarned   = enriched.reduce((s, e) => s + e.earned, 0);
+  const activeMembers = enriched.filter((e) => e.earned > 0).length;
   const platCount     = enriched.filter((e) => e.tier === "platinum").length;
   const qrSrc = claimUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=12&data=${encodeURIComponent(claimUrl)}`
