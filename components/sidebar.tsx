@@ -1,219 +1,343 @@
 "use client";
- 
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare, UserCog, BarChart3, Package, Globe, Sparkles, Search, CreditCard, Scissors, CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart, X, Gift, Banknote } from "lucide-react";
+import {
+  LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare,
+  UserCog, BarChart3, Package, Globe, Sparkles, CreditCard, Scissors,
+  CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart,
+  X, Gift, Banknote, ChevronRight,
+} from "lucide-react";
 import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
 import { SETTINGS_CHANGED_EVENT, settingsStore, reloadSettings } from "@/lib/settings-store";
 import { getCurrentPlan } from "@/lib/plan-limits";
- 
-const APP_NAV: { href: string; icon: React.ElementType; label: string; dynamicHref?: boolean }[] = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/dashboard/calendar", icon: CalendarDays, label: "Calendar" },
-  { href: "/dashboard/appointments", icon: ClipboardList, label: "Appointments" },
-  { href: "/dashboard/clients", icon: Users, label: "Clients" },
-  { href: "/dashboard/services", icon: Scissors, label: "Services" },
-  { href: "/dashboard/messages", icon: MessageSquare, label: "WhatsApp" },
-  { href: "/dashboard/staff", icon: UserCog, label: "Staff" },
-  { href: "/dashboard/revenue", icon: BarChart3, label: "Revenue" },
-  { href: "/dashboard/cash-flow", icon: Banknote, label: "Cash Flow" },
-  { href: "/dashboard/inventory", icon: Package, label: "Inventory" },
-  { href: "/dashboard/invoices", icon: ReceiptText, label: "Invoices" },
-  { href: "/dashboard/pos", icon: ShoppingCart, label: "POS" },
-  { href: "/dashboard/loyalty", icon: Gift, label: "Loyalty" },
-  { href: "/online-booking", icon: Globe, label: "Online Booking", dynamicHref: true },
-  { href: "/dashboard/try-on", icon: Wand2, label: "Virtual Try-On" },
+
+const NAV_GROUPS: {
+  label: string;
+  items: { href: string; icon: React.ElementType; label: string; dynamicHref?: boolean }[];
+}[] = [
+  {
+    label: "Overview",
+    items: [
+      { href: "/dashboard",              icon: LayoutDashboard, label: "Dashboard"    },
+      { href: "/dashboard/calendar",     icon: CalendarDays,    label: "Calendar"     },
+      { href: "/dashboard/appointments", icon: ClipboardList,   label: "Appointments" },
+    ],
+  },
+  {
+    label: "Clients & Sales",
+    items: [
+      { href: "/dashboard/clients",  icon: Users,        label: "Clients"  },
+      { href: "/dashboard/pos",      icon: ShoppingCart, label: "POS"      },
+      { href: "/dashboard/invoices", icon: ReceiptText,  label: "Invoices" },
+      { href: "/dashboard/loyalty",  icon: Gift,         label: "Loyalty"  },
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      { href: "/dashboard/revenue",    icon: BarChart3, label: "Revenue"   },
+      { href: "/dashboard/cash-flow",  icon: Banknote,  label: "Cash Flow" },
+      { href: "/dashboard/inventory",  icon: Package,   label: "Inventory" },
+      { href: "/dashboard/services",   icon: Scissors,  label: "Services"  },
+      { href: "/dashboard/staff",      icon: UserCog,   label: "Staff"     },
+    ],
+  },
+  {
+    label: "Marketing",
+    items: [
+      { href: "/dashboard/messages", icon: MessageSquare, label: "WhatsApp"       },
+      { href: "/online-booking",     icon: Globe,         label: "Online Booking", dynamicHref: true },
+      { href: "/dashboard/try-on",   icon: Wand2,         label: "Virtual Try-On" },
+    ],
+  },
 ];
- 
+
 const SETTINGS_NAV = [
   { href: "/dashboard/account", icon: CircleUserRound, label: "Account" },
-  { href: "/dashboard/billing", icon: CreditCard, label: "Billing" },
+  { href: "/dashboard/billing", icon: CreditCard,      label: "Billing" },
 ];
- 
+
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const router   = useRouter();
+  const [user,      setUser]      = useState<AuthUser | null>(null);
   const [salonName, setSalonName] = useState("Werzio Salon");
   const [planBadge, setPlanBadge] = useState({ badge: "FREE", color: "#6b7280", bg: "#f9fafb" });
 
   useEffect(() => {
-    function syncAccountChrome() {
+    function sync() {
       reloadSettings();
       setUser(getCurrentUser());
       setSalonName(settingsStore.salon.name || getCurrentUser()?.salonName || "Werzio Salon");
       const plan = getCurrentPlan();
       setPlanBadge({ badge: plan.badge, color: plan.color, bg: plan.bg });
     }
-
-    const timer = window.setTimeout(syncAccountChrome, 0);
-    window.addEventListener(SETTINGS_CHANGED_EVENT, syncAccountChrome);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener(SETTINGS_CHANGED_EVENT, syncAccountChrome);
-    };
+    const t = window.setTimeout(sync, 0);
+    window.addEventListener(SETTINGS_CHANGED_EVENT, sync);
+    return () => { window.clearTimeout(t); window.removeEventListener(SETTINGS_CHANGED_EVENT, sync); };
   }, [pathname]);
 
   function handleSignOut() {
-    // Clear HTTP-only session cookie server-side, then clear localStorage
     fetch("/api/auth/signout", { method: "POST" }).finally(() => {
       signOut();
       router.replace("/sign-in");
     });
   }
 
+  const initials = (user?.ownerName || salonName || "W")
+    .split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+
   const NavItem = ({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) => {
     const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
     return (
-      <Link href={href} onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderRadius: 10, color: active ? "#ffffff" : "#6a6a8a", background: active ? "var(--accent-gradient)" : "transparent", fontWeight: active ? 600 : 400, fontSize: 13, transition: "all 0.15s", marginBottom: 2, boxShadow: active ? "0 2px 10px rgba(91, 33, 182, 0.35)" : "none" }}>
-        <Icon size={16} />
-        {label}
+      <Link href={href} onClick={onClose} className={`sb-item${active ? " sb-active" : ""}`}>
+        <span className="sb-item-icon"><Icon size={15} /></span>
+        <span className="sb-item-label">{label}</span>
+        {active && <span className="sb-item-dot" />}
       </Link>
     );
   };
 
-  // Compute initials from the signed-in owner's name
-  const initials = (user?.ownerName || salonName || "W")
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-
   return (
-    <aside 
-      className={isOpen ? "active" : ""}
-      style={{ width: "var(--sidebar-width)", height: "100vh", background: "#13131a", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, zIndex: 50, overflow: "hidden" }}
-    >
+    <>
+      <style>{`
+        .sb-item {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          padding: 8px 11px;
+          border-radius: 9px;
+          font-size: 13px;
+          font-weight: 500;
+          color: #5a5a82;
+          text-decoration: none;
+          transition: background 0.13s, color 0.13s;
+          margin-bottom: 1px;
+          position: relative;
+        }
+        .sb-item:hover {
+          background: rgba(124,58,237,0.09);
+          color: #b8a9f0;
+        }
+        .sb-active {
+          background: linear-gradient(135deg,#5B21B6,#7C3AED) !important;
+          color: #fff !important;
+          font-weight: 650;
+          box-shadow: 0 2px 14px rgba(91,33,182,0.38);
+        }
+        .sb-active .sb-item-icon { opacity: 1; }
+        .sb-item-icon { opacity: 0.75; display: flex; align-items: center; flex-shrink: 0; }
+        .sb-item-label { flex: 1; }
+        .sb-item-dot {
+          width: 5px; height: 5px; border-radius: 50%;
+          background: rgba(255,255,255,0.6); flex-shrink: 0;
+        }
+        .sb-section {
+          font-size: 10px;
+          font-weight: 700;
+          color: #2a2a44;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          padding: 10px 11px 5px;
+        }
+        .sb-nav::-webkit-scrollbar { width: 3px; }
+        .sb-nav::-webkit-scrollbar-thumb { background: #222234; border-radius: 3px; }
+        .sb-signout {
+          width: 100%;
+          border: 1px solid #1e1e2e;
+          background: transparent;
+          color: #3e3e5e;
+          border-radius: 10px;
+          padding: 9px 12px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          transition: background 0.13s, color 0.13s, border-color 0.13s;
+        }
+        .sb-signout:hover {
+          background: rgba(239,68,68,0.08);
+          border-color: rgba(239,68,68,0.25);
+          color: #f87171;
+        }
+        .sb-upgrade:hover { opacity: 0.88; }
+      `}</style>
 
-      {/* ── Werzio logo badge ─────────────────────────────────────────── */}
-      <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid #1e1e2c", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {/* Mobile Close Button */}
-          <button 
-            className="mobile-close-btn"
-            onClick={onClose}
-            style={{ 
-              background: "none", 
-              border: "none", 
-              color: "#6a6a8a", 
-              alignItems: "center", 
-              justifyContent: "center", 
-              cursor: "pointer", 
-              marginRight: 4,
-              padding: 4
+      <aside
+        className={isOpen ? "active" : ""}
+        style={{
+          width: "var(--sidebar-width)",
+          height: "100vh",
+          background: "#0d0d14",
+          display: "flex",
+          flexDirection: "column",
+          position: "fixed",
+          top: 0, left: 0,
+          zIndex: 50,
+          overflow: "hidden",
+          borderRight: "1px solid #18182a",
+        }}
+      >
+
+        {/* ── Logo row ─────────────────────────────────────── */}
+        <div style={{
+          padding: "15px 16px 13px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          borderBottom: "1px solid #18182a",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              className="mobile-close-btn"
+              onClick={onClose}
+              style={{
+                background: "rgba(255,255,255,0.04)", border: "1px solid #252538",
+                color: "#5a5a82", cursor: "pointer", padding: "5px 6px",
+                borderRadius: 8, display: "none", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <X size={15} />
+            </button>
+            <img
+              src="/Untitled design (5).png"
+              alt="Werzio"
+              className="sidebar-logo"
+              style={{ userSelect: "none", pointerEvents: "none" }}
+            />
+          </div>
+
+          <div
+            className="sidebar-live-badge"
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: "rgba(124,58,237,0.13)",
+              border: "1px solid rgba(124,58,237,0.28)",
+              borderRadius: 20, padding: "3px 9px 3px 6px",
             }}
           >
-            <X size={18} />
-          </button>
-          <img
-            src="/Untitled design (5).png"
-            alt="Werzio"
-            className="sidebar-logo"
-            style={{ userSelect: "none", pointerEvents: "none" }}
-          />
+            <div style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: "#a78bfa", boxShadow: "0 0 7px #7C3AED",
+            }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa", letterSpacing: "0.07em" }}>LIVE</span>
+          </div>
         </div>
-        <div 
-          className="sidebar-live-badge"
-          style={{
-            alignItems: "center", gap: 5,
-            background: "rgba(124,58,237,0.18)",
-            border: "1px solid rgba(124,58,237,0.35)",
-            borderRadius: 20, padding: "3px 10px 3px 7px",
-            flexShrink: 0
-          }}
-        >
-          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#a78bfa", boxShadow: "0 0 6px #7C3AED" }} />
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa", letterSpacing: "0.05em" }}>LIVE</span>
-        </div>
-      </div>
 
-      {/* ── Profile chip ─────────────────────────────────────────────── */}
-      <div style={{ padding: "14px 16px", borderBottom: "1px solid #1e1e2c", display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-          background: "linear-gradient(135deg, #5B21B6, #9333EA)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 13, fontWeight: 800, color: "#fff",
-          boxShadow: "0 2px 8px rgba(91,33,182,0.45)",
-        }}>
-          {initials}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#f0f0f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{salonName}</div>
-          <div style={{ fontSize: 11, color: "#5a5a78", textTransform: "capitalize" }}>{user?.role || "owner"}</div>
-        </div>
-        <div style={{
-          borderRadius: 6, padding: "2px 7px", flexShrink: 0,
-          background: planBadge.bg + "22",
-          border: `1px solid ${planBadge.color}44`,
-        }}>
-          <span style={{ fontSize: 9, fontWeight: 800, color: planBadge.color, letterSpacing: "0.06em" }}>
-            {planBadge.badge}
-          </span>
-        </div>
-      </div>
+        {/* ── Profile chip ─────────────────────────────────── */}
+        <div style={{ padding: "10px 12px 12px", borderBottom: "1px solid #18182a" }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "9px 11px",
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.025)",
+            border: "1px solid #1c1c2c",
+          }}>
+            {/* Avatar */}
+            <div style={{
+              width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+              background: "linear-gradient(135deg,#5B21B6,#9333EA)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 12, fontWeight: 800, color: "#fff",
+              boxShadow: "0 2px 10px rgba(91,33,182,0.55)",
+            }}>
+              {initials}
+            </div>
 
-      {/* Search */}
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #1e1e2a" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#1c1c28", border: "1px solid #2a2a3a", borderRadius: 8, padding: "7px 12px" }}>
-          <Search size={13} color="#4a4a68" />
-          <span style={{ fontSize: 12, color: "#4a4a68" }}>Search</span>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: "16px 10px 8px", overflowY: "auto" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#3a3a58", letterSpacing: "0.1em", padding: "0 14px 8px", textTransform: "uppercase" }}>Application</div>
-        {APP_NAV.map((item) => (
-          <NavItem
-            key={item.href}
-            href={item.dynamicHref && user ? `${item.href}?salon=${encodeURIComponent(user.id)}` : item.href}
-            icon={item.icon}
-            label={item.label}
-          />
-        ))}
-
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#3a3a58", letterSpacing: "0.1em", padding: "16px 14px 8px", textTransform: "uppercase" }}>Settings</div>
-        {SETTINGS_NAV.map((item) => <NavItem key={item.href} {...item} />)}
-
-        {user?.role === "admin" && (
-          <>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#3a3a58", letterSpacing: "0.1em", padding: "16px 14px 8px", textTransform: "uppercase" }}>Admin</div>
-            <NavItem href="/dashboard/admin" icon={Shield} label="Payment Requests" />
-          </>
-        )}
-      </nav>
-
-      {/* Plan / Upgrade card */}
-      <div style={{ padding: "12px 14px 20px" }}>
-        {planBadge.badge !== "PREMIUM" && (
-          <Link href="/dashboard/billing" style={{ display: "block", textDecoration: "none" }}>
-            <div style={{ borderRadius: 12, background: "rgba(91,33,182,0.12)", border: "1px solid rgba(124,58,237,0.28)", padding: "13px 14px", marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                <div style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(124,58,237,0.22)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Sparkles size={12} color="#a78bfa" />
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa" }}>
-                  {planBadge.badge === "FREE" ? "Upgrade to Pro" : "Upgrade to Premium"}
-                </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontWeight: 700, fontSize: 13, color: "#dcdcf0",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {salonName}
               </div>
-              <div style={{ fontSize: 10, color: "#5a5a78", marginBottom: 9, lineHeight: 1.5 }}>
-                {planBadge.badge === "FREE"
-                  ? "Remove all limits — unlimited appointments, staff & clients"
-                  : "Unlock WhatsApp automation & Virtual Try-On"}
-              </div>
-              <div style={{ background: "linear-gradient(135deg,#5B21B6,#9333EA)", borderRadius: 7, padding: "6px 0", textAlign: "center", fontSize: 10, fontWeight: 700, color: "#fff", boxShadow: "0 2px 8px rgba(91,33,182,0.35)" }}>
-                View Plans →
+              <div style={{ fontSize: 10, color: "#3e3e60", textTransform: "capitalize", marginTop: 1 }}>
+                {user?.role || "owner"}
               </div>
             </div>
-          </Link>
-        )}
-        <button onClick={handleSignOut} style={{ width: "100%", border: "1px solid #2a2a3a", background: "#191922", color: "#8d8da8", borderRadius: 10, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <LogOut size={14} /> Sign out
-        </button>
-      </div>
-    </aside>
+
+            {/* Plan badge */}
+            <div style={{
+              borderRadius: 6, padding: "2px 7px", flexShrink: 0,
+              background: planBadge.bg + "18",
+              border: `1px solid ${planBadge.color}40`,
+            }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: planBadge.color, letterSpacing: "0.08em" }}>
+                {planBadge.badge}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Navigation ───────────────────────────────────── */}
+        <nav className="sb-nav" style={{ flex: 1, padding: "6px 8px 8px", overflowY: "auto" }}>
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label}>
+              <div className="sb-section">{group.label}</div>
+              {group.items.map((item) => (
+                <NavItem
+                  key={item.href}
+                  href={item.dynamicHref && user ? `${item.href}?salon=${encodeURIComponent(user.id)}` : item.href}
+                  icon={item.icon}
+                  label={item.label}
+                />
+              ))}
+            </div>
+          ))}
+
+          <div className="sb-section" style={{ paddingTop: 12 }}>Settings</div>
+          {SETTINGS_NAV.map((item) => <NavItem key={item.href} {...item} />)}
+
+          {user?.role === "admin" && (
+            <>
+              <div className="sb-section" style={{ paddingTop: 12 }}>Admin</div>
+              <NavItem href="/dashboard/admin" icon={Shield} label="Payment Requests" />
+            </>
+          )}
+        </nav>
+
+        {/* ── Bottom: upgrade + sign out ───────────────────── */}
+        <div style={{ padding: "10px 12px 16px", borderTop: "1px solid #18182a" }}>
+          {planBadge.badge !== "PREMIUM" && (
+            <Link href="/dashboard/billing" className="sb-upgrade" style={{ display: "block", textDecoration: "none", marginBottom: 8, transition: "opacity 0.15s" }}>
+              <div style={{
+                borderRadius: 13,
+                background: "linear-gradient(135deg,rgba(91,33,182,0.22),rgba(147,51,234,0.12))",
+                border: "1px solid rgba(124,58,237,0.22)",
+                padding: "12px 13px",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 8,
+                    background: "rgba(124,58,237,0.22)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    <Sparkles size={13} color="#c4b5fd" />
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#c4b5fd", flex: 1 }}>
+                    {planBadge.badge === "FREE" ? "Upgrade to Pro" : "Upgrade to Premium"}
+                  </span>
+                  <ChevronRight size={13} color="#7C3AED" style={{ flexShrink: 0 }} />
+                </div>
+                <p style={{ fontSize: 11, color: "#3e3e62", lineHeight: 1.55, margin: 0 }}>
+                  {planBadge.badge === "FREE"
+                    ? "Unlimited appointments, staff & clients"
+                    : "WhatsApp automation & Virtual Try-On"}
+                </p>
+              </div>
+            </Link>
+          )}
+
+          <button onClick={handleSignOut} className="sb-signout">
+            <LogOut size={13} />
+            Sign out
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
