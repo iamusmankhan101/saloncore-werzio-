@@ -1,5 +1,5 @@
 import { userKey } from "./auth";
-import { saveLoyaltyHistoryToDB } from "./turso-sync";
+import { saveLoyaltyHistoryToDB, syncWalletPass } from "./turso-sync";
 import type { Client, LoyaltyTransaction } from "./types";
 
 const HISTORY_KEY = "werzio_loyalty_history";
@@ -70,6 +70,8 @@ function appendHistory(tx: Omit<LoyaltyTransaction, "id" | "date">) {
   if (history.length > 2000) history.length = 2000;
   localStorage.setItem(userKey(HISTORY_KEY), JSON.stringify(history));
   saveLoyaltyHistoryToDB(history);
+  // Keep Google Wallet pass in sync after every points change
+  syncWalletPass(tx.clientId);
   return entry;
 }
 

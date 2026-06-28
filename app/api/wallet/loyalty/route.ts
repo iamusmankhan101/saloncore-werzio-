@@ -185,6 +185,35 @@ async function updateClass(appBaseUrl: string, salonName: string, salonLogo: str
   });
 }
 
+/**
+ * PATCH /api/wallet/loyalty
+ * Body: { salonId, clientId }
+ * Silently updates an existing Google Wallet pass with the latest points.
+ * Called automatically after every loyalty point change (award/redeem/adjust).
+ * Returns 204 on success, 200 with ok:false if credentials not configured.
+ */
+export async function PATCH(req: NextRequest) {
+  if (!ISSUER_ID || !SERVICE_ACCOUNT_EMAIL || !getPrivateKey()) {
+    return new Response(null, { status: 204 }); // not configured — skip silently
+  }
+  try {
+    const { salonId, clientId } = await req.json() as { salonId?: string; clientId?: string };
+    if (!salonId || !clientId) return new Response(null, { status: 400 });
+
+    const [client, { name: salonName, settings }] = await Promise.all([
+      getClient(salonId, clientId),
+      getSalonInfo(salonId),
+    ]);
+    if (!client) return new Response(null, { status: 204 }); // no client — nothing to update
+
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.werzio.com";
+    await upsertObject(client, salonName, settings, appBaseUrl);
+    return new Response(null, { status: 204 });
+  } catch {
+    return new Response(null, { status: 204 }); // fire-and-forget — never surface errors to caller
+  }
+}
+
 export async function GET(req: NextRequest) {
   const platform  = req.nextUrl.searchParams.get("platform");
   const salonId   = req.nextUrl.searchParams.get("salonId");
