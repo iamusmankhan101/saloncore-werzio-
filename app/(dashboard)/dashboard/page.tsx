@@ -170,29 +170,27 @@ export default function DashboardPage() {
                   <div key={pct} style={{ position: "absolute", bottom: `${pct}%`, left: 0, right: 0, height: 1, background: "#f0f0f8" }} />
                 ))}
                 {/* Bars */}
-                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: 10 }}>
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "stretch", gap: 10, paddingTop: 22 }}>
                   {revenueLast7Days.map((day) => {
-                    const pct = (day.total / axisMax) * 100;
+                    const pct = maxRevenue > 0 ? (day.total / axisMax) * 100 : 0;
                     const isToday = day.date === today;
                     return (
-                      <div key={day.date} style={{ flex: 1, position: "relative", height: "100%" }}>
+                      <div key={day.date} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center" }}>
                         {day.total > 0 && (
                           <div style={{
-                            position: "absolute",
-                            bottom: `calc(${pct}% + 5px)`,
-                            left: "50%",
-                            transform: "translateX(-50%)",
-                            color: isToday ? "#7C3AED" : "#6D28D9",
-                            fontSize: 10,
+                            fontSize: 9,
                             fontWeight: 700,
+                            color: isToday ? "#7C3AED" : "#6D28D9",
                             whiteSpace: "nowrap",
+                            marginBottom: 3,
+                            lineHeight: 1,
                           }}>
                             {fmt(day.total)}
                           </div>
                         )}
                         <div
                           title={`${day.date}: ${fmt(day.total)}`}
-                          style={{ position: "absolute", bottom: 0, width: "100%", height: `${pct}%`, background: isToday ? "#7C3AED" : "#DDD6FE", borderRadius: "6px 6px 0 0", transition: "height 0.3s" }}
+                          style={{ width: "100%", height: `${pct}%`, background: isToday ? "#7C3AED" : "#DDD6FE", borderRadius: "6px 6px 0 0", transition: "height 0.3s", minHeight: day.total > 0 ? 3 : 0 }}
                         />
                       </div>
                     );
