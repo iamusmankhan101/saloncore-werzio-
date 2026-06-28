@@ -110,14 +110,6 @@ function buildObjectPayload(objectId: string, client: Client, salonName: string,
     state: "ACTIVE",
     accountId:   client.phone || client.id,
     accountName: client.name,
-    messages: [
-      {
-        header:      salonName,
-        body:        "",
-        id:          "salon_name",
-        messageType: "TEXT",
-      },
-    ],
     loyaltyPoints: {
       balance: { int: balance },
       label: "Points",
@@ -172,7 +164,6 @@ async function upsertObject(client: Client, salonName: string, ls: LoyaltySettin
     state: payload.state,
     accountId: payload.accountId,
     accountName: payload.accountName,
-    messages: payload.messages,
     loyaltyPoints: payload.loyaltyPoints,
     secondaryLoyaltyPoints: payload.secondaryLoyaltyPoints,
     textModulesData: payload.textModulesData,
@@ -201,11 +192,15 @@ async function upsertObject(client: Client, salonName: string, ls: LoyaltySettin
 }
 
 async function updateClass(appBaseUrl: string, salonName: string, salonLogo: string): Promise<void> {
-  await fetch(`${appBaseUrl}/api/wallet/update-class`, {
+  const response = await fetch(`${appBaseUrl}/api/wallet/update-class`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ salonName, logoUrl: salonLogo || undefined, bgColor: "#5B21B6" }),
   });
+  const result = await response.json() as { ok?: boolean; error?: string };
+  if (!response.ok || !result.ok) {
+    throw new Error(result.error || `Google Wallet class update failed (${response.status}).`);
+  }
 }
 
 /**
@@ -269,10 +264,9 @@ export async function POST(req: NextRequest) {
 
     const { name: salonName, settings } = await getSalonInfo(salonId);
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
-    await Promise.all([
-      upsertObject(client, salonName, settings, appBaseUrl),
-      updateClass(appBaseUrl, salonName, salonLogo).catch(() => {}),
-    ]);
+    // The class must exist before Google will accept an object referencing it.
+    await updateClass(appBaseUrl, salonName, salonLogo);
+    await upsertObject(client, salonName, settings, appBaseUrl);
 
     return Response.json({
       ok: true,
@@ -280,7 +274,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("[wallet/loyalty] refresh error:", err);
-    return Response.json({ ok: false, error: "Google Wallet pass update failed." }, { status: 502 });
+    return Response.json({
+      ok: false,
+      error: err instanceof Error ? err.message : "Google Wallet pass update failed.",
+    }, { status: 502 });
   }
 }
 
@@ -315,17 +312,16 @@ export async function GET(req: NextRequest) {
 
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
 
-    // Run JWT generation, object upsert, and class update in parallel.
-    // Awaiting ensures Vercel doesn't kill the REST calls before they complete.
-    const [url] = await Promise.all([
-      Promise.resolve(generateWalletUrl(client, salonName, settings, appBaseUrl)),
-      upsertObject(client, salonName, settings, appBaseUrl).catch(() => {}),
-      updateClass(appBaseUrl, salonName, salonLogo).catch(() => {}),
-    ]);
+    await updateClass(appBaseUrl, salonName, salonLogo);
+    await upsertObject(client, salonName, settings, appBaseUrl);
+    const url = generateWalletUrl(client, salonName, settings, appBaseUrl);
 
     return Response.json({ ok: true, url });
   } catch (err) {
     console.error("[wallet/loyalty] error:", err);
-    return Response.json({ ok: false, error: "Wallet pass generation failed." }, { status: 500 });
+    return Response.json({
+      ok: false,
+      error: err instanceof Error ? err.message : "Wallet pass generation failed.",
+    }, { status: 500 });
   }
 }

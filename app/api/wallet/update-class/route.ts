@@ -68,27 +68,42 @@ export async function POST(req: NextRequest) {
       "Content-Type":  "application/json",
     };
 
-    // GET first to decide whether to PUT (create) or PATCH (update)
+    // GET first to decide whether to INSERT or PATCH.
     const getRes  = await fetch(classUrl, { headers });
     const getData = await getRes.json() as { id?: string; error?: { message?: string } };
     console.log("[wallet/update-class] GET", getRes.status, JSON.stringify(getData));
 
-    const patch: Record<string, unknown> = {
+    const classPayload: Record<string, unknown> = {
       id:                 classId,
       issuerName:         salonName,
       programName:        `${salonName} Loyalty`,
       hexBackgroundColor: bgColor,
       loyaltyPointsLabel: "Points",
-      reviewStatus:       "UNDER_REVIEW",
       programLogo: {
         sourceUri: { uri: logoUrl },
         contentDescription: { defaultValue: { language: "en-US", value: `${salonName} logo` } },
       },
     };
 
-    // Use PUT (full replace) when creating; PATCH (partial) when updating
-    const method     = getRes.ok ? "PATCH" : "PUT";
-    const writeRes   = await fetch(classUrl, { method, headers, body: JSON.stringify(patch) });
+    let method: "PATCH" | "POST";
+    let writeUrl: string;
+    let writeBody: Record<string, unknown>;
+
+    if (getRes.ok) {
+      method = "PATCH";
+      writeUrl = classUrl;
+      const { id: _id, ...mutableFields } = classPayload;
+      void _id;
+      writeBody = mutableFields;
+    } else if (getRes.status === 404) {
+      method = "POST";
+      writeUrl = "https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass";
+      writeBody = { ...classPayload, reviewStatus: "UNDER_REVIEW" };
+    } else {
+      throw new Error(getData.error?.message || `Google Wallet class lookup failed (${getRes.status}).`);
+    }
+
+    const writeRes = await fetch(writeUrl, { method, headers, body: JSON.stringify(writeBody) });
     const writeData  = await writeRes.json() as { id?: string; error?: { message?: string; status?: string } };
     console.log("[wallet/update-class]", method, writeRes.status, JSON.stringify(writeData));
 
