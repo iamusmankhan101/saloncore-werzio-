@@ -10,7 +10,7 @@ import MobilePageHeader from "@/components/mobile-page-header";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
   Plus, Trash2, TrendingUp, TrendingDown,
-  Wallet, CalendarDays, X, Download, Pencil, Check,
+  Wallet, X, Download, Pencil, Check, CalendarCheck, ShoppingBag,
 } from "lucide-react";
 
 type Period = "today" | "7d" | "30d" | "1y" | "custom";
@@ -132,6 +132,35 @@ export default function CashFlowPage() {
     const appts = appointments.filter(a => a.status === "completed" && a.date >= rangeStart && a.date <= filterEnd);
     const pos   = posInvoices.filter(inv => inv.date >= rangeStart && inv.date <= filterEnd);
     return appts.reduce((s, a) => s + a.totalAmount, 0) + pos.reduce((s, inv) => s + inv.total, 0);
+  }, [appointments, posInvoices, rangeStart, filterEnd, period, customStart, customEnd]);
+
+  const periodIncomeRows = useMemo(() => {
+    if (period === "custom" && (!customStart || !customEnd || customStart > customEnd)) return [];
+    const apptRows = appointments
+      .filter(a => a.status === "completed" && a.date >= rangeStart && a.date <= filterEnd)
+      .map(a => ({
+        id: a.id,
+        date: a.date,
+        client: a.clientName,
+        description: a.serviceNames.join(", ") || "Appointment",
+        source: "appointment" as const,
+        paymentMethod: "",
+        amount: a.totalAmount,
+        sortKey: a.date + "T" + (a.startTime || "00:00"),
+      }));
+    const posRows = posInvoices
+      .filter(inv => inv.date >= rangeStart && inv.date <= filterEnd)
+      .map(inv => ({
+        id: inv.id,
+        date: inv.date,
+        client: inv.clientName,
+        description: inv.items.map(it => it.description).join(", ") || "POS Sale",
+        source: "pos" as const,
+        paymentMethod: inv.paymentMethod,
+        amount: inv.total,
+        sortKey: inv.date + "T" + inv.createdAt.slice(11, 16),
+      }));
+    return [...apptRows, ...posRows].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
   }, [appointments, posInvoices, rangeStart, filterEnd, period, customStart, customEnd]);
 
   const totalExpense = periodExpenses.reduce((s, e) => s + e.amount, 0);
@@ -521,71 +550,134 @@ export default function CashFlowPage() {
           </div>
         )}
 
-        {/* ── Expense log (full width) ─────────────────────────────────── */}
-        <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #ebebf0", overflow: "hidden" }}>
-          <div style={{ padding: "14px 20px", borderBottom: "1px solid #f0f0f8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
-              Expenses
-              <span style={{ fontSize: 11, fontWeight: 500, color: "#a0a0b8", marginLeft: 8 }}>{periodExpenses.length} entries · {fmt(totalExpense)}</span>
+        {/* ── Income + Expense tables side by side ────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+
+          {/* Income table */}
+          <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #ebebf0", overflow: "hidden" }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <TrendingUp size={13} color="#7C3AED" />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
+                  Income
+                  <span style={{ fontSize: 11, fontWeight: 500, color: "#a0a0b8", marginLeft: 8 }}>{periodIncomeRows.length} entries · {fmt(periodIncome)}</span>
+                </div>
+              </div>
             </div>
-            {!showForm && (
-              <button onClick={openAdd} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 7, border: "1.5px solid #7C3AED", background: "transparent", color: "#7C3AED", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                <Plus size={12} /> Add
-              </button>
+
+            <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 80px", padding: "6px 18px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+              {["DATE", "CLIENT / SERVICE", "AMOUNT"].map((h, i) => (
+                <div key={i} style={{ fontSize: 10, fontWeight: 700, color: "#c0c0d0", letterSpacing: "0.07em", textAlign: i === 2 ? "right" : "left" }}>{h}</div>
+              ))}
+            </div>
+
+            {periodIncomeRows.length === 0 ? (
+              <div style={{ padding: "32px 18px", textAlign: "center" }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>💜</div>
+                <div style={{ fontSize: 12, color: "#a0a0b8" }}>No income this period</div>
+              </div>
+            ) : periodIncomeRows.map((row, i) => (
+              <div key={row.id} style={{ display: "grid", gridTemplateColumns: "80px 1fr 80px", padding: "9px 18px", borderBottom: i === periodIncomeRows.length - 1 ? "none" : "1px solid #f8f8fc", alignItems: "center" }}>
+                <div style={{ fontSize: 11, color: "#9999b0" }}>{row.date}</div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 18, height: 18, borderRadius: 5, background: row.source === "pos" ? "#fffbeb" : "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {row.source === "pos"
+                        ? <ShoppingBag size={10} color="#d97706" />
+                        : <CalendarCheck size={10} color="#7C3AED" />}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1a2e" }}>{row.client}</div>
+                      <div style={{ fontSize: 11, color: "#b0b0c8" }} title={row.description}>
+                        {row.description.length > 28 ? row.description.slice(0, 28) + "…" : row.description}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED", textAlign: "right" }}>{fmt(row.amount)}</div>
+              </div>
+            ))}
+
+            {periodIncomeRows.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 80px", padding: "8px 18px", background: "#fafafa", borderTop: "1px solid #f0f0f8" }}>
+                <div style={{ gridColumn: "1 / 3", fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Total</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#7C3AED", textAlign: "right" }}>{fmt(periodIncome)}</div>
+              </div>
             )}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "90px 120px 1fr 100px 90px 40px 40px", padding: "7px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-            {["DATE", "CATEGORY", "DESCRIPTION", "PAYMENT", "AMOUNT", "", ""].map((h, i) => (
-              <div key={i} style={{ fontSize: 10, fontWeight: 700, color: "#c0c0d0", letterSpacing: "0.07em" }}>{h}</div>
-            ))}
+          {/* Expense table */}
+          <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #ebebf0", overflow: "hidden" }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <TrendingDown size={13} color="#ef4444" />
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
+                  Expenses
+                  <span style={{ fontSize: 11, fontWeight: 500, color: "#a0a0b8", marginLeft: 8 }}>{periodExpenses.length} entries · {fmt(totalExpense)}</span>
+                </div>
+              </div>
+              {!showForm && (
+                <button onClick={openAdd} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 7, border: "1.5px solid #ef4444", background: "transparent", color: "#ef4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  <Plus size={11} /> Add
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 80px 32px 32px", padding: "6px 18px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+              {["DATE", "CATEGORY", "DESCRIPTION", "AMOUNT", "", ""].map((h, i) => (
+                <div key={i} style={{ fontSize: 10, fontWeight: 700, color: "#c0c0d0", letterSpacing: "0.07em" }}>{h}</div>
+              ))}
+            </div>
+
+            {periodExpenses.length === 0 ? (
+              <div style={{ padding: "32px 18px", textAlign: "center" }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>💸</div>
+                <div style={{ fontSize: 12, color: "#a0a0b8" }}>No expenses logged</div>
+                <div style={{ fontSize: 11, color: "#c0c0d0", marginTop: 3 }}>Click &ldquo;Add&rdquo; to start tracking.</div>
+              </div>
+            ) : periodExpenses.map((exp, i) => {
+              const cat = EXPENSE_CATEGORIES.find(c => c.key === exp.category);
+              const payColor = PAYMENT_COLORS[exp.paymentMethod];
+              return (
+                <div key={exp.id} style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 80px 32px 32px", padding: "9px 18px", borderBottom: i === periodExpenses.length - 1 ? "none" : "1px solid #f8f8fc", alignItems: "center" }}>
+                  <div style={{ fontSize: 11, color: "#9999b0" }}>{exp.date}</div>
+                  <div>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: cat?.color ?? "#888", background: `${cat?.color ?? "#888"}15`, padding: "2px 6px", borderRadius: 20 }}>{cat?.label ?? exp.category}</span>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1a2e" }}>{exp.description}</div>
+                    {exp.notes && <div style={{ fontSize: 10, color: "#b0b0c8" }}>{exp.notes}</div>}
+                    {exp.paymentMethod && <div style={{ fontSize: 10, color: payColor ?? "#9999b0" }}>{PAYMENT_LABELS[exp.paymentMethod] ?? exp.paymentMethod}</div>}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>{fmt(exp.amount)}</div>
+                  <button onClick={() => openEdit(exp)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d0d0e0", padding: 3, display: "flex", alignItems: "center" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#7C3AED")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#d0d0e0")}>
+                    <Pencil size={12} />
+                  </button>
+                  <button onClick={() => handleDelete(exp.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d0d0e0", padding: 3, display: "flex", alignItems: "center" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#ef4444")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#d0d0e0")}>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              );
+            })}
+
+            {periodExpenses.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 80px 32px 32px", padding: "8px 18px", background: "#fafafa", borderTop: "1px solid #f0f0f8" }}>
+                <div style={{ gridColumn: "1 / 4", fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Total</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#ef4444" }}>{fmt(totalExpense)}</div>
+                <div /><div />
+              </div>
+            )}
           </div>
 
-          {periodExpenses.length === 0 ? (
-            <div style={{ padding: "36px 20px", textAlign: "center" }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>💸</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#a0a0b8" }}>No expenses logged</div>
-              <div style={{ fontSize: 12, color: "#c0c0d0", marginTop: 4 }}>Click &ldquo;Add&rdquo; to start tracking costs.</div>
-            </div>
-          ) : periodExpenses.map((exp, i) => {
-            const cat = EXPENSE_CATEGORIES.find(c => c.key === exp.category);
-            const payColor = PAYMENT_COLORS[exp.paymentMethod];
-            return (
-              <div key={exp.id} style={{ display: "grid", gridTemplateColumns: "90px 120px 1fr 100px 90px 40px 40px", padding: "10px 20px", borderBottom: i === periodExpenses.length - 1 ? "none" : "1px solid #f8f8fc", alignItems: "center" }}>
-                <div style={{ fontSize: 11, color: "#9999b0" }}>{exp.date}</div>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: cat?.color ?? "#888", background: `${cat?.color ?? "#888"}15`, padding: "2px 7px", borderRadius: 20 }}>{cat?.label ?? exp.category}</span>
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{exp.description}</div>
-                  {exp.notes && <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 1 }}>{exp.notes}</div>}
-                </div>
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: payColor ?? "#9999b0" }}>{PAYMENT_LABELS[exp.paymentMethod] ?? exp.paymentMethod}</span>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>{fmt(exp.amount)}</div>
-                <button onClick={() => openEdit(exp)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d0d0e0", padding: 4, display: "flex", alignItems: "center", justifyContent: "center" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "#7C3AED")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "#d0d0e0")}>
-                  <Pencil size={13} />
-                </button>
-                <button onClick={() => handleDelete(exp.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d0d0e0", padding: 4, display: "flex", alignItems: "center", justifyContent: "center" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "#ef4444")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "#d0d0e0")}>
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            );
-          })}
-
-          {periodExpenses.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "90px 120px 1fr 100px 90px 40px 40px", padding: "9px 20px", background: "#fafafa", borderTop: "1px solid #f0f0f8" }}>
-              <div style={{ gridColumn: "1 / 5", fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Total</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#ef4444" }}>{fmt(totalExpense)}</div>
-              <div /><div />
-            </div>
-          )}
-        </div>
+        </div>{/* /2-col grid */}
 
       </div>{/* /desktop-only */}
     </div>
