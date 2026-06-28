@@ -93,9 +93,10 @@ function alreadySent(key: string): boolean {
   return !!getSentLog()[key];
 }
 
-const MAX_RETRIES = 3;
-const FOLLOWUP_DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours after completion
-const SEND_RATE_LIMIT_MS = 60_000; // WaSender free plan: 1 message per minute
+const MAX_RETRIES = 5;
+const RETRY_DELAY_MS = 60_000;           // wait 1 minute before retrying a failed send
+const FOLLOWUP_DELAY_MS = 24 * 60 * 60 * 1000;
+const SEND_RATE_LIMIT_MS = 60_000;       // WaSender free plan: 1 message per minute
 
 let lastSentAt = 0;
 let schedulerRunning = false;
@@ -343,17 +344,18 @@ async function runSchedulerInternal(): Promise<void> {
     }
   }
 
-  // 2. Booking confirmations — drain the confirm queue (max 3 attempts per item)
+  // 2. Booking confirmations — drain the confirm queue (up to MAX_RETRIES attempts, 1-min apart)
   if (ws.autoConfirmation && waTpl.confirmation) {
     const queue = getQueue(CONFIRM_QUEUE_KEY);
     const remaining: QueueItem[] = [];
     for (const item of queue) {
+      // Retry delay — keep waiting if last attempt was too recent
+      if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
-      if (!appt || !phone) continue; // appointment not found or no phone — drop from queue
+      if (!appt || !phone) continue;
       const sentKey = `confirm_${appt.id}`;
-      if (alreadySent(sentKey)) continue; // already confirmed — drop duplicate
-      // Skip stale confirmations for appointments that have already passed
+      if (alreadySent(sentKey)) continue;
       const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
       if (apptTime < now) continue;
       const text = fillTemplate(waTpl.confirmation, buildVars(appt, salonName));
@@ -361,56 +363,47 @@ async function runSchedulerInternal(): Promise<void> {
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
-        remaining.push({ id: item.id, retries: item.retries + 1 });
+        remaining.push({ id: item.id, retries: item.retries + 1, sendAfter: Date.now() + RETRY_DELAY_MS });
       }
     }
     setQueue(CONFIRM_QUEUE_KEY, remaining);
   }
 
-  // 3. Follow-up messages — send after configured delay; not gated on salon hours because
-  //    the user-chosen delay (sendAfter) already controls when this fires.
+  // 3. Follow-up messages — sendAfter controls initial delay; retry with 1-min gap on failure.
   if (ws.autoFollowup && waTpl.followup) {
     const queue = getQueue(FOLLOWUP_QUEUE_KEY);
     const remaining: QueueItem[] = [];
     for (const item of queue) {
-      // Not yet time — keep in queue untouched
-      if (item.sendAfter && Date.now() < item.sendAfter) {
-        remaining.push(item);
-        continue;
-      }
+      if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
-      if (!appt || !phone) continue; // appointment not found or no phone — drop from queue
+      if (!appt || !phone) continue;
       const sentKey = `followup_${appt.id}`;
-      if (alreadySent(sentKey)) continue; // already followed up — drop duplicate
+      if (alreadySent(sentKey)) continue;
       const text = fillTemplate(waTpl.followup, buildVars(appt, salonName));
       const ok = await callSendApi(phone, text, { type: "followup", clientName: appt.clientName });
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
-        remaining.push({ id: item.id, retries: item.retries + 1 });
+        remaining.push({ id: item.id, retries: item.retries + 1, sendAfter: Date.now() + RETRY_DELAY_MS });
       }
     }
     setQueue(FOLLOWUP_QUEUE_KEY, remaining);
   }
 
-  // 4. Cancellation win-back — not gated on salon hours; sendAfter is the user-chosen delay.
+  // 4. Cancellation win-back — retry with 1-min gap on failure.
   const cancelTpl = (settingsStore.whatsapp as { cancellation: string }).cancellation;
   if (ws.autoCancellation && cancelTpl) {
     const queue = getQueue(CANCEL_QUEUE_KEY);
     const remaining: QueueItem[] = [];
     for (const item of queue) {
-      if (item.sendAfter && Date.now() < item.sendAfter) {
-        remaining.push(item);
-        continue;
-      }
+      if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
       const sentKey = `cancel_${item.id}`;
-      if (alreadySent(sentKey)) continue; // already sent win-back — drop duplicate
-      // Use snapshotted phone (stored at enqueue) as fallback if appointment was deleted
+      if (alreadySent(sentKey)) continue;
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
       const clientName = appt?.clientName ?? item.clientName ?? "there";
-      if (!phone) continue; // no phone at all — drop
+      if (!phone) continue;
       const cancelDiscount = (settingsStore.wasender as { cancelDiscount?: string }).cancelDiscount || "10%";
       const text = appt
         ? fillTemplate(cancelTpl, { ...buildVars(appt, salonName), discount: cancelDiscount })
@@ -419,7 +412,7 @@ async function runSchedulerInternal(): Promise<void> {
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
-        remaining.push({ ...item, retries: item.retries + 1 });
+        remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + RETRY_DELAY_MS });
       }
     }
     setQueue(CANCEL_QUEUE_KEY, remaining);
