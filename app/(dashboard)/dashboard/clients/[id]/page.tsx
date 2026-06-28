@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getStoredClients, getStoredAppointments, saveClients } from "@/lib/storage";
+import { syncWalletPass } from "@/lib/turso-sync";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import { BEAUTY_PROFILES } from "@/lib/mock-data";
 import type { Client, Appointment } from "@/lib/types";
@@ -162,6 +163,7 @@ export default function ClientProfilePage() {
     };
     const all = getStoredClients();
     saveClients(all.map((c) => (c.id === updated.id ? updated : c)));
+    syncWalletPass(updated.id, updated);
     setClient(updated);
     setEditing(false);
   };

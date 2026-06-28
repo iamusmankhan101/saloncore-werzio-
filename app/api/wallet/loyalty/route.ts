@@ -194,23 +194,26 @@ async function updateClass(appBaseUrl: string, salonName: string, salonLogo: str
  */
 export async function PATCH(req: NextRequest) {
   if (!ISSUER_ID || !SERVICE_ACCOUNT_EMAIL || !getPrivateKey()) {
-    return new Response(null, { status: 204 }); // not configured — skip silently
+    return new Response(null, { status: 204 });
   }
   try {
-    const { salonId, clientId } = await req.json() as { salonId?: string; clientId?: string };
+    const body = await req.json() as { salonId?: string; clientId?: string; client?: Client };
+    const { salonId, clientId } = body;
     if (!salonId || !clientId) return new Response(null, { status: 400 });
 
+    // Use the fresh client from the request body when available — this avoids a
+    // race condition where Turso hasn't persisted the latest points/phone yet.
     const [client, { name: salonName, settings }] = await Promise.all([
-      getClient(salonId, clientId),
+      body.client ? Promise.resolve(body.client) : getClient(salonId, clientId),
       getSalonInfo(salonId),
     ]);
-    if (!client) return new Response(null, { status: 204 }); // no client — nothing to update
+    if (!client) return new Response(null, { status: 204 });
 
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.werzio.com";
     await upsertObject(client, salonName, settings, appBaseUrl);
     return new Response(null, { status: 204 });
   } catch {
-    return new Response(null, { status: 204 }); // fire-and-forget — never surface errors to caller
+    return new Response(null, { status: 204 });
   }
 }
 

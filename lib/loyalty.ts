@@ -59,7 +59,7 @@ export function getClientHistory(clientId: string): LoyaltyTransaction[] {
   return getLoyaltyHistory().filter((t) => t.clientId === clientId);
 }
 
-function appendHistory(tx: Omit<LoyaltyTransaction, "id" | "date">) {
+function appendHistory(tx: Omit<LoyaltyTransaction, "id" | "date">, updatedClient?: unknown) {
   const history = getLoyaltyHistory();
   const entry: LoyaltyTransaction = {
     ...tx,
@@ -70,8 +70,9 @@ function appendHistory(tx: Omit<LoyaltyTransaction, "id" | "date">) {
   if (history.length > 2000) history.length = 2000;
   localStorage.setItem(userKey(HISTORY_KEY), JSON.stringify(history));
   saveLoyaltyHistoryToDB(history);
-  // Keep Google Wallet pass in sync after every points change
-  syncWalletPass(tx.clientId);
+  // Pass the fresh client so the PATCH handler uses current data directly
+  // instead of re-fetching from Turso (which may not have settled yet).
+  syncWalletPass(tx.clientId, updatedClient);
   return entry;
 }
 
@@ -87,18 +88,13 @@ export function awardPoints(
   const pts = calcPointsToEarn(amount, settings.pointsPerRupee);
   console.log("[awardPoints] amount:", amount, "ppr:", settings.pointsPerRupee, "pts:", pts);
   if (pts <= 0) { console.log("[awardPoints] skipped: pts=0 (amount too small)"); return client; }
-  appendHistory({
-    clientId: client.id,
-    type: "earn",
-    points: pts,
-    note: `Earned for Rs. ${amount} appointment`,
-    appointmentId,
-  });
-  return {
+  const updated = {
     ...client,
     loyaltyPoints:       (client.loyaltyPoints       ?? 0) + pts,
     loyaltyPointsEarned: (client.loyaltyPointsEarned ?? 0) + pts,
   };
+  appendHistory({ clientId: client.id, type: "earn", points: pts, note: `Earned for Rs. ${amount} appointment`, appointmentId }, updated);
+  return updated;
 }
 
 /** Recompute a single client's earned points from their completed appointments.
@@ -123,8 +119,9 @@ export function redeemPoints(
   const balance = client.loyaltyPoints ?? 0;
   const actual  = Math.min(points, balance);
   if (actual <= 0) return client;
-  appendHistory({ clientId: client.id, type: "redeem", points: -actual, note });
-  return { ...client, loyaltyPoints: balance - actual };
+  const updated = { ...client, loyaltyPoints: balance - actual };
+  appendHistory({ clientId: client.id, type: "redeem", points: -actual, note }, updated);
+  return updated;
 }
 
 export function adjustPoints(
@@ -132,10 +129,11 @@ export function adjustPoints(
   points: number,
   note: string,
 ): Client {
-  const newBal     = Math.max(0, (client.loyaltyPoints ?? 0) + points);
-  const newEarned  = points > 0
+  const newBal    = Math.max(0, (client.loyaltyPoints ?? 0) + points);
+  const newEarned = points > 0
     ? (client.loyaltyPointsEarned ?? 0) + points
     : (client.loyaltyPointsEarned ?? 0);
-  appendHistory({ clientId: client.id, type: "adjust", points, note });
-  return { ...client, loyaltyPoints: newBal, loyaltyPointsEarned: newEarned };
+  const updated = { ...client, loyaltyPoints: newBal, loyaltyPointsEarned: newEarned };
+  appendHistory({ clientId: client.id, type: "adjust", points, note }, updated);
+  return updated;
 }

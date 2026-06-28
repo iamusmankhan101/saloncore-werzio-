@@ -136,17 +136,17 @@ export function saveLoyaltyHistoryToDB(data: unknown[]): void {
 }
 
 /**
- * Push the latest loyalty points to an existing Google Wallet pass.
- * Fire-and-forget — called after every award/redeem/adjust so the pass
- * stays in sync without the client needing to re-add it.
+ * Push the latest loyalty points / profile to an existing Google Wallet pass.
+ * Fire-and-forget. Pass `client` so the handler uses fresh data directly and
+ * avoids a Turso re-fetch race (saveToDB is async and may not have settled yet).
  */
-export function syncWalletPass(clientId: string): void {
+export function syncWalletPass(clientId: string, client?: unknown): void {
   const user = getCurrentUser();
   if (!user) return;
 
   fetch("/api/wallet/loyalty", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ salonId: user.id, clientId }),
+    body: JSON.stringify({ salonId: user.id, clientId, client }),
   }).catch(() => {});
 }
