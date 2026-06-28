@@ -122,6 +122,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [outStockCount,     setOutStockCount]     = useState(0);
   const [unpaidInvoiceCount, setUnpaidInvoiceCount] = useState(0);
   const [overdueInvoiceCount, setOverdueInvoiceCount] = useState(0);
+  const [topUnpaidInvoice, setTopUnpaidInvoice]   = useState<{ clientName: string; total: number; number: string; daysSince: number } | null>(null);
+  const [invoiceBadgeDismissed, setInvoiceBadgeDismissed] = useState(false);
   const [waStatus,      setWaStatus]       = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
 
@@ -219,11 +221,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!isReady) return;
     function checkInvoices() {
-      const invs = getSalonInvoices();
+      const invs   = getSalonInvoices();
+      const today  = new Date().toISOString().slice(0, 10);
       const unpaid = invs.filter((i) => i.status === "unpaid");
       setUnpaidInvoiceCount(unpaid.length);
-      const today = new Date().toISOString().slice(0, 10);
       setOverdueInvoiceCount(unpaid.filter((i) => i.date < today).length);
+      // Most urgent = oldest unpaid
+      if (unpaid.length > 0) {
+        const oldest = unpaid.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+        const daysSince = Math.floor((Date.now() - new Date(oldest.createdAt).getTime()) / 86_400_000);
+        setTopUnpaidInvoice({ clientName: oldest.clientName, total: oldest.total, number: oldest.number, daysSince });
+        setInvoiceBadgeDismissed(false);
+      } else {
+        setTopUnpaidInvoice(null);
+      }
     }
     checkInvoices();
     const interval = window.setInterval(checkInvoices, 60_000);
@@ -390,37 +401,74 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {suspended && !isBillingPage && <SuspensionGate reason={suspReason} />}
 
       {/* Bottom-right persistent alert badges (stacked) */}
-      <div style={{ position: "fixed", bottom: 90, right: 16, zIndex: 9998, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+      <div style={{ position: "fixed", bottom: 90, right: 16, zIndex: 9998, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
 
-        {/* Unpaid invoice badge */}
-        {unpaidInvoiceCount > 0 && (
-          <Link
-            href="/dashboard/invoices"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "8px 14px",
-              borderRadius: 24,
-              background: overdueInvoiceCount > 0 ? "linear-gradient(135deg,#dc2626,#ef4444)" : "linear-gradient(135deg,#d97706,#f59e0b)",
-              boxShadow: overdueInvoiceCount > 0
-                ? "0 4px 20px rgba(220,38,38,0.4), 0 0 0 3px rgba(220,38,38,0.15)"
-                : "0 4px 20px rgba(217,119,6,0.4),  0 0 0 3px rgba(217,119,6,0.15)",
-              textDecoration: "none",
-              animation: "stockPulse 2.5s ease-in-out infinite",
-            }}
-          >
-            <FileText size={14} color="#fff" style={{ flexShrink: 0 }} />
-            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>
-                {overdueInvoiceCount > 0 && `${overdueInvoiceCount} Overdue`}
-                {overdueInvoiceCount > 0 && unpaidInvoiceCount > overdueInvoiceCount && "  ·  "}
-                {unpaidInvoiceCount > overdueInvoiceCount && `${unpaidInvoiceCount - overdueInvoiceCount} Unpaid`}
-                {overdueInvoiceCount === 0 && `${unpaidInvoiceCount} Unpaid Invoice${unpaidInvoiceCount > 1 ? "s" : ""}`}
-              </span>
-              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>Tap to collect payment</span>
+        {/* Unpaid invoice reminder card */}
+        {topUnpaidInvoice && !invoiceBadgeDismissed && (
+          <div style={{
+            background: "#fff",
+            borderRadius: 16,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.14), 0 0 0 1px rgba(217,119,6,0.15)",
+            overflow: "hidden",
+            width: 240,
+            animation: "stockPulse 3s ease-in-out infinite",
+          }}>
+            {/* Coloured top bar */}
+            <div style={{
+              background: overdueInvoiceCount > 0
+                ? "linear-gradient(135deg,#dc2626,#ef4444)"
+                : "linear-gradient(135deg,#d97706,#f59e0b)",
+              padding: "10px 12px",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {/* Pulsing dot */}
+                <div style={{ position: "relative", width: 8, height: 8 }}>
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#fff", opacity: 0.6, animation: "stockPulse 1.5s ease-in-out infinite" }} />
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#fff" }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.04em" }}>
+                  {unpaidInvoiceCount} Unpaid Invoice{unpaidInvoiceCount > 1 ? "s" : ""}
+                  {overdueInvoiceCount > 0 && ` · ${overdueInvoiceCount} overdue`}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInvoiceBadgeDismissed(true)}
+                style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 6, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+              >
+                <X size={12} color="#fff" />
+              </button>
             </div>
-          </Link>
+
+            {/* Invoice detail */}
+            <div style={{ padding: "12px 14px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e", marginBottom: 2 }}>
+                {topUnpaidInvoice.clientName}
+              </div>
+              <div style={{ fontSize: 11, color: "#9898b0", marginBottom: 10 }}>
+                {topUnpaidInvoice.number}
+                {topUnpaidInvoice.daysSince > 0 && ` · ${topUnpaidInvoice.daysSince}d ago`}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 16, fontWeight: 800, color: overdueInvoiceCount > 0 ? "#dc2626" : "#d97706" }}>
+                  PKR {topUnpaidInvoice.total.toLocaleString()}
+                </span>
+                <Link
+                  href="/dashboard/invoices"
+                  style={{
+                    fontSize: 11, fontWeight: 700,
+                    color: "#fff",
+                    background: overdueInvoiceCount > 0 ? "#dc2626" : "#d97706",
+                    padding: "5px 12px", borderRadius: 8,
+                    textDecoration: "none",
+                  }}
+                >
+                  Collect →
+                </Link>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Low-stock / out-of-stock badge */}
