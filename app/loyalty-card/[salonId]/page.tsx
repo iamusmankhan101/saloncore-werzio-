@@ -204,7 +204,7 @@ export default function PublicLoyaltyCardPage({ params }: { params: Promise<{ sa
                 <span style={{ fontSize: 12, fontWeight: 800, color: "#303044" }}>Phone number</span>
                 <input
                   value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
+                  onChange={(event) => { setPhone(event.target.value); setData(null); setNeedsName(false); }}
                   placeholder="+92 300 1234567"
                   style={{ height: 46, border: "1px solid #dedeea", borderRadius: 12, padding: "0 14px", outline: "none", fontSize: 14, width: "100%", boxSizing: "border-box" }}
                 />

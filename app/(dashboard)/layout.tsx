@@ -13,7 +13,7 @@ import { syncFromDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
 import { getStoredInventory } from "@/lib/storage";
 import { syncInvoices } from "@/lib/invoices";
-import { PLAN_CONFIGS, type PlanId } from "@/lib/plan-limits";
+import { PLAN_CONFIGS, getCurrentPlanId, type PlanId } from "@/lib/plan-limits";
 
 // ─── Notification chime ───────────────────────────────────────────────────────
 
@@ -152,28 +152,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const user = getCurrentUser();
     if (!user) return;
 
-    syncFromDB().then(() => { reloadSettings(); runWhatsAppScheduler(); });
-    checkInvoiceNotifications();
+    syncFromDB().then(() => {
+      reloadSettings();
+      runWhatsAppScheduler();
 
-    // Check suspension status
-    fetch(`/api/billing/status?userId=${encodeURIComponent(user.id)}`)
-      .then((r) => r.json())
-      .then((data: { ok: boolean; suspended?: boolean; reason?: string | null }) => {
-        if (data.ok && data.suspended) {
-          setSuspended(true);
-          setSuspReason(data.reason ?? null);
-        }
-      })
-      .catch(() => { /* fail open */ });
-
-    // Sync subscription invoices then check for unpaid/overdue
-    fetch(`/api/billing/user?userId=${encodeURIComponent(user.id)}`)
-      .then((r) => r.json())
-      .then((data: { ok: boolean; planId?: string; planPrice?: number }) => {
-        if (!data.ok) return;
-        const planId = (data.planId ?? "free") as PlanId;
-        const plan = PLAN_CONFIGS[planId];
-        if (!plan || plan.price === 0) return;
+      // After DB sync, read plan from localStorage and check for unpaid invoices
+      const planId = getCurrentPlanId() as PlanId;
+      const plan = PLAN_CONFIGS[planId];
+      if (plan && plan.price > 0) {
         const invoices = syncInvoices(
           { id: user.id, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
           { id: plan.id, name: plan.label, price: plan.price },
@@ -184,6 +170,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           const oldest = unpaid[unpaid.length - 1]; // oldest = last in desc-sorted list
           setUnpaidInvoice({ number: oldest.number, amount: oldest.total, status: oldest.status, dueDate: oldest.dueDate });
           setInvoiceBadgeDismissed(false);
+        }
+      }
+    });
+    checkInvoiceNotifications();
+
+    // Check suspension status
+    fetch(`/api/billing/status?userId=${encodeURIComponent(user.id)}`)
+      .then((r) => r.json())
+      .then((data: { ok: boolean; suspended?: boolean; reason?: string | null }) => {
+        if (data.ok && data.suspended) {
+          setSuspended(true);
+          setSuspReason(data.reason ?? null);
         }
       })
       .catch(() => { /* fail open */ });

@@ -86,16 +86,25 @@ function rowToClient(row: Record<string, unknown>): Client {
 }
 
 async function readClients(salonId: string): Promise<Client[]> {
-  const jsonClients = await readJson<Client[]>(`${salonId}_clients`, []);
-  if (jsonClients.length > 0) return jsonClients;
-
   await ensureAllTables();
-  const result = await db.execute({
-    sql: "SELECT * FROM clients WHERE user_id = ? ORDER BY created_at DESC",
-    args: [salonId],
-  });
 
-  return result.rows.map((row) => rowToClient(row as Record<string, unknown>));
+  // Read both sources in parallel — JSON has up-to-date loyalty points and phone changes,
+  // SQL may have clients registered via loyalty card that aren't in the JSON yet.
+  const [jsonClients, sqlResult] = await Promise.all([
+    readJson<Client[]>(`${salonId}_clients`, []),
+    db.execute({ sql: "SELECT * FROM clients WHERE user_id = ? ORDER BY created_at DESC", args: [salonId] }),
+  ]);
+
+  const sqlClients = sqlResult.rows.map((row) => rowToClient(row as Record<string, unknown>));
+
+  if (jsonClients.length === 0) return sqlClients;
+  if (sqlClients.length === 0) return jsonClients;
+
+  // Merge: JSON wins for any client present in both (it has loyalty points + latest phone).
+  // Include SQL-only clients so loyalty-card-registered-but-not-yet-synced clients are findable.
+  const jsonIds = new Set(jsonClients.map((c) => c.id));
+  const sqlOnly = sqlClients.filter((c) => !jsonIds.has(c.id));
+  return [...jsonClients, ...sqlOnly];
 }
 
 async function insertRelationalClient(salonId: string, client: Client) {
@@ -186,12 +195,14 @@ export async function GET(req: NextRequest) {
     const loyalty = { ...defaultLoyalty, ...(settings.loyalty || {}) };
     const clients = await readClients(salonId);
 
+    const noCache = { headers: { "Cache-Control": "no-store" } };
+
     if (!phone) {
       return Response.json({
         ok: true,
         salon: settings.salon || { name: "Werzio Salon" },
         settings: loyalty,
-      });
+      }, noCache);
     }
 
     const normalized = normalizePhone(phone);
@@ -202,10 +213,10 @@ export async function GET(req: NextRequest) {
         salon: settings.salon || { name: "Werzio Salon" },
         settings: loyalty,
         client: null,
-      });
+      }, noCache);
     }
 
-    return Response.json({ ok: true, ...cardPayload(client, loyalty, settings.salon) });
+    return Response.json({ ok: true, ...cardPayload(client, loyalty, settings.salon) }, noCache);
   } catch (err) {
     console.error("[loyalty-card] GET error:", err);
     return Response.json({ ok: false, error: "Unable to load loyalty card." }, { status: 500 });

@@ -167,23 +167,6 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                 </div>
               </div>
 
-              {/* ── PAYMENT INSTRUCTIONS ── */}
-              <div style={{ marginBottom: 36 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Pay By Bank Transfer / Mobile Wallet</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, fontSize: 12, color: "#555", lineHeight: 2 }}>
-                  <div>
-                    <div style={{ fontWeight: 700, color: "#111", marginBottom: 2 }}>EasyPaisa / JazzCash</div>
-                    <div>Name: Muhammad Usman Khan</div>
-                    <div>Number: 03058562523</div>
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, color: "#111", marginBottom: 2 }}>Meezan Bank</div>
-                    <div>Title: Muhammad Usman Khan</div>
-                    <div>Account: 02361019994452</div>
-                  </div>
-                </div>
-              </div>
-
               {/* ── TERMS ── */}
               <div style={{ marginBottom: 36 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Terms</div>
