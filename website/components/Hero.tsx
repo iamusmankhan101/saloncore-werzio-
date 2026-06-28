@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import styles from "./Hero.module.css";
 import CalendarMockup from "./CalendarMockup";
@@ -49,7 +50,7 @@ export default function Hero() {
           Easily manage bookings, clients, staff and revenue from start to finish.
         </p>
         <div className={styles.btns}>
-          <a href="/#contact" className={styles.btnPrimary}>Get Started Free</a>
+          <Link href="/#contact" className={styles.btnPrimary}>Get Started Free</Link>
           <button type="button" onClick={() => setDemo(true)} className={styles.btnOutline}>Book a Demo</button>
         </div>
       </div>
