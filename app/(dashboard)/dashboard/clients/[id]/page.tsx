@@ -89,18 +89,37 @@ export default function ClientProfilePage() {
   useEffect(() => {
     const allClients = getStoredClients();
     const allAppts   = getStoredAppointments();
+    const allInvoices = getSalonInvoices();
     const found = allClients.find((c) => c.id === clientId);
     if (found) {
-      setClient(found);
+      // Recalculate loyalty points from source data (same logic as loyalty page)
+      // so this page always agrees with the loyalty leaderboard.
+      const ls = settingsStore.loyalty as LoyaltySettings;
+      let resolved = found;
+      if (ls.enabled) {
+        const apptSpend = allAppts
+          .filter((a) => a.clientId === clientId && a.status === "completed")
+          .reduce((s, a) => s + a.totalAmount, 0);
+        const posSpend = allInvoices
+          .filter((inv) => inv.clientId === clientId && inv.source === "pos")
+          .reduce((s, inv) => s + inv.total, 0);
+        const totalEarned = Math.floor((apptSpend + posSpend) * ls.pointsPerRupee);
+        if (totalEarned > (found.loyaltyPointsEarned ?? 0)) {
+          const redeemed = Math.max(0, (found.loyaltyPointsEarned ?? 0) - (found.loyaltyPoints ?? 0));
+          resolved = { ...found, loyaltyPointsEarned: totalEarned, loyaltyPoints: Math.max(0, totalEarned - redeemed) };
+          saveClients(allClients.map((c) => c.id === clientId ? resolved : c));
+        }
+      }
+      setClient(resolved);
       setEditForm({
-        name: found.name, phone: found.phone, email: found.email ?? "",
-        dob: found.dob ?? "", source: found.source, tag: found.tags[0] ?? "",
-        notes: found.notes ?? "",
+        name: resolved.name, phone: resolved.phone, email: resolved.email ?? "",
+        dob: resolved.dob ?? "", source: resolved.source, tag: resolved.tags[0] ?? "",
+        notes: resolved.notes ?? "",
       });
     }
     const appts = allAppts.filter((a) => a.clientId === clientId);
     setAppointments(appts);
-    const invoices = getSalonInvoices().filter((inv) => inv.clientId === clientId && inv.source === "pos");
+    const invoices = allInvoices.filter((inv) => inv.clientId === clientId && inv.source === "pos");
     setPosInvoices(invoices);
 
     try {
