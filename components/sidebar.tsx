@@ -56,8 +56,11 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   }, [pathname]);
 
   function handleSignOut() {
-    signOut();
-    router.replace("/sign-in");
+    // Clear HTTP-only session cookie server-side, then clear localStorage
+    fetch("/api/auth/signout", { method: "POST" }).finally(() => {
+      signOut();
+      router.replace("/sign-in");
+    });
   }
 
   const NavItem = ({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) => {

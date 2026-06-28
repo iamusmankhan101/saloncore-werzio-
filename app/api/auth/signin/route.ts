@@ -3,8 +3,9 @@
  * Authenticate user with rate limiting and account lockout.
  */
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { validateCredentials } from "@/lib/auth-db";
+import { createSessionToken, COOKIE_NAME, cookieOptions } from "@/lib/session";
 
 // ─── In-memory rate limiter ───────────────────────────────────────────────────
 // Keyed by IP address. Resets on server restart.
@@ -108,7 +109,7 @@ export async function POST(req: NextRequest) {
     // Success — clear the rate-limit counter for this IP
     rateClear(ip);
 
-    return Response.json({
+    const res = NextResponse.json({
       ok: true,
       user: {
         id: user.id,
@@ -121,6 +122,10 @@ export async function POST(req: NextRequest) {
         createdAt: user.createdAt,
       },
     });
+
+    // Set HTTP-only session cookie — not readable by JavaScript
+    res.cookies.set(COOKIE_NAME, createSessionToken(user.id), cookieOptions);
+    return res;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Authentication failed.";
 
