@@ -125,18 +125,22 @@ export function enqueueWhatsAppConfirmation(apptId: string) {
   }
 }
 
-/** Call when an appointment is marked completed — sends follow-up 24 hours later. */
+/** Call when an appointment is marked completed — sends follow-up after the configured delay. */
 export function enqueueWhatsAppFollowup(apptId: string) {
   if (typeof window === "undefined") return;
+  const delayMinutes = (settingsStore.wasender as { followupDelayMinutes?: number }).followupDelayMinutes ?? 1440;
+  const delayMs = delayMinutes * 60 * 1000;
   const q = getQueue(FOLLOWUP_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
-    setQueue(FOLLOWUP_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + FOLLOWUP_DELAY_MS }]);
+    setQueue(FOLLOWUP_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs }]);
   }
 }
 
-/** Call when an appointment is cancelled — sends a win-back discount message 24 hours later. */
+/** Call when an appointment is cancelled — sends a win-back discount message after the configured delay. */
 export function enqueueWhatsAppCancellation(apptId: string) {
   if (typeof window === "undefined") return;
+  const delayMinutes = (settingsStore.wasender as { cancellationDelayMinutes?: number }).cancellationDelayMinutes ?? 1440;
+  const delayMs = delayMinutes * 60 * 1000;
   const q = getQueue(CANCEL_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
     // Snapshot phone + name now so the message can fire even if the appointment record is deleted
@@ -144,7 +148,7 @@ export function enqueueWhatsAppCancellation(apptId: string) {
     const clients = getStoredClients();
     const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
     const phone = client?.phone ? normalizePhone(client.phone) : "";
-    setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + FOLLOWUP_DELAY_MS, phone, clientName: appt?.clientName }]);
+    setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs, phone, clientName: appt?.clientName }]);
   }
 }
 

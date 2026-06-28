@@ -439,9 +439,82 @@ interface WhatsAppSettings {
   reminderHours: number;
   autoConfirmation: boolean;
   autoFollowup: boolean;
+  followupDelayMinutes: number;
   autoCancellation: boolean;
+  cancellationDelayMinutes: number;
   cancelDiscount: string;
   autoLowStock: boolean;
+}
+
+const DELAY_PRESETS = [
+  { label: "15 minutes", value: 15  },
+  { label: "30 minutes", value: 30  },
+  { label: "1 hour",     value: 60  },
+  { label: "2 hours",    value: 120 },
+  { label: "4 hours",    value: 240 },
+  { label: "6 hours",    value: 360 },
+  { label: "12 hours",   value: 720 },
+  { label: "24 hours",   value: 1440 },
+];
+
+function DelaySelector({ minutes, onChange, label }: { minutes: number; onChange: (v: number) => void; label: string }) {
+  const isPreset = DELAY_PRESETS.some(p => p.value === minutes);
+  const [custom, setCustom] = useState(!isPreset);
+  const [customNum, setCustomNum] = useState(
+    !isPreset ? (minutes >= 60 ? String(minutes / 60) : String(minutes)) : "1"
+  );
+  const [customUnit, setCustomUnit] = useState<"minutes" | "hours">(
+    !isPreset ? (minutes >= 60 ? "hours" : "minutes") : "hours"
+  );
+
+  const selectVal = custom ? "custom" : String(minutes);
+
+  function applyCustom(num: string, unit: "minutes" | "hours") {
+    const n = Math.max(1, Number(num) || 1);
+    onChange(unit === "hours" ? n * 60 : n);
+  }
+
+  return (
+    <Field label={label}>
+      <select
+        style={inputStyle}
+        value={selectVal}
+        onChange={(e) => {
+          if (e.target.value === "custom") {
+            setCustom(true);
+            applyCustom(customNum, customUnit);
+          } else {
+            setCustom(false);
+            onChange(Number(e.target.value));
+          }
+        }}
+      >
+        {DELAY_PRESETS.map(p => (
+          <option key={p.value} value={String(p.value)}>{p.label} after</option>
+        ))}
+        <option value="custom">Custom...</option>
+      </select>
+      {custom && (
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <input
+            type="number"
+            min={1}
+            value={customNum}
+            onChange={(e) => { setCustomNum(e.target.value); applyCustom(e.target.value, customUnit); }}
+            style={{ ...inputStyle, width: 90 }}
+          />
+          <select
+            style={{ ...inputStyle, flex: 1 }}
+            value={customUnit}
+            onChange={(e) => { const u = e.target.value as "minutes" | "hours"; setCustomUnit(u); applyCustom(customNum, u); }}
+          >
+            <option value="minutes">Minutes</option>
+            <option value="hours">Hours</option>
+          </select>
+        </div>
+      )}
+    </Field>
+  );
 }
 
 function AutoRow({
@@ -610,24 +683,38 @@ function WhatsAppSection() {
         />
         <AutoRow
           label="Follow-up Message"
-          hint="Sent 24 hours after appointment is completed"
+          hint="Sent after appointment is completed — ask for review or re-book"
           enabled={form.autoFollowup}
           onToggle={() => set("autoFollowup", !form.autoFollowup)}
+          extra={
+            <DelaySelector
+              label="Send follow-up after"
+              minutes={form.followupDelayMinutes ?? 1440}
+              onChange={(v) => set("followupDelayMinutes", v)}
+            />
+          }
         />
         <AutoRow
           label="Cancellation Win-back"
-          hint="Sent 24 hours after cancellation with a discount to encourage re-booking"
+          hint="Sent after cancellation with a discount to encourage re-booking"
           enabled={form.autoCancellation}
           onToggle={() => set("autoCancellation", !form.autoCancellation)}
           extra={
-            <Field label="Discount to offer" hint="Used in {{discount}} variable in the template">
-              <input
-                style={inputStyle}
-                value={form.cancelDiscount ?? "10%"}
-                onChange={(e) => set("cancelDiscount", e.target.value)}
-                placeholder="e.g. 10% or PKR 500"
+            <div style={{ display: "grid", gap: 10 }}>
+              <DelaySelector
+                label="Send win-back after"
+                minutes={form.cancellationDelayMinutes ?? 1440}
+                onChange={(v) => set("cancellationDelayMinutes", v)}
               />
-            </Field>
+              <Field label="Discount to offer" hint="Used in {{discount}} variable in the template">
+                <input
+                  style={inputStyle}
+                  value={form.cancelDiscount ?? "10%"}
+                  onChange={(e) => set("cancelDiscount", e.target.value)}
+                  placeholder="e.g. 10% or PKR 500"
+                />
+              </Field>
+            </div>
           }
         />
         <AutoRow
