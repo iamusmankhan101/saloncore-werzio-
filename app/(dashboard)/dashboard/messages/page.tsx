@@ -131,23 +131,33 @@ function AutoCard({ icon: Icon, label, enabled, color }: {
 
 // ─── Template Card ────────────────────────────────────────────────────────────
 
+function getDiscountInitial(key: string): string {
+  if (key === "cancellation") return (settingsStore.wasender as Record<string, string>).cancelDiscount ?? "10%";
+  if (key === "birthday")     return (settingsStore.birthday  as Record<string, string>).birthdayDiscount ?? "";
+  return "";
+}
+
 function TemplateCard({ cfg }: { cfg: typeof TPL_CONFIG[0] }) {
   const wa = settingsStore.whatsapp as Record<string, string>;
-  const [text, setText] = useState(wa[cfg.key] || "");
+  const hasDiscount = cfg.vars.includes("discount");
+  const [text, setText]           = useState(wa[cfg.key] || "");
+  const [discount, setDiscount]   = useState(() => getDiscountInitial(cfg.key));
   const [showPreview, setShowPreview] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const dirtyRef = useRef(false); // true once user has manually edited
+  const [copied, setCopied]       = useState(false);
+  const [saved, setSaved]         = useState(false);
+  const dirtyRef = useRef(false);
   const Icon = cfg.icon;
-  const preview = previewText(text);
+
+  const liveVars: Record<string, string> = { ...SAMPLE_VARS, discount: discount || SAMPLE_VARS.discount };
+  const preview  = text.replace(/\{\{(\w+)\}\}/g, (_, k) => liveVars[k] ?? `{{${k}}}`);
   const charCount = text.length;
 
-  // Sync from settingsStore when Turso data loads (SETTINGS_CHANGED_EVENT)
   useEffect(() => {
     function onSettingsChanged() {
-      if (dirtyRef.current) return; // don't overwrite user's unsaved edits
+      if (dirtyRef.current) return;
       const fresh = (settingsStore.whatsapp as Record<string, string>)[cfg.key] || "";
       setText(fresh);
+      setDiscount(getDiscountInitial(cfg.key));
     }
     window.addEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
     return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
@@ -158,8 +168,10 @@ function TemplateCard({ cfg }: { cfg: typeof TPL_CONFIG[0] }) {
   }
   function save() {
     (settingsStore.whatsapp as Record<string, string>)[cfg.key] = text;
+    if (cfg.key === "cancellation") (settingsStore.wasender as Record<string, string>).cancelDiscount   = discount;
+    if (cfg.key === "birthday")     (settingsStore.birthday  as Record<string, string>).birthdayDiscount = discount;
     saveSettings();
-    dirtyRef.current = false; // saved — allow future syncs to overwrite again
+    dirtyRef.current = false;
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -195,6 +207,23 @@ function TemplateCard({ cfg }: { cfg: typeof TPL_CONFIG[0] }) {
             </button>
           ))}
         </div>
+
+        {/* Discount field for templates that use {{discount}} */}
+        {hasDiscount && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, background: cfg.color + "06", border: `1px solid ${cfg.color}20` }}>
+            <div style={{ flexShrink: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 2 }}>Discount Value</div>
+              <div style={{ fontSize: 10, color: "#9999b0" }}>Replaces {"{{discount}}"} in the message</div>
+            </div>
+            <input
+              type="text"
+              value={discount}
+              onChange={e => { dirtyRef.current = true; setDiscount(e.target.value); }}
+              placeholder="e.g. 10%, 15%, PKR 500"
+              style={{ flex: 1, padding: "7px 12px", borderRadius: 8, border: `1.5px solid ${cfg.color}40`, fontSize: 13, fontWeight: 700, color: "#1d1d2f", background: "#fff", outline: "none", minWidth: 0 }}
+            />
+          </div>
+        )}
 
         <textarea value={text} onChange={(e) => { dirtyRef.current = true; setText(e.target.value); }} rows={4}
           placeholder={`Write your ${cfg.label.toLowerCase()} message here…`}

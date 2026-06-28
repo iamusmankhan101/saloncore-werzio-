@@ -13,13 +13,14 @@ import {
   Wallet, CalendarDays, X, Download, Pencil, Check,
 } from "lucide-react";
 
-type Period = "today" | "7d" | "30d" | "1y";
+type Period = "today" | "7d" | "30d" | "1y" | "custom";
 
 const PERIODS: { key: Period; label: string; days: number }[] = [
-  { key: "today", label: "Today",  days: 1   },
-  { key: "7d",    label: "7 Days", days: 7   },
-  { key: "30d",   label: "Month",  days: 30  },
-  { key: "1y",    label: "1 Year", days: 365 },
+  { key: "today",  label: "Today",   days: 1   },
+  { key: "7d",     label: "7 Days",  days: 7   },
+  { key: "30d",    label: "Month",   days: 30  },
+  { key: "1y",     label: "1 Year",  days: 365 },
+  { key: "custom", label: "Custom",  days: 0   },
 ];
 
 export const EXPENSE_CATEGORIES: { key: ExpenseCategory; label: string; color: string }[] = [
@@ -55,6 +56,27 @@ function getDaysArr(count: number, end: string): string[] {
   return arr;
 }
 
+function getDaysInRange(start: string, end: string): string[] {
+  const arr: string[] = [];
+  const s = new Date(start + "T12:00:00");
+  const e = new Date(end + "T12:00:00");
+  let limit = 366;
+  while (s <= e && limit-- > 0) { arr.push(toDateStr(s)); s.setDate(s.getDate() + 1); }
+  return arr;
+}
+
+function monthlyBarsRange(start: string, end: string): { label: string; key: string }[] {
+  const arr: { label: string; key: string }[] = [];
+  const s = new Date(start + "T12:00:00"); s.setDate(1);
+  const e = new Date(end + "T12:00:00"); e.setDate(1);
+  let limit = 36;
+  while (s <= e && limit-- > 0) {
+    arr.push({ label: s.toLocaleDateString("en-PK", { month: "short" }), key: toDateStr(s).substring(0, 7) });
+    s.setMonth(s.getMonth() + 1);
+  }
+  return arr;
+}
+
 function fmtK(n: number) {
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
     : n >= 1_000 ? `${Math.round(n / 1_000)}K`
@@ -64,7 +86,9 @@ function fmtK(n: number) {
 const EMPTY_FORM = { date: "", category: "miscellaneous" as ExpenseCategory, description: "", amount: "", paymentMethod: "cash", notes: "" };
 
 export default function CashFlowPage() {
-  const [period, setPeriod]           = useState<Period>("30d");
+  const [period, setPeriod]           = useState<Period>("today");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd]     = useState("");
   const [expenses, setExpenses]       = useState<Expense[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [posInvoices, setPosInvoices] = useState<ReturnType<typeof getSalonInvoices>>([]);
@@ -77,6 +101,8 @@ export default function CashFlowPage() {
   useEffect(() => {
     const t = toDateStr(new Date());
     setToday(t);
+    setCustomEnd(t);
+    setCustomStart(t);
     setForm(f => ({ ...f, date: t }));
     setExpenses(getExpenses());
     setAppointments(getStoredAppointments());
@@ -85,24 +111,28 @@ export default function CashFlowPage() {
 
   const cfg = PERIODS.find(p => p.key === period)!;
 
+  const filterEnd = period === "custom" ? customEnd : today;
+
   const rangeStart = useMemo(() => {
     if (!today) return "";
+    if (period === "custom") return customStart;
     if (period === "today") return today;
     const d = new Date(today); d.setDate(d.getDate() - (cfg.days - 1));
     return toDateStr(d);
-  }, [period, today]);
+  }, [period, today, customStart]);
 
   const periodExpenses = useMemo(() =>
     expenses
-      .filter(e => e.date >= rangeStart && e.date <= today)
+      .filter(e => e.date >= rangeStart && e.date <= filterEnd)
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
-    [expenses, rangeStart, today]);
+    [expenses, rangeStart, filterEnd]);
 
   const periodIncome = useMemo(() => {
-    const appts = appointments.filter(a => a.status === "completed" && a.date >= rangeStart && a.date <= today);
-    const pos   = posInvoices.filter(inv => inv.date >= rangeStart && inv.date <= today);
+    if (period === "custom" && (!customStart || !customEnd || customStart > customEnd)) return 0;
+    const appts = appointments.filter(a => a.status === "completed" && a.date >= rangeStart && a.date <= filterEnd);
+    const pos   = posInvoices.filter(inv => inv.date >= rangeStart && inv.date <= filterEnd);
     return appts.reduce((s, a) => s + a.totalAmount, 0) + pos.reduce((s, inv) => s + inv.total, 0);
-  }, [appointments, posInvoices, rangeStart, today]);
+  }, [appointments, posInvoices, rangeStart, filterEnd, period, customStart, customEnd]);
 
   const totalExpense = periodExpenses.reduce((s, e) => s + e.amount, 0);
   const netCashFlow  = periodIncome - totalExpense;
@@ -116,9 +146,31 @@ export default function CashFlowPage() {
       .sort((a, b) => b.amount - a.amount);
   }, [periodExpenses]);
 
-  // Chart: income vs expense per day (or month for 1y)
+  // Chart: income vs expense per day (or month for 1y / long custom)
   const chartData = useMemo(() => {
     if (!today) return [] as { label: string; income: number; expense: number }[];
+    if (period === "custom") {
+      if (!customStart || !customEnd || customStart > customEnd) return [];
+      const days = getDaysInRange(customStart, customEnd);
+      if (days.length > 62) {
+        return monthlyBarsRange(customStart, customEnd).map(({ label, key }) => {
+          const income =
+            appointments.filter(a => a.status === "completed" && a.date.startsWith(key)).reduce((s, a) => s + a.totalAmount, 0) +
+            posInvoices.filter(inv => inv.date.startsWith(key)).reduce((s, inv) => s + inv.total, 0);
+          const expense = expenses.filter(e => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
+          return { label, income, expense };
+        });
+      }
+      return days.map(date => {
+        const d = new Date(date + "T12:00:00");
+        const label = days.length > 14 ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
+        const income =
+          appointments.filter(a => a.status === "completed" && a.date === date).reduce((s, a) => s + a.totalAmount, 0) +
+          posInvoices.filter(inv => inv.date === date).reduce((s, inv) => s + inv.total, 0);
+        const expense = expenses.filter(e => e.date === date).reduce((s, e) => s + e.amount, 0);
+        return { label, income, expense };
+      });
+    }
     if (period === "1y") {
       return Array.from({ length: 12 }, (_, i) => {
         const d = new Date(today); d.setDate(1); d.setMonth(d.getMonth() - (11 - i));
@@ -139,7 +191,7 @@ export default function CashFlowPage() {
       const expense = expenses.filter(e => e.date === date).reduce((s, e) => s + e.amount, 0);
       return { label, income, expense };
     });
-  }, [period, today, appointments, posInvoices, expenses]);
+  }, [period, today, customStart, customEnd, appointments, posInvoices, expenses]);
 
   const maxChart = Math.max(...chartData.flatMap(d => [d.income, d.expense]), 1);
 
@@ -229,8 +281,8 @@ export default function CashFlowPage() {
       <div style="font-size:12px;color:#a0a0b8;margin-top:6px">Salon Management Platform</div>
     </div>
     <div class="report-meta">
-      <div class="report-title">Cash Flow Report — ${cfg.label}</div>
-      <div class="report-sub">${rangeStart} to ${today}</div>
+      <div class="report-title">Cash Flow Report — ${period === "custom" ? "Custom Range" : cfg.label}</div>
+      <div class="report-sub">${rangeStart} to ${filterEnd}</div>
       <div class="report-gen">Generated ${now.toLocaleDateString("en-PK", { weekday: "long", year: "numeric", month: "long", day: "numeric" })} · ${now.toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" })}</div>
     </div>
   </div>
@@ -323,9 +375,9 @@ export default function CashFlowPage() {
         <div className="page-header" style={{ marginBottom: 24 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1a1a2e", margin: 0 }}>Cash Flow</h1>
-            <p style={{ fontSize: 13, color: "#a0a0b8", margin: "4px 0 0" }}>Track daily income vs. expenses · {rangeStart} → {today}</p>
+            <p style={{ fontSize: 13, color: "#a0a0b8", margin: "4px 0 0" }}>Track daily income vs. expenses · {rangeStart} → {filterEnd}</p>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <div style={{ display: "flex", background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: 4, gap: 2 }}>
               {PERIODS.map(p => (
                 <button key={p.key} onClick={() => setPeriod(p.key)} style={{
@@ -336,6 +388,20 @@ export default function CashFlowPage() {
                 }}>{p.label}</button>
               ))}
             </div>
+            {period === "custom" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1.5px solid #7C3AED", borderRadius: 12, padding: "8px 16px", background: "#faf5ff" }}>
+                <input type="date" value={customStart} max={customEnd || today} onChange={e => setCustomStart(e.target.value)}
+                  style={{ border: "none", background: "transparent", fontSize: 13, color: "#1a1a2e", outline: "none", cursor: "pointer" }} />
+                <span style={{ color: "#7C3AED", fontWeight: 700 }}>→</span>
+                <input type="date" value={customEnd} min={customStart} max={today} onChange={e => setCustomEnd(e.target.value)}
+                  style={{ border: "none", background: "transparent", fontSize: 13, color: "#1a1a2e", outline: "none", cursor: "pointer" }} />
+                {customStart && customEnd && customStart <= customEnd && (
+                  <span style={{ fontSize: 11, color: "#7C3AED", fontWeight: 700, background: "#EDE9FE", padding: "2px 8px", borderRadius: 20 }}>
+                    {getDaysInRange(customStart, customEnd).length}d
+                  </span>
+                )}
+              </div>
+            )}
             <button onClick={exportPDF} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", color: "#6b6b8a", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               <Download size={14} /> Export PDF
             </button>
@@ -371,7 +437,7 @@ export default function CashFlowPage() {
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22 }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>Cash Flow Chart</div>
-              <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>Income vs Expenses · {rangeStart} → {today}</div>
+              <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>Income vs Expenses · {rangeStart} → {filterEnd}</div>
             </div>
             <div style={{ display: "flex", gap: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>

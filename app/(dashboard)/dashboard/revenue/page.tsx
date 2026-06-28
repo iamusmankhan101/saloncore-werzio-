@@ -18,13 +18,15 @@ const fmtK = (n: number) =>
   : n >= 1_000   ? `${Math.round(n / 1_000)}K`
   : String(Math.round(n));
 
-type Period = "7d" | "14d" | "30d" | "1y";
+type Period = "today" | "7d" | "14d" | "30d" | "1y" | "custom";
 
 const PERIODS: { key: Period; label: string; days: number }[] = [
-  { key: "7d",  label: "7 Days",  days: 7   },
-  { key: "14d", label: "14 Days", days: 14  },
-  { key: "30d", label: "Month",   days: 30  },
-  { key: "1y",  label: "1 Year",  days: 365 },
+  { key: "today",  label: "Today",   days: 1   },
+  { key: "7d",     label: "7 Days",  days: 7   },
+  { key: "14d",    label: "14 Days", days: 14  },
+  { key: "30d",    label: "Month",   days: 30  },
+  { key: "1y",     label: "1 Year",  days: 365 },
+  { key: "custom", label: "Custom",  days: 0   },
 ];
 
 const METHOD_COLORS: Record<string, string> = {
@@ -47,6 +49,17 @@ function getDaysArray(count: number): string[] {
   return arr;
 }
 
+function getDaysInRange(start: string, end: string): string[] {
+  const arr: string[] = [];
+  const cur = new Date(start + "T12:00:00");
+  const endDate = new Date(end + "T12:00:00");
+  while (cur <= endDate && arr.length < 366) {
+    arr.push(toDateStr(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return arr;
+}
+
 
 interface ChartBar {
   label: string;
@@ -56,13 +69,15 @@ interface ChartBar {
 }
 
 export default function RevenuePage() {
-  const [period, setPeriod]             = useState<Period>("30d");
+  const [period, setPeriod]             = useState<Period>("today");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [posInvoices, setPosInvoices]   = useState<ReturnType<typeof getSalonInvoices>>([]);
   const [today, setToday]               = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [hoveredBar, setHoveredBar]     = useState<number | null>(null);
   const [dailyReportOpen, setDailyReportOpen] = useState(true);
+  const [customStart, setCustomStart]   = useState(() => toDateStr(new Date()));
+  const [customEnd, setCustomEnd]       = useState(() => toDateStr(new Date()));
 
   useEffect(() => {
     setToday(toDateStr(new Date()));
@@ -76,27 +91,30 @@ export default function RevenuePage() {
 
   const cfg = PERIODS.find(p => p.key === period)!;
 
+  const filterEnd = period === "custom" ? customEnd : today;
+
   const rangeStart = useMemo(() => {
     if (!today) return "";
+    if (period === "custom") return customStart;
     const d = new Date(today); d.setDate(d.getDate() - (cfg.days - 1));
     return toDateStr(d);
-  }, [period, today]);
+  }, [period, today, customStart]);
 
   const prevEnd = useMemo(() => {
-    if (!today) return "";
+    if (!today || period === "custom") return "";
     const d = new Date(today); d.setDate(d.getDate() - cfg.days);
     return toDateStr(d);
   }, [period, today]);
 
   const prevStart = useMemo(() => {
-    if (!today) return "";
+    if (!today || period === "custom") return "";
     const d = new Date(today); d.setDate(d.getDate() - cfg.days * 2 + 1);
     return toDateStr(d);
   }, [period, today]);
 
   const currentAppts = useMemo(() =>
-    appointments.filter(a => a.status === "completed" && a.date >= rangeStart && a.date <= today),
-    [appointments, rangeStart, today]);
+    appointments.filter(a => a.status === "completed" && a.date >= rangeStart && a.date <= filterEnd),
+    [appointments, rangeStart, filterEnd]);
 
   const prevAppts = useMemo(() =>
     appointments.filter(a => a.status === "completed" && a.date >= prevStart && a.date <= prevEnd),
@@ -104,8 +122,8 @@ export default function RevenuePage() {
 
   // POS invoices in current / previous range
   const currentPos = useMemo(() =>
-    posInvoices.filter(inv => inv.date >= rangeStart && inv.date <= today),
-    [posInvoices, rangeStart, today]);
+    posInvoices.filter(inv => inv.date >= rangeStart && inv.date <= filterEnd),
+    [posInvoices, rangeStart, filterEnd]);
 
   const prevPos = useMemo(() =>
     posInvoices.filter(inv => inv.date >= prevStart && inv.date <= prevEnd),
@@ -129,40 +147,58 @@ export default function RevenuePage() {
   const cntChange = prevCount   ? ((totalCount   - prevCount)   / prevCount)   * 100 : 0;
   const avgChange = prevAvg     ? ((avgTicket    - prevAvg)     / prevAvg)     * 100 : 0;
 
-  // ── Chart data (1y = 12 monthly bars, else daily) ──────────────────────────
+  // ── Chart data (1y / custom-long = monthly bars, else daily) ────────────────
   const chartData = useMemo((): ChartBar[] => {
     if (!today) return [];
-    if (period === "1y") {
-      const months: ChartBar[] = [];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(today); d.setDate(1); d.setMonth(d.getMonth() - i);
-        const key = toDateStr(d).substring(0, 7);
-        const label = d.toLocaleDateString("en-PK", { month: "short" });
-        const apptVal = appointments
-          .filter(a => a.status === "completed" && a.date.startsWith(key))
-          .reduce((s, a) => s + a.totalAmount, 0);
-        const posVal = posInvoices
-          .filter(inv => inv.date.startsWith(key))
-          .reduce((s, inv) => s + inv.total, 0);
-        months.push({ label, value: apptVal + posVal, isCurrentPeriod: i === 0, monthKey: key });
+
+    // Helper: build monthly bars from a set of dates
+    const monthlyBars = (start: string, end: string): ChartBar[] => {
+      const monthMap: Record<string, number> = {};
+      const cur = new Date(start + "T12:00:00");
+      const endDate = new Date(end + "T12:00:00");
+      while (cur <= endDate) {
+        monthMap[toDateStr(cur).substring(0, 7)] = 0;
+        cur.setMonth(cur.getMonth() + 1); cur.setDate(1);
       }
-      return months;
+      appointments.forEach(a => {
+        if (a.status === "completed") { const k = a.date.substring(0, 7); if (k in monthMap) monthMap[k] += a.totalAmount; }
+      });
+      posInvoices.forEach(inv => { const k = inv.date.substring(0, 7); if (k in monthMap) monthMap[k] += inv.total; });
+      const keys = Object.keys(monthMap).sort();
+      return keys.map((key, idx) => {
+        const d = new Date(key + "-01T12:00:00");
+        return { label: d.toLocaleDateString("en-PK", { month: "short" }), value: monthMap[key], isCurrentPeriod: idx === keys.length - 1, monthKey: key };
+      });
+    };
+
+    if (period === "1y") return monthlyBars(rangeStart, today);
+
+    if (period === "custom") {
+      if (!customStart || !customEnd || customStart > customEnd) return [];
+      const days = getDaysInRange(customStart, customEnd);
+      if (days.length > 62) return monthlyBars(customStart, customEnd);
+      const byDay: Record<string, number> = {};
+      days.forEach(d => { byDay[d] = 0; });
+      appointments.forEach(a => { if (a.status === "completed" && a.date in byDay) byDay[a.date] += a.totalAmount; });
+      posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += inv.total; });
+      return days.map((date, idx) => {
+        const d = new Date(date + "T12:00:00");
+        const label = days.length > 14 ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
+        return { label, value: byDay[date], isCurrentPeriod: idx === days.length - 1, monthKey: date };
+      });
     }
+
     const days = getDaysArray(cfg.days);
     const byDay: Record<string, number> = {};
     days.forEach(d => { byDay[d] = 0; });
-    appointments.forEach(a => {
-      if (a.status === "completed" && a.date in byDay) byDay[a.date] += a.totalAmount;
-    });
-    posInvoices.forEach(inv => {
-      if (inv.date in byDay) byDay[inv.date] += inv.total;
-    });
+    appointments.forEach(a => { if (a.status === "completed" && a.date in byDay) byDay[a.date] += a.totalAmount; });
+    posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += inv.total; });
     return days.map((date, idx) => {
       const d = new Date(date + "T12:00:00");
       const label = period === "30d" ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
       return { label, value: byDay[date], isCurrentPeriod: idx === days.length - 1, monthKey: date };
     });
-  }, [appointments, posInvoices, period, today]);
+  }, [appointments, posInvoices, period, today, rangeStart, customStart, customEnd]);
 
   // ── Drill-down: daily rows for the selected month ─────────────────────────
   const drillRows = useMemo(() => {
@@ -192,7 +228,9 @@ export default function RevenuePage() {
   // ── Default daily rows (no drill-down) ────────────────────────────────────
   const dailyRows = useMemo(() => {
     if (!today) return [] as { date: string; dow: string; count: number; revenue: number }[];
-    const days = getDaysArray(Math.min(cfg.days, 31));
+    const days = period === "custom" && customStart && customEnd && customStart <= customEnd
+      ? getDaysInRange(customStart, customEnd)
+      : getDaysArray(Math.min(cfg.days, 31));
     const byDay: Record<string, { count: number; revenue: number }> = {};
     days.forEach(d => { byDay[d] = { count: 0, revenue: 0 }; });
     currentAppts.forEach(a => {
@@ -206,12 +244,11 @@ export default function RevenuePage() {
       dow: new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" }),
       ...byDay[date],
     })).reverse();
-  }, [currentAppts, currentPos, period, today]);
+  }, [currentAppts, currentPos, period, today, customStart, customEnd]);
 
   const methodBreakdown = useMemo(() => {
-    // Build from paid salon invoices that fall within the current period
     const invoices = getSalonInvoices().filter(
-      inv => inv.status === "paid" && inv.date >= rangeStart && inv.date <= today
+      inv => inv.status === "paid" && inv.date >= rangeStart && inv.date <= filterEnd
     );
     const totals: Record<string, number> = {};
     invoices.forEach(inv => {
@@ -222,7 +259,7 @@ export default function RevenuePage() {
     return Object.entries(totals)
       .map(([method, amount]) => ({ method, amount, pct: (amount / grand) * 100 }))
       .sort((a, b) => b.amount - a.amount);
-  }, [rangeStart, today]);
+  }, [rangeStart, filterEnd]);
 
   // ── Today's data for Daily Report ────────────────────────────────────────
   const todayAppts = useMemo(() =>
@@ -298,7 +335,7 @@ export default function RevenuePage() {
     const pdfCount   = isYearDrill ? drillCount   : totalCount;
     const pdfAvg     = isYearDrill ? drillAvg     : avgTicket;
     const pdfTitle   = isYearDrill ? `${selectedMonthLabel} — Daily Detail` : `Revenue Report — ${cfg.label}`;
-    const pdfRange   = isYearDrill ? selectedMonthLabel : `${rangeStart} to ${today}`;
+    const pdfRange   = isYearDrill ? selectedMonthLabel : `${rangeStart} to ${filterEnd}`;
 
     const html = `<!DOCTYPE html>
 <html>
@@ -609,6 +646,27 @@ export default function RevenuePage() {
         </div>
       </div>
 
+      {/* Custom date range picker */}
+      {period === "custom" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1.5px solid #7C3AED", borderRadius: 12, padding: "10px 18px", marginBottom: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>Date Range</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 600 }}>From</label>
+            <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+          </div>
+          <span style={{ color: "#c0c0d0", fontSize: 16 }}>→</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 600 }}>To</label>
+            <input type="date" value={customEnd} min={customStart} onChange={e => setCustomEnd(e.target.value)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+          </div>
+          {customStart && customEnd && customStart <= customEnd && (
+            <span style={{ fontSize: 12, color: "#a0a0b8", marginLeft: 4 }}>
+              {getDaysInRange(customStart, customEnd).length} days
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Empty state banner */}
       {appointments.filter(a => a.status === "completed").length === 0 && posInvoices.length === 0 && (
         <div style={{ background: "#f8f9ff", border: "1px solid #e0e0f8", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#6b6b8a", display: "flex", alignItems: "center", gap: 10 }}>
@@ -756,7 +814,7 @@ export default function RevenuePage() {
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>Revenue Trend</div>
             <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>
-              {period === "1y" ? "Monthly breakdown" : "Daily breakdown"} · {rangeStart} → {today}
+              {period === "1y" ? "Monthly breakdown" : "Daily breakdown"} · {rangeStart} → {filterEnd}
               {period === "1y" && (
                 <span style={{ marginLeft: 8, fontSize: 11, color: "#9333EA", fontWeight: 600 }}>
                   Click a bar to drill into that month
