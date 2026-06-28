@@ -9,6 +9,7 @@ import MobilePageHeader from "@/components/mobile-page-header";
 import {
   Download, ArrowUpRight, ArrowDownRight,
   TrendingUp, CalendarDays, CreditCard, Wallet, ChevronLeft,
+  ChevronDown, ChevronUp, Receipt, Clock,
 } from "lucide-react";
 
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -61,6 +62,7 @@ export default function RevenuePage() {
   const [today, setToday]               = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [hoveredBar, setHoveredBar]     = useState<number | null>(null);
+  const [dailyReportOpen, setDailyReportOpen] = useState(true);
 
   useEffect(() => {
     setToday(toDateStr(new Date()));
@@ -221,6 +223,31 @@ export default function RevenuePage() {
       .map(([method, amount]) => ({ method, amount, pct: (amount / grand) * 100 }))
       .sort((a, b) => b.amount - a.amount);
   }, [rangeStart, today]);
+
+  // ── Today's data for Daily Report ────────────────────────────────────────
+  const todayAppts = useMemo(() =>
+    appointments.filter(a => a.status === "completed" && a.date === today)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    [appointments, today]);
+
+  const todayPos = useMemo(() =>
+    posInvoices.filter(inv => inv.date === today),
+    [posInvoices, today]);
+
+  const todayRevenue = todayAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPos.reduce((s, inv) => s + inv.total, 0);
+  const todayCount   = todayAppts.length + todayPos.length;
+  const todayAvg     = todayCount ? todayRevenue / todayCount : 0;
+
+  const todayMethodBreakdown = useMemo(() => {
+    const totals: Record<string, number> = {};
+    todayPos.forEach(inv => {
+      if (!inv.paymentMethod) return;
+      totals[inv.paymentMethod] = (totals[inv.paymentMethod] ?? 0) + inv.total;
+    });
+    return Object.entries(totals)
+      .map(([method, amount]) => ({ method, amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [todayPos]);
 
   const topServices = useMemo(() => {
     const map: Record<string, { name: string; count: number; revenue: number }> = {};
@@ -609,6 +636,118 @@ export default function RevenuePage() {
             {showTrend && <Trend change={change} />}
           </div>
         ))}
+      </div>
+
+      {/* ── Daily Report ── */}
+      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", marginBottom: 20, overflow: "hidden" }}>
+        {/* Header */}
+        <div
+          style={{ padding: "18px 24px", borderBottom: dailyReportOpen ? "1px solid #f0f0f8" : "none", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+          onClick={() => setDailyReportOpen(o => !o)}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Receipt size={17} color="#7C3AED" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e" }}>Daily Report</div>
+              <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 2 }}>{today} · Today&apos;s activity</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.06em", textTransform: "uppercase" }}>Revenue</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#7C3AED" }}>{fmt(todayRevenue)}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.06em", textTransform: "uppercase" }}>Appts</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#3b82f6" }}>{todayCount}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.06em", textTransform: "uppercase" }}>Avg Ticket</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#059669" }}>{todayCount ? fmt(todayAvg) : "—"}</div>
+            </div>
+            <div style={{ color: "#c0c0d0" }}>
+              {dailyReportOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            </div>
+          </div>
+        </div>
+
+        {dailyReportOpen && (
+          <>
+            {/* Column headers */}
+            <div style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "9px 24px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+              {["TIME", "CLIENT", "SERVICE / ITEM", "STAFF", "PAYMENT", "AMOUNT"].map(h => (
+                <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+              ))}
+            </div>
+
+            {/* Appointment rows */}
+            {todayAppts.length === 0 && todayPos.length === 0 ? (
+              <div style={{ padding: "32px 24px", textAlign: "center", fontSize: 13, color: "#c0c0d0" }}>
+                No completed transactions today yet
+              </div>
+            ) : (
+              <>
+                {todayAppts.map((a, i) => (
+                  <div key={a.id} style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", borderBottom: "1px solid #f8f8fc", alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b6b8a" }}>
+                      <Clock size={12} color="#c0c0d0" />
+                      {a.startTime}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{a.clientName}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{a.serviceNames.join(", ") || "—"}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{a.staffName}</div>
+                    <div>
+                      <span style={{ fontSize: 11, background: "#f0f0f8", color: "#6b6b8a", padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Appointment</span>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(a.totalAmount)}</div>
+                  </div>
+                ))}
+
+                {todayPos.map((inv, i) => (
+                  <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", borderBottom: "1px solid #f8f8fc", alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b6b8a" }}>
+                      <Clock size={12} color="#c0c0d0" />
+                      {inv.createdAt ? new Date(inv.createdAt).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{inv.clientName || "Walk-in"}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{inv.items.map(it => it.description).join(", ") || "POS Sale"}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{inv.staffName || "—"}</div>
+                    <div>
+                      <span style={{
+                        fontSize: 11,
+                        background: METHOD_COLORS[inv.paymentMethod] ? `${METHOD_COLORS[inv.paymentMethod]}18` : "#f0f0f8",
+                        color: METHOD_COLORS[inv.paymentMethod] ?? "#6b6b8a",
+                        padding: "2px 8px", borderRadius: 20, fontWeight: 700,
+                      }}>
+                        {METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod ?? "—"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(inv.total)}</div>
+                  </div>
+                ))}
+
+                {/* Footer totals */}
+                <div style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", background: "#fafafa", borderTop: "1px solid #f0f0f8", alignItems: "center" }}>
+                  <div />
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Total · {todayCount} transactions</div>
+                  <div />
+                  <div />
+                  {/* Payment method pills */}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {todayMethodBreakdown.map(m => (
+                      <span key={m.method} style={{ fontSize: 10, background: `${METHOD_COLORS[m.method] ?? "#888"}18`, color: METHOD_COLORS[m.method] ?? "#888", padding: "2px 7px", borderRadius: 20, fontWeight: 700 }}>
+                        {METHOD_LABELS[m.method] ?? m.method} {fmt(m.amount)}
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#7C3AED" }}>{fmt(todayRevenue)}</div>
+                </div>
+              </>
+            )}
+          </>
+        )}
       </div>
 
       {/* Revenue bar chart */}
