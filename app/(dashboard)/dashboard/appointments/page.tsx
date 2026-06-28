@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
-import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera } from "lucide-react";
+import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2 } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation } from "@/lib/whatsapp-scheduler";
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
@@ -661,6 +661,7 @@ export default function AppointmentsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [tab, setTab] = useState<"appointments" | "cancellations">("appointments");
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -680,7 +681,10 @@ export default function AppointmentsPage() {
 
   const filtered = useMemo(() => {
     return [...appointments]
-      .sort((a, b) => (a.date + a.startTime) > (b.date + b.startTime) ? -1 : 1)
+      .sort((a, b) => {
+        if (b.date !== a.date) return b.date.localeCompare(a.date);
+        return (b.startTime || "").localeCompare(a.startTime || "");
+      })
       .filter((a) => {
         if (statusFilter !== "all" && a.status !== statusFilter) return false;
         if (staffFilter !== "all" && a.staffId !== staffFilter) return false;
@@ -695,6 +699,44 @@ export default function AppointmentsPage() {
 
   const totalRevenue = filtered.reduce((s, a) => s + a.totalAmount, 0);
   const activeFilters = [statusFilter !== "all", staffFilter !== "all", !!dateFilter].filter(Boolean).length;
+
+  const allChecked = filtered.length > 0 && filtered.every(a => checkedIds.has(a.id));
+  const someChecked = filtered.some(a => checkedIds.has(a.id));
+
+  function toggleCheck(id: string) {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allChecked) {
+      setCheckedIds(prev => {
+        const next = new Set(prev);
+        filtered.forEach(a => next.delete(a.id));
+        return next;
+      });
+    } else {
+      setCheckedIds(prev => {
+        const next = new Set(prev);
+        filtered.forEach(a => next.add(a.id));
+        return next;
+      });
+    }
+  }
+
+  function deleteChecked() {
+    if (!checkedIds.size) return;
+    if (!window.confirm(`Delete ${checkedIds.size} appointment${checkedIds.size > 1 ? "s" : ""}? This cannot be undone.`)) return;
+    setAppointments(prev => {
+      const updated = prev.filter(a => !checkedIds.has(a.id));
+      saveAppointments(updated);
+      return updated;
+    });
+    setCheckedIds(new Set());
+  }
 
   return (
     <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -885,11 +927,39 @@ export default function AppointmentsPage() {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {someChecked && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 10, background: "#1a1a2e", color: "#fff" }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{checkedIds.size} selected</span>
+          <button
+            onClick={deleteChecked}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, border: "none", background: "#ef4444", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+          >
+            <Trash2 size={13} /> Delete
+          </button>
+          <button
+            onClick={() => setCheckedIds(new Set())}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", background: "transparent", color: "#ccc", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          >
+            <X size={12} /> Clear
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="table-scroll-wrap">
         <div className="table-scroll-inner">
         <div className="appt-table-inner">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 160px 120px 110px 100px 120px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 140px 160px 120px 110px 100px 120px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={allChecked}
+              ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
+              onChange={toggleAll}
+              style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#7C3AED" }}
+            />
+          </div>
           {["CLIENT", "DATE", "SERVICE", "STYLIST", "STATUS", "AMOUNT", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
@@ -902,14 +972,23 @@ export default function AppointmentsPage() {
             const cfg = STATUS[appt.status];
             const staff = staffList.find((s) => s.id === appt.staffId);
             const isLast = i === filtered.length - 1;
+            const isChecked = checkedIds.has(appt.id);
             return (
               <div
                 key={appt.id}
                 onClick={() => setSelected(appt)}
-                style={{ display: "grid", gridTemplateColumns: "1fr 140px 160px 120px 110px 100px 120px", padding: "13px 20px", borderBottom: isLast ? "none" : "1px solid #f4f4f8", alignItems: "center", cursor: "pointer" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                style={{ display: "grid", gridTemplateColumns: "40px 1fr 140px 160px 120px 110px 100px 120px", padding: "13px 20px", borderBottom: isLast ? "none" : "1px solid #f4f4f8", alignItems: "center", cursor: "pointer", background: isChecked ? "#F5F3FF" : "transparent" }}
+                onMouseEnter={(e) => { if (!isChecked) e.currentTarget.style.background = "#fafafa"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = isChecked ? "#F5F3FF" : "transparent"; }}
               >
+                <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleCheck(appt.id)}
+                    style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#7C3AED" }}
+                  />
+                </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 34, height: 34, borderRadius: "50%", background: (staff?.color ?? "#7C3AED") + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: staff?.color ?? "#7C3AED", flexShrink: 0 }}>
                     {appt.clientName.charAt(0)}
