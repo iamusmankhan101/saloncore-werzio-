@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff } from "lucide-react";
+import { AlertTriangle, CreditCard, FileText, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff } from "lucide-react";
 import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
@@ -12,6 +12,7 @@ import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
 import { syncFromDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
 import { getStoredInventory } from "@/lib/storage";
+import { getSalonInvoices } from "@/lib/salon-invoices";
 
 // ─── Notification chime ───────────────────────────────────────────────────────
 
@@ -117,8 +118,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     startTime: string;
     totalAmount: number;
   }>>([]);
-  const [lowStockCount, setLowStockCount]  = useState(0);
-  const [outStockCount, setOutStockCount]  = useState(0);
+  const [lowStockCount,     setLowStockCount]     = useState(0);
+  const [outStockCount,     setOutStockCount]     = useState(0);
+  const [unpaidInvoiceCount, setUnpaidInvoiceCount] = useState(0);
+  const [overdueInvoiceCount, setOverdueInvoiceCount] = useState(0);
   const [waStatus,      setWaStatus]       = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
 
@@ -210,6 +213,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const interval = window.setInterval(checkStock, 60_000);
     window.addEventListener("focus", checkStock);
     return () => { window.clearInterval(interval); window.removeEventListener("focus", checkStock); };
+  }, [isReady]);
+
+  // Persistent unpaid-invoice badge
+  useEffect(() => {
+    if (!isReady) return;
+    function checkInvoices() {
+      const invs = getSalonInvoices();
+      const unpaid = invs.filter((i) => i.status === "unpaid");
+      setUnpaidInvoiceCount(unpaid.length);
+      const today = new Date().toISOString().slice(0, 10);
+      setOverdueInvoiceCount(unpaid.filter((i) => i.date < today).length);
+    }
+    checkInvoices();
+    const interval = window.setInterval(checkInvoices, 60_000);
+    window.addEventListener("focus", checkInvoices);
+    return () => { window.clearInterval(interval); window.removeEventListener("focus", checkInvoices); };
   }, [isReady]);
 
   // WhatsApp message toast notifications
@@ -370,39 +389,71 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Suspension gate — shown over everything except the billing page */}
       {suspended && !isBillingPage && <SuspensionGate reason={suspReason} />}
 
-      {/* Permanent low-stock badge */}
-      {(outStockCount > 0 || lowStockCount > 0) && (
-        <Link
-          href="/dashboard/inventory"
-          style={{
-            position: "fixed",
-            bottom: 90,
-            right: 16,
-            zIndex: 9998,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 14px",
-            borderRadius: 24,
-            background: outStockCount > 0 ? "linear-gradient(135deg,#dc2626,#ef4444)" : "linear-gradient(135deg,#d97706,#f59e0b)",
-            boxShadow: outStockCount > 0
-              ? "0 4px 20px rgba(220,38,38,0.4), 0 0 0 3px rgba(220,38,38,0.15)"
-              : "0 4px 20px rgba(217,119,6,0.4),  0 0 0 3px rgba(217,119,6,0.15)",
-            textDecoration: "none",
-            animation: "stockPulse 2.5s ease-in-out infinite",
-          }}
-        >
-          <AlertTriangle size={14} color="#fff" style={{ flexShrink: 0 }} />
-          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>
-              {outStockCount > 0 && `${outStockCount} Out of Stock`}
-              {outStockCount > 0 && lowStockCount > 0 && "  ·  "}
-              {lowStockCount > 0 && `${lowStockCount} Low Stock`}
-            </span>
-            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>Tap to restock</span>
-          </div>
-        </Link>
-      )}
+      {/* Bottom-right persistent alert badges (stacked) */}
+      <div style={{ position: "fixed", bottom: 90, right: 16, zIndex: 9998, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+
+        {/* Unpaid invoice badge */}
+        {unpaidInvoiceCount > 0 && (
+          <Link
+            href="/dashboard/invoices"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 14px",
+              borderRadius: 24,
+              background: overdueInvoiceCount > 0 ? "linear-gradient(135deg,#dc2626,#ef4444)" : "linear-gradient(135deg,#d97706,#f59e0b)",
+              boxShadow: overdueInvoiceCount > 0
+                ? "0 4px 20px rgba(220,38,38,0.4), 0 0 0 3px rgba(220,38,38,0.15)"
+                : "0 4px 20px rgba(217,119,6,0.4),  0 0 0 3px rgba(217,119,6,0.15)",
+              textDecoration: "none",
+              animation: "stockPulse 2.5s ease-in-out infinite",
+            }}
+          >
+            <FileText size={14} color="#fff" style={{ flexShrink: 0 }} />
+            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>
+                {overdueInvoiceCount > 0 && `${overdueInvoiceCount} Overdue`}
+                {overdueInvoiceCount > 0 && unpaidInvoiceCount > overdueInvoiceCount && "  ·  "}
+                {unpaidInvoiceCount > overdueInvoiceCount && `${unpaidInvoiceCount - overdueInvoiceCount} Unpaid`}
+                {overdueInvoiceCount === 0 && `${unpaidInvoiceCount} Unpaid Invoice${unpaidInvoiceCount > 1 ? "s" : ""}`}
+              </span>
+              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>Tap to collect payment</span>
+            </div>
+          </Link>
+        )}
+
+        {/* Low-stock / out-of-stock badge */}
+        {(outStockCount > 0 || lowStockCount > 0) && (
+          <Link
+            href="/dashboard/inventory"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 14px",
+              borderRadius: 24,
+              background: outStockCount > 0 ? "linear-gradient(135deg,#dc2626,#ef4444)" : "linear-gradient(135deg,#d97706,#f59e0b)",
+              boxShadow: outStockCount > 0
+                ? "0 4px 20px rgba(220,38,38,0.4), 0 0 0 3px rgba(220,38,38,0.15)"
+                : "0 4px 20px rgba(217,119,6,0.4),  0 0 0 3px rgba(217,119,6,0.15)",
+              textDecoration: "none",
+              animation: "stockPulse 2.5s ease-in-out infinite",
+            }}
+          >
+            <AlertTriangle size={14} color="#fff" style={{ flexShrink: 0 }} />
+            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>
+                {outStockCount > 0 && `${outStockCount} Out of Stock`}
+                {outStockCount > 0 && lowStockCount > 0 && "  ·  "}
+                {lowStockCount > 0 && `${lowStockCount} Low Stock`}
+              </span>
+              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>Tap to restock</span>
+            </div>
+          </Link>
+        )}
+
+      </div>
 
       {/* New Booking Popup Alerts */}
       {bookingAlerts.length > 0 && (
