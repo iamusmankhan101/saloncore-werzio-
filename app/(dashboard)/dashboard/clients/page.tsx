@@ -10,6 +10,7 @@ import { Search, X, Plus, Phone, Mail, Calendar, Heart, ChevronDown, Camera, Ext
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, appendLog } from "@/lib/whatsapp-scheduler";
+import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 
 const STATUS_CONFIG = {
   booked:        { color: "#6366f1", bg: "#eef2ff" },
@@ -100,20 +101,19 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
   const liveLastVisit = client.lastVisitDate ?? completedAppts[0]?.date;
   const liveAvgTicket = liveVisits ? Math.round(liveSpend / liveVisits) : 0;
 
-  // Loyalty — always calculated live from spend so it stays in sync with settings
-  const loyalty = settingsStore.loyalty as { enabled: boolean; pointsPerRupee: number; rupeePerPoint: number; silverMin: number; goldMin: number; platinumMin: number };
-  const livePoints    = Math.round(liveSpend * (loyalty.pointsPerRupee ?? 0.01));
-  const pointsValue   = Math.round(livePoints * (loyalty.rupeePerPoint ?? 1));
-  const loyaltyTier   = livePoints >= (loyalty.platinumMin ?? 5000) ? "Platinum"
-                      : livePoints >= (loyalty.goldMin      ?? 2000) ? "Gold"
-                      : livePoints >= (loyalty.silverMin    ?? 500)  ? "Silver"
-                      : "Member";
-  const TIER_STYLE: Record<string, { color: string; bg: string; border: string }> = {
-    Platinum: { color: "#7C3AED", bg: "#f5f3ff", border: "#ddd6fe" },
-    Gold:     { color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-    Silver:   { color: "#4b5563", bg: "#f3f4f6", border: "#d1d5db" },
-    Member:   { color: "#9898b0", bg: "#fafafa", border: "#e8e8f0" },
-  };
+  // Loyalty — use the stored earned/balance fields (maintained by the loyalty system),
+  // but floor-reconcile upward from liveSpend so un-synced older records still show correctly
+  const loyalty = settingsStore.loyalty as LoyaltySettings;
+  const storedEarned  = client.loyaltyPointsEarned ?? 0;
+  const storedBalance = client.loyaltyPoints ?? 0;
+  const computedEarned = Math.floor(liveSpend * (loyalty.pointsPerRupee ?? 0.01));
+  const liveEarned    = Math.max(storedEarned, computedEarned);
+  const redeemed      = Math.max(0, storedEarned - storedBalance);
+  const liveBalance   = Math.max(storedBalance, liveEarned - redeemed);
+  const loyaltyTier   = getTier(liveEarned, loyalty);
+  const tierMeta      = TIER_META[loyaltyTier];
+  const pointsValue   = Math.round(pointsToRupees(liveBalance, loyalty.rupeePerPoint ?? 1));
+  const nextTier      = nextTierThreshold(liveEarned, loyalty);
 
   // Unified visit history: completed appointments + POS invoices, sorted by date desc
   type HistoryEntry = { kind: "appt"; data: Appointment } | { kind: "pos"; data: SalonInvoice };
@@ -223,22 +223,21 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
 
             {/* Loyalty row — only when enabled */}
             {loyalty.enabled && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", borderRadius: 12, background: TIER_STYLE[loyaltyTier].bg, border: `1px solid ${TIER_STYLE[loyaltyTier].border}` }}>
-                <div style={{ fontSize: 18, lineHeight: 1 }}>
-                  {loyaltyTier === "Platinum" ? "💎" : loyaltyTier === "Gold" ? "🥇" : loyaltyTier === "Silver" ? "🥈" : "⭐"}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                    <span style={{ fontSize: 18, fontWeight: 900, color: TIER_STYLE[loyaltyTier].color, lineHeight: 1 }}>{livePoints.toLocaleString()}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: TIER_STYLE[loyaltyTier].color }}>pts</span>
-                    <span style={{ fontSize: 11, color: "#9898b0", marginLeft: 2 }}>· worth {fmt(pointsValue)}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", borderRadius: 12, background: tierMeta.bg, border: `1px solid ${tierMeta.color}28` }}>
+                <div style={{ fontSize: 20, lineHeight: 1 }}>{tierMeta.emoji}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 5, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 18, fontWeight: 900, color: tierMeta.color, lineHeight: 1 }}>{liveBalance.toLocaleString()}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: tierMeta.color }}>pts balance</span>
+                    <span style={{ fontSize: 11, color: "#9898b0" }}>· {fmt(pointsValue)}</span>
                   </div>
-                  <div style={{ fontSize: 10, color: "#9898b0", marginTop: 2 }}>
-                    Loyalty Points · {loyalty.pointsPerRupee} pt per PKR
+                  <div style={{ fontSize: 10, color: "#9898b0", marginTop: 3 }}>
+                    {liveEarned.toLocaleString()} lifetime earned
+                    {nextTier ? ` · ${nextTier.needed} to ${TIER_META[nextTier.tier].emoji} ${TIER_META[nextTier.tier].label}` : " · Top tier!"}
                   </div>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 800, color: TIER_STYLE[loyaltyTier].color, background: "#fff", border: `1px solid ${TIER_STYLE[loyaltyTier].border}`, borderRadius: 20, padding: "3px 10px" }}>
-                  {loyaltyTier}
+                <span style={{ fontSize: 11, fontWeight: 800, color: tierMeta.color, background: "#fff", border: `1px solid ${tierMeta.color}40`, borderRadius: 20, padding: "3px 10px", flexShrink: 0 }}>
+                  {tierMeta.label}
                 </span>
               </div>
             )}
