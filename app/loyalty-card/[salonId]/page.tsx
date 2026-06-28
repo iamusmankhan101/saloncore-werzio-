@@ -254,8 +254,8 @@ export default function PublicLoyaltyCardPage({ params }: { params: Promise<{ sa
                   </div>
                 </div>
                 <div style={{ padding: "0 16px 16px" }} className="lc-wallet-row" >
-                  <button onClick={() => addToWallet("apple")} style={{ border: "1px solid #1a1a2e", background: "#1a1a2e", color: "#fff", borderRadius: 12, padding: "11px 10px", fontSize: 12, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-                    <Smartphone size={15} /> Apple Wallet
+                  <button disabled style={{ border: "1px solid #6b6b8a", background: "#6b6b8a", color: "#fff", borderRadius: 12, padding: "11px 10px", fontSize: 12, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, cursor: "not-allowed", opacity: 0.7 }}>
+                    <Smartphone size={15} /> Apple Wallet — Coming Soon
                   </button>
                   <button onClick={() => addToWallet("google")} style={{ border: "1px solid #dedeea", background: "#fff", color: "#1a1a2e", borderRadius: 12, padding: "11px 10px", fontSize: 12, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
                     <Smartphone size={15} /> Google Wallet
