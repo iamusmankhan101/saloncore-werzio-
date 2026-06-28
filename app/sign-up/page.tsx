@@ -379,10 +379,6 @@ export default function SignUpPage() {
                   ))}
                 </div>
 
-                <div style={{ padding: "10px 14px", borderRadius: 9, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 12, color: "#166534", fontWeight: 600, marginTop: 4 }}>
-                  🎉 14-day free trial — no payment needed to start
-                </div>
-
                 {error && <div className={`${styles.error} ${styles.signupError}`}>{error}</div>}
 
                 <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
