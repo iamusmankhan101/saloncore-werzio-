@@ -175,26 +175,11 @@ export default function DashboardPage() {
                     const pct = maxRevenue > 0 ? (day.total / axisMax) * 100 : 0;
                     const isToday = day.date === today;
                     return (
-                      <div key={day.date} style={{ flex: 1, height: `${pct}%`, minHeight: day.total > 0 ? 3 : 0, position: "relative", background: isToday ? "#7C3AED" : "#DDD6FE", borderRadius: "6px 6px 0 0", transition: "height 0.3s" }}
+                      <div
+                        key={day.date}
                         title={`${day.date}: ${fmt(day.total)}`}
-                      >
-                        {day.total > 0 && (
-                          <div style={{
-                            position: "absolute",
-                            bottom: "100%",
-                            left: "50%",
-                            transform: "translateX(-50%)",
-                            paddingBottom: 3,
-                            fontSize: 9,
-                            fontWeight: 700,
-                            color: isToday ? "#7C3AED" : "#6D28D9",
-                            whiteSpace: "nowrap",
-                            lineHeight: 1,
-                          }}>
-                            {fmt(day.total)}
-                          </div>
-                        )}
-                      </div>
+                        style={{ flex: 1, height: `${pct}%`, minHeight: day.total > 0 ? 3 : 0, background: isToday ? "#7C3AED" : "#DDD6FE", borderRadius: "6px 6px 0 0", transition: "height 0.3s" }}
+                      />
                     );
                   })}
                 </div>
@@ -204,13 +189,20 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
-              {/* X-axis labels */}
+              {/* X-axis labels + per-day revenue */}
               <div style={{ display: "flex", gap: 10, paddingTop: 8 }}>
                 {revenueLast7Days.map((day) => {
                   const isToday = day.date === today;
                   const label = new Date(day.date).toLocaleDateString("en-PK", { weekday: "short" });
                   return (
-                    <div key={day.date} style={{ flex: 1, textAlign: "center", fontSize: 11, color: isToday ? "#7C3AED" : "#c0c0d0", fontWeight: isToday ? 700 : 400 }}>{label}</div>
+                    <div key={day.date} style={{ flex: 1, textAlign: "center" }}>
+                      <div style={{ fontSize: 11, color: isToday ? "#7C3AED" : "#c0c0d0", fontWeight: isToday ? 700 : 400 }}>{label}</div>
+                      {day.total > 0 && (
+                        <div style={{ fontSize: 10, fontWeight: 700, color: isToday ? "#7C3AED" : "#6D28D9", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {fmt(day.total)}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
