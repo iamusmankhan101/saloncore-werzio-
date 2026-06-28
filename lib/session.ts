@@ -4,7 +4,7 @@
  * No external JWT library required — uses Node built-in crypto.
  */
 
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual, createHash } from "crypto";
 
 // Must be set in .env.local (and Vercel env vars).
 // If missing in production the server will refuse to start.
@@ -55,6 +55,11 @@ export function verifySessionToken(token: string): string | null {
 // ─── Cookie config ────────────────────────────────────────────────────────────
 
 export const COOKIE_NAME = "werzio_session";
+
+/** SHA-256 of the token — safe to store in DB (token itself stays secret). */
+export function tokenId(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 export const cookieOptions = {
   httpOnly:  true,
