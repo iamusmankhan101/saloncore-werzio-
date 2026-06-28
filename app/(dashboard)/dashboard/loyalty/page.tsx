@@ -279,8 +279,16 @@ function ClientModal({
     }
 
     const logo = settingsStore.salon?.logo ?? "";
-    const logoParam = logo.startsWith("https://") ? `&salonLogo=${encodeURIComponent(logo)}` : "";
-    const res = await fetch(`/api/wallet/loyalty?platform=${platform}&salonId=${encodeURIComponent(salonId)}&clientId=${encodeURIComponent(client.id)}${logoParam}`);
+    const res = await fetch("/api/wallet/loyalty", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        platform,
+        salonId,
+        client,
+        salonLogo: logo.startsWith("https://") ? logo : "",
+      }),
+    });
     const json = await res.json() as { ok: boolean; url?: string; error?: string };
     if (json.ok && json.url) {
       window.location.href = json.url;

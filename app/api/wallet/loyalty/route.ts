@@ -168,12 +168,35 @@ async function upsertObject(client: Client, salonName: string, ls: LoyaltySettin
   const token     = await getAccessToken();
   const headers   = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
   const payload   = buildObjectPayload(objectId, client, salonName, ls, appBaseUrl);
+  const patchPayload = {
+    state: payload.state,
+    accountId: payload.accountId,
+    accountName: payload.accountName,
+    messages: payload.messages,
+    loyaltyPoints: payload.loyaltyPoints,
+    secondaryLoyaltyPoints: payload.secondaryLoyaltyPoints,
+    textModulesData: payload.textModulesData,
+    heroImage: payload.heroImage,
+    barcode: payload.barcode,
+  };
 
-  // Try PATCH first; if 404 (object not yet on server) use INSERT
-  const patchRes  = await fetch(objectUrl, { method: "PATCH", headers, body: JSON.stringify(payload) });
+  // PATCH only mutable fields. Sending id/classId back can cause Google to
+  // reject an otherwise valid update for a pass that is already installed.
+  const patchRes = await fetch(objectUrl, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(patchPayload),
+  });
   if (patchRes.status === 404) {
-    await fetch("https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject",
+    const insertRes = await fetch("https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject",
       { method: "POST", headers, body: JSON.stringify(payload) });
+    if (!insertRes.ok) {
+      throw new Error(`Google Wallet insert failed (${insertRes.status}): ${await insertRes.text()}`);
+    }
+    return;
+  }
+  if (!patchRes.ok) {
+    throw new Error(`Google Wallet update failed (${patchRes.status}): ${await patchRes.text()}`);
   }
 }
 
@@ -194,12 +217,12 @@ async function updateClass(appBaseUrl: string, salonName: string, salonLogo: str
  */
 export async function PATCH(req: NextRequest) {
   if (!ISSUER_ID || !SERVICE_ACCOUNT_EMAIL || !getPrivateKey()) {
-    return new Response(null, { status: 204 });
+    return Response.json({ ok: false, error: "Google Wallet credentials are not configured." }, { status: 501 });
   }
   try {
     const body = await req.json() as { salonId?: string; clientId?: string; client?: Client };
     const { salonId, clientId } = body;
-    if (!salonId || !clientId) return new Response(null, { status: 400 });
+    if (!salonId || !clientId) return Response.json({ ok: false, error: "Missing salonId or clientId." }, { status: 400 });
 
     // Use the fresh client from the request body when available — this avoids a
     // race condition where Turso hasn't persisted the latest points/phone yet.
@@ -207,13 +230,57 @@ export async function PATCH(req: NextRequest) {
       body.client ? Promise.resolve(body.client) : getClient(salonId, clientId),
       getSalonInfo(salonId),
     ]);
-    if (!client) return new Response(null, { status: 204 });
+    if (!client) return Response.json({ ok: false, error: "Client not found." }, { status: 404 });
 
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.werzio.com";
     await upsertObject(client, salonName, settings, appBaseUrl);
-    return new Response(null, { status: 204 });
-  } catch {
-    return new Response(null, { status: 204 });
+    return Response.json({ ok: true });
+  } catch (err) {
+    console.error("[wallet/loyalty] sync error:", err);
+    return Response.json({ ok: false, error: "Google Wallet pass update failed." }, { status: 502 });
+  }
+}
+
+/**
+ * POST /api/wallet/loyalty
+ * Refreshes the installed pass from the fresh client state and returns its
+ * Save to Google Wallet URL. This avoids re-reading a just-updated balance
+ * from eventually consistent storage.
+ */
+export async function POST(req: NextRequest) {
+  if (!ISSUER_ID || !SERVICE_ACCOUNT_EMAIL || !getPrivateKey()) {
+    return Response.json({ ok: false, error: "Google Wallet credentials are not configured." }, { status: 501 });
+  }
+
+  try {
+    const body = await req.json() as {
+      platform?: string;
+      salonId?: string;
+      client?: Client;
+      salonLogo?: string;
+    };
+    const { platform, salonId, client, salonLogo = "" } = body;
+    if (platform !== "google") {
+      return Response.json({ ok: false, error: platform === "apple" ? "Apple Wallet is not configured yet." : "Unsupported wallet platform." }, { status: 501 });
+    }
+    if (!salonId || !client?.id) {
+      return Response.json({ ok: false, error: "Missing salon or client details." }, { status: 400 });
+    }
+
+    const { name: salonName, settings } = await getSalonInfo(salonId);
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
+    await Promise.all([
+      upsertObject(client, salonName, settings, appBaseUrl),
+      updateClass(appBaseUrl, salonName, salonLogo).catch(() => {}),
+    ]);
+
+    return Response.json({
+      ok: true,
+      url: generateWalletUrl(client, salonName, settings, appBaseUrl),
+    });
+  } catch (err) {
+    console.error("[wallet/loyalty] refresh error:", err);
+    return Response.json({ ok: false, error: "Google Wallet pass update failed." }, { status: 502 });
   }
 }
 
