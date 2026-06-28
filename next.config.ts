@@ -32,6 +32,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Prevent Next.js from bundling @libsql/client — load it from Node.js at
+  // runtime instead. Bundling it causes two class instances (ESM + CJS) which
+  // breaks private class fields (#promiseLimitFunction).
+  serverExternalPackages: ["@libsql/client"],
+
   async headers() {
     return [
       {
