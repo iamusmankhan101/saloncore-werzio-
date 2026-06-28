@@ -367,8 +367,9 @@ async function runSchedulerInternal(): Promise<void> {
     setQueue(CONFIRM_QUEUE_KEY, remaining);
   }
 
-  // 3. Follow-up messages — send 24h after completion, only during salon hours
-  if (openNow && ws.autoFollowup && waTpl.followup) {
+  // 3. Follow-up messages — send after configured delay; not gated on salon hours because
+  //    the user-chosen delay (sendAfter) already controls when this fires.
+  if (ws.autoFollowup && waTpl.followup) {
     const queue = getQueue(FOLLOWUP_QUEUE_KEY);
     const remaining: QueueItem[] = [];
     for (const item of queue) {
@@ -393,9 +394,9 @@ async function runSchedulerInternal(): Promise<void> {
     setQueue(FOLLOWUP_QUEUE_KEY, remaining);
   }
 
-  // 4. Cancellation win-back messages — sent 24h after cancellation, only during salon hours
+  // 4. Cancellation win-back — not gated on salon hours; sendAfter is the user-chosen delay.
   const cancelTpl = (settingsStore.whatsapp as { cancellation: string }).cancellation;
-  if (openNow && ws.autoCancellation && cancelTpl) {
+  if (ws.autoCancellation && cancelTpl) {
     const queue = getQueue(CANCEL_QUEUE_KEY);
     const remaining: QueueItem[] = [];
     for (const item of queue) {
