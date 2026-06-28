@@ -44,14 +44,22 @@ export async function ensureAuthTables(): Promise<void> {
       phone             TEXT,
       role              TEXT NOT NULL DEFAULT 'owner',
       email_verified    INTEGER NOT NULL DEFAULT 0,
-      created_at        TEXT NOT NULL
+      created_at        TEXT NOT NULL,
+      google_id         TEXT
     )
   `);
+
+  // Add google_id column to existing tables that were created before this column was added
+  await db.execute("ALTER TABLE users ADD COLUMN google_id TEXT").catch(() => {});
 
   // Create index for faster email lookups
   await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
   `).catch(() => { /* index already exists */ });
+
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)
+  `).catch(() => {});
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -267,6 +275,59 @@ export async function pruneExpiredSessions(): Promise<void> {
     sql: "DELETE FROM sessions WHERE expires_at < ?",
     args: [new Date().toISOString()],
   });
+}
+
+// ─── Google OAuth ─────────────────────────────────────────────────────────────
+
+export async function findOrCreateGoogleUser(profile: {
+  googleId: string;
+  email: string;
+  name: string;
+  emailVerified: boolean;
+}): Promise<AuthUser> {
+  await ensureAuthTables();
+
+  // 1. Find by google_id (returning user)
+  const byGoogle = await db.execute({
+    sql: "SELECT * FROM users WHERE google_id = ?",
+    args: [profile.googleId],
+  });
+  if (byGoogle.rows.length) return withoutPassword(rowToUser(byGoogle.rows[0]));
+
+  // 2. Find by email (existing account — link google_id)
+  const existing = await getUserByEmail(profile.email);
+  if (existing) {
+    await db.execute({
+      sql: "UPDATE users SET google_id = ?, email_verified = 1 WHERE id = ?",
+      args: [profile.googleId, existing.id],
+    });
+    return withoutPassword({ ...existing, emailVerified: true });
+  }
+
+  // 3. Create new account (Google accounts always have verified email)
+  const id = "user_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
+  const createdAt = new Date().toISOString().split("T")[0];
+  const unusablePassword = hashPassword(randomBytes(32).toString("hex"));
+
+  await db.execute({
+    sql: `INSERT INTO users (id, email, password, owner_name, salon_name, phone, role, email_verified, created_at, google_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    args: [
+      id,
+      profile.email.trim().toLowerCase(),
+      unusablePassword,
+      profile.name.trim(),
+      profile.name.trim(),
+      "",
+      "owner",
+      createdAt,
+      profile.googleId,
+    ],
+  });
+
+  const user = await getUserById(id);
+  if (!user) throw new Error("Failed to create Google user");
+  return withoutPassword(user);
 }
 
 export async function validateCredentials(

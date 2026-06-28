@@ -1,16 +1,25 @@
 /**
  * GET /api/auth/user
- * Get user by ID
+ * Returns user data either by ?userId=... or from the session cookie.
  */
 
 import { NextRequest } from "next/server";
 import { getUserById } from "@/lib/auth-db";
+import { verifySessionToken, COOKIE_NAME } from "@/lib/session";
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
+  let userId = req.nextUrl.searchParams.get("userId");
 
+  // If no userId param, derive it from the session cookie
   if (!userId) {
-    return Response.json({ ok: false, error: "Missing userId parameter." }, { status: 400 });
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+    if (!token) {
+      return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
+    }
+    userId = verifySessionToken(token);
+    if (!userId) {
+      return Response.json({ ok: false, error: "Invalid or expired session." }, { status: 401 });
+    }
   }
 
   try {

@@ -1,10 +1,90 @@
+/**
+ * middleware.ts — Edge-compatible (no Node.js crypto imports)
+ *
+ * Vercel/Next.js middleware runs on the Edge Runtime, which supports only
+ * the Web Crypto API (globalThis.crypto). All session verification and nonce
+ * generation uses crypto.subtle / crypto.getRandomValues instead of Node's
+ * "crypto" module.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
-import { verifySessionToken, COOKIE_NAME, tokenId } from "@/lib/session";
-import { isSessionValid } from "@/lib/auth-db";
-import { randomBytes } from "crypto";
+
+const COOKIE_NAME  = "werzio_session";
+const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-only-insecure-secret-change-before-deploy";
 
 const DASHBOARD = /^\/dashboard(\/|$)/;
 const AUTH_PAGES = new Set(["/sign-in", "/sign-up"]);
+
+// ─── Edge-compatible token verification ──────────────────────────────────────
+// Token format (from lib/session.ts): base64url(userId:expiry).hexHMAC
+
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+async function verifySessionToken(token: string): Promise<string | null> {
+  try {
+    const dot = token.lastIndexOf(".");
+    if (dot === -1) return null;
+
+    const b64Payload = token.slice(0, dot);
+    const hexSig     = token.slice(dot + 1);
+    if (!b64Payload || !hexSig || hexSig.length % 2 !== 0) return null;
+
+    // base64url → UTF-8 payload string
+    const payload = new TextDecoder().decode(
+      Uint8Array.from(
+        atob(b64Payload.replace(/-/g, "+").replace(/_/g, "/")),
+        (c) => c.charCodeAt(0),
+      ),
+    );
+
+    // Import HMAC-SHA-256 key for signing (Web Crypto, Edge-compatible)
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(SESSION_SECRET),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+
+    // Re-compute HMAC over the payload
+    const sigBuffer = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+    const expected  = new Uint8Array(sigBuffer);
+    const actual    = hexToBytes(hexSig);
+
+    // Reject on length mismatch or signature mismatch (constant-time byte loop)
+    if (expected.length !== actual.length) return null;
+    let diff = 0;
+    for (let i = 0; i < expected.length; i++) diff |= expected[i] ^ actual[i];
+    if (diff !== 0) return null;
+
+    const [userId, expiry] = payload.split(":");
+    if (!userId || !expiry) return null;
+    if (Date.now() > Number(expiry)) return null;
+
+    return userId;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Edge-compatible nonce generation ────────────────────────────────────────
+
+function generateNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  // btoa → base64; replace URL-unsafe chars for safety in CSP headers
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+}
+
+// ─── Middleware ───────────────────────────────────────────────────────────────
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -19,23 +99,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(httpsUrl, { status: 301 });
   }
 
-  // ── Session check ─────────────────────────────────────────────────────────
+  // ── Session check (crypto-only — no DB round-trip in Edge middleware) ─────
+  // DB-level revocation is enforced in the API routes and signout handler.
   const token  = req.cookies.get(COOKIE_NAME)?.value ?? "";
-  const userId = token ? verifySessionToken(token) : null;
-
-  // Only hit DB when cryptographic check passes (avoids DB queries for bad tokens)
-  let sessionOk = false;
-  if (userId) {
-    try {
-      sessionOk = await isSessionValid(tokenId(token));
-    } catch {
-      // DB unavailable — fall back to crypto-only check so the app stays up
-      sessionOk = true;
-    }
-  }
+  const userId = token ? await verifySessionToken(token) : null;
 
   // ── Protect dashboard routes ──────────────────────────────────────────────
-  if (DASHBOARD.test(pathname) && !sessionOk) {
+  if (DASHBOARD.test(pathname) && !userId) {
     const dest = req.nextUrl.clone();
     dest.pathname = "/sign-in";
     dest.search   = "";
@@ -43,7 +113,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // ── Redirect authenticated users away from auth pages ────────────────────
-  if (AUTH_PAGES.has(pathname) && sessionOk) {
+  if (AUTH_PAGES.has(pathname) && userId) {
     const dest = req.nextUrl.clone();
     dest.pathname = "/dashboard";
     dest.search   = "";
@@ -51,7 +121,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // ── Nonce-based Content-Security-Policy ───────────────────────────────────
-  const nonce = randomBytes(16).toString("base64");
+  const nonce  = generateNonce();
   const isProd = process.env.NODE_ENV === "production";
 
   const csp = [
