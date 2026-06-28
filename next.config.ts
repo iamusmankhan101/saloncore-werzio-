@@ -3,26 +3,8 @@ import type { NextConfig } from "next";
 const isProd = process.env.NODE_ENV === "production";
 
 const securityHeaders = [
-  // ── Content-Security-Policy ───────────────────────────────────────────────
-  // Restricts where scripts/styles/connections can come from.
-  // 'unsafe-inline' on scripts is required by Next.js inline hydration scripts;
-  // remove it only if you introduce nonce-based CSP.
-  {
-    key: "Content-Security-Policy",
-    value: [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'" + (isProd ? "" : " 'unsafe-eval'"),
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://*.turso.io wss://*.turso.io https://api.resend.com https://graph.facebook.com https://api.qrserver.com https://api.wasenderapi.com",
-      "frame-src 'none'",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      isProd ? "upgrade-insecure-requests" : "",
-    ].filter(Boolean).join("; "),
-  },
+  // CSP is set dynamically in middleware.ts (nonce-based, per-request).
+  // All other headers below are static and safe to set here.
 
   // ── HTTPS enforcement (HSTS) ──────────────────────────────────────────────
   // Tells browsers to always use HTTPS for 1 year. Only effective in production.

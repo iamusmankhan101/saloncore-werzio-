@@ -5,7 +5,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateCredentials } from "@/lib/auth-db";
-import { createSessionToken, COOKIE_NAME, cookieOptions } from "@/lib/session";
+import { createSessionToken, COOKIE_NAME, cookieOptions, tokenId } from "@/lib/session";
+import { createDbSession } from "@/lib/auth-db";
 
 // ─── In-memory rate limiter ───────────────────────────────────────────────────
 // Keyed by IP address. Resets on server restart.
@@ -123,8 +124,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Set HTTP-only session cookie — not readable by JavaScript
-    res.cookies.set(COOKIE_NAME, createSessionToken(user.id), cookieOptions);
+    // Persist session in DB so it can be immediately revoked on signout
+    const token = createSessionToken(user.id);
+    const expiresAt = new Date(Date.now() + cookieOptions.maxAge * 1000);
+    await createDbSession(tokenId(token), user.id, expiresAt);
+
+    // Set HTTP-only cookie — not readable by JavaScript
+    res.cookies.set(COOKIE_NAME, token, cookieOptions);
     return res;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Authentication failed.";

@@ -215,6 +215,60 @@ export async function updateUser(
   return withoutPassword(updated);
 }
 
+// ─── Sessions table ───────────────────────────────────────────────────────────
+
+async function ensureSessionsTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      revoked    INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+}
+
+/** Persist a new session. `id` should be SHA-256(token) — never the raw token. */
+export async function createDbSession(id: string, userId: string, expiresAt: Date): Promise<void> {
+  await ensureSessionsTable();
+  await db.execute({
+    sql: "INSERT OR REPLACE INTO sessions (id, user_id, expires_at, revoked) VALUES (?, ?, ?, 0)",
+    args: [id, userId, expiresAt.toISOString()],
+  });
+}
+
+/** Immediately revoke a session so it can never be reused. */
+export async function revokeDbSession(id: string): Promise<void> {
+  await ensureSessionsTable();
+  await db.execute({
+    sql: "UPDATE sessions SET revoked = 1 WHERE id = ?",
+    args: [id],
+  });
+}
+
+/** Returns true if the session exists AND is not revoked AND has not expired. */
+export async function isSessionValid(id: string): Promise<boolean> {
+  await ensureSessionsTable();
+  const res = await db.execute({
+    sql: "SELECT revoked, expires_at FROM sessions WHERE id = ?",
+    args: [id],
+  });
+  if (!res.rows.length) return false;
+  const row = res.rows[0];
+  if ((row.revoked as number) === 1) return false;
+  if (new Date(row.expires_at as string) < new Date()) return false;
+  return true;
+}
+
+// ─── Periodic cleanup (call from a cron or on-demand) ────────────────────────
+export async function pruneExpiredSessions(): Promise<void> {
+  await ensureSessionsTable();
+  await db.execute({
+    sql: "DELETE FROM sessions WHERE expires_at < ?",
+    args: [new Date().toISOString()],
+  });
+}
+
 export async function validateCredentials(
   email: string,
   password: string
