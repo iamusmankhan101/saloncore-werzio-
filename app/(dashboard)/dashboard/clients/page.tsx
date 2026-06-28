@@ -6,8 +6,10 @@ import { BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
-import { Search, X, Plus, Phone, Mail, Calendar, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet, TrendingUp, Clock } from "lucide-react";
+import { Search, X, Plus, Phone, Mail, Calendar, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet, TrendingUp, Clock, Send } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
+import { settingsStore } from "@/lib/settings-store";
+import { normalizePhone, appendLog } from "@/lib/whatsapp-scheduler";
 
 const STATUS_CONFIG = {
   booked:        { color: "#6366f1", bg: "#eef2ff" },
@@ -97,6 +99,21 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
   const liveSpend    = Math.max(client.totalSpend  ?? 0, apptSpend + posInvoices.reduce((s, inv) => s + inv.total, 0));
   const liveLastVisit = client.lastVisitDate ?? completedAppts[0]?.date;
   const liveAvgTicket = liveVisits ? Math.round(liveSpend / liveVisits) : 0;
+
+  // Loyalty — always calculated live from spend so it stays in sync with settings
+  const loyalty = settingsStore.loyalty as { enabled: boolean; pointsPerRupee: number; rupeePerPoint: number; silverMin: number; goldMin: number; platinumMin: number };
+  const livePoints    = Math.round(liveSpend * (loyalty.pointsPerRupee ?? 0.01));
+  const pointsValue   = Math.round(livePoints * (loyalty.rupeePerPoint ?? 1));
+  const loyaltyTier   = livePoints >= (loyalty.platinumMin ?? 5000) ? "Platinum"
+                      : livePoints >= (loyalty.goldMin      ?? 2000) ? "Gold"
+                      : livePoints >= (loyalty.silverMin    ?? 500)  ? "Silver"
+                      : "Member";
+  const TIER_STYLE: Record<string, { color: string; bg: string; border: string }> = {
+    Platinum: { color: "#7C3AED", bg: "#f5f3ff", border: "#ddd6fe" },
+    Gold:     { color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+    Silver:   { color: "#4b5563", bg: "#f3f4f6", border: "#d1d5db" },
+    Member:   { color: "#9898b0", bg: "#fafafa", border: "#e8e8f0" },
+  };
 
   // Unified visit history: completed appointments + POS invoices, sorted by date desc
   type HistoryEntry = { kind: "appt"; data: Appointment } | { kind: "pos"; data: SalonInvoice };
@@ -189,18 +206,42 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
 
           {/* Stats — live-computed from appointment history */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
-            {[
-              { label: "Visits",     value: liveVisits,            color: "#7C3AED", bg: "#f5f3ff" },
-              { label: "Total Spend",value: fmt(liveSpend),        color: "#059669", bg: "#ecfdf5" },
-              { label: "Avg Ticket", value: liveAvgTicket ? fmt(liveAvgTicket) : "—", color: "#0284c7", bg: "#f0f9ff" },
-              { label: "Upcoming",   value: upcomingAppts.length,  color: "#d97706", bg: "#fffbeb" },
-            ].map((s) => (
-              <div key={s.label} style={{ background: s.bg, borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
-                <div style={{ fontSize: 20, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 4 }}>{s.label}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+              {[
+                { label: "Visits",     value: liveVisits,            color: "#7C3AED", bg: "#f5f3ff" },
+                { label: "Total Spend",value: fmt(liveSpend),        color: "#059669", bg: "#ecfdf5" },
+                { label: "Avg Ticket", value: liveAvgTicket ? fmt(liveAvgTicket) : "—", color: "#0284c7", bg: "#f0f9ff" },
+                { label: "Upcoming",   value: upcomingAppts.length,  color: "#d97706", bg: "#fffbeb" },
+              ].map((s) => (
+                <div key={s.label} style={{ background: s.bg, borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 4 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Loyalty row — only when enabled */}
+            {loyalty.enabled && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", borderRadius: 12, background: TIER_STYLE[loyaltyTier].bg, border: `1px solid ${TIER_STYLE[loyaltyTier].border}` }}>
+                <div style={{ fontSize: 18, lineHeight: 1 }}>
+                  {loyaltyTier === "Platinum" ? "💎" : loyaltyTier === "Gold" ? "🥇" : loyaltyTier === "Silver" ? "🥈" : "⭐"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <span style={{ fontSize: 18, fontWeight: 900, color: TIER_STYLE[loyaltyTier].color, lineHeight: 1 }}>{livePoints.toLocaleString()}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: TIER_STYLE[loyaltyTier].color }}>pts</span>
+                    <span style={{ fontSize: 11, color: "#9898b0", marginLeft: 2 }}>· worth {fmt(pointsValue)}</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: "#9898b0", marginTop: 2 }}>
+                    Loyalty Points · {loyalty.pointsPerRupee} pt per PKR
+                  </div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 800, color: TIER_STYLE[loyaltyTier].color, background: "#fff", border: `1px solid ${TIER_STYLE[loyaltyTier].border}`, borderRadius: 20, padding: "3px 10px" }}>
+                  {loyaltyTier}
+                </span>
               </div>
-            ))}
+            )}
           </div>
 
           {/* Visit History — appointments + POS merged */}
@@ -794,6 +835,162 @@ function ImportModal({ existing, onClose, onImport }: {
   );
 }
 
+// ── Send Segment Modal ────────────────────────────────────────────────────────
+
+const SEGMENT_META = {
+  spend:  { label: "Top Spenders",           tplKey: "topSpenders",  color: "#7C3AED", vars: "{{name}}, {{salon_name}}, {{spend}}" },
+  visits: { label: "Most Frequent Visitors", tplKey: "mostFrequent", color: "#0284c7", vars: "{{name}}, {{salon_name}}, {{visits}}" },
+  absent: { label: "Long Absent Clients",    tplKey: "longAbsent",   color: "#dc2626", vars: "{{name}}, {{salon_name}}, {{discount}}, {{days}}" },
+} as const;
+
+function SendSegmentModal({ mode, clients, onClose }: {
+  mode: "spend" | "visits" | "absent";
+  clients: Client[];
+  onClose: () => void;
+}) {
+  const meta = SEGMENT_META[mode];
+  const wa = settingsStore.whatsapp as Record<string, string>;
+  const salonName = (settingsStore.salon as Record<string, string>).name || "";
+  const apiKey = (settingsStore.wasender as Record<string, string>).apiKey || "";
+  const discount = (settingsStore.wasender as Record<string, string>).cancelDiscount || "10%";
+
+  const [text, setText] = useState(wa[meta.tplKey] || "");
+  const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
+  const [finished, setFinished] = useState(false);
+
+  const today = Date.now();
+
+  function buildMsg(c: Client) {
+    const days = c.lastVisitDate
+      ? Math.floor((today - new Date(c.lastVisitDate).getTime()) / 86400000)
+      : 0;
+    return text
+      .replace(/\{\{name\}\}/g, c.name)
+      .replace(/\{\{salon_name\}\}/g, salonName)
+      .replace(/\{\{visits\}\}/g, String(c.totalVisits || 0))
+      .replace(/\{\{spend\}\}/g, String(c.totalSpend || 0))
+      .replace(/\{\{days\}\}/g, String(days))
+      .replace(/\{\{discount\}\}/g, discount);
+  }
+
+  async function send() {
+    if (!apiKey || !text.trim() || clients.length === 0 || progress) return;
+    setProgress({ done: 0, total: clients.length, failed: 0 });
+    let done = 0, failed = 0;
+    for (const c of clients) {
+      if (!c.phone) { failed++; setProgress({ done: ++done, total: clients.length, failed }); continue; }
+      const msg = buildMsg(c);
+      try {
+        const res = await fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey, phone: normalizePhone(c.phone), text: msg }),
+        });
+        const data = await res.json() as { ok: boolean };
+        if (data.ok) {
+          appendLog({ type: "manual", clientName: c.name, phone: normalizePhone(c.phone), status: "sent", templateId: meta.tplKey });
+        } else {
+          failed++;
+          appendLog({ type: "manual", clientName: c.name, phone: normalizePhone(c.phone), status: "failed", templateId: meta.tplKey });
+        }
+      } catch { failed++; }
+      done++;
+      setProgress({ done, total: clients.length, failed });
+    }
+    setFinished(true);
+  }
+
+  const pct = progress ? Math.round((progress.done / progress.total) * 100) : 0;
+
+  return (
+    <div onClick={!progress ? onClose : undefined} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 500, padding: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: meta.color + "15", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Send size={17} color={meta.color} />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>Send to {meta.label}</div>
+              <div style={{ fontSize: 11, color: "#9898b0" }}>{clients.length} recipient{clients.length !== 1 ? "s" : ""}</div>
+            </div>
+          </div>
+          {!progress && <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#9898b0" /></button>}
+        </div>
+
+        {finished ? (
+          <div style={{ textAlign: "center", padding: "16px 0" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a2e", marginBottom: 6 }}>Messages Sent!</div>
+            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 20 }}>
+              <span style={{ color: "#059669", fontWeight: 700 }}>{(progress?.done || 0) - (progress?.failed || 0)} sent</span>
+              {(progress?.failed || 0) > 0 && <span style={{ color: "#dc2626", fontWeight: 700, marginLeft: 10 }}>{progress?.failed} failed</span>}
+            </div>
+            <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`, fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>Done</button>
+          </div>
+        ) : progress ? (
+          <div style={{ padding: "8px 0" }}>
+            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 12 }}>Sending messages… {progress.done}/{progress.total}</div>
+            <div style={{ height: 8, background: "#f0f0f8", borderRadius: 20, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${meta.color}, ${meta.color}aa)`, borderRadius: 20, transition: "width 0.3s" }} />
+            </div>
+            {progress.failed > 0 && <div style={{ fontSize: 11, color: "#dc2626", marginTop: 8 }}>{progress.failed} failed so far</div>}
+          </div>
+        ) : (
+          <>
+            {/* Template */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Message Template</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                {meta.vars.split(", ").map(v => (
+                  <button key={v} type="button" onClick={() => setText(t => t + v)}
+                    style={{ padding: "2px 8px", borderRadius: 20, background: meta.color + "10", border: `1px solid ${meta.color}28`, color: meta.color, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    + {v}
+                  </button>
+                ))}
+              </div>
+              <textarea value={text} onChange={e => setText(e.target.value)} rows={5}
+                style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, color: "#1d1d2f", lineHeight: 1.65, resize: "vertical", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+              <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 4 }}>
+                Edit this template in <strong>Messages → Templates → Segment Broadcasts</strong> to save it permanently.
+              </div>
+            </div>
+
+            {/* Recipients preview */}
+            <div style={{ background: "#f9f9fb", borderRadius: 10, padding: "10px 14px", marginBottom: 20, border: "1px solid #f0f0f8" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Recipients</div>
+              {clients.slice(0, 5).map(c => (
+                <div key={c.id} style={{ fontSize: 13, color: "#1a1a2e", marginBottom: 4 }}>
+                  {c.name} <span style={{ color: "#9898b0" }}>· {c.phone}</span>
+                </div>
+              ))}
+              {clients.length > 5 && <div style={{ fontSize: 12, color: "#b0b0c8", marginTop: 4 }}>…and {clients.length - 5} more</div>}
+            </div>
+
+            {!apiKey && (
+              <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 12, color: "#dc2626" }}>
+                WhatsApp API key not configured. Go to Account → WhatsApp Settings.
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
+              <button onClick={send} disabled={!apiKey || !text.trim()}
+                style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 0", borderRadius: 10, border: "none",
+                  background: (!apiKey || !text.trim()) ? "#e8e8f0" : `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`,
+                  fontSize: 13, fontWeight: 700, color: (!apiKey || !text.trim()) ? "#b0b0c8" : "#fff", cursor: (!apiKey || !text.trim()) ? "not-allowed" : "pointer" }}>
+                <Send size={14} /> Send to {clients.length} Client{clients.length !== 1 ? "s" : ""}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ClientsPage() {
   const router = useRouter();
@@ -811,6 +1008,7 @@ export default function ClientsPage() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [sortMode, setSortMode] = useState<"spend" | "visits" | "absent">("spend");
   const [absentDays, setAbsentDays] = useState(60);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -931,6 +1129,14 @@ export default function ClientsPage() {
               return updated;
             });
           }}
+        />
+      )}
+
+      {showSendModal && sortMode !== "spend" && (
+        <SendSegmentModal
+          mode={sortMode}
+          clients={filtered}
+          onClose={() => setShowSendModal(false)}
         />
       )}
 
@@ -1111,9 +1317,19 @@ export default function ClientsPage() {
           </select>
         )}
         {sortMode !== "spend" && (
-          <span style={{ fontSize: 12, color: "#b0b0c8", marginLeft: 4 }}>
-            {filtered.length} client{filtered.length !== 1 ? "s" : ""}
-          </span>
+          <>
+            <span style={{ fontSize: 12, color: "#b0b0c8", marginLeft: 4 }}>
+              {filtered.length} client{filtered.length !== 1 ? "s" : ""}
+            </span>
+            {filtered.length > 0 && (
+              <button onClick={() => setShowSendModal(true)}
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 13px", borderRadius: 20,
+                  border: "none", background: "linear-gradient(135deg,#5B21B6,#9333EA)",
+                  fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+                <Send size={11} /> Send Message
+              </button>
+            )}
+          </>
         )}
       </div>
 

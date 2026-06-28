@@ -70,6 +70,9 @@ const defaults = {
     newBooking: "📅 New Booking! {{name}} has booked {{service}} on {{date}} at {{time}} at {{salon_name}}. Total: PKR {{amount}}.",
     lowstock: "⚠️ Low Stock Alert from {{salon_name}}: {{count}} item(s) running low — {{items}}. Please restock soon.",
     birthday: "🎂 Happy Birthday {{name}}! Wishing you a beautiful day from all of us at {{salon_name}}. As a birthday gift, enjoy {{discount}} off your next visit — book anytime this week 💜",
+    topSpenders: "Hi {{name}}, thank you for being one of our valued top clients at {{salon_name}}! We truly appreciate your support. Come back soon for more of your favourite services 👑",
+    mostFrequent: "Hi {{name}}, you're one of our most loyal visitors at {{salon_name}} with {{visits}} visits! We truly value your continued trust and look forward to your next visit 💜",
+    longAbsent: "Hi {{name}}, we miss you at {{salon_name}}! It's been a while since your last visit. Come back and enjoy {{discount}} off your next appointment — we'd love to see you again 💜",
   },
   birthday: {
     autoBirthday: true,

@@ -39,13 +39,21 @@ const SAMPLE_VARS: Record<string, string> = {
   amount: "2500",
 };
 
-const TPL_CONFIG: { key: "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "birthday"; label: string; description: string; vars: string[]; color: string; icon: React.ElementType }[] = [
+type TplCfg = { key: string; label: string; description: string; vars: string[]; color: string; icon: React.ElementType };
+
+const TPL_CONFIG: TplCfg[] = [
   { key: "reminder",     label: "Appointment Reminder",    description: "Sent automatically X hours before the appointment",         vars: ["name","service","date","time","salon_name"], color: "#7C3AED", icon: Bell },
   { key: "confirmation", label: "Booking Confirmation",    description: "Sent when a new appointment is booked",                     vars: ["name","service","date","time","salon_name"], color: "#059669", icon: CheckCircle2 },
   { key: "followup",     label: "Follow-up Message",       description: "Sent 24h after appointment is marked as completed",         vars: ["name","service","salon_name"],               color: "#0284c7", icon: ThumbsUp },
   { key: "cancellation", label: "Cancellation Win-back",   description: "Sent 24h after cancellation with a discount to re-book",   vars: ["name","salon_name","discount"],              color: "#dc2626", icon: CalendarX },
   { key: "lowstock",     label: "Low Stock Alert",         description: "Sent once daily to your WhatsApp when stock is low",        vars: ["items","count","salon_name"],                color: "#ea580c", icon: Package },
   { key: "birthday",     label: "Birthday Greeting",       description: "Auto-sent on client's birthday at 9 AM (server cron)",     vars: ["name","salon_name","discount"],              color: "#db2777", icon: Cake },
+];
+
+const SEGMENT_TPL_CONFIG: TplCfg[] = [
+  { key: "topSpenders",  label: "Top Spenders",           description: "Manual broadcast to your highest-spending clients",         vars: ["name","salon_name","spend"],                color: "#7C3AED", icon: TrendingUp },
+  { key: "mostFrequent", label: "Most Frequent Visitors", description: "Manual broadcast to clients with the most visits",          vars: ["name","salon_name","visits"],               color: "#0284c7", icon: Zap },
+  { key: "longAbsent",   label: "Long Absent Clients",    description: "Manual broadcast to clients who haven't visited recently",  vars: ["name","salon_name","discount","days"],       color: "#dc2626", icon: Clock },
 ];
 
 const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
@@ -137,7 +145,7 @@ function getDiscountInitial(key: string): string {
   return "";
 }
 
-function TemplateCard({ cfg }: { cfg: typeof TPL_CONFIG[0] }) {
+function TemplateCard({ cfg }: { cfg: TplCfg }) {
   const wa = settingsStore.whatsapp as Record<string, string>;
   const hasDiscount = cfg.vars.includes("discount");
   const [text, setText]           = useState(wa[cfg.key] || "");
@@ -599,6 +607,8 @@ export default function MessagesPage() {
             <div style={{ fontSize: 12, color: "#6a6a8a", lineHeight: 1.65 }}>Write your message, copy it, then paste when creating a template in Meta Business Manager. Click variable chips to insert them.</div>
           </div>
           {TPL_CONFIG.map((cfg) => <TemplateCard key={cfg.key} cfg={cfg} />)}
+          <div style={{ margin: "20px 0 10px", fontSize: 11, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em", textTransform: "uppercase" }}>Segment Broadcasts</div>
+          {SEGMENT_TPL_CONFIG.map((cfg) => <TemplateCard key={cfg.key} cfg={cfg} />)}
         </div>
       )}
 
@@ -719,6 +729,21 @@ export default function MessagesPage() {
             </div>
             <div className="two-col-grid" style={{ gap: 18 }}>
               {TPL_CONFIG.map((cfg) => <TemplateCard key={cfg.key} cfg={cfg} />)}
+            </div>
+
+            {/* Segment broadcast templates */}
+            <div style={{ marginTop: 32 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <div style={{ flex: 1, height: 1, background: "#f0f0f8" }} />
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Client Segment Broadcasts</div>
+                <div style={{ flex: 1, height: 1, background: "#f0f0f8" }} />
+              </div>
+              <div style={{ fontSize: 12, color: "#9999b0", marginBottom: 18, textAlign: "center" }}>
+                Edit templates below, then send from <strong>Clients → Most Frequent / Long Absent / Top Spenders</strong> view.
+              </div>
+              <div className="two-col-grid" style={{ gap: 18 }}>
+                {SEGMENT_TPL_CONFIG.map((cfg) => <TemplateCard key={cfg.key} cfg={cfg} />)}
+              </div>
             </div>
           </div>
         )}
