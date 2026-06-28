@@ -32,11 +32,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  eslint: {
-    // Pre-existing lint warnings across the codebase don't affect runtime behaviour.
-    // Linting is done separately in CI / local dev; don't block Vercel builds.
-    ignoreDuringBuilds: true,
-  },
   async headers() {
     return [
       {
