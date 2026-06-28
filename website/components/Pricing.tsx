@@ -15,27 +15,6 @@ const plans: Array<{
   featured: boolean;
 }> = [
   {
-    badge: "Free",
-    badgeStyle: { background: "#f3f4f6", color: "#6b7280" },
-    name: "werzio free",
-    desc: "Everything you need to get started.",
-    price: "0",
-    period: "/month",
-    features: [
-      "Point of Sale (POS)",
-      "Appointment booking (up to 30/month)",
-      "Branded web booking page",
-      "Invoicing",
-      "upto 5 staff members",
-      "upto 5 client management",
-      "upto 5 products management/pos",
-    ],
-    cta: "Get Started Free",
-    ctaHref: "https://app.werzio.com/sign-up?plan=free",
-    ctaClass: "btn btn-outline",
-    featured: false,
-  },
-  {
     badge: "Most Popular",
     badgeStyle: {},
     name: "werzio pro",
