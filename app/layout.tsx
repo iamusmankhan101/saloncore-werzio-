@@ -12,6 +12,13 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "Werzio — Salon Management",
   description: "WhatsApp-native salon booking & client management platform",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+      { url: "/favicon.ico", sizes: "32x32" },
+    ],
+    apple: { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
