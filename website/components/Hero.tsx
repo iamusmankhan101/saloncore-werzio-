@@ -49,7 +49,7 @@ export default function Hero() {
           Easily manage bookings, clients, staff and revenue from start to finish.
         </p>
         <div className={styles.btns}>
-          <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.btnPrimary}>Get Started Free</a>
+          <a href="/#contact" className={styles.btnPrimary}>Get Started Free</a>
           <button type="button" onClick={() => setDemo(true)} className={styles.btnOutline}>Book a Demo</button>
         </div>
       </div>
