@@ -371,148 +371,118 @@ export default function CashFlowPage() {
 
       <div className="dash-page desktop-only" style={{ background: "#f8f8fc" }}>
 
-        {/* Title + controls */}
-        <div className="page-header" style={{ marginBottom: 24 }}>
+        {/* ── Header row ──────────────────────────────────────────────── */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1a1a2e", margin: 0 }}>Cash Flow</h1>
-            <p style={{ fontSize: 13, color: "#a0a0b8", margin: "4px 0 0" }}>Track daily income vs. expenses · {rangeStart} → {filterEnd}</p>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1a1a2e", margin: 0 }}>Cash Flow</h1>
+            <p style={{ fontSize: 12, color: "#a0a0b8", margin: "2px 0 0" }}>{rangeStart === filterEnd ? rangeStart : `${rangeStart} → ${filterEnd}`}</p>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: 4, gap: 2 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {/* Period tabs */}
+            <div style={{ display: "flex", background: "#fff", border: "1px solid #e8e8f0", borderRadius: 9, padding: 3, gap: 1 }}>
               {PERIODS.map(p => (
                 <button key={p.key} onClick={() => setPeriod(p.key)} style={{
-                  padding: "7px 16px", borderRadius: 7, border: "none", cursor: "pointer",
-                  fontSize: 13, fontWeight: period === p.key ? 700 : 500,
-                  background: period === p.key ? "linear-gradient(135deg, #5B21B6, #9333EA)" : "transparent",
+                  padding: "6px 13px", borderRadius: 6, border: "none", cursor: "pointer",
+                  fontSize: 12, fontWeight: period === p.key ? 700 : 500,
+                  background: period === p.key ? "linear-gradient(135deg,#5B21B6,#9333EA)" : "transparent",
                   color: period === p.key ? "#fff" : "#6b6b8a", transition: "all 0.15s",
                 }}>{p.label}</button>
               ))}
             </div>
+            {/* Custom date range */}
             {period === "custom" && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1.5px solid #7C3AED", borderRadius: 12, padding: "8px 16px", background: "#faf5ff" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid #7C3AED", borderRadius: 9, padding: "6px 12px", background: "#faf5ff" }}>
                 <input type="date" value={customStart} max={customEnd || today} onChange={e => setCustomStart(e.target.value)}
-                  style={{ border: "none", background: "transparent", fontSize: 13, color: "#1a1a2e", outline: "none", cursor: "pointer" }} />
-                <span style={{ color: "#7C3AED", fontWeight: 700 }}>→</span>
+                  style={{ border: "none", background: "transparent", fontSize: 12, color: "#1a1a2e", outline: "none", cursor: "pointer" }} />
+                <span style={{ color: "#7C3AED", fontWeight: 700, fontSize: 12 }}>→</span>
                 <input type="date" value={customEnd} min={customStart} max={today} onChange={e => setCustomEnd(e.target.value)}
-                  style={{ border: "none", background: "transparent", fontSize: 13, color: "#1a1a2e", outline: "none", cursor: "pointer" }} />
-                {customStart && customEnd && customStart <= customEnd && (
-                  <span style={{ fontSize: 11, color: "#7C3AED", fontWeight: 700, background: "#EDE9FE", padding: "2px 8px", borderRadius: 20 }}>
-                    {getDaysInRange(customStart, customEnd).length}d
-                  </span>
-                )}
+                  style={{ border: "none", background: "transparent", fontSize: 12, color: "#1a1a2e", outline: "none", cursor: "pointer" }} />
               </div>
             )}
-            <button onClick={exportPDF} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", color: "#6b6b8a", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              <Download size={14} /> Export PDF
+            <button onClick={exportPDF} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", color: "#6b6b8a", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              <Download size={13} /> PDF
             </button>
-            <button onClick={openAdd} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", borderRadius: 10, border: "none", cursor: "pointer", background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff", fontSize: 13, fontWeight: 600, boxShadow: "0 2px 8px rgba(91,33,182,0.35)" }}>
-              <Plus size={15} /> Add Expense
+            <button onClick={openAdd} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff", fontSize: 12, fontWeight: 700, boxShadow: "0 2px 8px rgba(91,33,182,0.28)" }}>
+              <Plus size={14} /> Add Expense
             </button>
           </div>
         </div>
 
-        {/* Summary cards */}
-        <div className="stats-grid-4" style={{ marginBottom: 20 }}>
+        {/* ── Summary strip ───────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
           {[
-            { label: "Total Income",   value: fmt(periodIncome),          color: "#7C3AED", bg: "#F5F3FF", icon: TrendingUp,   sub: "Appointments & POS" },
-            { label: "Total Expenses", value: fmt(totalExpense),          color: "#ef4444", bg: "#fef2f2", icon: TrendingDown,  sub: `${periodExpenses.length} entries` },
-            { label: "Net Cash Flow",  value: (netCashFlow < 0 ? "-" : "") + fmt(Math.abs(netCashFlow)), color: netCashFlow >= 0 ? "#059669" : "#ef4444", bg: netCashFlow >= 0 ? "#f0fdf4" : "#fef2f2", icon: Wallet, sub: netCashFlow >= 0 ? "Surplus" : "Deficit" },
-            { label: "Expense Entries", value: String(periodExpenses.length), color: "#d97706", bg: "#fffbeb", icon: CalendarDays, sub: cfg.label },
-          ].map(({ label, value, color, bg, icon: Icon, sub }) => (
-            <div key={label} style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "18px 20px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</span>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Icon size={16} color={color} />
-                </div>
+            { label: "Income",    value: fmt(periodIncome),  color: "#7C3AED", sub: "Appointments & POS",          icon: TrendingUp  },
+            { label: "Expenses",  value: fmt(totalExpense),  color: "#ef4444", sub: `${periodExpenses.length} entries logged`, icon: TrendingDown },
+            { label: "Net Flow",  value: (netCashFlow < 0 ? "−" : "+") + fmt(Math.abs(netCashFlow)), color: netCashFlow >= 0 ? "#059669" : "#ef4444", sub: netCashFlow >= 0 ? "Surplus" : "Deficit", icon: Wallet },
+          ].map(({ label, value, color, sub, icon: Icon }) => (
+            <div key={label} style={{ background: "#fff", borderRadius: 12, border: "1px solid #ebebf0", padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: color + "12", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon size={16} color={color} />
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color, marginBottom: 4 }}>{value}</div>
-              <div style={{ fontSize: 12, color: "#a0a0b8" }}>{sub}</div>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#a0a0b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+                <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 2 }}>{sub}</div>
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Cash Flow Chart */}
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "22px 26px", marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22 }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>Cash Flow Chart</div>
-              <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>Income vs Expenses · {rangeStart} → {filterEnd}</div>
-            </div>
-            <div style={{ display: "flex", gap: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <div style={{ width: 12, height: 12, borderRadius: 3, background: "#7C3AED" }} />
-                <span style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 600 }}>Income</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>{fmt(periodIncome)}</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <div style={{ width: 12, height: 12, borderRadius: 3, background: "#ef4444" }} />
-                <span style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 600 }}>Expenses</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#ef4444" }}>{fmt(totalExpense)}</span>
+        {/* ── Chart (compact) ─────────────────────────────────────────── */}
+        {chartData.length > 1 && (
+          <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #ebebf0", padding: "14px 18px 10px", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#6b6b8a" }}>Income vs Expenses</span>
+              <div style={{ display: "flex", gap: 14 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#6b6b8a" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: "#7C3AED", display: "inline-block" }} /> Income
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#6b6b8a" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: "#ef4444", display: "inline-block" }} /> Expenses
+                </span>
               </div>
             </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 14 }}>
-            {/* Y-axis */}
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", paddingBottom: 26, minWidth: 40 }}>
-              {yLabels.map(l => (
-                <div key={l} style={{ fontSize: 10, color: "#c0c0d0", textAlign: "right" }}>{l}</div>
+            <div style={{ position: "relative", height: 120 }}>
+              {[0, 50, 100].map(pct => (
+                <div key={pct} style={{ position: "absolute", bottom: `${pct}%`, left: 0, right: 0, height: 1, background: "#f4f4f8" }} />
+              ))}
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: chartData.length > 20 ? 2 : 4 }}>
+                {chartData.map((bar, i) => {
+                  const ih = maxChart > 0 ? (bar.income / maxChart) * 100 : 0;
+                  const eh = maxChart > 0 ? (bar.expense / maxChart) * 100 : 0;
+                  const hov = hoveredBar === i;
+                  return (
+                    <div key={i} style={{ flex: 1, height: "100%", display: "flex", alignItems: "flex-end", gap: 1, position: "relative" }}
+                      onMouseEnter={() => setHoveredBar(i)} onMouseLeave={() => setHoveredBar(null)}>
+                      {hov && (bar.income > 0 || bar.expense > 0) && (
+                        <div style={{ position: "absolute", bottom: `${Math.max(ih, eh) + 6}%`, left: "50%", transform: "translateX(-50%)", background: "#1a1a2e", color: "#fff", fontSize: 11, fontWeight: 700, padding: "5px 9px", borderRadius: 7, whiteSpace: "nowrap", zIndex: 10, pointerEvents: "none" }}>
+                          <div style={{ color: "#a78bfa" }}>In: {fmt(bar.income)}</div>
+                          <div style={{ color: "#fca5a5" }}>Ex: {fmt(bar.expense)}</div>
+                        </div>
+                      )}
+                      <div style={{ flex: 1, height: `${Math.max(ih, 0.5)}%`, background: "#7C3AED", borderRadius: "3px 3px 0 0", opacity: hov ? 1 : 0.75 }} />
+                      <div style={{ flex: 1, height: `${Math.max(eh, 0.5)}%`, background: "#ef4444", borderRadius: "3px 3px 0 0", opacity: hov ? 1 : 0.75 }} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: chartData.length > 20 ? 2 : 4, paddingTop: 5 }}>
+              {chartData.map((bar, i) => (
+                <div key={i} style={{ flex: 1, textAlign: "center", fontSize: 9, color: "#c8c8d8", overflow: "hidden" }}>{bar.label}</div>
               ))}
             </div>
-
-            <div style={{ flex: 1 }}>
-              <div style={{ position: "relative", height: 220 }}>
-                {[0, 25, 50, 75, 100].map(pct => (
-                  <div key={pct} style={{ position: "absolute", bottom: `${pct}%`, left: 0, right: 0, height: 1, background: "#f0f0f8" }} />
-                ))}
-                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: period === "30d" ? 3 : 8 }}>
-                  {chartData.map((bar, i) => {
-                    const ih = maxChart > 0 ? (bar.income / maxChart) * 100 : 0;
-                    const eh = maxChart > 0 ? (bar.expense / maxChart) * 100 : 0;
-                    const hovered = hoveredBar === i;
-                    return (
-                      <div
-                        key={i}
-                        style={{ flex: 1, height: "100%", display: "flex", alignItems: "flex-end", gap: 2, position: "relative", cursor: "default" }}
-                        onMouseEnter={() => setHoveredBar(i)}
-                        onMouseLeave={() => setHoveredBar(null)}
-                      >
-                        {hovered && (bar.income > 0 || bar.expense > 0) && (
-                          <div style={{ position: "absolute", bottom: `${Math.max(ih, eh) + 4}%`, left: "50%", transform: "translateX(-50%)", background: "#1a1a2e", color: "#fff", fontSize: 11, fontWeight: 700, padding: "6px 10px", borderRadius: 8, whiteSpace: "nowrap", zIndex: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.2)", pointerEvents: "none" }}>
-                            <div style={{ color: "#a78bfa" }}>In: {fmt(bar.income)}</div>
-                            <div style={{ color: "#fca5a5" }}>Ex: {fmt(bar.expense)}</div>
-                            <div style={{ color: bar.income >= bar.expense ? "#4ade80" : "#f87171", borderTop: "1px solid #2a2a3a", paddingTop: 3, marginTop: 3 }}>
-                              Net: {bar.income >= bar.expense ? "+" : "-"}{fmt(Math.abs(bar.income - bar.expense))}
-                            </div>
-                          </div>
-                        )}
-                        <div style={{ flex: 1, height: `${Math.max(ih, 0.4)}%`, background: "linear-gradient(180deg, #7C3AED 0%, #A78BFA 100%)", borderRadius: "4px 4px 0 0", transition: "height 0.4s ease, opacity 0.15s", opacity: hovered ? 1 : 0.9 }} />
-                        <div style={{ flex: 1, height: `${Math.max(eh, 0.4)}%`, background: "linear-gradient(180deg, #ef4444 0%, #fca5a5 100%)", borderRadius: "4px 4px 0 0", transition: "height 0.4s ease, opacity 0.15s", opacity: hovered ? 1 : 0.9 }} />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: period === "30d" ? 3 : 8, paddingTop: 8 }}>
-                {chartData.map((bar, i) => (
-                  <div key={i} style={{ flex: 1, textAlign: "center", fontSize: period === "30d" ? 9 : 11, color: "#c0c0d0", overflow: "hidden" }}>
-                    {bar.label}
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
-        </div>
+        )}
 
-        {/* Add / Edit Expense Form */}
+        {/* ── Add / Edit form (slide-in) ───────────────────────────────── */}
         {showForm && (
-          <div style={{ background: "#fff", borderRadius: 16, border: "1.5px solid #7C3AED", boxShadow: "0 8px 32px rgba(124,58,237,0.15)", padding: "24px", marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>{editId ? "Edit Expense" : "Add Expense"}</div>
-              <button onClick={() => { setShowForm(false); setEditId(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#a0a0b8" }}><X size={18} /></button>
+          <div style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #7C3AED", padding: "18px 20px", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1a2e" }}>{editId ? "Edit Expense" : "New Expense"}</span>
+              <button onClick={() => { setShowForm(false); setEditId(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0b0c8" }}><X size={16} /></button>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
               <div>
                 <label style={labelSt}>Date</label>
                 <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={inputSt} />
@@ -524,143 +494,97 @@ export default function CashFlowPage() {
                 </select>
               </div>
               <div>
-                <label style={labelSt}>Payment Method</label>
+                <label style={labelSt}>Payment</label>
                 <select value={form.paymentMethod} onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))} style={inputSt}>
                   {PAYMENT_METHODS.map(m => <option key={m} value={m}>{PAYMENT_LABELS[m]}</option>)}
                 </select>
-              </div>
-              <div style={{ gridColumn: "1 / 3" }}>
-                <label style={labelSt}>Description</label>
-                <input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Shampoo & conditioner restock" style={inputSt} />
               </div>
               <div>
                 <label style={labelSt}>Amount (PKR)</label>
                 <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" min={0} style={inputSt} />
               </div>
               <div style={{ gridColumn: "1 / 4" }}>
-                <label style={labelSt}>Notes (optional)</label>
-                <input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any additional notes" style={inputSt} />
+                <label style={labelSt}>Description</label>
+                <input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Shampoo & conditioner restock" style={inputSt} />
+              </div>
+              <div>
+                <label style={labelSt}>Notes</label>
+                <input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" style={inputSt} />
               </div>
             </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
-              <button onClick={() => { setShowForm(false); setEditId(null); }} style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, color: "#6b6b8a", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
-              <button onClick={handleSave} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 24px", borderRadius: 9, border: "none", background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 8px rgba(91,33,182,0.35)" }}>
-                <Check size={14} /> {editId ? "Save Changes" : "Save Expense"}
+            <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
+              <button onClick={() => { setShowForm(false); setEditId(null); }} style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", fontSize: 12, color: "#6b6b8a", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
+              <button onClick={handleSave} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 20px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <Check size={13} /> {editId ? "Save Changes" : "Save"}
               </button>
             </div>
           </div>
         )}
 
-        {/* Category breakdown + Expense log */}
-        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20 }}>
-
-          {/* Category breakdown */}
-          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "22px 24px", alignSelf: "start" }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e", marginBottom: 4 }}>By Category</div>
-            <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 20 }}>Expense breakdown · {cfg.label}</div>
-            {categoryBreakdown.length === 0 ? (
-              <div style={{ textAlign: "center", fontSize: 13, color: "#c0c0d0", padding: "24px 0" }}>No expenses this period</div>
-            ) : (
-              <>
-                {categoryBreakdown.map(c => (
-                  <div key={c.key} style={{ marginBottom: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{c.label}</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 11, color: "#a0a0b8" }}>{totalExpense > 0 ? ((c.amount / totalExpense) * 100).toFixed(0) : 0}%</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: c.color }}>{fmt(c.amount)}</span>
-                      </div>
-                    </div>
-                    <div style={{ height: 6, background: "#f0f0f8", borderRadius: 4 }}>
-                      <div style={{ height: "100%", width: `${totalExpense > 0 ? (c.amount / totalExpense) * 100 : 0}%`, background: c.color, borderRadius: 4, transition: "width 0.6s ease" }} />
-                    </div>
-                  </div>
-                ))}
-
-                {/* Net summary */}
-                <div style={{ marginTop: 20, padding: "14px 16px", borderRadius: 12, background: netCashFlow >= 0 ? "#f0fdf4" : "#fef2f2", border: `1px solid ${netCashFlow >= 0 ? "#bbf7d0" : "#fecaca"}` }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Net Cash Flow</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: netCashFlow >= 0 ? "#059669" : "#ef4444" }}>
-                    {netCashFlow < 0 ? "-" : "+"}{fmt(Math.abs(netCashFlow))}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#a0a0b8", marginTop: 3 }}>{netCashFlow >= 0 ? "You are in surplus" : "Expenses exceed income"}</div>
-                </div>
-              </>
+        {/* ── Expense log (full width) ─────────────────────────────────── */}
+        <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #ebebf0", overflow: "hidden" }}>
+          <div style={{ padding: "14px 20px", borderBottom: "1px solid #f0f0f8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
+              Expenses
+              <span style={{ fontSize: 11, fontWeight: 500, color: "#a0a0b8", marginLeft: 8 }}>{periodExpenses.length} entries · {fmt(totalExpense)}</span>
+            </div>
+            {!showForm && (
+              <button onClick={openAdd} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 7, border: "1.5px solid #7C3AED", background: "transparent", color: "#7C3AED", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <Plus size={12} /> Add
+              </button>
             )}
           </div>
 
-          {/* Expense log table */}
-          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", overflow: "hidden" }}>
-            <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e" }}>Expense Log</div>
-                <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>{periodExpenses.length} entries · {fmt(totalExpense)} total</div>
-              </div>
-              {!showForm && (
-                <button onClick={openAdd} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 9, border: "1.5px solid #7C3AED", background: "transparent", color: "#7C3AED", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  <Plus size={13} /> Add
+          <div style={{ display: "grid", gridTemplateColumns: "90px 120px 1fr 100px 90px 40px 40px", padding: "7px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+            {["DATE", "CATEGORY", "DESCRIPTION", "PAYMENT", "AMOUNT", "", ""].map((h, i) => (
+              <div key={i} style={{ fontSize: 10, fontWeight: 700, color: "#c0c0d0", letterSpacing: "0.07em" }}>{h}</div>
+            ))}
+          </div>
+
+          {periodExpenses.length === 0 ? (
+            <div style={{ padding: "36px 20px", textAlign: "center" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>💸</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#a0a0b8" }}>No expenses logged</div>
+              <div style={{ fontSize: 12, color: "#c0c0d0", marginTop: 4 }}>Click &ldquo;Add&rdquo; to start tracking costs.</div>
+            </div>
+          ) : periodExpenses.map((exp, i) => {
+            const cat = EXPENSE_CATEGORIES.find(c => c.key === exp.category);
+            const payColor = PAYMENT_COLORS[exp.paymentMethod];
+            return (
+              <div key={exp.id} style={{ display: "grid", gridTemplateColumns: "90px 120px 1fr 100px 90px 40px 40px", padding: "10px 20px", borderBottom: i === periodExpenses.length - 1 ? "none" : "1px solid #f8f8fc", alignItems: "center" }}>
+                <div style={{ fontSize: 11, color: "#9999b0" }}>{exp.date}</div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: cat?.color ?? "#888", background: `${cat?.color ?? "#888"}15`, padding: "2px 7px", borderRadius: 20 }}>{cat?.label ?? exp.category}</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{exp.description}</div>
+                  {exp.notes && <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 1 }}>{exp.notes}</div>}
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: payColor ?? "#9999b0" }}>{PAYMENT_LABELS[exp.paymentMethod] ?? exp.paymentMethod}</span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>{fmt(exp.amount)}</div>
+                <button onClick={() => openEdit(exp)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d0d0e0", padding: 4, display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#7C3AED")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#d0d0e0")}>
+                  <Pencil size={13} />
                 </button>
-              )}
-            </div>
-
-            {/* Column headers */}
-            <div style={{ display: "grid", gridTemplateColumns: "90px 110px 1.6fr 1fr 90px 44px 44px", padding: "9px 24px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-              {["DATE", "CATEGORY", "DESCRIPTION", "PAYMENT", "AMOUNT", "", ""].map((h, i) => (
-                <div key={i} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
-              ))}
-            </div>
-
-            {periodExpenses.length === 0 ? (
-              <div style={{ padding: "48px 24px", textAlign: "center" }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>💸</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#a0a0b8", marginBottom: 6 }}>No expenses logged</div>
-                <div style={{ fontSize: 12, color: "#c0c0d0" }}>Click &ldquo;Add Expense&rdquo; to start tracking your daily costs.</div>
+                <button onClick={() => handleDelete(exp.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d0d0e0", padding: 4, display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#ef4444")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#d0d0e0")}>
+                  <Trash2 size={14} />
+                </button>
               </div>
-            ) : periodExpenses.map((exp, i) => {
-              const cat = EXPENSE_CATEGORIES.find(c => c.key === exp.category);
-              const payColor = PAYMENT_COLORS[exp.paymentMethod];
-              return (
-                <div key={exp.id} style={{ display: "grid", gridTemplateColumns: "90px 110px 1.6fr 1fr 90px 44px 44px", padding: "11px 24px", borderBottom: i === periodExpenses.length - 1 ? "none" : "1px solid #f8f8fc", alignItems: "center" }}>
-                  <div style={{ fontSize: 12, color: "#6b6b8a" }}>{exp.date}</div>
-                  <div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: cat?.color ?? "#888", background: `${cat?.color ?? "#888"}18`, padding: "2px 8px", borderRadius: 20 }}>{cat?.label ?? exp.category}</span>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{exp.description}</div>
-                    {exp.notes && <div style={{ fontSize: 11, color: "#a0a0b8", marginTop: 1 }}>{exp.notes}</div>}
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: payColor ?? "#6b6b8a", background: payColor ? `${payColor}15` : "#f4f4f8", padding: "2px 8px", borderRadius: 20 }}>
-                      {PAYMENT_LABELS[exp.paymentMethod] ?? exp.paymentMethod}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>{fmt(exp.amount)}</div>
-                  <button onClick={() => openEdit(exp)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d0d0e0", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6 }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#7C3AED")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#d0d0e0")}>
-                    <Pencil size={13} />
-                  </button>
-                  <button onClick={() => handleDelete(exp.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d0d0e0", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6 }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#ef4444")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#d0d0e0")}>
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              );
-            })}
+            );
+          })}
 
-            {/* Footer totals */}
-            {periodExpenses.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "90px 110px 1.6fr 1fr 90px 44px 44px", padding: "11px 24px", background: "#fafafa", borderTop: "1px solid #f0f0f8" }}>
-                <div style={{ gridColumn: "1 / 5", fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>Total · {periodExpenses.length} entries</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#ef4444" }}>{fmt(totalExpense)}</div>
-                <div /><div />
-              </div>
-            )}
-          </div>
+          {periodExpenses.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "90px 120px 1fr 100px 90px 40px 40px", padding: "9px 20px", background: "#fafafa", borderTop: "1px solid #f0f0f8" }}>
+              <div style={{ gridColumn: "1 / 5", fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Total</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#ef4444" }}>{fmt(totalExpense)}</div>
+              <div /><div />
+            </div>
+          )}
         </div>
 
       </div>{/* /desktop-only */}
