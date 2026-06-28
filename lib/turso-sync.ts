@@ -77,19 +77,34 @@ export async function syncFromDB(): Promise<void> {
 
 /**
  * After every save: push the updated list to Turso under the user-scoped key.
- * Fire-and-forget — never blocks the UI.
+ * Fire-and-forget — never blocks the UI. Retries up to 3 times with exponential back-off.
  */
 export function saveToDB(entity: Entity, data: unknown[]): void {
   const user = getCurrentUser();
   if (!user) return;
 
-  fetch("/api/db", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ entity, data, userId: user.id }),
-  })
-    .then(r => { if (!r.ok) console.warn(`[saveToDB] ${entity} save failed:`, r.status); })
-    .catch(err => console.warn(`[saveToDB] ${entity} network error:`, err));
+  const body = JSON.stringify({ entity, data, userId: user.id });
+
+  async function attempt(tries: number): Promise<void> {
+    try {
+      const r = await fetch("/api/db", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    } catch (err) {
+      if (tries <= 1) {
+        console.warn(`[saveToDB] ${entity} failed after all retries:`, err);
+        return;
+      }
+      const delay = 2 ** (3 - tries) * 1000; // 1s, 2s, 4s
+      await new Promise(res => setTimeout(res, delay));
+      return attempt(tries - 1);
+    }
+  }
+
+  attempt(3);
 }
 
 /**

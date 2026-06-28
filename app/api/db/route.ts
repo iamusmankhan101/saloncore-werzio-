@@ -70,6 +70,55 @@ export async function POST(req: NextRequest) {
       sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
       args: [key, JSON.stringify(data), new Date().toISOString()],
     });
+
+    // Keep the relational clients table in sync so phone updates are reflected
+    // in loyalty card lookups and Google Wallet passes.
+    if (entity === "clients" && userId && Array.isArray(data)) {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS clients (
+          id          TEXT NOT NULL,
+          user_id     TEXT NOT NULL,
+          name        TEXT NOT NULL DEFAULT '',
+          phone       TEXT NOT NULL DEFAULT '',
+          email       TEXT,
+          notes       TEXT,
+          total_visits INTEGER NOT NULL DEFAULT 0,
+          total_spent  REAL    NOT NULL DEFAULT 0,
+          last_visit   TEXT,
+          created_at   TEXT NOT NULL,
+          PRIMARY KEY (id)
+        )
+      `);
+      for (const item of data) {
+        const c = item as Record<string, unknown>;
+        if (!c.id) continue;
+        await db.execute({
+          sql: `INSERT INTO clients (id, user_id, name, phone, email, notes, total_visits, total_spent, last_visit, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                  name         = excluded.name,
+                  phone        = excluded.phone,
+                  email        = excluded.email,
+                  notes        = excluded.notes,
+                  total_visits = excluded.total_visits,
+                  total_spent  = excluded.total_spent,
+                  last_visit   = excluded.last_visit`,
+          args: [
+            String(c.id),
+            userId,
+            String(c.name  || ""),
+            String(c.phone || ""),
+            typeof c.email        === "string" ? c.email        : null,
+            typeof c.notes        === "string" ? c.notes        : null,
+            Number(c.totalVisits  ?? 0),
+            Number(c.totalSpend   ?? 0),
+            typeof c.lastVisitDate === "string" ? c.lastVisitDate : null,
+            String(c.createdAt   || new Date().toISOString().slice(0, 10)),
+          ],
+        });
+      }
+    }
+
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[db] POST error:", err);
