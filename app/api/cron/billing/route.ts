@@ -4,10 +4,10 @@
  * Automated 30-day rolling billing engine. Called by Vercel Cron every day at 09:00 UTC.
  *
  * Each user has their own billing cycle:
- *   Invoice issued on: activation_date, +30, +60, ...
- *   Due date         = issued_date + 10 days
- *   Overdue after    : due_date
- *   Suspended after  : due_date + 10 days  (20 days total window from invoice)
+ *   Invoice issued on: signup_date + 30 days, then every 30 days
+ *   Due date         = issued_date + 7 days   (day 37 from signup)
+ *   Overdue after    : due_date + 3 days      (day 40 from signup)
+ *   Suspended on     : same day as overdue    (day 40 from signup)
  *
  * Secured with Authorization: Bearer {CRON_SECRET}
  * Can also be triggered manually with the same header.
@@ -235,7 +235,7 @@ async function runDaily(resend: Resend): Promise<{ invoicesGenerated: number; em
     // ── Step 3: Suspend if unpaid 10+ days after due_date ──────────────────
     const suspendAfter = addDays(inv.dueDate, SUSPENSION_GRACE_DAYS);
     if (today >= suspendAfter && !user.suspended) {
-      await suspendUser(user.id, `Invoice ${inv.number} unpaid for 20+ days. Suspended on ${today}.`);
+      await suspendUser(user.id, `Invoice ${inv.number} unpaid — payment was due ${inv.dueDate}. Suspended on ${today}.`);
       usersSuspended++;
       console.log(`[billing] suspended user ${user.id} (${user.email})`);
 

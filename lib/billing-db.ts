@@ -3,12 +3,12 @@
  * Server-side billing state stored in Turso (SQLite).
  *
  * Billing model — 30-day rolling cycles (not calendar months):
- *   • billing_anchor  = trial_start + 14 days  (when paid billing begins)
+ *   • billing_anchor  = signup_date + 30 days  (first invoice issued after 30-day grace)
  *   • cycle_index     = floor((today − anchor) / 30)  starting at 0
  *   • period_start    = anchor + cycle_index × 30 days
- *   • due_date        = period_start + 10 days  (10 days to pay)
- *   • overdue after   due_date
- *   • suspended after due_date + 10 days  (20 days total from invoice)
+ *   • due_date        = period_start + 7 days  (7 days to pay)
+ *   • overdue after   due_date + 3 days    (day 40 from invoice)
+ *   • suspended on    same day as overdue  (day 40 from invoice)
  *
  * Invoice ID format : {userId}_{period_start}   e.g.  user_123_2026-05-15
  * Invoice number    : INV-{YYYYMMDD}              e.g.  INV-20260515
@@ -17,10 +17,11 @@
 import { db } from "@/lib/db";
 
 // ─── Billing constants ────────────────────────────────────────────────────────
-export const TRIAL_DAYS = 14;
+export const TRIAL_DAYS = 30;
 export const BILLING_CYCLE_DAYS = 30;
-export const INVOICE_DUE_DAYS = 10;
-export const SUSPENSION_GRACE_DAYS = 10; // extra days after due before suspension
+export const INVOICE_DUE_DAYS = 7;
+export const OVERDUE_GRACE_DAYS = 3;     // days after due_date before marking overdue
+export const SUSPENSION_GRACE_DAYS = 3;  // days after due_date before suspension (= same as overdue)
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -174,17 +175,17 @@ function daysDiff(a: string, b: string): number {
 }
 
 /**
- * Compute the billing anchor: trial_start + TRIAL_DAYS.
- * This is the date the very first invoice is issued.
+ * Compute the billing anchor: signup_date + 30 days.
+ * The very first invoice is issued on this date.
  */
-export function computeBillingAnchor(trialStart: string): string {
-  return addDays(trialStart, TRIAL_DAYS);
+export function computeBillingAnchor(signupDate: string): string {
+  return addDays(signupDate, TRIAL_DAYS);
 }
 
-/** Returns true if today is still within the trial period. */
-export function isInTrial(trialStart: string): boolean {
+/** Returns true if today is still within the 30-day grace period before first billing. */
+export function isInTrial(signupDate: string): boolean {
   const today  = new Date().toISOString().slice(0, 10);
-  const anchor = computeBillingAnchor(trialStart);
+  const anchor = computeBillingAnchor(signupDate);
   return today < anchor;
 }
 
@@ -336,14 +337,17 @@ export async function getAllUnpaidInvoicesForUser(userId: string): Promise<Billi
 }
 
 /**
- * All invoices that are unpaid/overdue AND past their due_date.
- * Used by the daily cron to send overdue reminders.
+ * All invoices that are unpaid/overdue AND at least OVERDUE_GRACE_DAYS past their due_date.
+ * Overdue/suspension triggers on day 40 (due_date + 3).
+ * Used by the daily cron.
  */
 export async function getAllUnpaidOverdueInvoices(): Promise<BillingInvoice[]> {
   const today = new Date().toISOString().slice(0, 10);
+  // Only trigger if today >= due_date + OVERDUE_GRACE_DAYS
+  const overdueThreshold = addDays(today, -OVERDUE_GRACE_DAYS);
   const res = await db.execute({
-    sql: "SELECT * FROM billing_invoices WHERE status IN ('unpaid','overdue') AND due_date < ?",
-    args: [today],
+    sql: "SELECT * FROM billing_invoices WHERE status IN ('unpaid','overdue') AND due_date <= ?",
+    args: [overdueThreshold],
   });
   return res.rows.map(rowToInvoice);
 }

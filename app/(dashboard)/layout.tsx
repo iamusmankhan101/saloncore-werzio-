@@ -12,6 +12,8 @@ import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
 import { syncFromDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
 import { getStoredInventory } from "@/lib/storage";
+import { syncInvoices } from "@/lib/invoices";
+import { PLAN_CONFIGS, type PlanId } from "@/lib/plan-limits";
 
 // ─── Notification chime ───────────────────────────────────────────────────────
 
@@ -153,16 +155,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     syncFromDB().then(() => { reloadSettings(); runWhatsAppScheduler(); });
     checkInvoiceNotifications();
 
-    // Check suspension + unpaid subscription invoice from Turso
+    // Check suspension status
     fetch(`/api/billing/status?userId=${encodeURIComponent(user.id)}`)
       .then((r) => r.json())
-      .then((data: { ok: boolean; suspended?: boolean; reason?: string | null; unpaidInvoice?: { number: string; amount: number; status: string; dueDate: string } | null }) => {
+      .then((data: { ok: boolean; suspended?: boolean; reason?: string | null }) => {
         if (data.ok && data.suspended) {
           setSuspended(true);
           setSuspReason(data.reason ?? null);
         }
-        if (data.ok && data.unpaidInvoice) {
-          setUnpaidInvoice(data.unpaidInvoice);
+      })
+      .catch(() => { /* fail open */ });
+
+    // Sync subscription invoices then check for unpaid/overdue
+    fetch(`/api/billing/user?userId=${encodeURIComponent(user.id)}`)
+      .then((r) => r.json())
+      .then((data: { ok: boolean; planId?: string; planPrice?: number }) => {
+        if (!data.ok) return;
+        const planId = (data.planId ?? "free") as PlanId;
+        const plan = PLAN_CONFIGS[planId];
+        if (!plan || plan.price === 0) return;
+        const invoices = syncInvoices(
+          { id: user.id, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
+          { id: plan.id, name: plan.label, price: plan.price },
+          user.createdAt,
+        );
+        const unpaid = invoices.filter((inv) => inv.userId === user.id && inv.status !== "paid");
+        if (unpaid.length > 0) {
+          const oldest = unpaid[unpaid.length - 1]; // oldest = last in desc-sorted list
+          setUnpaidInvoice({ number: oldest.number, amount: oldest.total, status: oldest.status, dueDate: oldest.dueDate });
           setInvoiceBadgeDismissed(false);
         }
       })

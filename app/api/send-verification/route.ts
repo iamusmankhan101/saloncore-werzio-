@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       <p style="color:#6b6b8a;font-size:14px;line-height:1.75;margin:0 0 28px">
         Hi ${name || "there"},<br>
         Thanks for signing up for <strong style="color:#7C3AED">Werzio</strong>!
-        Click the button below to verify your email address and activate your 14-day free trial.
+        Click the button below to verify your email address and activate your account.
       </p>
 
       <!-- CTA button -->

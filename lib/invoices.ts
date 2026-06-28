@@ -106,9 +106,22 @@ export function syncInvoices(
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
 
-  // Billing starts from the plan activation date
-  const start = new Date(startDate);
-  const activationDay = start.getDate(); // e.g. 15 if signed up on June 15
+  // Re-evaluate status of existing unpaid/overdue invoices with current grace period
+  const OVERDUE_GRACE = 3;
+  let existingChanged = false;
+  const reEvaluated = existing.map((inv) => {
+    if (inv.status === "paid") return inv;
+    const overdueCutoff = addDays(inv.dueDate, OVERDUE_GRACE);
+    const shouldBeOverdue = today >= overdueCutoff;
+    if (shouldBeOverdue && inv.status !== "overdue") { existingChanged = true; return { ...inv, status: "overdue" as InvoiceStatus }; }
+    if (!shouldBeOverdue && inv.status === "overdue") { existingChanged = true; return { ...inv, status: "unpaid" as InvoiceStatus }; }
+    return inv;
+  });
+
+  // First invoice is issued 30 days after signup, then every month after that
+  const firstBillingDate = addDays(startDate, 30);
+  const start = new Date(firstBillingDate);
+  const activationDay = start.getDate(); // e.g. 15 if first billing falls on July 15
 
   const newInvoices: Invoice[] = [];
 
@@ -124,22 +137,22 @@ export function syncInvoices(
       const issuedDate = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const dueDate = addDays(issuedDate, 7);
       let status: InvoiceStatus = "unpaid";
-      if (today > dueDate) status = "overdue";
+      if (today >= addDays(dueDate, 3)) status = "overdue";
       newInvoices.push(buildInvoice(y, m, activationDay, user, plan, status, null));
     }
     m++;
     if (m > 12) { m = 1; y++; }
   }
 
-  if (newInvoices.length > 0) {
-    const merged = [...newInvoices, ...existing].sort(
+  if (newInvoices.length > 0 || existingChanged) {
+    const merged = [...newInvoices, ...reEvaluated].sort(
       (a, b) => b.issuedDate.localeCompare(a.issuedDate)
     );
     saveInvoices(merged);
     return merged;
   }
 
-  return existing.sort((a, b) => b.issuedDate.localeCompare(a.issuedDate));
+  return reEvaluated.sort((a, b) => b.issuedDate.localeCompare(a.issuedDate));
 }
 
 export function markInvoicePaid(id: string): void {

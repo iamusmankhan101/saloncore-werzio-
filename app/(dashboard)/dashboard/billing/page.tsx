@@ -577,7 +577,7 @@ export default function BillingPage() {
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>
                 {currentPlan.price === 0
                   ? "Free forever · no billing"
-                  : `PKR ${currentPlan.price.toLocaleString("en-PK")}/month · renews 1st of every month`}
+                  : `PKR ${currentPlan.price.toLocaleString("en-PK")}/month · billed every 30 days`}
               </div>
             </div>
           </div>
