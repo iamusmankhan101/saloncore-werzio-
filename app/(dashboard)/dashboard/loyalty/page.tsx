@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { getStoredClients, saveClients, getStoredAppointments } from "@/lib/storage";
+import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { Client } from "@/lib/types";
 import {
   getTier, TIER_META, nextTierThreshold, pointsToRupees,
@@ -658,23 +659,27 @@ export default function LoyaltyPage() {
       const ls = settingsStore.loyalty as LoyaltySettings;
       const allClients = getStoredClients();
       const allAppts   = getStoredAppointments();
+      const allInvoices = getSalonInvoices();
 
-      // Only increase earned points from appointment history — never decrease.
-      // POS transactions also earn points, so stored values can be higher than
-      // appointment-only calculations; decreasing them would wipe POS-earned points.
+      // Recalculate earned points from appointments + POS invoices combined.
+      // Only ever increase — never decrease — so manual adjustments and
+      // points earned on other devices are preserved.
       let changed = false;
       const recalculated = allClients.map((c) => {
-        const spent = allAppts
+        const apptSpend = allAppts
           .filter((a) => a.clientId === c.id && a.status === "completed")
           .reduce((s, a) => s + a.totalAmount, 0);
-        const apptEarned = Math.floor(spent * ls.pointsPerRupee);
-        // Skip if appointments show equal or fewer points than already stored
-        if (apptEarned <= (c.loyaltyPointsEarned ?? 0)) return c;
-        // Appointments show MORE — increase (preserve any redemptions)
+        const posSpend = allInvoices
+          .filter((inv) => inv.clientId === c.id && inv.source === "pos")
+          .reduce((s, inv) => s + inv.total, 0);
+        const totalSpend = apptSpend + posSpend;
+        const totalEarned = Math.floor(totalSpend * ls.pointsPerRupee);
+        // Only increase — never lower stored points
+        if (totalEarned <= (c.loyaltyPointsEarned ?? 0)) return c;
         const redeemed = Math.max(0, (c.loyaltyPointsEarned ?? 0) - (c.loyaltyPoints ?? 0));
-        const newBalance = Math.max(0, apptEarned - redeemed);
+        const newBalance = Math.max(0, totalEarned - redeemed);
         changed = true;
-        return { ...c, loyaltyPointsEarned: apptEarned, loyaltyPoints: newBalance };
+        return { ...c, loyaltyPointsEarned: totalEarned, loyaltyPoints: newBalance };
       });
 
       if (changed) saveClients(recalculated);

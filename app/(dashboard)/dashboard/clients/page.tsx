@@ -106,6 +106,7 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
   const loyalty = settingsStore.loyalty as LoyaltySettings;
   const storedEarned  = client.loyaltyPointsEarned ?? 0;
   const storedBalance = client.loyaltyPoints ?? 0;
+  // liveSpend already includes both completed appointments + POS invoices (computed above)
   const computedEarned = Math.floor(liveSpend * (loyalty.pointsPerRupee ?? 0.01));
   const liveEarned    = Math.max(storedEarned, computedEarned);
   const redeemed      = Math.max(0, storedEarned - storedBalance);
