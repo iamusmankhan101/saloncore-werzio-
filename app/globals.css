@@ -117,7 +117,7 @@ input, textarea, select { font-family: inherit; }
 }
 
 .sidebar-logo {
-  height: 42px !important;
+  height: 64px !important;
   width: auto !important;
   flex-shrink: 0 !important;
 }
@@ -358,7 +358,7 @@ input, textarea, select { font-family: inherit; }
   }
 
   .sidebar-logo {
-    height: 34px !important;
+    height: 48px !important;
   }
 
   .sidebar-live-badge {
