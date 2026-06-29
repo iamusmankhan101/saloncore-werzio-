@@ -185,20 +185,28 @@ export async function POST(req: NextRequest) {
           console.warn("[public/booking] No phone number — skipping WhatsApp confirmation");
         }
 
-        // Salon group alert
-        if (autoGroupBooking && bookingGroupJid.endsWith("@g.us")) {
+        // Salon group alert — always fire for online bookings if a group JID is configured
+        if (bookingGroupJid.endsWith("@g.us")) {
           const groupTpl: string =
             tpl.newBooking ||
-            "📅 New Booking! {{name}} has booked {{service}} on {{date}} at {{time}} at {{salon_name}}. Total: PKR {{amount}}.";
+            "📅 New Online Booking!\n👤 Name: {{name}}\n💇 Service: {{service}}\n📅 Date: {{date}}\n⏰ Time: {{time}}\n💰 Total: PKR {{amount}}\n\nBooked via {{salon_name}} online booking page.";
           const groupText = fillTemplate(groupTpl, vars);
+          console.log(`[public/booking] Sending group alert to ${bookingGroupJid}`);
           const groupResponse = await fetch("https://www.wasenderapi.com/api/send-message", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
             body: JSON.stringify({ to: bookingGroupJid, text: groupText }),
           });
-          if (!groupResponse.ok) {
-            console.warn("[public/booking] WhatsApp group alert failed:", groupResponse.status);
+          const groupData = await groupResponse.json().catch(() => ({}));
+          if (!groupResponse.ok || groupData.success === false) {
+            console.warn("[public/booking] WhatsApp group alert failed:", groupResponse.status, JSON.stringify(groupData));
+          } else {
+            console.log("[public/booking] WhatsApp group alert sent ✓");
           }
+        } else if (bookingGroupJid) {
+          console.warn("[public/booking] bookingGroupJid is set but not a valid group JID (@g.us):", bookingGroupJid);
+        } else {
+          console.log("[public/booking] No group JID configured — skipping group alert");
         }
 
       } else {
