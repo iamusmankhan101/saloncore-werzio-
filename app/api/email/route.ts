@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 <body style="margin:0;padding:24px 0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif">
   <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e8e8f0;box-shadow:0 4px 20px rgba(0,0,0,0.06)">
     <div style="background:${accentColor};padding:28px 36px">
-      <div style="color:#ffffff;font-size:22px;font-weight:900">Werzio</div>
+      <div style="color:#ffffff;font-size:22px;font-weight:900">Salon Central</div>
       <div style="color:rgba(255,255,255,0.8);font-size:12px;margin-top:4px">Salon Management Platform</div>
     </div>
     <div style="padding:32px 36px">
@@ -67,23 +67,23 @@ export async function POST(req: NextRequest) {
         </div>
       </div>
       <p style="color:#6b6b8a;font-size:13px;margin:0;line-height:1.6">
-        Please log in to your Werzio dashboard and go to <strong>Billing</strong> to submit your payment.
+        Please log in to your Salon Central dashboard and go to <strong>Billing</strong> to submit your payment.
         ${isOverdue ? "<br><br><strong style='color:#dc2626'>Note:</strong> Continued non-payment may result in service suspension." : ""}
       </p>
     </div>
     <div style="background:#f8f8fc;padding:16px 36px;border-top:1px solid #ebebf0;text-align:center;color:#b0b0c8;font-size:11px;line-height:1.6">
-      Werzio · Salon Management Platform<br>
+      Salon Central · Salon Management Platform<br>
       This is an automated billing notification.
     </div>
   </div>
 </body>
 </html>`;
 
-  const text = `Hi ${salonName} team,\n\nYour ${planName} Plan invoice ${invoiceNumber} is ${isOverdue ? "OVERDUE" : "due"} — PKR ${total.toLocaleString()}\nDue date: ${dueDate}\n\nPlease log in to your Werzio dashboard → Billing to submit payment.\n\n— Werzio`;
+  const text = `Hi ${salonName} team,\n\nYour ${planName} Plan invoice ${invoiceNumber} is ${isOverdue ? "OVERDUE" : "due"} — PKR ${total.toLocaleString()}\nDue date: ${dueDate}\n\nPlease log in to your Salon Central dashboard → Billing to submit payment.\n\n— Salon Central`;
 
   try {
     const { data, error } = await resend.emails.send({
-      from: "Werzio Billing <noreply@werzio.com>",
+      from: "Salon Central Billing <noreply@werzio.com>",
       replyTo: "support@werzio.com",
       to: [to],
       subject,

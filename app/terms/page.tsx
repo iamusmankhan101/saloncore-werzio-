@@ -10,7 +10,7 @@ export default function TermsPage() {
       <header style={{ background: "#fff", borderBottom: "1px solid #e8e8f0", padding: "20px 0" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
-            <img src="/Untitled design (5).png" alt="Werzio" style={{ height: 32, width: "auto" }} />
+            <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 32, width: "auto" }} />
           </Link>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
             <ArrowLeft size={16} /> Back to Home
@@ -49,7 +49,7 @@ export default function TermsPage() {
             <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, #7C3AED, #9333EA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <FileText size={20} color="#fff" />
             </div>
-            <h1 style={{ fontSize: 32, fontWeight: 900, color: "#1a1a2e", margin: 0 }}>Werzio.com Terms of Use</h1>
+            <h1 style={{ fontSize: 32, fontWeight: 900, color: "#1a1a2e", margin: 0 }}>Salon Central Terms of Use</h1>
           </div>
           
           <div style={{ fontSize: 13, color: "#9999b0", marginBottom: 40 }}>Last Updated: May 30, 2026</div>
@@ -58,10 +58,10 @@ export default function TermsPage() {
           <section style={{ marginBottom: 40 }}>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1a1a2e", marginBottom: 16 }}>1. Acceptance of Terms</h2>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
-              These Terms of Use ("<strong>Terms</strong>") are an agreement between you, whether personally or on behalf of an entity ("<strong>user</strong>," "<strong>you</strong>" or "<strong>your</strong>") and Werzio ("<strong>Werzio</strong>", "<strong>we</strong>", "<strong>us</strong>" or "<strong>our</strong>"), concerning your access to and use of our website located at <a href="https://app.werzio.com" style={{ color: "#7C3AED", textDecoration: "none" }}>app.werzio.com</a> (collectively, the "<strong>Website</strong>").
+              These Terms of Use ("<strong>Terms</strong>") are an agreement between you, whether personally or on behalf of an entity ("<strong>user</strong>," "<strong>you</strong>" or "<strong>your</strong>") and Salon Central ("<strong>Salon Central</strong>", "<strong>we</strong>", "<strong>us</strong>" or "<strong>our</strong>"), concerning your access to and use of our website located at <a href="https://app.werzio.com" style={{ color: "#7C3AED", textDecoration: "none" }}>app.werzio.com</a> (collectively, the "<strong>Website</strong>").
             </p>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
-              Please note that we offer many services. Your use of Werzio products or services, including without limitation our online business management software platform and related services designed for salons, spas, and other beauty and wellness businesses, are provided by Werzio pursuant to those agreements you enter when you use those products and services.
+              Please note that we offer many services. Your use of Salon Central products or services, including without limitation our online business management software platform and related services designed for salons, spas, and other beauty and wellness businesses, are provided by Salon Central pursuant to those agreements you enter when you use those products and services.
             </p>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
               Please read these Terms carefully before you use the Website.
@@ -83,7 +83,7 @@ export default function TermsPage() {
           <section style={{ marginBottom: 40 }}>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1a1a2e", marginBottom: 16 }}>3. Use of the Website</h2>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
-              Subject to your compliance with these Terms, Werzio grants you a limited, non-exclusive, non-transferable, non-sublicensable license to access and use the Website for your personal or internal business purposes.
+              Subject to your compliance with these Terms, Salon Central grants you a limited, non-exclusive, non-transferable, non-sublicensable license to access and use the Website for your personal or internal business purposes.
             </p>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
               You agree not to:
@@ -102,7 +102,7 @@ export default function TermsPage() {
           <section style={{ marginBottom: 40 }}>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1a1a2e", marginBottom: 16 }}>4. Intellectual Property Rights</h2>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
-              The Website and its entire contents, features, and functionality (including but not limited to all information, software, text, displays, images, video, and audio, and the design, selection, and arrangement thereof) are owned by Werzio, its licensors, or other providers of such material and are protected by Pakistan and international copyright, trademark, patent, trade secret, and other intellectual property or proprietary rights laws.
+              The Website and its entire contents, features, and functionality (including but not limited to all information, software, text, displays, images, video, and audio, and the design, selection, and arrangement thereof) are owned by Salon Central, its licensors, or other providers of such material and are protected by Pakistan and international copyright, trademark, patent, trade secret, and other intellectual property or proprietary rights laws.
             </p>
           </section>
 
@@ -121,7 +121,7 @@ export default function TermsPage() {
           <section style={{ marginBottom: 40 }}>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1a1a2e", marginBottom: 16 }}>6. Limitation of Liability</h2>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
-              In no event shall Werzio, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the Website.
+              In no event shall Salon Central, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the Website.
             </p>
           </section>
 
@@ -154,7 +154,7 @@ export default function TermsPage() {
 
           {/* Footer note */}
           <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid #e8e8f0", fontSize: 13, color: "#9999b0", textAlign: "center" }}>
-            © 2026 Werzio. All rights reserved.
+            © 2026 Salon Central. All rights reserved.
           </div>
         </main>
       </div>

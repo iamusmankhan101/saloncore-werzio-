@@ -10,7 +10,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Werzio — Salon Management",
+  title: "Salon Central — Salon Management",
   description: "WhatsApp-native salon booking & client management platform",
   icons: {
     icon: [

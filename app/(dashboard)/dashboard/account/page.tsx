@@ -675,7 +675,7 @@ function WhatsAppSection() {
         body: JSON.stringify({
           apiKey: form.apiKey,
           phone: form.bookingGroupJid,
-          text: "Werzio booking group connected ✅",
+          text: "Salon Central booking group connected ✅",
         }),
       });
       const data = await res.json();
@@ -983,7 +983,7 @@ function DecidrLoyaltySection() {
       const res  = await fetch("/api/wallet/update-class", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ salonName: salon.name || "Werzio", logoUrl, bgColor: "#5B21B6" }),
+        body: JSON.stringify({ salonName: salon.name || "Salon Central", logoUrl, bgColor: "#5B21B6" }),
       });
       const data = await res.json() as { ok: boolean; message?: string; error?: string };
       if (data.ok) { setStatus("ok");    setMsg(data.message ?? "Card updated!"); }
@@ -997,14 +997,14 @@ function DecidrLoyaltySection() {
     <section>
       <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Loyalty</h2>
       <p style={{ margin: "0 0 28px", color: "#9999b0", fontSize: 12 }}>
-        Manage your Google Wallet loyalty card branding. Push your salon name and Werzio theme to all client passes.
+        Manage your Google Wallet loyalty card branding. Push your salon name and Salon Central theme to all client passes.
       </p>
 
       {/* Google Wallet card preview */}
       <div style={{ marginBottom: 24, borderRadius: 18, overflow: "hidden", background: "linear-gradient(135deg,#5B21B6,#7C3AED)", padding: "22px 24px", color: "#fff", position: "relative" }}>
         <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Google Wallet</div>
         <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 2 }}>{(settingsStore.salon as { name?: string }).name || "Your Salon"} Loyalty</div>
-        <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 18 }}>Powered by Werzio</div>
+        <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 18 }}>Powered by Salon Central</div>
         <div style={{ display: "flex", gap: 16 }}>
           <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 16px", fontSize: 11 }}>
             <div style={{ opacity: 0.7, marginBottom: 2 }}>Points</div>

@@ -275,7 +275,7 @@ export default function SalonInvoicePrint({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 10, color: "#aaa" }}>Powered by</span>
-                  <img src="/werzio%20logo.png" alt="Werzio" style={{ height: 32, width: "auto", filter: "invert(1) brightness(0)" }} />
+                  <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 32, width: "auto" }} />
                 </div>
               </div>
 

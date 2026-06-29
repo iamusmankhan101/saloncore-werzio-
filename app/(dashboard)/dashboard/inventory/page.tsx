@@ -248,7 +248,7 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
       return `${icon} *${item.name}* (${item.brand})\n   Current: ${item.currentStock} ${item.unit} | Min: ${item.minStock} ${item.unit}${item.supplier ? `\n   Supplier: ${item.supplier}` : ""}`;
     }),
     ``,
-    `Please reorder ASAP. — ${salonName || "Werzio Salon"}`,
+    `Please reorder ASAP. — ${salonName || "Salon Central"}`,
   ].join("\n");
 
   const copyToClipboard = () => {

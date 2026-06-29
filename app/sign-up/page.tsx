@@ -11,7 +11,7 @@ import styles from "../auth.module.css";
 const PLANS = [
   {
     id: "pro",
-    name: "Werzio Pro",
+    name: "Salon Central Pro",
     price: "PKR 12,000",
     icon: Building2,
     color: "#7C3AED",
@@ -31,7 +31,7 @@ const PLANS = [
   },
   {
     id: "premium",
-    name: "Werzio Premium",
+    name: "Salon Central Premium",
     price: "PKR 20,000",
     icon: Crown,
     color: "#9333EA",
@@ -178,7 +178,7 @@ export default function SignUpPage() {
         {/* Brand panel */}
         <section className={styles.brandPanel}>
           <div className={styles.brandTop}>
-            <img src="/Untitled design (5).png" alt="Werzio" style={{ height: 85, width: "auto" }} />
+            <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 85, width: "auto" }} />
           </div>
           <div className={styles.brandContent}>
             <div className={styles.eyebrow}>Start organized</div>
@@ -326,7 +326,7 @@ export default function SignUpPage() {
                       placeholder="Enter admin access code" required
                       style={{ flex: 1, padding: "10px 12px", border: "none", outline: "none", fontSize: 13, color: "#1a1a2e", background: "transparent", fontFamily: "inherit" }} />
                   </div>
-                  {codeValid === false && <div style={{ fontSize: 11, color: "#dc2626", marginTop: 5, fontWeight: 600 }}>Invalid access code. Contact Werzio support.</div>}
+                  {codeValid === false && <div style={{ fontSize: 11, color: "#dc2626", marginTop: 5, fontWeight: 600 }}>Invalid access code. Contact Salon Central support.</div>}
                 </div>
 
                 {error && <div className={`${styles.error} ${styles.signupError}`}>{error}</div>}

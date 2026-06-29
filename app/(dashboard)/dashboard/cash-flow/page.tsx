@@ -466,7 +466,7 @@ export default function CashFlowPage() {
       XLSX.utils.book_append_sheet(workbook, cashFlowSheet, "Cash Flow");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(incomeRows), "Income");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(expenseRows), "Expenses");
-      XLSX.writeFile(workbook, `werzio-cash-flow-${rangeStart || "report"}-${filterEnd || "report"}.xlsx`);
+      XLSX.writeFile(workbook, `salon-central-cash-flow-${rangeStart || "report"}-${filterEnd || "report"}.xlsx`);
       setFileMessage({ type: "success", text: "Excel report exported successfully." });
     } catch {
       setFileMessage({ type: "error", text: "Unable to export the Excel report." });
@@ -519,7 +519,7 @@ export default function CashFlowPage() {
 <div class="page">
   <div class="header">
     <div>
-      <img src="/Untitled design (5).png" alt="Werzio" class="logo-img"/>
+      <img src="/salon-central-logo.png" alt="Salon Central" class="logo-img"/>
       <div style="font-size:12px;color:#a0a0b8;margin-top:6px">Salon Management Platform</div>
     </div>
     <div class="report-meta">
@@ -612,7 +612,7 @@ export default function CashFlowPage() {
   </div>
 
   <div class="footer">
-    <div class="footer-txt">Werzio · Salon Management Platform</div>
+    <div class="footer-txt">Salon Central · Salon Management Platform</div>
     <div class="footer-txt">Confidential · For internal use only</div>
   </div>
 </div>

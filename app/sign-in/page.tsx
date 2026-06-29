@@ -68,7 +68,7 @@ export default function SignInPage() {
       <div className={styles.authShell}>
         <section className={styles.brandPanel}>
           <div className={styles.brandTop}>
-            <img src="/Untitled design (5).png" alt="Werzio" style={{ height: 85, width: "auto" }} />
+            <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 85, width: "auto" }} />
           </div>
 
           <div className={styles.brandContent}>
@@ -137,7 +137,7 @@ export default function SignInPage() {
             </button>
 
             <p className={styles.footerText}>
-              New to Werzio? <Link href="/sign-up" className={styles.footerLink}>Create an account</Link>
+              New to Salon Central? <Link href="/sign-up" className={styles.footerLink}>Create an account</Link>
             </p>
           </div>
         </section>

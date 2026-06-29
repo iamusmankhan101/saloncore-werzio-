@@ -278,7 +278,7 @@ export default function MessagesPage() {
           </div>
           <div style={{ fontSize: 22, fontWeight: 900, color: "#1a1a2e", marginBottom: 10 }}>WhatsApp Automation</div>
           <div style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.7, marginBottom: 28 }}>
-            Automated WhatsApp reminders, booking confirmations, follow-ups, and low-stock alerts are available on the <strong>Werzio Pro</strong> and <strong>Werzio Premium</strong> plans.
+            Automated WhatsApp reminders, booking confirmations, follow-ups, and low-stock alerts are available on the <strong>Salon Central Pro</strong> and <strong>Salon Central Premium</strong> plans.
           </div>
           <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", padding: "20px 22px", marginBottom: 24, textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}>
             {["Appointment reminders sent automatically", "Booking confirmation messages", "Post-visit follow-up messages", "Low inventory stock alerts", "Manual WhatsApp sends with templates"].map(f => (

@@ -97,9 +97,9 @@ function VerifyEmailInner() {
     <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f7fb", padding: 24 }}>
       <div style={{ background: "#fff", borderRadius: 20, padding: "40px 36px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.08)", border: "1px solid #ebebf0" }}>
 
-        {/* Real Werzio logo */}
+        {/* Real Salon Central logo */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-          <img src="/Untitled design (5).png" alt="Werzio" style={{ height: 36, width: "auto" }} />
+          <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 36, width: "auto" }} />
         </div>
 
         {state === "loading" && (

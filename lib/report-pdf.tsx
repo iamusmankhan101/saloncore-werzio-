@@ -196,13 +196,13 @@ function DailyReportPDF({ data }: { data: DailyReportData }) {
   const generatedAt = new Date().toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Karachi" }) + " PKT";
 
   return (
-    <Document title={`Daily Report — ${salonName} — ${date}`} author="Werzio">
+    <Document title={`Daily Report — ${salonName} — ${date}`} author="Salon Central">
       <Page size="A4" style={s.page}>
 
         {/* Header */}
         <View style={s.header}>
           <View style={s.headerLeft}>
-            <Text style={s.headerBrand}>Werzio</Text>
+            <Text style={s.headerBrand}>Salon Central</Text>
             <Text style={s.headerSub}>Salon Management Platform</Text>
             <Text style={s.headerSalonName}>{salonName}</Text>
           </View>
@@ -239,7 +239,7 @@ function DailyReportPDF({ data }: { data: DailyReportData }) {
           {!hasData && (
             <View style={s.emptyBox}>
               <Text style={s.emptyTitle}>No POS sales recorded today</Text>
-              <Text style={s.emptySub}>Open the Werzio POS to start recording transactions.</Text>
+              <Text style={s.emptySub}>Open the Salon Central POS to start recording transactions.</Text>
             </View>
           )}
 
@@ -348,7 +348,7 @@ function DailyReportPDF({ data }: { data: DailyReportData }) {
 
         {/* Footer */}
         <View style={s.footer} fixed>
-          <Text style={s.footerBold}>Werzio · Daily Sales Report · {salonName}</Text>
+          <Text style={s.footerBold}>Salon Central · Daily Sales Report · {salonName}</Text>
           <Text style={s.footerText}>Generated {generatedAt}</Text>
         </View>
       </Page>

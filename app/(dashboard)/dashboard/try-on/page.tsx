@@ -96,7 +96,7 @@ function UpgradeWall() {
         <div style={{ fontSize: 11, fontWeight: 800, color: "#9333EA", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Premium Feature</div>
         <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a2e", margin: "0 0 12px" }}>Virtual Try-On (AI)</h1>
         <p style={{ fontSize: 14, color: "#6b6b8a", lineHeight: 1.7, margin: "0 0 24px" }}>
-          Let clients preview hair colors and styles before their appointment using AI. Available exclusively on <strong>Werzio Premium</strong>.
+          Let clients preview hair colors and styles before their appointment using AI. Available exclusively on <strong>Salon Central Premium</strong>.
         </p>
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ede9fe", padding: "18px 20px", marginBottom: 24, display: "flex", flexDirection: "column", gap: 10, textAlign: "left" }}>
           {["AI hair color preview (8 shades)", "Hairstyle simulation (6 styles)", "Nail & skin tone try-on", "Instant client-facing preview link"].map(f => (

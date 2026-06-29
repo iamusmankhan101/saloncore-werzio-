@@ -500,7 +500,7 @@ export function exportClientPdf(
           <div class="footer-logo">W</div>
           <div>
             <div class="footer-salon">${salonName}</div>
-            <div class="footer-powered">Powered by Werzio</div>
+            <div class="footer-powered">Powered by Salon Central</div>
           </div>
         </div>
         <div class="footer-right">
@@ -760,7 +760,7 @@ export function exportStaffPdf(
           <div class="footer-logo">W</div>
           <div>
             <div class="footer-salon">${salonName}</div>
-            <div class="footer-powered">Powered by Werzio</div>
+            <div class="footer-powered">Powered by Salon Central</div>
           </div>
         </div>
         <div class="footer-right">

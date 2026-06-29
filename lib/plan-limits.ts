@@ -1,17 +1,17 @@
 /**
  * lib/plan-limits.ts
  *
- * Single source of truth for Werzio pricing tiers.
+ * Single source of truth for Salon Central pricing tiers.
  * All feature gates and limit checks go through this file.
  *
  * Plans
  *  ┌──────────────┬─────────┬───────────────────────────────────────────────┐
- *  │ Werzio Free  │ 0 PKR   │ Appts 30/mo, POS 5 products, staff 5,         │
+ *  │ Salon Central Free  │ 0 PKR   │ Appts 30/mo, POS 5 products, staff 5,         │
  *  │              │         │ clients 5, invoicing ✓                        │
  *  ├──────────────┼─────────┼───────────────────────────────────────────────┤
- *  │ Werzio Pro   │ 12000   │ Everything unlimited + WhatsApp               │
+ *  │ Salon Central Pro   │ 12000   │ Everything unlimited + WhatsApp               │
  *  ├──────────────┼─────────┼───────────────────────────────────────────────┤
- *  │ Werzio Prem. │ 20000   │ Everything unlimited + WhatsApp + Try-On      │
+ *  │ Salon Central Prem. │ 20000   │ Everything unlimited + WhatsApp + Try-On      │
  *  └──────────────┴─────────┴───────────────────────────────────────────────┘
  */
 
@@ -24,7 +24,7 @@ export type PlanId = "free" | "pro" | "premium";
 export interface PlanConfig {
   id: PlanId;
   name: string;                   // "Free" | "Pro" | "Premium"
-  label: string;                  // "Werzio Free" etc.
+  label: string;                  // "Salon Central Free" etc.
   badge: string;                  // chip label shown in sidebar
   price: number;                  // PKR/month; 0 = free forever
   color: string;                  // brand accent
@@ -53,7 +53,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
   free: {
     id: "free",
     name: "Free",
-    label: "Werzio Free",
+    label: "Salon Central Free",
     badge: "FREE",
     price: 0,
     color: "#6b7280",
@@ -89,7 +89,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
   pro: {
     id: "pro",
     name: "Pro",
-    label: "Werzio Pro",
+    label: "Salon Central Pro",
     badge: "PRO",
     price: 12000,
     color: "#7C3AED",
@@ -129,7 +129,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
   premium: {
     id: "premium",
     name: "Premium",
-    label: "Werzio Premium",
+    label: "Salon Central Premium",
     badge: "PREMIUM",
     price: 20000,
     color: "#9333EA",

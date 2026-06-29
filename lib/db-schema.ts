@@ -1,6 +1,6 @@
 /**
  * lib/db-schema.ts
- * Complete database schema for Werzio salon management system
+ * Complete database schema for Salon Central salon management system
  */
 
 import { db } from "@/lib/db";

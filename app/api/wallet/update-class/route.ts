@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json() as { salonName?: string; logoUrl?: string; bgColor?: string };
 
-  const salonName = (body.salonName || "Werzio").trim();
+  const salonName = (body.salonName || "Salon Central").trim();
   const bgColor   = body.bgColor || "#5B21B6";
   const appOrigin = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
   const logoUrl = `${appOrigin}/api/wallet/program-logo`;

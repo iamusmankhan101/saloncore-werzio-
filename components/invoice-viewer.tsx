@@ -68,12 +68,12 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
           <div className="iv-sheet" style={{ background: "#fff", borderRadius: 4, boxShadow: "0 24px 80px rgba(0,0,0,0.3)", fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
             <div style={{ padding: "52px 56px" }}>
 
-              {/* ── HEADER: Werzio left, INVOICE right ── */}
+              {/* ── HEADER: Salon Central left, INVOICE right ── */}
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 48 }}>
-                {/* Left: Werzio branding */}
+                {/* Left: Salon Central branding */}
                 <div>
-                  <img src="/werzio%20logo.png" alt="Werzio"
-                    style={{ height: 100, width: "auto", display: "block", maxWidth: 300, filter: "invert(1)", marginBottom: 12 }} />
+                  <img src="/salon-central-logo.png" alt="Salon Central"
+                    style={{ height: 100, width: "auto", display: "block", maxWidth: 300, marginBottom: 12 }} />
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
                     <div>Salon Management Software</div>
                     <div>iamusmankhan101@gmail.com</div>
@@ -110,7 +110,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, marginBottom: 40 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 800, color: "#888", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Billed From</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 4 }}>Werzio</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 4 }}>Salon Central</div>
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
                     <div>Salon Management Software</div>
                     <div>iamusmankhan101@gmail.com</div>
@@ -179,9 +179,9 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
               {/* ── FOOTER ── */}
               <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ fontSize: 12, color: "#555" }}>
-                  Thank you for choosing <strong style={{ color: "#111" }}>Werzio</strong> — powering your salon's success.
+                  Thank you for choosing <strong style={{ color: "#111" }}>Salon Central</strong> — powering your salon's success.
                 </div>
-                <img src="/werzio%20logo.png" alt="Werzio" style={{ height: 28, width: "auto", filter: "invert(1) brightness(0)" }} />
+                <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 28, width: "auto" }} />
               </div>
 
             </div>

@@ -1,6 +1,6 @@
 // ─── Salon Client Invoicing ────────────────────────────────────────────────────
 // These invoices are issued by the salon TO its clients (distinct from the
-// platform subscription invoices in lib/invoices.ts which are issued by Werzio
+// platform subscription invoices in lib/invoices.ts which are issued by Salon Central
 // TO the salon owner).
 
 import type { PaymentMethod } from "@/lib/types";

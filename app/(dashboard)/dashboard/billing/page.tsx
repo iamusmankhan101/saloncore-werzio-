@@ -120,7 +120,7 @@ function PlanCard({
             <Icon size={19} color="#fff" />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Werzio</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Salon Central</div>
             <div style={{ fontSize: 19, fontWeight: 900, color: "#fff", lineHeight: 1 }}>{plan.name}</div>
           </div>
         </div>

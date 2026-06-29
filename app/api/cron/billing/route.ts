@@ -61,7 +61,7 @@ function emailBase(title: string, body: string, accentColor = "#7C3AED"): string
 <body style="margin:0;padding:24px 0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif">
   <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e8e8f0;box-shadow:0 4px 20px rgba(0,0,0,0.06)">
     <div style="background:${accentColor};padding:28px 36px">
-      <div style="color:#fff;font-size:22px;font-weight:900">Werzio</div>
+      <div style="color:#fff;font-size:22px;font-weight:900">Salon Central</div>
       <div style="color:rgba(255,255,255,0.8);font-size:12px;margin-top:4px">Salon Management Platform</div>
     </div>
     <div style="padding:32px 36px">
@@ -69,7 +69,7 @@ function emailBase(title: string, body: string, accentColor = "#7C3AED"): string
       ${body}
     </div>
     <div style="background:#f8f8fc;padding:16px 36px;border-top:1px solid #ebebf0;text-align:center;color:#b0b0c8;font-size:11px;line-height:1.6">
-      Werzio · Salon Management Platform<br>
+      Salon Central · Salon Management Platform<br>
       Automated billing notification — <a href="https://werzio.com" style="color:#7C3AED;text-decoration:none">werzio.com</a>
     </div>
   </div>
@@ -110,10 +110,10 @@ function issuedEmail(user: BillingUser, inv: BillingInvoice) {
       </p>
       ${invoiceBox(inv, "#7C3AED")}
       <p style="color:#6b6b8a;font-size:13px;line-height:1.6;margin:0">
-        Please log in to your <strong>Werzio Dashboard → Billing</strong> and submit your payment within 10 days to avoid any interruption in service.
+        Please log in to your <strong>Salon Central Dashboard → Billing</strong> and submit your payment within 10 days to avoid any interruption in service.
       </p>`,
     ),
-    text: `Hi ${user.ownerName},\n\nYour ${user.planName} Plan invoice ${inv.number} has been issued.\nPeriod: ${fmtDate(inv.periodStart)} – ${fmtDate(addDays(inv.periodStart, BILLING_CYCLE_DAYS))}\nAmount: ${fmt(inv.amount)}\nDue: ${fmtDate(inv.dueDate)}\n\nLog in to Werzio → Billing to submit payment.\n\n— Werzio`,
+    text: `Hi ${user.ownerName},\n\nYour ${user.planName} Plan invoice ${inv.number} has been issued.\nPeriod: ${fmtDate(inv.periodStart)} – ${fmtDate(addDays(inv.periodStart, BILLING_CYCLE_DAYS))}\nAmount: ${fmt(inv.amount)}\nDue: ${fmtDate(inv.dueDate)}\n\nLog in to Salon Central → Billing to submit payment.\n\n— Salon Central`,
   };
 }
 
@@ -132,13 +132,13 @@ function overdueEmail(user: BillingUser, inv: BillingInvoice) {
       </p>`,
       "#d97706",
     ),
-    text: `Hi ${user.ownerName},\n\nYour ${user.planName} Plan invoice ${inv.number} is OVERDUE.\nAmount: ${fmt(inv.amount)}\n\nPlease pay now to avoid suspension. Log in to Werzio → Billing.\n\n— Werzio`,
+    text: `Hi ${user.ownerName},\n\nYour ${user.planName} Plan invoice ${inv.number} is OVERDUE.\nAmount: ${fmt(inv.amount)}\n\nPlease pay now to avoid suspension. Log in to Salon Central → Billing.\n\n— Salon Central`,
   };
 }
 
 function suspendedEmail(user: BillingUser, inv: BillingInvoice) {
   return {
-    subject: `🚫 Your Werzio account has been suspended — Invoice ${inv.number} unpaid`,
+    subject: `🚫 Your Salon Central account has been suspended — Invoice ${inv.number} unpaid`,
     html: emailBase(
       "🚫 Account suspended",
       `<p style="color:#6b6b8a;font-size:14px;line-height:1.7;margin:0 0 4px">
@@ -151,7 +151,7 @@ function suspendedEmail(user: BillingUser, inv: BillingInvoice) {
       </p>`,
       "#dc2626",
     ),
-    text: `Hi ${user.ownerName},\n\nYour Werzio account has been SUSPENDED due to non-payment of invoice ${inv.number} (${fmt(inv.amount)}).\n\nLog in to Werzio → Billing and submit your payment to restore access.\n\n— Werzio`,
+    text: `Hi ${user.ownerName},\n\nYour Salon Central account has been SUSPENDED due to non-payment of invoice ${inv.number} (${fmt(inv.amount)}).\n\nLog in to Salon Central → Billing and submit your payment to restore access.\n\n— Salon Central`,
   };
 }
 
@@ -179,7 +179,7 @@ async function runDaily(resend: Resend): Promise<{ invoicesGenerated: number; em
         const mail = issuedEmail(user, result.invoice);
         try {
           const { error } = await resend.emails.send({
-            from: "Werzio Billing <noreply@werzio.com>",
+            from: "Salon Central Billing <noreply@werzio.com>",
             replyTo: "support@werzio.com",
             to: [user.email],
             subject: mail.subject,
@@ -215,7 +215,7 @@ async function runDaily(resend: Resend): Promise<{ invoicesGenerated: number; em
       const mail = overdueEmail(user, inv);
       try {
         const { error } = await resend.emails.send({
-          from: "Werzio Billing <noreply@werzio.com>",
+          from: "Salon Central Billing <noreply@werzio.com>",
           replyTo: "support@werzio.com",
           to: [user.email],
           subject: mail.subject,
@@ -244,7 +244,7 @@ async function runDaily(resend: Resend): Promise<{ invoicesGenerated: number; em
         const mail = suspendedEmail(user, inv);
         try {
           const { error } = await resend.emails.send({
-            from: "Werzio Billing <noreply@werzio.com>",
+            from: "Salon Central Billing <noreply@werzio.com>",
             replyTo: "support@werzio.com",
             to: [user.email],
             subject: mail.subject,

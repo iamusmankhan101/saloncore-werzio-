@@ -341,7 +341,7 @@ export default function RevenuePage() {
 <html>
 <head>
   <meta charset="UTF-8"/>
-  <title>Werzio ${pdfTitle}</title>
+  <title>Salon Central ${pdfTitle}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -395,7 +395,7 @@ export default function RevenuePage() {
 <div class="page">
   <div class="header">
     <div>
-      <img src="/Untitled design (5).png" alt="Werzio" class="logo-img" />
+      <img src="/salon-central-logo.png" alt="Salon Central" class="logo-img" />
       <div class="logo-sub">Salon Management Platform</div>
     </div>
     <div class="report-meta">
@@ -504,7 +504,7 @@ export default function RevenuePage() {
   </div>
 
   <div class="footer">
-    <div class="footer-txt">Werzio · Salon Management Platform</div>
+    <div class="footer-txt">Salon Central · Salon Management Platform</div>
     <div class="footer-txt">Confidential · For internal use only</div>
   </div>
 </div>

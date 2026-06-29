@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#5B21B6 0%,#9333EA 100%);padding:32px 36px">
-      <div style="color:#ffffff;font-size:24px;font-weight:900;letter-spacing:-0.5px">Werzio</div>
+      <div style="color:#ffffff;font-size:24px;font-weight:900;letter-spacing:-0.5px">Salon Central</div>
       <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:4px">Salon Management Platform</div>
     </div>
 
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       <div style="font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:10px">Verify your email address</div>
       <p style="color:#6b6b8a;font-size:14px;line-height:1.75;margin:0 0 28px">
         Hi ${name || "there"},<br>
-        Thanks for signing up for <strong style="color:#7C3AED">Werzio</strong>!
+        Thanks for signing up for <strong style="color:#7C3AED">Salon Central</strong>!
         Click the button below to verify your email address and activate your account.
       </p>
 
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 
       <p style="color:#9898b0;font-size:12px;margin-top:28px;line-height:1.65">
         This link expires in <strong>24 hours</strong>.
-        If you didn't create a Werzio account, you can safely ignore this email.
+        If you didn't create a Salon Central account, you can safely ignore this email.
       </p>
 
       <!-- Fallback URL -->
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
 
     <!-- Footer -->
     <div style="background:#f8f8fc;padding:16px 36px;border-top:1px solid #ebebf0;text-align:center;color:#b0b0c8;font-size:11px;line-height:1.6">
-      Werzio · Salon Management Platform<br>
+      Salon Central · Salon Management Platform<br>
       You're receiving this because you signed up at werzio.com
     </div>
   </div>
@@ -119,13 +119,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: "Werzio <noreply@werzio.com>",
+      from: "Salon Central <noreply@werzio.com>",
       replyTo: "support@werzio.com",
       to: [email],
-      subject: "Verify your Werzio account ✓",
+      subject: "Verify your Salon Central account ✓",
       html,
       // Plain-text fallback for spam filters that inspect text/plain
-      text: `Hi ${name || "there"},\n\nThanks for signing up for Werzio!\n\nVerify your email by visiting this link:\n${verifyUrl}\n\nThis link expires in 24 hours.\n\nIf you didn't create a Werzio account, ignore this email.\n\n— The Werzio Team`,
+      text: `Hi ${name || "there"},\n\nThanks for signing up for Salon Central!\n\nVerify your email by visiting this link:\n${verifyUrl}\n\nThis link expires in 24 hours.\n\nIf you didn't create a Salon Central account, ignore this email.\n\n— The Salon Central Team`,
     });
 
     if (error) {

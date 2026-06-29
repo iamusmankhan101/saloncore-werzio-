@@ -199,7 +199,7 @@ function buildReportEmail(
     <div style="background:linear-gradient(135deg,#5B21B6,#9333EA);padding:28px 36px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
-          <div style="color:#fff;font-size:24px;font-weight:900;letter-spacing:-0.5px">Werzio</div>
+          <div style="color:#fff;font-size:24px;font-weight:900;letter-spacing:-0.5px">Salon Central</div>
           <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:2px">Salon Management Platform</div>
         </div>
         <div style="text-align:right">
@@ -262,12 +262,12 @@ function buildReportEmail(
       `}
 
       <p style="color:#9898b0;font-size:12px;line-height:1.7;margin:24px 0 0;padding-top:20px;border-top:1px solid #f0f0f8">
-        Hi ${ownerName}, this is your automated end-of-day summary. Log in to your <strong>Werzio dashboard</strong> for full reports and analytics.
+        Hi ${ownerName}, this is your automated end-of-day summary. Log in to your <strong>Salon Central dashboard</strong> for full reports and analytics.
       </p>
     </div>
 
     <div style="background:#f8f8fc;padding:16px 36px;border-top:1px solid #ebebf0;text-align:center;color:#b0b0c8;font-size:11px;line-height:1.7">
-      Werzio · Salon Management Platform · <a href="https://werzio.com" style="color:#7C3AED;text-decoration:none">werzio.com</a><br>
+      Salon Central · Salon Management Platform · <a href="https://werzio.com" style="color:#7C3AED;text-decoration:none">werzio.com</a><br>
       Automated daily report — generated ${new Date().toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Karachi" })} PKT
     </div>
   </div>
@@ -279,8 +279,8 @@ function buildReportEmail(
       `Transactions: ${paid.length} (${unpaid.length} unpaid)\n` +
       `Revenue: ${pkr(revenue)}\nOutstanding: ${pkr(outstanding)}\nAvg Ticket: ${pkr(avgTicket)}\n\n` +
       `Top Items:\n${topItems.map(([n, d]) => `  • ${n}: ${d.qty}× — ${pkr(d.revenue)}`).join("\n")}\n\n` +
-      `— Werzio`
-    : `Daily Sales Report — ${salonName}\n${fmtDate(date)}\n\nNo POS transactions recorded today.\n\n— Werzio`;
+      `— Salon Central`
+    : `Daily Sales Report — ${salonName}\n${fmtDate(date)}\n\nNo POS transactions recorded today.\n\n— Salon Central`;
 
   return { subject, html, text };
 }
@@ -335,7 +335,7 @@ export async function GET(req: NextRequest) {
 
     try {
       const { error } = await resend.emails.send({
-        from:    "Werzio Reports <noreply@werzio.com>",
+        from:    "Salon Central Reports <noreply@werzio.com>",
         replyTo: "support@werzio.com",
         to:      [toEmail],
         subject,

@@ -63,14 +63,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const pathname = usePathname();
   const router   = useRouter();
   const [user,      setUser]      = useState<AuthUser | null>(null);
-  const [salonName, setSalonName] = useState("Werzio Salon");
+  const [salonName, setSalonName] = useState("Salon Central");
   const [planBadge, setPlanBadge] = useState({ badge: "FREE", color: "#6b7280", bg: "#f9fafb" });
 
   useEffect(() => {
     function sync() {
       reloadSettings();
       setUser(getCurrentUser());
-      setSalonName(settingsStore.salon.name || getCurrentUser()?.salonName || "Werzio Salon");
+      setSalonName(settingsStore.salon.name || getCurrentUser()?.salonName || "Salon Central");
       const plan = getCurrentPlan();
       setPlanBadge({ badge: plan.badge, color: plan.color, bg: plan.bg });
     }
@@ -202,8 +202,8 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
               <X size={15} />
             </button>
             <img
-              src="/Untitled design (5).png"
-              alt="Werzio"
+              src="/salon-central-logo.png"
+              alt="Salon Central"
               className="sidebar-logo"
               style={{ userSelect: "none", pointerEvents: "none" }}
             />

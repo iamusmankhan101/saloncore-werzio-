@@ -9,7 +9,7 @@ export default function DataProcessingPage() {
       <header style={{ background: "#fff", borderBottom: "1px solid #e8e8f0", padding: "20px 0" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
-            <img src="/Untitled design (5).png" alt="Werzio" style={{ height: 32, width: "auto" }} />
+            <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 32, width: "auto" }} />
           </Link>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
             <ArrowLeft size={16} /> Back to Home
@@ -39,11 +39,11 @@ export default function DataProcessingPage() {
           <div style={{ fontSize: 13, color: "#9999b0", marginBottom: 40 }}>Last Updated: May 30, 2026</div>
           
           <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563" }}>
-            This Data Processing Agreement outlines how Werzio processes and protects your data in compliance with applicable data protection laws.
+            This Data Processing Agreement outlines how Salon Central processes and protects your data in compliance with applicable data protection laws.
           </p>
           
           <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid #e8e8f0", fontSize: 13, color: "#9999b0", textAlign: "center" }}>
-            © 2026 Werzio. All rights reserved.
+            © 2026 Salon Central. All rights reserved.
           </div>
         </main>
       </div>

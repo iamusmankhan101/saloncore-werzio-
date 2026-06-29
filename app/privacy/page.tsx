@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       <header style={{ background: "#fff", borderBottom: "1px solid #e8e8f0", padding: "20px 0" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
-            <img src="/Untitled design (5).png" alt="Werzio" style={{ height: 32, width: "auto" }} />
+            <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 32, width: "auto" }} />
           </Link>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
             <ArrowLeft size={16} /> Back to Home
@@ -57,7 +57,7 @@ export default function PrivacyPage() {
           {/* Introduction */}
           <section style={{ marginBottom: 40 }}>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
-              At Werzio ("<strong>we</strong>", "<strong>us</strong>", or "<strong>our</strong>"), we are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website <a href="https://app.werzio.com" style={{ color: "#7C3AED", textDecoration: "none" }}>app.werzio.com</a> and use our services.
+              At Salon Central ("<strong>we</strong>", "<strong>us</strong>", or "<strong>our</strong>"), we are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website <a href="https://app.werzio.com" style={{ color: "#7C3AED", textDecoration: "none" }}>app.werzio.com</a> and use our services.
             </p>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563" }}>
               Please read this Privacy Policy carefully. If you do not agree with the terms of this Privacy Policy, please do not access the site or use our services.
@@ -226,7 +226,7 @@ export default function PrivacyPage() {
 
           {/* Footer note */}
           <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid #e8e8f0", fontSize: 13, color: "#9999b0", textAlign: "center" }}>
-            © 2026 Werzio. All rights reserved.
+            © 2026 Salon Central. All rights reserved.
           </div>
         </main>
       </div>

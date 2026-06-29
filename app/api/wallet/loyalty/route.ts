@@ -58,7 +58,7 @@ async function getSalonInfo(salonId: string): Promise<{ name: string; settings: 
     } catch { /* fall through */ }
   }
   return {
-    name: name || "Werzio Salon",
+    name: name || "Salon Central",
     settings: { ...defaultLoyalty, ...(settings.loyalty || {}) },
   };
 }

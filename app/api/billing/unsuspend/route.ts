@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 <body style="margin:0;padding:24px 0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif">
   <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e8e8f0">
     <div style="background:#059669;padding:28px 36px">
-      <div style="color:#fff;font-size:22px;font-weight:900">Werzio</div>
+      <div style="color:#fff;font-size:22px;font-weight:900">Salon Central</div>
       <div style="color:rgba(255,255,255,0.8);font-size:12px;margin-top:4px">Salon Management Platform</div>
     </div>
     <div style="padding:32px 36px">
@@ -79,19 +79,19 @@ export async function POST(req: NextRequest) {
       </div>
     </div>
     <div style="background:#f8f8fc;padding:16px 36px;border-top:1px solid #ebebf0;text-align:center;color:#b0b0c8;font-size:11px">
-      Werzio · Automated billing notification · <a href="https://werzio.com" style="color:#7C3AED;text-decoration:none">werzio.com</a>
+      Salon Central · Automated billing notification · <a href="https://werzio.com" style="color:#7C3AED;text-decoration:none">werzio.com</a>
     </div>
   </div>
 </body>
 </html>`;
 
       await resend.emails.send({
-        from: "Werzio Billing <noreply@werzio.com>",
+        from: "Salon Central Billing <noreply@werzio.com>",
         replyTo: "support@werzio.com",
         to: [user.email],
-        subject: `✅ Your Werzio account is restored — Payment confirmed`,
+        subject: `✅ Your Salon Central account is restored — Payment confirmed`,
         html,
-        text: `Hi ${user.ownerName},\n\nYour payment has been confirmed and your ${user.planName} Plan is now active. Full dashboard access has been restored.\n\nThank you!\n— Werzio`,
+        text: `Hi ${user.ownerName},\n\nYour payment has been confirmed and your ${user.planName} Plan is now active. Full dashboard access has been restored.\n\nThank you!\n— Salon Central`,
       }).catch((e) => console.error("[billing/unsuspend] email error:", e));
     }
 

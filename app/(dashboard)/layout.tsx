@@ -68,7 +68,7 @@ function SuspensionGate({ reason }: { reason: string | null }) {
         {/* Body */}
         <div style={{ padding: "28px 32px" }}>
           <p style={{ fontSize: 14, color: "#4a4a6a", lineHeight: 1.75, margin: "0 0 20px" }}>
-            Your Werzio plan has been <strong style={{ color: "#dc2626" }}>suspended</strong> due to a missed invoice payment.
+            Your Salon Central plan has been <strong style={{ color: "#dc2626" }}>suspended</strong> due to a missed invoice payment.
             Your data is safe — access will be restored within minutes of payment confirmation.
           </p>
 
@@ -426,7 +426,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           className="bottom-nav-logo-badge"
           aria-label="Open menu"
         >
-          <img src="/Untitled design (5).png" alt="Werzio" />
+          <img src="/salon-central-logo.png" alt="Salon Central" />
         </button>
 
         {/* Right tabs */}
@@ -452,7 +452,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Bottom-right persistent alert badges (stacked) */}
       <div style={{ position: "fixed", bottom: 90, right: 16, zIndex: 9998, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
 
-        {/* Werzio subscription invoice reminder */}
+        {/* Salon Central subscription invoice reminder */}
         {unpaidInvoice && !invoiceBadgeDismissed && (
           <div style={{
             background: "#fff",
@@ -491,7 +491,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Invoice detail */}
             <div style={{ padding: "12px 14px" }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e", marginBottom: 2 }}>
-                Werzio Subscription
+                Salon Central Subscription
               </div>
               <div style={{ fontSize: 11, color: "#9898b0", marginBottom: 10 }}>
                 {unpaidInvoice.number} · Due {unpaidInvoice.dueDate}

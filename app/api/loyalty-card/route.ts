@@ -166,7 +166,7 @@ function cardPayload(client: Client, settings: LoyaltySettings, salon: SalonSett
   const next = nextTierThreshold(earned, settings);
   return {
     salon: {
-      name: salon?.name || "Werzio Salon",
+      name: salon?.name || "Salon Central",
       phone: salon?.phone || "",
       email: salon?.email || "",
       logo: salon?.logo || "",
@@ -200,7 +200,7 @@ export async function GET(req: NextRequest) {
     if (!phone) {
       return Response.json({
         ok: true,
-        salon: settings.salon || { name: "Werzio Salon" },
+        salon: settings.salon || { name: "Salon Central" },
         settings: loyalty,
       }, noCache);
     }
@@ -210,7 +210,7 @@ export async function GET(req: NextRequest) {
     if (!client) {
       return Response.json({
         ok: true,
-        salon: settings.salon || { name: "Werzio Salon" },
+        salon: settings.salon || { name: "Salon Central" },
         settings: loyalty,
         client: null,
       }, noCache);

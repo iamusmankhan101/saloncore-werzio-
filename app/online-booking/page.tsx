@@ -229,7 +229,7 @@ function OnlineBookingInner() {
       <header className="topNavbar">
         <div className="brandLogoArea">
           <div className="brandLogoText" suppressHydrationWarning>{salonName}</div>
-          <div className="brandPoweredBy">powered by <span className="brandPoweredByName">werzio</span></div>
+          <div className="brandPoweredBy">powered by <span className="brandPoweredByName">Salon Central</span></div>
         </div>
       </header>
 
