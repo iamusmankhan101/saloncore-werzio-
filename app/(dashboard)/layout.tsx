@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, FileText, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff } from "lucide-react";
+import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff } from "lucide-react";
 import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
@@ -253,30 +253,84 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // New booking popup + chime
   useEffect(() => {
+    if (!isReady) return;
+
     function showBookingAlert(detail: { clientName: string; serviceNames: string[]; date: string; startTime: string; totalAmount: number }) {
       playChime();
       const alertId = Date.now();
       setBookingAlerts((prev) => [...prev, { ...detail, alertId }]);
     }
 
-    // Same-tab: custom event (edge case where booking and dashboard share a window)
-    function onNewBooking(e: Event) {
-      showBookingAlert((e as CustomEvent).detail);
+    // BroadcastChannel — propagates to ALL open tabs in the same browser instantly
+    const channel = new BroadcastChannel("werzio_booking_alerts");
+    channel.onmessage = (e: MessageEvent) => {
+      try { showBookingAlert(e.data); } catch { /* ignore */ }
+    };
+
+    function broadcast(detail: { clientName: string; serviceNames: string[]; date: string; startTime: string; totalAmount: number }) {
+      showBookingAlert(detail);
+      channel.postMessage(detail); // notify every other open tab
     }
 
-    // Cross-tab: localStorage storage event fires on every OTHER tab when the key changes
+    // Same-tab: custom event (when booking page and dashboard share a window)
+    function onNewBooking(e: Event) {
+      broadcast((e as CustomEvent).detail);
+    }
+
+    // Cross-tab fallback: localStorage storage event (same browser, different tab)
     function onStorage(e: StorageEvent) {
       if (e.key !== "werzio_new_booking_notify" || !e.newValue) return;
-      try { showBookingAlert(JSON.parse(e.newValue)); } catch { /* ignore */ }
+      try { broadcast(JSON.parse(e.newValue)); } catch { /* ignore */ }
     }
 
     window.addEventListener("werzio_new_booking_alert", onNewBooking);
     window.addEventListener("storage", onStorage);
+
+    // Poll for new online bookings every 30 s — catches bookings from external devices
+    const user = getCurrentUser();
+    let lastSeenId: string | null = null;
+
+    async function pollNewBookings() {
+      if (!user) return;
+      try {
+        const res = await fetch(`/api/public/salon?salonId=${encodeURIComponent(user.id)}`);
+        if (!res.ok) return;
+        const data = await res.json() as { ok: boolean; appointments?: Array<{ id: string; clientName: string; serviceNames: string[]; date: string; startTime: string; totalAmount: number; source?: string }> };
+        if (!data.ok || !Array.isArray(data.appointments) || data.appointments.length === 0) return;
+
+        const latest = data.appointments[0]; // newest is first (prepended on save)
+        if (lastSeenId === null) {
+          // First poll — just record the baseline, don't fire popup
+          lastSeenId = latest.id;
+          return;
+        }
+        if (latest.id !== lastSeenId) {
+          // New booking detected — find all we haven't seen yet
+          const newOnes = data.appointments.filter((a) => a.id !== lastSeenId);
+          lastSeenId = latest.id;
+          for (const appt of newOnes) {
+            broadcast({
+              clientName:   appt.clientName,
+              serviceNames: appt.serviceNames ?? [],
+              date:         appt.date,
+              startTime:    appt.startTime,
+              totalAmount:  appt.totalAmount ?? 0,
+            });
+          }
+        }
+      } catch { /* network error — try again next tick */ }
+    }
+
+    pollNewBookings(); // run immediately to set baseline
+    const pollInterval = window.setInterval(pollNewBookings, 30_000);
+
     return () => {
       window.removeEventListener("werzio_new_booking_alert", onNewBooking);
       window.removeEventListener("storage", onStorage);
+      channel.close();
+      window.clearInterval(pollInterval);
     };
-  }, []);
+  }, [isReady]);
 
   if (!isReady) {
     return (
