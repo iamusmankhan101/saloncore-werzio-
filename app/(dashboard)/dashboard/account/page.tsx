@@ -552,6 +552,7 @@ function WhatsAppSection() {
   const [testing, setTesting] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [groups, setGroups] = useState<{ jid: string; name: string }[]>([]);
+  const [groupInviteLink, setGroupInviteLink] = useState("");
   const [connectionState, setConnectionState] = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
@@ -657,6 +658,40 @@ function WhatsAppSection() {
     }
   }
 
+  async function addGroupFromInvite() {
+    if (!form.apiKey || !groupInviteLink.trim()) {
+      setTestResult({ ok: false, msg: "Enter your API key and the WhatsApp group invite link." });
+      return;
+    }
+    setLoadingGroups(true);
+    setTestResult(null);
+    try {
+      const response = await fetch("/api/whatsapp/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: form.apiKey, inviteLink: groupInviteLink.trim() }),
+      });
+      const data = await response.json() as {
+        ok?: boolean;
+        group?: { jid: string; name: string };
+        error?: string;
+      };
+      if (!response.ok || !data.ok || !data.group) {
+        setTestResult({ ok: false, msg: data.error || "Unable to resolve the group invite link." });
+        return;
+      }
+      setGroups((current) => current.some((group) => group.jid === data.group!.jid)
+        ? current
+        : [...current, data.group!].sort((a, b) => a.name.localeCompare(b.name)));
+      set("bookingGroupJid", data.group.jid);
+      setTestResult({ ok: true, msg: `${data.group.name} selected from its invite link. Save settings to keep it.` });
+    } catch {
+      setTestResult({ ok: false, msg: "Could not resolve the group invite link." });
+    } finally {
+      setLoadingGroups(false);
+    }
+  }
+
   const isConnected = !!form.apiKey && connectionState !== "disconnected";
 
   return (
@@ -723,6 +758,22 @@ function WhatsAppSection() {
                 style={{ whiteSpace: "nowrap", border: "1px solid var(--accent)", background: "#fff", color: "var(--accent)", borderRadius: 9, padding: "8px 14px", fontSize: 12, fontWeight: 800, cursor: loadingGroups ? "wait" : "pointer" }}
               >
                 {loadingGroups ? "Loading..." : "Load Groups"}
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <input
+                style={{ ...inputStyle, flex: 1 }}
+                value={groupInviteLink}
+                onChange={(e) => setGroupInviteLink(e.target.value)}
+                placeholder="Or paste https://chat.whatsapp.com/..."
+              />
+              <button
+                type="button"
+                onClick={addGroupFromInvite}
+                disabled={loadingGroups}
+                style={{ whiteSpace: "nowrap", border: "1px solid #ddd6fe", background: "#f5f3ff", color: "var(--accent)", borderRadius: 9, padding: "8px 14px", fontSize: 12, fontWeight: 800, cursor: loadingGroups ? "wait" : "pointer" }}
+              >
+                Use Invite Link
               </button>
             </div>
           </Field>

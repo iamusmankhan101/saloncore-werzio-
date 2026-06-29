@@ -10,7 +10,7 @@ interface WaSenderGroup {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({})) as { apiKey?: string };
+  const body = await request.json().catch(() => ({})) as { apiKey?: string; inviteLink?: string };
   const apiKey = body.apiKey || process.env.WASENDER_API_KEY || "";
 
   if (!apiKey) {
@@ -18,6 +18,37 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (body.inviteLink) {
+      const match = body.inviteLink.trim().match(/chat\.whatsapp\.com\/([A-Za-z0-9_-]+)/i);
+      if (!match?.[1]) {
+        return Response.json({ ok: false, error: "Enter a valid WhatsApp group invite link." }, { status: 400 });
+      }
+      const inviteResponse = await fetch(
+        `https://www.wasenderapi.com/api/groups/invite/${encodeURIComponent(match[1])}`,
+        { headers: { Authorization: `Bearer ${apiKey}` }, cache: "no-store" },
+      );
+      const invitePayload = await inviteResponse.json().catch(() => ({})) as {
+        success?: boolean;
+        data?: { id?: string; jid?: string; subject?: string; name?: string };
+        message?: string;
+        error?: string;
+      };
+      const jid = invitePayload.data?.jid || invitePayload.data?.id || "";
+      if (!inviteResponse.ok || invitePayload.success === false || !jid.endsWith("@g.us")) {
+        return Response.json({
+          ok: false,
+          error: invitePayload.message || invitePayload.error || "WaSender could not resolve this group invite link.",
+        }, { status: inviteResponse.status || 502 });
+      }
+      return Response.json({
+        ok: true,
+        group: {
+          jid,
+          name: invitePayload.data?.subject || invitePayload.data?.name || "WhatsApp Group",
+        },
+      });
+    }
+
     const response = await fetch("https://www.wasenderapi.com/api/groups?paginated=false", {
       headers: { Authorization: `Bearer ${apiKey}` },
       cache: "no-store",
