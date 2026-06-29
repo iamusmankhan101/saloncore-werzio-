@@ -552,6 +552,7 @@ function WhatsAppSection() {
   const [testing, setTesting] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [groups, setGroups] = useState<{ jid: string; name: string }[]>([]);
+  const [connectionState, setConnectionState] = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   function set<K extends keyof WhatsAppSettings>(key: K, value: WhatsAppSettings[K]) {
@@ -573,22 +574,17 @@ function WhatsAppSection() {
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch("/api/whatsapp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiKey: form.apiKey,
-          phone: form.ownerPhone || "923000000000",
-          text: "Test connection from Werzio ✅",
-        }),
-      });
+      const res = await fetch(`/api/whatsapp/status?force=1&apiKey=${encodeURIComponent(form.apiKey)}`);
       const data = await res.json();
-      if (data.ok) {
-        setTestResult({ ok: true, msg: "Connected! Test message sent to your number." });
+      if (data.connected) {
+        setConnectionState("connected");
+        setTestResult({ ok: true, msg: "Connected! The salon WhatsApp session is active." });
       } else {
-        setTestResult({ ok: false, msg: `Failed (status ${data.status ?? res.status}). Check your API key.` });
+        setConnectionState("disconnected");
+        setTestResult({ ok: false, msg: data.message || "Session disconnected. Reconnect it in WaSender and copy its current API key." });
       }
     } catch {
+      setConnectionState("disconnected");
       setTestResult({ ok: false, msg: "Could not reach WaSender API. Check your internet connection." });
     }
     setTesting(false);
@@ -660,7 +656,7 @@ function WhatsAppSection() {
     }
   }
 
-  const isConnected = !!form.apiKey;
+  const isConnected = !!form.apiKey && connectionState !== "disconnected";
 
   return (
     <section>
@@ -675,7 +671,7 @@ function WhatsAppSection() {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: isConnected ? "var(--accent)" : "#d1d1e0" }} />
           <span style={{ fontSize: 13, fontWeight: 700, color: isConnected ? "var(--accent)" : "#9999b0" }}>
-            {isConnected ? "WhatsApp Connected" : "Not configured"}
+            {!form.apiKey ? "Not configured" : connectionState === "disconnected" ? "WhatsApp Disconnected" : connectionState === "connected" ? "WhatsApp Connected" : "WhatsApp Configured"}
           </span>
         </div>
         {isConnected && <span style={{ fontSize: 11, color: "#9999b0" }}>Scheduler runs every 60 seconds</span>}

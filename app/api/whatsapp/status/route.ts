@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const res = await fetch("https://www.wasenderapi.com/api/session-status", {
+    const res = await fetch("https://www.wasenderapi.com/api/status", {
       method: "GET",
       headers: { "Authorization": `Bearer ${apiKey}`, "Accept": "application/json" },
       cache: "no-store",
@@ -31,10 +31,9 @@ export async function GET(request: NextRequest) {
 
     const contentType = res.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
-      // Endpoint returned HTML — store as unknown, don't flip banner to red
-      const result = { connected: true, status: "UNKNOWN", message: "Status endpoint unavailable — assuming connected" };
+      const result = { connected: false, status: "UNKNOWN", message: "WaSender status endpoint returned an invalid response." };
       cache.set(apiKey, { ...result, ts: Date.now() });
-      return Response.json({ ok: true, ...result });
+      return Response.json({ ok: false, ...result }, { status: 502 });
     }
 
     const body = await res.json() as {
@@ -44,11 +43,11 @@ export async function GET(request: NextRequest) {
     console.log("📶 WaSender status:", res.status, JSON.stringify(body));
 
     const rawStatus = (body.data?.status ?? body.status ?? "").toUpperCase();
-    const connected  = res.ok && (body.success === true || rawStatus === "CONNECTED");
+    const connected  = res.ok && rawStatus === "CONNECTED";
     const result = {
       connected,
       status: rawStatus || (connected ? "CONNECTED" : "DISCONNECTED"),
-      message: body.message ?? (connected ? "Session active" : "Session not connected"),
+      message: body.message ?? (connected ? "Session active" : `Session is ${rawStatus.toLowerCase() || "not connected"}`),
     };
     cache.set(apiKey, { ...result, ts: Date.now() });
     return Response.json({ ok: connected, ...result });
@@ -58,7 +57,6 @@ export async function GET(request: NextRequest) {
     if (cached) {
       return Response.json({ ok: cached.connected, connected: cached.connected, status: cached.status, message: cached.message, stale: true });
     }
-    // No cache at all — assume connected so we don't show a false banner
-    return Response.json({ ok: true, connected: true, status: "UNKNOWN", message: "Could not reach WaSender — assuming connected", error: String(err) });
+    return Response.json({ ok: false, connected: false, status: "UNKNOWN", message: "Could not reach WaSender.", error: String(err) }, { status: 502 });
   }
 }
