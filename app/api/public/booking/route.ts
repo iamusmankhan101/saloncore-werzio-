@@ -132,6 +132,8 @@ export async function POST(req: NextRequest) {
         : {};
 
       const apiKey: string = settings?.wasender?.apiKey || process.env.WASENDER_API_KEY || "";
+      const bookingGroupJid: string = settings?.wasender?.bookingGroupJid?.trim() || "";
+      const autoGroupBooking: boolean = settings?.wasender?.autoGroupBooking === true;
       const salonName: string = settings?.salon?.name || "the salon";
       const tpl = settings?.whatsapp ?? {};
 
@@ -170,6 +172,22 @@ export async function POST(req: NextRequest) {
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
             body: JSON.stringify({ to: toE164(phone), text: confirmText }),
           });
+        }
+
+        // Salon group alert — sent from the same connected WaSender/WhatsApp session.
+        if (autoGroupBooking && bookingGroupJid.endsWith("@g.us")) {
+          const groupTpl: string =
+            tpl.newBooking ||
+            "📅 New Booking! {{name}} has booked {{service}} on {{date}} at {{time}} at {{salon_name}}. Total: PKR {{amount}}.";
+          const groupText = fillTemplate(groupTpl, vars);
+          const groupResponse = await fetch("https://www.wasenderapi.com/api/send-message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({ to: bookingGroupJid, text: groupText }),
+          });
+          if (!groupResponse.ok) {
+            console.warn("[public/booking] WhatsApp group alert failed:", groupResponse.status);
+          }
         }
 
       }

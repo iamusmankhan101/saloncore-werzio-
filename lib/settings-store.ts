@@ -26,6 +26,7 @@ const defaults = {
   wasender: {
     apiKey: "",
     ownerPhone: "",
+    bookingGroupJid: "",
     autoReminder: true,
     reminderHours: 24,
     autoConfirmation: true,
@@ -36,6 +37,7 @@ const defaults = {
     cancelDiscount: "10%",
     autoLowStock: true,
     autoNewBooking: true,
+    autoGroupBooking: false,
   },
   hours: [
     { day: "Monday",    open: true,  from: "09:00", to: "20:00" },

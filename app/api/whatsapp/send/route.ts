@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ ok: false, error: "Missing required fields: phone, text" }, { status: 400 });
   }
 
-  const to = phone.startsWith("+") ? phone : `+${phone}`;
+  const to = phone.endsWith("@g.us") || phone.startsWith("+") ? phone : `+${phone}`;
 
   console.log("📱 WaSender send to:", to, "| text:", text.slice(0, 60));
 

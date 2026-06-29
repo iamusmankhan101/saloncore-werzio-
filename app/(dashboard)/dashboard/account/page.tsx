@@ -435,6 +435,7 @@ function Security() {
 interface WhatsAppSettings {
   apiKey: string;
   ownerPhone: string;
+  bookingGroupJid: string;
   autoReminder: boolean;
   reminderHours: number;
   autoConfirmation: boolean;
@@ -444,6 +445,7 @@ interface WhatsAppSettings {
   cancellationDelayMinutes: number;
   cancelDiscount: string;
   autoLowStock: boolean;
+  autoGroupBooking: boolean;
 }
 
 const DELAY_PRESETS = [
@@ -590,6 +592,33 @@ function WhatsAppSection() {
     setTesting(false);
   }
 
+  async function testGroup() {
+    if (!form.apiKey || !form.bookingGroupJid?.endsWith("@g.us")) {
+      setTestResult({ ok: false, msg: "Enter an API key and a valid Group ID ending in @g.us." });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiKey: form.apiKey,
+          phone: form.bookingGroupJid,
+          text: "Werzio booking group connected ✅",
+        }),
+      });
+      const data = await res.json();
+      setTestResult(data.ok
+        ? { ok: true, msg: "Connected! Test message sent to the booking group." }
+        : { ok: false, msg: `Group test failed (status ${data.status ?? res.status}). Check the Group ID.` });
+    } catch {
+      setTestResult({ ok: false, msg: "Could not reach WaSender API. Check your internet connection." });
+    }
+    setTesting(false);
+  }
+
   const isConnected = !!form.apiKey;
 
   return (
@@ -634,6 +663,14 @@ function WhatsAppSection() {
               placeholder="923001234567"
             />
           </Field>
+          <Field label="Booking WhatsApp Group ID" hint="WaSender group JID — for example 120363000000000000@g.us">
+            <input
+              style={inputStyle}
+              value={form.bookingGroupJid ?? ""}
+              onChange={(e) => set("bookingGroupJid", e.target.value.trim())}
+              placeholder="120363000000000000@g.us"
+            />
+          </Field>
           <div>
             <button
               type="button"
@@ -642,6 +679,14 @@ function WhatsAppSection() {
               style={{ border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", borderRadius: 9, padding: "8px 18px", fontSize: 12, fontWeight: 800, cursor: testing ? "wait" : "pointer" }}
             >
               {testing ? "Testing..." : "Test Connection"}
+            </button>
+            <button
+              type="button"
+              onClick={testGroup}
+              disabled={testing}
+              style={{ marginLeft: 8, border: "1px solid #ddd6fe", background: "#f5f3ff", color: "var(--accent)", borderRadius: 9, padding: "8px 18px", fontSize: 12, fontWeight: 800, cursor: testing ? "wait" : "pointer" }}
+            >
+              Test Group
             </button>
             {testResult && (
               <span style={{ marginLeft: 12, fontSize: 12, fontWeight: 700, color: testResult.ok ? "#059669" : "#dc2626" }}>
@@ -680,6 +725,19 @@ function WhatsAppSection() {
           hint="Sent when a new appointment is booked"
           enabled={form.autoConfirmation}
           onToggle={() => set("autoConfirmation", !form.autoConfirmation)}
+        />
+        <AutoRow
+          label="New Booking Group Alert"
+          hint="Send each online-booking summary to your WhatsApp group from the connected salon number"
+          enabled={form.autoGroupBooking ?? false}
+          onToggle={() => set("autoGroupBooking", !(form.autoGroupBooking ?? false))}
+          extra={
+            <div style={{ fontSize: 11, color: form.bookingGroupJid?.endsWith("@g.us") ? "#059669" : "#dc2626" }}>
+              {form.bookingGroupJid?.endsWith("@g.us")
+                ? "Group ID configured."
+                : "Enter a valid Group ID ending in @g.us above."}
+            </div>
+          }
         />
         <AutoRow
           label="Follow-up Message"
