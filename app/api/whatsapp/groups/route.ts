@@ -2,7 +2,11 @@ import { NextRequest } from "next/server";
 
 interface WaSenderGroup {
   jid?: unknown;
+  id?: unknown;
+  groupJid?: unknown;
   name?: unknown;
+  subject?: unknown;
+  title?: unknown;
 }
 
 export async function POST(request: NextRequest) {
@@ -14,23 +18,30 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await fetch("https://www.wasenderapi.com/api/groups", {
+    const response = await fetch("https://www.wasenderapi.com/api/groups?paginated=false", {
       headers: { Authorization: `Bearer ${apiKey}` },
       cache: "no-store",
     });
     const payload = await response.json().catch(() => ({})) as {
       success?: boolean;
-      data?: WaSenderGroup[] | { items?: WaSenderGroup[] };
+      data?: WaSenderGroup[] | { items?: WaSenderGroup[]; groups?: WaSenderGroup[] };
       message?: string;
       error?: string;
     };
-    const rawGroups = Array.isArray(payload.data) ? payload.data : payload.data?.items ?? [];
+    const rawGroups = Array.isArray(payload.data)
+      ? payload.data
+      : payload.data?.items ?? payload.data?.groups ?? [];
     const groups = rawGroups
-      .filter((group) => typeof group.jid === "string" && group.jid.endsWith("@g.us"))
-      .map((group) => ({
-        jid: group.jid as string,
-        name: typeof group.name === "string" && group.name.trim() ? group.name.trim() : "Unnamed WhatsApp Group",
-      }))
+      .map((group) => {
+        const jid = [group.jid, group.groupJid, group.id].find(
+          (value): value is string => typeof value === "string" && value.endsWith("@g.us"),
+        );
+        const name = [group.name, group.subject, group.title].find(
+          (value): value is string => typeof value === "string" && value.trim().length > 0,
+        );
+        return jid ? { jid, name: name?.trim() || "Unnamed WhatsApp Group" } : null;
+      })
+      .filter((group): group is { jid: string; name: string } => group !== null)
       .sort((a, b) => a.name.localeCompare(b.name));
 
     if (!response.ok || payload.success === false) {
@@ -40,7 +51,19 @@ export async function POST(request: NextRequest) {
       }, { status: response.status || 502 });
     }
 
-    return Response.json({ ok: true, groups });
+    let session: { id?: string; name?: string } | undefined;
+    if (groups.length === 0) {
+      const userResponse = await fetch("https://www.wasenderapi.com/api/user", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        cache: "no-store",
+      });
+      const userPayload = await userResponse.json().catch(() => ({})) as {
+        data?: { id?: string; name?: string };
+      };
+      session = userPayload.data;
+    }
+
+    return Response.json({ ok: true, groups, session });
   } catch {
     return Response.json({ ok: false, error: "Unable to load WhatsApp groups." }, { status: 502 });
   }

@@ -633,6 +633,7 @@ function WhatsAppSection() {
       const data = await response.json() as {
         ok?: boolean;
         groups?: { jid: string; name: string }[];
+        session?: { id?: string; name?: string };
         error?: string;
       };
       if (!response.ok || !data.ok) {
@@ -646,7 +647,7 @@ function WhatsAppSection() {
         ok: availableGroups.length > 0,
         msg: availableGroups.length > 0
           ? `Found ${availableGroups.length} WhatsApp group${availableGroups.length === 1 ? "" : "s"}.`
-          : "No groups found. Make sure the connected salon number is a member of the group.",
+          : `No groups were returned for ${data.session?.name || data.session?.id || "this WaSender session"}. Reconnect the salon number in WaSender to refresh group sync, then try again.`,
       });
     } catch {
       setGroups([]);
