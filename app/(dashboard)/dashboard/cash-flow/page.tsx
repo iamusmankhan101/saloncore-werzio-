@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { getStoredAppointments } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
 import { getExpenses, saveExpenses, addExpense, deleteExpense, updateExpense, type Expense, type ExpenseCategory } from "@/lib/expenses";
+import { getManualCashIncome, saveManualCashIncome, type ManualCashIncome } from "@/lib/cash-flow-income";
 import type { Appointment } from "@/lib/types";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -86,6 +87,7 @@ export default function CashFlowPage() {
   const [expenses, setExpenses]       = useState<Expense[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [posInvoices, setPosInvoices] = useState<ReturnType<typeof getSalonInvoices>>([]);
+  const [manualIncome, setManualIncome] = useState<ManualCashIncome[]>([]);
   const [today, setToday]             = useState("");
   const [showForm, setShowForm]       = useState(false);
   const [editId, setEditId]           = useState<string | null>(null);
@@ -103,6 +105,7 @@ export default function CashFlowPage() {
     setExpenses(getExpenses());
     setAppointments(getStoredAppointments());
     setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && !inv.appointmentId));
+    setManualIncome(getManualCashIncome());
   }, []);
 
   const cfg = PERIODS.find(p => p.key === period)!;
@@ -127,8 +130,9 @@ export default function CashFlowPage() {
     if (period === "custom" && (!customStart || !customEnd || customStart > customEnd)) return 0;
     const appts = appointments.filter(a => a.status === "completed" && a.date >= rangeStart && a.date <= filterEnd);
     const pos   = posInvoices.filter(inv => inv.date >= rangeStart && inv.date <= filterEnd);
-    return appts.reduce((s, a) => s + a.totalAmount, 0) + pos.reduce((s, inv) => s + inv.total, 0);
-  }, [appointments, posInvoices, rangeStart, filterEnd, period, customStart, customEnd]);
+    const manual = manualIncome.filter(entry => entry.date >= rangeStart && entry.date <= filterEnd);
+    return appts.reduce((s, a) => s + a.totalAmount, 0) + pos.reduce((s, inv) => s + inv.total, 0) + manual.reduce((s, entry) => s + entry.amount, 0);
+  }, [appointments, posInvoices, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
 
   const periodIncomeRows = useMemo(() => {
     if (period === "custom" && (!customStart || !customEnd || customStart > customEnd)) return [];
@@ -156,8 +160,20 @@ export default function CashFlowPage() {
         amount: inv.total,
         sortKey: inv.date + "T" + inv.createdAt.slice(11, 16),
       }));
-    return [...apptRows, ...posRows].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
-  }, [appointments, posInvoices, rangeStart, filterEnd, period, customStart, customEnd]);
+    const manualRows = manualIncome
+      .filter(entry => entry.date >= rangeStart && entry.date <= filterEnd)
+      .map(entry => ({
+        id: entry.id,
+        date: entry.date,
+        client: entry.category || "Imported Income",
+        description: entry.description,
+        source: "manual" as const,
+        paymentMethod: "",
+        amount: entry.amount,
+        sortKey: entry.date + "T" + entry.createdAt.slice(11, 16),
+      }));
+    return [...apptRows, ...posRows, ...manualRows].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  }, [appointments, posInvoices, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
 
   const totalExpense = periodExpenses.reduce((s, e) => s + e.amount, 0);
   const netCashFlow  = periodIncome - totalExpense;
@@ -181,7 +197,8 @@ export default function CashFlowPage() {
         return monthlyBarsRange(customStart, customEnd).map(({ label, key }) => {
           const income =
             appointments.filter(a => a.status === "completed" && a.date.startsWith(key)).reduce((s, a) => s + a.totalAmount, 0) +
-            posInvoices.filter(inv => inv.date.startsWith(key)).reduce((s, inv) => s + inv.total, 0);
+            posInvoices.filter(inv => inv.date.startsWith(key)).reduce((s, inv) => s + inv.total, 0) +
+            manualIncome.filter(entry => entry.date.startsWith(key)).reduce((s, entry) => s + entry.amount, 0);
           const expense = expenses.filter(e => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
           return { label, income, expense };
         });
@@ -191,7 +208,8 @@ export default function CashFlowPage() {
         const label = days.length > 14 ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
         const income =
           appointments.filter(a => a.status === "completed" && a.date === date).reduce((s, a) => s + a.totalAmount, 0) +
-          posInvoices.filter(inv => inv.date === date).reduce((s, inv) => s + inv.total, 0);
+          posInvoices.filter(inv => inv.date === date).reduce((s, inv) => s + inv.total, 0) +
+          manualIncome.filter(entry => entry.date === date).reduce((s, entry) => s + entry.amount, 0);
         const expense = expenses.filter(e => e.date === date).reduce((s, e) => s + e.amount, 0);
         return { label, income, expense };
       });
@@ -202,7 +220,8 @@ export default function CashFlowPage() {
         const key = toDateStr(d).substring(0, 7);
         const income =
           appointments.filter(a => a.status === "completed" && a.date.startsWith(key)).reduce((s, a) => s + a.totalAmount, 0) +
-          posInvoices.filter(inv => inv.date.startsWith(key)).reduce((s, inv) => s + inv.total, 0);
+          posInvoices.filter(inv => inv.date.startsWith(key)).reduce((s, inv) => s + inv.total, 0) +
+          manualIncome.filter(entry => entry.date.startsWith(key)).reduce((s, entry) => s + entry.amount, 0);
         const expense = expenses.filter(e => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
         return { label: d.toLocaleDateString("en-PK", { month: "short" }), income, expense };
       });
@@ -212,11 +231,12 @@ export default function CashFlowPage() {
       const label = period === "30d" ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
       const income =
         appointments.filter(a => a.status === "completed" && a.date === date).reduce((s, a) => s + a.totalAmount, 0) +
-        posInvoices.filter(inv => inv.date === date).reduce((s, inv) => s + inv.total, 0);
+        posInvoices.filter(inv => inv.date === date).reduce((s, inv) => s + inv.total, 0) +
+        manualIncome.filter(entry => entry.date === date).reduce((s, entry) => s + entry.amount, 0);
       const expense = expenses.filter(e => e.date === date).reduce((s, e) => s + e.amount, 0);
       return { label, income, expense };
     });
-  }, [period, today, customStart, customEnd, appointments, posInvoices, expenses, cfg.days]);
+  }, [period, today, customStart, customEnd, appointments, posInvoices, manualIncome, expenses, cfg.days]);
 
   const maxChart = Math.max(...chartData.flatMap(d => [d.income, d.expense]), 1);
 
@@ -262,7 +282,11 @@ export default function CashFlowPage() {
     ].join("|");
   }
 
-  async function importExpenses(file: File) {
+  function incomeKey(income: Pick<ManualCashIncome, "date" | "category" | "description" | "amount">) {
+    return [income.date, income.category.trim().toLowerCase(), income.description.trim().toLowerCase(), income.amount.toFixed(2)].join("|");
+  }
+
+  async function importCashFlow(file: File) {
     setFileMessage(null);
     try {
       const XLSX = await import("xlsx");
@@ -271,19 +295,13 @@ export default function CashFlowPage() {
       if (!sheet) throw new Error("The workbook does not contain a worksheet.");
 
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-      if (rows.length === 0) throw new Error("The import file has no expense rows.");
+      if (rows.length === 0) throw new Error("The import file has no cash-flow rows.");
 
       const categoryMap = new Map<string, ExpenseCategory>();
       EXPENSE_CATEGORIES.forEach(category => {
         categoryMap.set(category.key, category.key);
         categoryMap.set(category.label.toLowerCase(), category.key);
       });
-      const paymentMap = new Map<string, string>();
-      PAYMENT_METHODS.forEach(method => {
-        paymentMap.set(method, method);
-        paymentMap.set(PAYMENT_LABELS[method].toLowerCase(), method);
-      });
-
       function field(row: Record<string, unknown>, ...names: string[]) {
         const normalized = new Map(
           Object.entries(row).map(([key, value]) => [key.trim().toLowerCase().replace(/[_-]+/g, " "), value]),
@@ -307,65 +325,81 @@ export default function CashFlowPage() {
         return Number.isNaN(parsed.getTime()) ? "" : toDateStr(parsed);
       }
 
-      const imported: Expense[] = [];
+      const importedExpenses: Expense[] = [];
+      const importedIncome: ManualCashIncome[] = [];
       const errors: string[] = [];
       rows.forEach((row, index) => {
         const line = index + 2;
         const date = parseDate(field(row, "date"));
         const categoryRaw = String(field(row, "category")).trim().toLowerCase();
         const category = categoryMap.get(categoryRaw);
-        const description = String(field(row, "description")).trim();
-        const amount = Number(String(field(row, "amount", "amount pkr")).replace(/[,₨\s]/g, ""));
-        const paymentRaw = String(field(row, "payment method", "payment")).trim().toLowerCase();
-        const paymentMethod = paymentMap.get(paymentRaw);
-        const notes = String(field(row, "notes", "note")).trim();
+        const categoryLabel = String(field(row, "category")).trim();
+        const description = String(field(row, "service description", "description")).trim();
+        const parseAmount = (value: unknown) => {
+          const text = String(value).replace(/[,₨\s]/g, "").trim();
+          return text === "" ? 0 : Number(text);
+        };
+        const incomeAmount = parseAmount(field(row, "income intake amount", "income amount", "income"));
+        const expenseAmount = parseAmount(field(row, "expense amount", "amount", "amount pkr"));
 
         const rowErrors: string[] = [];
         if (!date) rowErrors.push("invalid date");
-        if (!category) rowErrors.push("invalid category");
-        if (!description) rowErrors.push("missing description");
-        if (!Number.isFinite(amount) || amount <= 0) rowErrors.push("invalid amount");
-        if (!paymentMethod) rowErrors.push("invalid payment method");
+        if (!categoryLabel) rowErrors.push("missing category");
+        if (!description) rowErrors.push("missing service description");
+        if (!Number.isFinite(incomeAmount) || incomeAmount < 0) rowErrors.push("invalid income amount");
+        if (!Number.isFinite(expenseAmount) || expenseAmount < 0) rowErrors.push("invalid expense amount");
+        if (incomeAmount <= 0 && expenseAmount <= 0) rowErrors.push("income or expense amount is required");
+        if (expenseAmount > 0 && !category) rowErrors.push("invalid expense category");
         if (rowErrors.length > 0) {
           errors.push(`Row ${line}: ${rowErrors.join(", ")}`);
           return;
         }
 
-        imported.push({
-          id: crypto.randomUUID(),
-          date,
-          category: category!,
-          description,
-          amount,
-          paymentMethod: paymentMethod!,
-          notes: notes || undefined,
-          createdAt: new Date().toISOString(),
-        });
+        const createdAt = new Date().toISOString();
+        if (incomeAmount > 0) {
+          importedIncome.push({ id: crypto.randomUUID(), date, category: categoryLabel, description, amount: incomeAmount, createdAt });
+        }
+        if (expenseAmount > 0) {
+          importedExpenses.push({
+            id: crypto.randomUUID(), date, category: category!, description, amount: expenseAmount,
+            paymentMethod: "cash", notes: "Imported from cash-flow workbook", createdAt,
+          });
+        }
       });
 
       if (errors.length > 0) {
         throw new Error(`${errors.slice(0, 4).join(" · ")}${errors.length > 4 ? ` · ${errors.length - 4} more error(s)` : ""}`);
       }
 
-      const existingKeys = new Set(expenses.map(expenseKey));
-      const unique = imported.filter(expense => {
+      const existingExpenseKeys = new Set(expenses.map(expenseKey));
+      const uniqueExpenses = importedExpenses.filter(expense => {
         const key = expenseKey(expense);
-        if (existingKeys.has(key)) return false;
-        existingKeys.add(key);
+        if (existingExpenseKeys.has(key)) return false;
+        existingExpenseKeys.add(key);
         return true;
       });
-      const skipped = imported.length - unique.length;
-      if (unique.length === 0) {
+      const existingIncomeKeys = new Set(manualIncome.map(incomeKey));
+      const uniqueIncome = importedIncome.filter(income => {
+        const key = incomeKey(income);
+        if (existingIncomeKeys.has(key)) return false;
+        existingIncomeKeys.add(key);
+        return true;
+      });
+      const skipped = (importedExpenses.length - uniqueExpenses.length) + (importedIncome.length - uniqueIncome.length);
+      if (uniqueExpenses.length === 0 && uniqueIncome.length === 0) {
         setFileMessage({ type: "error", text: skipped ? `No rows imported. ${skipped} duplicate row(s) were skipped.` : "No valid rows were found." });
         return;
       }
 
-      const merged = [...expenses, ...unique];
-      saveExpenses(merged);
-      setExpenses(merged);
+      const mergedExpenses = [...expenses, ...uniqueExpenses];
+      const mergedIncome = [...manualIncome, ...uniqueIncome];
+      saveExpenses(mergedExpenses);
+      saveManualCashIncome(mergedIncome);
+      setExpenses(mergedExpenses);
+      setManualIncome(mergedIncome);
       setFileMessage({
         type: "success",
-        text: `Imported ${unique.length} expense${unique.length === 1 ? "" : "s"}${skipped ? `; skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}` : ""}.`,
+        text: `Imported ${uniqueIncome.length} income and ${uniqueExpenses.length} expense entr${uniqueIncome.length + uniqueExpenses.length === 1 ? "y" : "ies"}${skipped ? `; skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}` : ""}.`,
       });
     } catch (error) {
       setFileMessage({ type: "error", text: error instanceof Error ? error.message : "Unable to import this file." });
@@ -391,7 +425,7 @@ export default function CashFlowPage() {
         Date: row.date,
         Client: row.client,
         Description: row.description,
-        Source: row.source === "pos" ? "POS Sale" : "Appointment",
+        Source: row.source === "pos" ? "POS Sale" : row.source === "manual" ? "Imported Income" : "Appointment",
         "Payment Method": PAYMENT_LABELS[row.paymentMethod] ?? row.paymentMethod,
         "Amount (PKR)": row.amount,
       }));
@@ -403,8 +437,33 @@ export default function CashFlowPage() {
         "Payment Method": PAYMENT_LABELS[expense.paymentMethod] ?? expense.paymentMethod,
         Notes: expense.notes ?? "",
       }));
+      const cashFlowRows = [
+        ...periodIncomeRows.map(row => ({
+          Date: row.date,
+          Category: row.client,
+          "Service Description": row.description,
+          "Income Intake Amount": row.amount,
+          "Expense Amount": 0,
+        })),
+        ...periodExpenses.map(expense => ({
+          Date: expense.date,
+          Category: EXPENSE_CATEGORIES.find(category => category.key === expense.category)?.label ?? expense.category,
+          "Service Description": expense.description,
+          "Income Intake Amount": 0,
+          "Expense Amount": expense.amount,
+        })),
+      ].sort((a, b) => a.Date.localeCompare(b.Date));
+      const cashFlowSheet = XLSX.utils.json_to_sheet(cashFlowRows, {
+        header: ["Date", "Category", "Service Description", "Income Intake Amount", "Expense Amount", "Closing"],
+      });
+      cashFlowRows.forEach((_, index) => {
+        const row = index + 2;
+        cashFlowSheet[`F${row}`] = { t: "n", f: `D${row}-E${row}` };
+      });
+      cashFlowSheet["!cols"] = [{ wch: 13 }, { wch: 24 }, { wch: 36 }, { wch: 22 }, { wch: 18 }, { wch: 16 }];
 
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryRows), "Summary");
+      XLSX.utils.book_append_sheet(workbook, cashFlowSheet, "Cash Flow");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(incomeRows), "Income");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(expenseRows), "Expenses");
       XLSX.writeFile(workbook, `werzio-cash-flow-${rangeStart || "report"}-${filterEnd || "report"}.xlsx`);
@@ -500,7 +559,7 @@ export default function CashFlowPage() {
           <td>${row.date}</td>
           <td style="font-weight:600">${row.client}</td>
           <td style="color:#6b6b8a">${row.description}</td>
-          <td><span class="src-badge" style="background:${row.source === "pos" ? "#fffbeb" : "#F5F3FF"};color:${row.source === "pos" ? "#d97706" : "#7C3AED"}">${row.source === "pos" ? "POS Sale" : "Appointment"}</span></td>
+          <td><span class="src-badge" style="background:${row.source === "pos" ? "#fffbeb" : "#F5F3FF"};color:${row.source === "pos" ? "#d97706" : "#7C3AED"}">${row.source === "pos" ? "POS Sale" : row.source === "manual" ? "Imported Income" : "Appointment"}</span></td>
           <td style="text-align:right;font-weight:700;color:#7C3AED">${fmt(row.amount)}</td>
         </tr>`).join("")}
         <tr class="income-total">
@@ -617,7 +676,7 @@ export default function CashFlowPage() {
               accept=".xlsx,.xls,.csv"
               onChange={event => {
                 const file = event.target.files?.[0];
-                if (file) void importExpenses(file);
+                if (file) void importCashFlow(file);
               }}
               style={{ display: "none" }}
             />
@@ -797,7 +856,9 @@ export default function CashFlowPage() {
                     <div style={{ width: 18, height: 18, borderRadius: 5, background: row.source === "pos" ? "#fffbeb" : "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {row.source === "pos"
                         ? <ShoppingBag size={10} color="#d97706" />
-                        : <CalendarCheck size={10} color="#7C3AED" />}
+                        : row.source === "manual"
+                          ? <Upload size={10} color="#7C3AED" />
+                          : <CalendarCheck size={10} color="#7C3AED" />}
                     </div>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1a2e" }}>{row.client}</div>
