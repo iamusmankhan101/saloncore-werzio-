@@ -95,7 +95,6 @@ function alreadySent(key: string): boolean {
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 60_000;           // wait 1 minute before retrying a failed send
-const FOLLOWUP_DELAY_MS = 24 * 60 * 60 * 1000;
 const SEND_RATE_LIMIT_MS = 60_000;       // WaSender free plan: 1 message per minute
 
 let lastSentAt = 0;
@@ -115,6 +114,37 @@ function getQueue(storageKey: string): QueueItem[] {
 
 function setQueue(storageKey: string, items: QueueItem[]) {
   localStorage.setItem(userKey(storageKey), JSON.stringify(items));
+}
+
+/** Send a new-booking alert to the salon WhatsApp group immediately (fire-and-forget). */
+export async function sendGroupBookingAlert(appt: {
+  clientName: string;
+  serviceNames: string[];
+  date: string;
+  startTime: string;
+  totalAmount?: number;
+}): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  const ws = settingsStore.wasender as {
+    apiKey: string;
+    bookingGroupJid?: string;
+    autoGroupBooking?: boolean;
+  };
+
+  if (!ws.autoGroupBooking || !ws.apiKey) return;
+  if (!ws.bookingGroupJid?.endsWith("@g.us")) return;
+
+  const tpl = (settingsStore.whatsapp as { newBooking?: string }).newBooking ||
+    "📅 New Booking! {{name}} has booked {{service}} on {{date}} at {{time}} at {{salon_name}}. Total: PKR {{amount}}.";
+
+  const salonName = settingsStore.salon.name as string;
+  const text = fillTemplate(tpl, {
+    ...buildVars(appt, salonName),
+    amount: appt.totalAmount != null ? String(appt.totalAmount) : "",
+  });
+
+  await callSendApi(ws.bookingGroupJid, text, { type: "manual", clientName: "Group" });
 }
 
 /** Call when a new appointment is booked — sends confirmation on the next scheduler tick. */

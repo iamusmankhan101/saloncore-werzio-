@@ -126,8 +126,8 @@ function buildObjectPayload(objectId: string, client: Client, salonName: string,
       { header: "Next Tier",        body: next ? `${next.needed} pts needed for ${tierLabels[next.tier]}` : "Top tier 🏆", id: "next_tier" },
     ],
     heroImage: {
-      sourceUri: { uri: `${appBaseUrl}/werzio-banner.png` },
-      contentDescription: { defaultValue: { language: "en-US", value: "Werzio Loyalty" } },
+      sourceUri: { uri: `${appBaseUrl}/api/wallet/hero-banner?name=${encodeURIComponent(salonName)}` },
+      contentDescription: { defaultValue: { language: "en-US", value: salonName } },
     },
     barcode: {
       type: "QR_CODE",

@@ -519,6 +519,76 @@ function DelaySelector({ minutes, onChange, label }: { minutes: number; onChange
   );
 }
 
+const REMINDER_HOUR_PRESETS = [1, 2, 4, 12, 24, 48];
+
+function toHours(num: number, unit: "minutes" | "hours" | "days") {
+  if (unit === "minutes") return num / 60;
+  if (unit === "days")    return num * 24;
+  return num;
+}
+
+function ReminderLeadSelector({ hours, onChange }: { hours: number; onChange: (hours: number) => void }) {
+  const isPreset = REMINDER_HOUR_PRESETS.includes(hours);
+  const [customNum, setCustomNum] = useState(() => {
+    if (isPreset) return "3";
+    if (hours < 1)  return String(Math.round(hours * 60));
+    if (hours % 24 === 0) return String(hours / 24);
+    return String(hours);
+  });
+  const [customUnit, setCustomUnit] = useState<"minutes" | "hours" | "days">(() => {
+    if (isPreset) return "hours";
+    if (hours < 1)  return "minutes";
+    if (hours % 24 === 0) return "days";
+    return "hours";
+  });
+
+  function applyCustom(num: string, unit: "minutes" | "hours" | "days") {
+    const n = Math.max(1, Number(num) || 1);
+    onChange(toHours(n, unit));
+  }
+
+  return (
+    <Field label="Hours before appointment">
+      <select
+        style={inputStyle}
+        value={isPreset ? String(hours) : "custom"}
+        onChange={(event) => {
+          if (event.target.value === "custom") {
+            applyCustom(customNum, customUnit);
+          } else {
+            onChange(Number(event.target.value));
+          }
+        }}
+      >
+        {REMINDER_HOUR_PRESETS.map((value) => (
+          <option key={value} value={value}>{value} hour{value === 1 ? "" : "s"} before</option>
+        ))}
+        <option value="custom">Custom...</option>
+      </select>
+      {!isPreset && (
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <input
+            type="number"
+            min={1}
+            value={customNum}
+            onChange={(e) => { setCustomNum(e.target.value); applyCustom(e.target.value, customUnit); }}
+            style={{ ...inputStyle, width: 90 }}
+          />
+          <select
+            style={{ ...inputStyle, flex: 1 }}
+            value={customUnit}
+            onChange={(e) => { const u = e.target.value as "minutes" | "hours" | "days"; setCustomUnit(u); applyCustom(customNum, u); }}
+          >
+            <option value="minutes">Minutes before</option>
+            <option value="hours">Hours before</option>
+            <option value="days">Days before</option>
+          </select>
+        </div>
+      )}
+    </Field>
+  );
+}
+
 function AutoRow({
   label,
   hint,
@@ -814,16 +884,10 @@ function WhatsAppSection() {
           enabled={form.autoReminder}
           onToggle={() => set("autoReminder", !form.autoReminder)}
           extra={
-            <Field label="Hours before appointment">
-              <select style={inputStyle} value={form.reminderHours} onChange={(e) => set("reminderHours", Number(e.target.value))}>
-                <option value={1}>1 hour before</option>
-                <option value={2}>2 hours before</option>
-                <option value={4}>4 hours before</option>
-                <option value={12}>12 hours before</option>
-                <option value={24}>24 hours before</option>
-                <option value={48}>48 hours before</option>
-              </select>
-            </Field>
+            <ReminderLeadSelector
+              hours={form.reminderHours}
+              onChange={(value) => set("reminderHours", value)}
+            />
           }
         />
         <AutoRow

@@ -49,11 +49,8 @@ export async function POST(req: NextRequest) {
 
   const salonName = (body.salonName || "Werzio").trim();
   const bgColor   = body.bgColor || "#5B21B6";
-  // Use the public app URL so Google's servers can fetch the generated wordmark.
   const appOrigin = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
-  const wordmarkUrl = new URL("/api/wallet/program-logo", appOrigin);
-  wordmarkUrl.searchParams.set("name", salonName);
-  const logoUrl = wordmarkUrl.toString();
+  const logoUrl = `${appOrigin}/api/wallet/program-logo`;
 
   const classId = `${ISSUER_ID}.werzio-loyalty`;
   const classUrl = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${encodeURIComponent(classId)}`;
