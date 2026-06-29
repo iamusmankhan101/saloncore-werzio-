@@ -13,11 +13,8 @@ export const metadata: Metadata = {
   title: "Salon Central — Salon Management",
   description: "WhatsApp-native salon booking & client management platform",
   icons: {
-    icon: [
-      { url: "/icon.png", type: "image/png", sizes: "512x512" },
-      { url: "/favicon.ico", sizes: "32x32" },
-    ],
-    apple: { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    icon: [{ url: "/salon-central-favicon.png", type: "image/png", sizes: "1254x1254" }],
+    apple: { url: "/salon-central-favicon.png", sizes: "1254x1254", type: "image/png" },
   },
 };
 

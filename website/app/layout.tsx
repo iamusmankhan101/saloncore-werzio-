@@ -6,8 +6,8 @@ export const metadata: Metadata = {
   description:
     "Manage bookings, clients, staff, and revenue via WhatsApp. Built for Pakistan's beauty industry.",
   icons: {
-    icon: [{ url: "/salon-central-logo.png", type: "image/png", sizes: "1080x1080" }],
-    apple: { url: "/salon-central-logo.png", sizes: "1080x1080", type: "image/png" },
+    icon: [{ url: "/salon-central-favicon.png", type: "image/png", sizes: "1254x1254" }],
+    apple: { url: "/salon-central-favicon.png", sizes: "1254x1254", type: "image/png" },
   },
 };
 
