@@ -550,6 +550,8 @@ function WhatsAppSection() {
   const [form, setForm] = useState<WhatsAppSettings>({ ...(settingsStore.wasender as WhatsAppSettings) });
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [groups, setGroups] = useState<{ jid: string; name: string }[]>([]);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   function set<K extends keyof WhatsAppSettings>(key: K, value: WhatsAppSettings[K]) {
@@ -619,6 +621,45 @@ function WhatsAppSection() {
     setTesting(false);
   }
 
+  async function loadGroups() {
+    if (!form.apiKey) {
+      setTestResult({ ok: false, msg: "Enter your WaSender API key first." });
+      return;
+    }
+    setLoadingGroups(true);
+    setTestResult(null);
+    try {
+      const response = await fetch("/api/whatsapp/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: form.apiKey }),
+      });
+      const data = await response.json() as {
+        ok?: boolean;
+        groups?: { jid: string; name: string }[];
+        error?: string;
+      };
+      if (!response.ok || !data.ok) {
+        setGroups([]);
+        setTestResult({ ok: false, msg: data.error || "Unable to load WhatsApp groups." });
+        return;
+      }
+      const availableGroups = data.groups ?? [];
+      setGroups(availableGroups);
+      setTestResult({
+        ok: availableGroups.length > 0,
+        msg: availableGroups.length > 0
+          ? `Found ${availableGroups.length} WhatsApp group${availableGroups.length === 1 ? "" : "s"}.`
+          : "No groups found. Make sure the connected salon number is a member of the group.",
+      });
+    } catch {
+      setGroups([]);
+      setTestResult({ ok: false, msg: "Could not reach WaSender API. Check your connection." });
+    } finally {
+      setLoadingGroups(false);
+    }
+  }
+
   const isConnected = !!form.apiKey;
 
   return (
@@ -663,13 +704,30 @@ function WhatsAppSection() {
               placeholder="923001234567"
             />
           </Field>
-          <Field label="Booking WhatsApp Group ID" hint="WaSender group JID — for example 120363000000000000@g.us">
-            <input
-              style={inputStyle}
-              value={form.bookingGroupJid ?? ""}
-              onChange={(e) => set("bookingGroupJid", e.target.value.trim())}
-              placeholder="120363000000000000@g.us"
-            />
+          <Field label="Booking WhatsApp Group" hint="Load groups joined by the connected salon number, then select one">
+            <div style={{ display: "flex", gap: 8 }}>
+              <select
+                style={{ ...inputStyle, flex: 1 }}
+                value={form.bookingGroupJid ?? ""}
+                onChange={(e) => set("bookingGroupJid", e.target.value)}
+              >
+                <option value="">Select a WhatsApp group</option>
+                {groups.map((group) => (
+                  <option key={group.jid} value={group.jid}>{group.name}</option>
+                ))}
+                {form.bookingGroupJid && !groups.some((group) => group.jid === form.bookingGroupJid) && (
+                  <option value={form.bookingGroupJid}>Previously selected group</option>
+                )}
+              </select>
+              <button
+                type="button"
+                onClick={loadGroups}
+                disabled={loadingGroups}
+                style={{ whiteSpace: "nowrap", border: "1px solid var(--accent)", background: "#fff", color: "var(--accent)", borderRadius: 9, padding: "8px 14px", fontSize: 12, fontWeight: 800, cursor: loadingGroups ? "wait" : "pointer" }}
+              >
+                {loadingGroups ? "Loading..." : "Load Groups"}
+              </button>
+            </div>
           </Field>
           <div>
             <button
