@@ -91,7 +91,10 @@ export async function POST(req: NextRequest) {
       writeUrl = classUrl;
       const { id: _id, ...mutableFields } = classPayload;
       void _id;
-      writeBody = mutableFields;
+      // Google requires a modified class to be explicitly resubmitted for
+      // review. Reusing its current APPROVED status causes:
+      // `Invalid review status "APPROVED". Use "UNDER_REVIEW" instead.`
+      writeBody = { ...mutableFields, reviewStatus: "UNDER_REVIEW" };
     } else if (getRes.status === 404) {
       method = "POST";
       writeUrl = "https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass";
