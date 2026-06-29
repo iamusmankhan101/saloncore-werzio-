@@ -178,7 +178,7 @@ export default function SignUpPage() {
         {/* Brand panel */}
         <section className={styles.brandPanel}>
           <div className={styles.brandTop}>
-            <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 85, width: "auto" }} />
+            <img src="/salon-central-logo.png" alt="Salon Central" />
           </div>
           <div className={styles.brandContent}>
             <div className={styles.eyebrow}>Start organized</div>

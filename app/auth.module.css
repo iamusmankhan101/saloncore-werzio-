@@ -81,7 +81,7 @@
 }
 
 .brandTop img {
-  height: 52px !important;
+  height: 110px !important;
   width: auto !important;
 }
 
@@ -519,8 +519,8 @@
 
   /* Logo sizes on mobile */
   .brandTop img {
-    max-height: 40px !important;
-    height: 40px !important;
+    max-height: 80px !important;
+    height: 80px !important;
   }
 
 
