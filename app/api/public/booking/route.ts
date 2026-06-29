@@ -132,6 +132,7 @@ export async function POST(req: NextRequest) {
         : {};
 
       const apiKey: string = settings?.wasender?.apiKey || process.env.WASENDER_API_KEY || "";
+      const autoConfirmation: boolean = settings?.wasender?.autoConfirmation !== false; // default true
       const bookingGroupJid: string = settings?.wasender?.bookingGroupJid?.trim() || "";
       const autoGroupBooking: boolean = settings?.wasender?.autoGroupBooking === true;
       const salonName: string = settings?.salon?.name || "the salon";
@@ -154,27 +155,37 @@ export async function POST(req: NextRequest) {
           amount:     String(appointment.totalAmount),
         };
 
-        const toE164 = (p: string): string => {
+        const normalizePhone = (p: string): string => {
           let d = p.replace(/\D/g, "");
-          if (d.startsWith("0")) d = "92" + d.slice(1);          // 03001234567 → 923001234567
-          else if (d.length === 10 && d.startsWith("3")) d = "92" + d; // 3001234567 → 923001234567
-          return `+${d}`;
+          if (d.startsWith("0")) d = "92" + d.slice(1);
+          else if (d.length === 10 && d.startsWith("3")) d = "92" + d;
+          return d;
         };
 
-        // Confirmation to client — use saved template or sensible fallback
-        if (phone) {
+        // Confirmation to client
+        if (phone && autoConfirmation) {
           const confirmationTpl: string =
             tpl.confirmation ||
             "Hi {{name}}, your {{service}} booking on {{date}} at {{time}} is confirmed at {{salon_name}}. We look forward to seeing you! 💜";
           const confirmText = fillTemplate(confirmationTpl, vars);
-          await fetch("https://www.wasenderapi.com/api/send-message", {
+          const normalizedPhone = normalizePhone(phone);
+          console.log(`[public/booking] Sending confirmation to ${normalizedPhone}`);
+          const confirmRes = await fetch("https://www.wasenderapi.com/api/send-message", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({ to: toE164(phone), text: confirmText }),
+            body: JSON.stringify({ to: `+${normalizedPhone}`, text: confirmText }),
           });
+          const confirmData = await confirmRes.json().catch(() => ({}));
+          if (!confirmRes.ok || confirmData.success === false) {
+            console.warn("[public/booking] WhatsApp confirmation failed:", confirmRes.status, JSON.stringify(confirmData));
+          } else {
+            console.log("[public/booking] WhatsApp confirmation sent ✓");
+          }
+        } else if (!phone) {
+          console.warn("[public/booking] No phone number — skipping WhatsApp confirmation");
         }
 
-        // Salon group alert — sent from the same connected WaSender/WhatsApp session.
+        // Salon group alert
         if (autoGroupBooking && bookingGroupJid.endsWith("@g.us")) {
           const groupTpl: string =
             tpl.newBooking ||
@@ -190,6 +201,8 @@ export async function POST(req: NextRequest) {
           }
         }
 
+      } else {
+        console.warn("[public/booking] No WaSender API key in settings — skipping WhatsApp confirmation");
       }
     } catch (waErr) {
       // Non-fatal — booking is saved regardless
