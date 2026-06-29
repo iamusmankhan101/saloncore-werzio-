@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { getStoredAppointments } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
-import { getExpenses, addExpense, deleteExpense, updateExpense, type Expense, type ExpenseCategory } from "@/lib/expenses";
+import { getExpenses, saveExpenses, addExpense, deleteExpense, updateExpense, type Expense, type ExpenseCategory } from "@/lib/expenses";
 import type { Appointment } from "@/lib/types";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
   Plus, Trash2, TrendingUp, TrendingDown,
-  Wallet, X, Download, Pencil, Check, CalendarCheck, ShoppingBag,
+  Wallet, X, Download, Pencil, Check, CalendarCheck, ShoppingBag, Upload, FileSpreadsheet,
 } from "lucide-react";
 
 type Period = "today" | "7d" | "30d" | "1y" | "custom";
@@ -77,12 +77,6 @@ function monthlyBarsRange(start: string, end: string): { label: string; key: str
   return arr;
 }
 
-function fmtK(n: number) {
-  return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
-    : n >= 1_000 ? `${Math.round(n / 1_000)}K`
-    : String(Math.round(n));
-}
-
 const EMPTY_FORM = { date: "", category: "miscellaneous" as ExpenseCategory, description: "", amount: "", paymentMethod: "cash", notes: "" };
 
 export default function CashFlowPage() {
@@ -97,6 +91,8 @@ export default function CashFlowPage() {
   const [editId, setEditId]           = useState<string | null>(null);
   const [form, setForm]               = useState({ ...EMPTY_FORM });
   const [hoveredBar, setHoveredBar]   = useState<number | null>(null);
+  const [fileMessage, setFileMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const importInputRef                 = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const t = toDateStr(new Date());
@@ -119,7 +115,7 @@ export default function CashFlowPage() {
     if (period === "today") return today;
     const d = new Date(today); d.setDate(d.getDate() - (cfg.days - 1));
     return toDateStr(d);
-  }, [period, today, customStart]);
+  }, [period, today, customStart, cfg.days]);
 
   const periodExpenses = useMemo(() =>
     expenses
@@ -220,15 +216,9 @@ export default function CashFlowPage() {
       const expense = expenses.filter(e => e.date === date).reduce((s, e) => s + e.amount, 0);
       return { label, income, expense };
     });
-  }, [period, today, customStart, customEnd, appointments, posInvoices, expenses]);
+  }, [period, today, customStart, customEnd, appointments, posInvoices, expenses, cfg.days]);
 
   const maxChart = Math.max(...chartData.flatMap(d => [d.income, d.expense]), 1);
-
-  const yLabels = useMemo(() => {
-    const step = maxChart <= 10_000 ? 2_500 : maxChart <= 50_000 ? 10_000 : maxChart <= 200_000 ? 50_000 : 250_000;
-    const top = Math.ceil(maxChart / step) * step || step;
-    return [top, top * 0.75, top * 0.5, top * 0.25, 0].map(v => fmtK(v));
-  }, [maxChart]);
 
   // Form helpers
   function openAdd() {
@@ -260,6 +250,168 @@ export default function CashFlowPage() {
   function handleDelete(id: string) {
     deleteExpense(id);
     setExpenses(prev => prev.filter(e => e.id !== id));
+  }
+
+  function expenseKey(expense: Pick<Expense, "date" | "category" | "description" | "amount" | "paymentMethod">) {
+    return [
+      expense.date,
+      expense.category,
+      expense.description.trim().toLowerCase(),
+      expense.amount.toFixed(2),
+      expense.paymentMethod,
+    ].join("|");
+  }
+
+  async function importExpenses(file: File) {
+    setFileMessage(null);
+    try {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (!sheet) throw new Error("The workbook does not contain a worksheet.");
+
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+      if (rows.length === 0) throw new Error("The import file has no expense rows.");
+
+      const categoryMap = new Map<string, ExpenseCategory>();
+      EXPENSE_CATEGORIES.forEach(category => {
+        categoryMap.set(category.key, category.key);
+        categoryMap.set(category.label.toLowerCase(), category.key);
+      });
+      const paymentMap = new Map<string, string>();
+      PAYMENT_METHODS.forEach(method => {
+        paymentMap.set(method, method);
+        paymentMap.set(PAYMENT_LABELS[method].toLowerCase(), method);
+      });
+
+      function field(row: Record<string, unknown>, ...names: string[]) {
+        const normalized = new Map(
+          Object.entries(row).map(([key, value]) => [key.trim().toLowerCase().replace(/[_-]+/g, " "), value]),
+        );
+        for (const name of names) {
+          const value = normalized.get(name);
+          if (value !== undefined) return value;
+        }
+        return "";
+      }
+
+      function parseDate(value: unknown): string {
+        if (value instanceof Date && !Number.isNaN(value.getTime())) return toDateStr(value);
+        if (typeof value === "number") {
+          const parsed = XLSX.SSF.parse_date_code(value);
+          if (parsed) return `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
+        }
+        const text = String(value).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+        const parsed = new Date(text);
+        return Number.isNaN(parsed.getTime()) ? "" : toDateStr(parsed);
+      }
+
+      const imported: Expense[] = [];
+      const errors: string[] = [];
+      rows.forEach((row, index) => {
+        const line = index + 2;
+        const date = parseDate(field(row, "date"));
+        const categoryRaw = String(field(row, "category")).trim().toLowerCase();
+        const category = categoryMap.get(categoryRaw);
+        const description = String(field(row, "description")).trim();
+        const amount = Number(String(field(row, "amount", "amount pkr")).replace(/[,₨\s]/g, ""));
+        const paymentRaw = String(field(row, "payment method", "payment")).trim().toLowerCase();
+        const paymentMethod = paymentMap.get(paymentRaw);
+        const notes = String(field(row, "notes", "note")).trim();
+
+        const rowErrors: string[] = [];
+        if (!date) rowErrors.push("invalid date");
+        if (!category) rowErrors.push("invalid category");
+        if (!description) rowErrors.push("missing description");
+        if (!Number.isFinite(amount) || amount <= 0) rowErrors.push("invalid amount");
+        if (!paymentMethod) rowErrors.push("invalid payment method");
+        if (rowErrors.length > 0) {
+          errors.push(`Row ${line}: ${rowErrors.join(", ")}`);
+          return;
+        }
+
+        imported.push({
+          id: crypto.randomUUID(),
+          date,
+          category: category!,
+          description,
+          amount,
+          paymentMethod: paymentMethod!,
+          notes: notes || undefined,
+          createdAt: new Date().toISOString(),
+        });
+      });
+
+      if (errors.length > 0) {
+        throw new Error(`${errors.slice(0, 4).join(" · ")}${errors.length > 4 ? ` · ${errors.length - 4} more error(s)` : ""}`);
+      }
+
+      const existingKeys = new Set(expenses.map(expenseKey));
+      const unique = imported.filter(expense => {
+        const key = expenseKey(expense);
+        if (existingKeys.has(key)) return false;
+        existingKeys.add(key);
+        return true;
+      });
+      const skipped = imported.length - unique.length;
+      if (unique.length === 0) {
+        setFileMessage({ type: "error", text: skipped ? `No rows imported. ${skipped} duplicate row(s) were skipped.` : "No valid rows were found." });
+        return;
+      }
+
+      const merged = [...expenses, ...unique];
+      saveExpenses(merged);
+      setExpenses(merged);
+      setFileMessage({
+        type: "success",
+        text: `Imported ${unique.length} expense${unique.length === 1 ? "" : "s"}${skipped ? `; skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}` : ""}.`,
+      });
+    } catch (error) {
+      setFileMessage({ type: "error", text: error instanceof Error ? error.message : "Unable to import this file." });
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }
+
+  async function exportExcel() {
+    setFileMessage(null);
+    try {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.utils.book_new();
+      const summaryRows = [
+        ["Cash Flow Report"],
+        ["Period", rangeStart === filterEnd ? rangeStart : `${rangeStart} to ${filterEnd}`],
+        ["Total Income (PKR)", periodIncome],
+        ["Total Expenses (PKR)", totalExpense],
+        ["Net Cash Flow (PKR)", netCashFlow],
+        ["Exported At", new Date().toISOString()],
+      ];
+      const incomeRows = periodIncomeRows.map(row => ({
+        Date: row.date,
+        Client: row.client,
+        Description: row.description,
+        Source: row.source === "pos" ? "POS Sale" : "Appointment",
+        "Payment Method": PAYMENT_LABELS[row.paymentMethod] ?? row.paymentMethod,
+        "Amount (PKR)": row.amount,
+      }));
+      const expenseRows = periodExpenses.map(expense => ({
+        Date: expense.date,
+        Category: EXPENSE_CATEGORIES.find(category => category.key === expense.category)?.label ?? expense.category,
+        Description: expense.description,
+        "Amount (PKR)": expense.amount,
+        "Payment Method": PAYMENT_LABELS[expense.paymentMethod] ?? expense.paymentMethod,
+        Notes: expense.notes ?? "",
+      }));
+
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryRows), "Summary");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(incomeRows), "Income");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(expenseRows), "Expenses");
+      XLSX.writeFile(workbook, `werzio-cash-flow-${rangeStart || "report"}-${filterEnd || "report"}.xlsx`);
+      setFileMessage({ type: "success", text: "Excel report exported successfully." });
+    } catch {
+      setFileMessage({ type: "error", text: "Unable to export the Excel report." });
+    }
   }
 
   // PDF Export
@@ -456,11 +608,45 @@ export default function CashFlowPage() {
             <button onClick={exportPDF} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", color: "#6b6b8a", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
               <Download size={13} /> PDF
             </button>
+            <button onClick={exportExcel} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", color: "#059669", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              <FileSpreadsheet size={13} /> Excel
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={event => {
+                const file = event.target.files?.[0];
+                if (file) void importExpenses(file);
+              }}
+              style={{ display: "none" }}
+            />
+            <button onClick={() => importInputRef.current?.click()} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", color: "#7C3AED", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              <Upload size={13} /> Import
+            </button>
+            <a href="/templates/cash-flow-import-template.xlsx" download style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", color: "#6b6b8a", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+              <Download size={13} /> Template
+            </a>
             <button onClick={openAdd} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff", fontSize: 12, fontWeight: 700, boxShadow: "0 2px 8px rgba(91,33,182,0.28)" }}>
               <Plus size={14} /> Add Expense
             </button>
           </div>
         </div>
+
+        {fileMessage && (
+          <div style={{
+            marginBottom: 14,
+            padding: "10px 14px",
+            borderRadius: 9,
+            border: `1px solid ${fileMessage.type === "success" ? "#a7f3d0" : "#fecaca"}`,
+            background: fileMessage.type === "success" ? "#ecfdf5" : "#fef2f2",
+            color: fileMessage.type === "success" ? "#047857" : "#b91c1c",
+            fontSize: 12,
+            fontWeight: 600,
+          }}>
+            {fileMessage.text}
+          </div>
+        )}
 
         {/* ── Summary strip ───────────────────────────────────────────── */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
