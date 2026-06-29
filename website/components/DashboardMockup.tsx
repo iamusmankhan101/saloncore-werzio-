@@ -33,7 +33,7 @@ export default function DashboardMockup() {
         <span className={`${styles.dot} ${styles.green}`} />
         <div className={styles.urlBar}>
           <Lock size={10} color="#bbb" />
-          app.werzio.pk — Dashboard
+          app.saloncentral.pk — Dashboard
         </div>
       </div>
 
@@ -42,7 +42,7 @@ export default function DashboardMockup() {
         {/* sidebar */}
         <aside className={styles.sidebar}>
           <div className={styles.sidebarLogo}>
-            <Image src="/werzio-logo.png" alt="Werzio" width={80} height={24} style={{ filter: "brightness(0) invert(1)" }} />
+            <Image src="/salon-central-logo.png" alt="Salon Central" width={48} height={48} />
           </div>
           {sidebarItems.map(({ icon: Icon, label, active }) => (
             <div key={label} className={`${styles.sidebarItem} ${active ? styles.sidebarActive : ""}`}>

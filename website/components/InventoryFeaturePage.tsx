@@ -33,7 +33,7 @@ function HeroInventory() {
     { name: "Skin Serum SPF50",      cat: "Skin Care",  stock: 4,  min: 8,  status: "low" as StatusKey, cost: "PKR 900",   retail: "PKR 2,200" },
   ];
   return (
-    <div className={styles.heroCard} aria-label="Werzio inventory preview">
+    <div className={styles.heroCard} aria-label="Salon Central inventory preview">
       <div className={styles.heroCardTop}>
         <div><span>Inventory</span><strong>42 Products</strong></div>
         <button type="button">Add Product</button>
@@ -287,7 +287,7 @@ const rows = [
   {
     eyebrow: "Stock tracking",
     title: "See every product's live stock level against its minimum",
-    body: "Each inventory item has a current stock and a minimum stock threshold you define. Werzio colour-codes every item as In Stock (green), Low Stock (orange), or Out of Stock (red) — instantly visible across the inventory list.",
+    body: "Each inventory item has a current stock and a minimum stock threshold you define. Salon Central colour-codes every item as In Stock (green), Low Stock (orange), or Out of Stock (red) — instantly visible across the inventory list.",
     visual: <StockTrackingPanel />,
   },
   {
@@ -299,7 +299,7 @@ const rows = [
   {
     eyebrow: "POS auto-deduction",
     title: "Product stock drops automatically when sold at checkout",
-    body: "When a product is added to a POS sale and the client checks out, Werzio reduces its inventory count immediately. Stock can never go below zero. The low-stock alert check runs automatically after every sale.",
+    body: "When a product is added to a POS sale and the client checks out, Salon Central reduces its inventory count immediately. Stock can never go below zero. The low-stock alert check runs automatically after every sale.",
     visual: <POSDeductPanel />,
   },
   {
@@ -311,7 +311,7 @@ const rows = [
   {
     eyebrow: "WhatsApp low-stock alerts",
     title: "Get a WhatsApp message when products run low",
-    body: "When any item's stock falls to or below its minimum threshold, Werzio sends a single daily WhatsApp alert to the salon owner. The message lists every low or out-of-stock item with its current quantity, minimum, and supplier name.",
+    body: "When any item's stock falls to or below its minimum threshold, Salon Central sends a single daily WhatsApp alert to the salon owner. The message lists every low or out-of-stock item with its current quantity, minimum, and supplier name.",
     visual: <LowStockAlertPanel />,
   },
   {
@@ -343,7 +343,7 @@ export default function InventoryFeaturePage() {
               </div>
               <h1>Never run out of stock mid-appointment again</h1>
               <p>
-                Werzio tracks every product in your salon — stock levels, minimum thresholds, cost and retail prices, auto-deduction on sales, and WhatsApp alerts when anything runs low.
+                Salon Central tracks every product in your salon — stock levels, minimum thresholds, cost and retail prices, auto-deduction on sales, and WhatsApp alerts when anything runs low.
               </p>
               <div className={styles.heroActions}>
                 <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
@@ -354,8 +354,8 @@ export default function InventoryFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/werzio-logo.png" alt="" width={96} height={96} />
-                <span>Werzio Inventory</span>
+                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <span>Salon Central Inventory</span>
               </div>
               <HeroInventory />
             </div>
@@ -378,7 +378,7 @@ export default function InventoryFeaturePage() {
 
         <section className={styles.ctaBand}>
           <div>
-            <span>Available on Werzio Pro and Premium</span>
+            <span>Available on Salon Central Pro and Premium</span>
             <h2>Stop guessing your stock — track it live</h2>
           </div>
           <div className={styles.ctaActions}>

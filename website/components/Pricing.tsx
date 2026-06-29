@@ -17,7 +17,7 @@ const plans: Array<{
   {
     badge: "Most Popular",
     badgeStyle: {},
-    name: "werzio pro",
+    name: "salon central pro",
     desc: "The complete toolkit for growing salons.",
     price: "12,000",
     period: " pkr/month",
@@ -40,7 +40,7 @@ const plans: Array<{
   {
     badge: "Premium",
     badgeStyle: { background: "#fef3c7", color: "#d97706" },
-    name: "werzio premium",
+    name: "salon central premium",
     desc: "Everything in Pro plus virtual try on.",
     price: "20,000",
     period: " pkr/month",

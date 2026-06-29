@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
     await resend.emails.send({
-      from: "Werzio Demo <demo@werzio.com>",
+      from: "Salon Central Demo <demo@werzio.com>",
       to: ["iamusmankhan101@gmail.com"],
       replyTo: email,
       subject: `New Demo Request — ${name}`,
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
         <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; background: #f9f9fb; border-radius: 12px;">
           <div style="text-align: center; margin-bottom: 28px;">
             <h1 style="font-size: 1.5rem; color: #111; margin: 0 0 4px;">New Demo Request 🎉</h1>
-            <p style="color: #6b7280; font-size: 0.9rem; margin: 0;">Someone wants to see Werzio in action</p>
+            <p style="color: #6b7280; font-size: 0.9rem; margin: 0;">Someone wants to see Salon Central in action</p>
           </div>
           <div style="background: #fff; border-radius: 10px; padding: 24px; border: 1px solid #e5e7eb;">
             <table style="width: 100%; border-collapse: collapse;">
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
             </table>
           </div>
           <p style="text-align: center; color: #9ca3af; font-size: 0.8rem; margin-top: 24px;">
-            Sent from werzio.com — Book a Demo form
+            Sent from saloncentral.com — Book a Demo form
           </p>
         </div>
       `,

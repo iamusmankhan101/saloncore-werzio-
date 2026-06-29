@@ -18,7 +18,7 @@ import styles from "./SchedulingFeaturePage.module.css";
 /* ─── hero POS card ─────────────────────────────────────── */
 function HeroPOS() {
   return (
-    <div className={styles.heroCard} aria-label="Werzio POS preview">
+    <div className={styles.heroCard} aria-label="Salon Central POS preview">
       <div className={styles.heroCardTop}>
         <div>
           <span>Point of Sale</span>
@@ -349,7 +349,7 @@ const rows = [
   {
     eyebrow: "Inventory sync",
     title: "Product stock deducts automatically when sold at POS",
-    body: "Sell a product at checkout and Werzio subtracts one unit from inventory immediately. Low-stock alerts trigger when items fall below the minimum threshold — no spreadsheet needed.",
+    body: "Sell a product at checkout and Salon Central subtracts one unit from inventory immediately. Low-stock alerts trigger when items fall below the minimum threshold — no spreadsheet needed.",
     visual: <StockPanel />,
   },
   {
@@ -377,7 +377,7 @@ export default function POSFeaturePage() {
               </div>
               <h1>Checkout in seconds, not minutes</h1>
               <p>
-                Werzio&apos;s POS handles services, products, discounts, six payment methods, auto-numbered invoices,
+                Salon Central&apos;s POS handles services, products, discounts, six payment methods, auto-numbered invoices,
                 WhatsApp receipts, stock deduction, and client history update — all from one screen.
               </p>
               <div className={styles.heroActions}>
@@ -396,8 +396,8 @@ export default function POSFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/werzio-logo.png" alt="" width={96} height={96} />
-                <span>Werzio POS</span>
+                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <span>Salon Central POS</span>
               </div>
               <HeroPOS />
             </div>
@@ -426,7 +426,7 @@ export default function POSFeaturePage() {
         <section className={styles.ctaBand}>
           <div>
             <span>Ready to upgrade your checkout?</span>
-            <h2>See how fast Werzio POS really is</h2>
+            <h2>See how fast Salon Central POS really is</h2>
           </div>
           <div className={styles.ctaActions}>
             <a

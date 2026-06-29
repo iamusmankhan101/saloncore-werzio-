@@ -2,7 +2,7 @@ import LegalLayout from "../../components/LegalLayout";
 import styles from "../legal.module.css";
 
 export const metadata = {
-  title: "Terms of Service — Werzio",
+  title: "Terms of Service — Salon Central",
 };
 
 export default function TermsPage() {
@@ -15,7 +15,7 @@ export default function TermsPage() {
         <h2>1. Acceptance of Terms</h2>
         <p>
           These Terms of Service ("<strong>Terms</strong>") are an agreement between you, whether personally or on
-          behalf of a business ("<strong>you</strong>" or "<strong>your</strong>") and Werzio ("<strong>Werzio</strong>,"
+          behalf of a business ("<strong>you</strong>" or "<strong>your</strong>") and Salon Central ("<strong>Salon Central</strong>,"
           "<strong>we</strong>," "<strong>us</strong>" or "<strong>our</strong>"), concerning your access to and use of our
           platform located at <a href="https://werzio.com">werzio.com</a> and <a href="https://app.werzio.com">app.werzio.com</a>.
         </p>
@@ -26,7 +26,7 @@ export default function TermsPage() {
 
         <h2>2. Description of Service</h2>
         <p>
-          Werzio provides a salon management platform that includes appointment booking, client management, staff management,
+          Salon Central provides a salon management platform that includes appointment booking, client management, staff management,
           point of sale, inventory tracking, revenue management, WhatsApp reminders, and related features designed for
           Pakistan's beauty industry.
         </p>
@@ -43,11 +43,11 @@ export default function TermsPage() {
         </p>
 
         <h2>4. Subscription Plans & Billing</h2>
-        <p>Werzio offers the following subscription plans:</p>
+        <p>Salon Central offers the following subscription plans:</p>
         <ul>
-          <li><strong>Werzio Free</strong> — Available at no cost with limited features.</li>
-          <li><strong>Werzio Pro</strong> — ₨12,000/month, billed monthly.</li>
-          <li><strong>Werzio Premium</strong> — ₨20,000/month, billed monthly.</li>
+          <li><strong>Salon Central Free</strong> — Available at no cost with limited features.</li>
+          <li><strong>Salon Central Pro</strong> — ₨12,000/month, billed monthly.</li>
+          <li><strong>Salon Central Premium</strong> — ₨20,000/month, billed monthly.</li>
         </ul>
         <p>
           All paid plans are billed in advance on a monthly basis. You may cancel at any time. Cancellations take effect
@@ -77,7 +77,7 @@ export default function TermsPage() {
 
         <h2>7. WhatsApp Integration</h2>
         <p>
-          Werzio's WhatsApp reminder and notification features operate through WhatsApp Business API. By enabling these
+          Salon Central's WhatsApp reminder and notification features operate through WhatsApp Business API. By enabling these
           features, you confirm that your clients have consented to receive WhatsApp messages from your salon. You are
           solely responsible for ensuring compliance with WhatsApp's terms of service and applicable messaging regulations.
         </p>
@@ -85,19 +85,19 @@ export default function TermsPage() {
         <h2>8. Intellectual Property</h2>
         <p>
           The Platform and its original content, features, and functionality are and will remain the exclusive property of
-          Werzio. Our trademarks and trade dress may not be used in connection with any product or service without the prior
-          written consent of Werzio.
+          Salon Central. Our trademarks and trade dress may not be used in connection with any product or service without the prior
+          written consent of Salon Central.
         </p>
 
         <h2>9. Limitation of Liability</h2>
         <p>
-          To the maximum extent permitted by law, Werzio shall not be liable for any indirect, incidental, special,
+          To the maximum extent permitted by law, Salon Central shall not be liable for any indirect, incidental, special,
           consequential, or punitive damages, including loss of profits or revenue, loss of data, or business interruption
           arising from your use of the Platform.
         </p>
         <p>
           Our total liability to you for any claims arising under these Terms shall not exceed the amount you paid to
-          Werzio in the twelve (12) months preceding the claim.
+          Salon Central in the twelve (12) months preceding the claim.
         </p>
 
         <h2>10. Termination</h2>

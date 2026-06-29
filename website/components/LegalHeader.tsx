@@ -8,11 +8,11 @@ export default function LegalHeader() {
       <div className={styles.inner}>
         <Link href="/" className={styles.logo}>
           <Image
-            src="/werzio-logo.png"
-            alt="Werzio"
-            width={2000}
-            height={2000}
-            style={{ height: "80px", width: "auto", filter: "brightness(0)" }}
+            src="/salon-central-logo.png"
+            alt="Salon Central"
+            width={1080}
+            height={1080}
+            style={{ height: "58px", width: "58px", objectFit: "contain" }}
             priority
           />
         </Link>

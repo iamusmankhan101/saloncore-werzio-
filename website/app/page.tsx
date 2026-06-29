@@ -3,7 +3,7 @@ import Hero          from "../components/Hero";
 import TrustedBy     from "../components/TrustedBy";
 import Features      from "../components/Features";
 import HowItWorks    from "../components/HowItWorks";
-import WhyWerzio     from "../components/WhyWerzio";
+import WhySalonCentral from "../components/WhySalonCentral";
 import Testimonials  from "../components/Testimonials";
 import Pricing       from "../components/Pricing";
 import Footer        from "../components/Footer";
@@ -18,7 +18,7 @@ export default function Home() {
       <TrustedBy />
       <Features />
       <HowItWorks />
-      <WhyWerzio />
+      <WhySalonCentral />
       <Testimonials />
       <Pricing />
       <Footer />

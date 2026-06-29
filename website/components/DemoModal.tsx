@@ -94,7 +94,7 @@ export default function DemoModal({ open, onClose }: Props) {
           <>
             <div className={styles.header}>
               <div className={styles.badge}>✦ Book a Demo</div>
-              <h2 className={styles.title}>See Werzio in Action</h2>
+              <h2 className={styles.title}>See Salon Central in Action</h2>
               <p className={styles.sub}>Fill in your details and we&apos;ll schedule a personalised demo for your salon.</p>
             </div>
 

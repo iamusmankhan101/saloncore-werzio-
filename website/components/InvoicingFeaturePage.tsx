@@ -23,7 +23,7 @@ const pill = (label: string, color: string, bg: string) => (
 /* ── hero invoice card ───────────────────────────────────── */
 function HeroInvoice() {
   return (
-    <div className={styles.heroCard} aria-label="Werzio invoice preview">
+    <div className={styles.heroCard} aria-label="Salon Central invoice preview">
       <div className={styles.heroCardTop}>
         <div>
           <span>Invoice</span>
@@ -309,7 +309,7 @@ const rows = [
   {
     eyebrow: "Auto-numbered",
     title: "Every invoice gets a unique SI-YYYY-NNNN number automatically",
-    body: "Werzio assigns a sequential invoice number (SI-2026-0001, SI-2026-0042...) to every invoice the moment it is created. The counter increments automatically — no manual numbering, no duplicates, no gaps.",
+    body: "Salon Central assigns a sequential invoice number (SI-2026-0001, SI-2026-0042...) to every invoice the moment it is created. The counter increments automatically — no manual numbering, no duplicates, no gaps.",
     visual: <NumberingPanel />,
   },
   {
@@ -361,7 +361,7 @@ export default function InvoicingFeaturePage() {
               </div>
               <h1>Professional invoices, created in seconds</h1>
               <p>
-                Werzio generates auto-numbered invoices for every sale — mix services and products, apply discounts, record payment method, and print or save as PDF without leaving the dashboard.
+                Salon Central generates auto-numbered invoices for every sale — mix services and products, apply discounts, record payment method, and print or save as PDF without leaving the dashboard.
               </p>
               <div className={styles.heroActions}>
                 <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
@@ -374,8 +374,8 @@ export default function InvoicingFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/werzio-logo.png" alt="" width={96} height={96} />
-                <span>Werzio Invoicing</span>
+                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <span>Salon Central Invoicing</span>
               </div>
               <HeroInvoice />
             </div>

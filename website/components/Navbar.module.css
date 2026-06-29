@@ -25,7 +25,6 @@
   align-items: center;
   text-decoration: none;
   flex-shrink: 0;
-  filter: brightness(0); /* force black logo */
 }
 
 .links {

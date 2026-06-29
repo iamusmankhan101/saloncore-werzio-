@@ -2,7 +2,7 @@ import LegalLayout from "../../components/LegalLayout";
 import styles from "../legal.module.css";
 
 export const metadata = {
-  title: "Privacy Policy — Werzio",
+  title: "Privacy Policy — Salon Central",
 };
 
 export default function PrivacyPage() {
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
 
         <h2>1. Introduction</h2>
         <p>
-          Werzio ("<strong>we</strong>," "<strong>us</strong>," or "<strong>our</strong>") is committed to protecting
+          Salon Central ("<strong>we</strong>," "<strong>us</strong>," or "<strong>our</strong>") is committed to protecting
           your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when
           you use our salon management platform at <a href="https://werzio.com">werzio.com</a> and{" "}
           <a href="https://app.werzio.com">app.werzio.com</a>.
@@ -65,13 +65,13 @@ export default function PrivacyPage() {
 
         <h2>4. WhatsApp Data & Messaging</h2>
         <p>
-          Werzio uses the WhatsApp Business API to send automated appointment confirmations, reminders, and follow-up
+          Salon Central uses the WhatsApp Business API to send automated appointment confirmations, reminders, and follow-up
           messages to your clients on your behalf. By enabling WhatsApp features, you confirm that:
         </p>
         <ul>
           <li>Your clients have consented to receive WhatsApp messages from your salon.</li>
           <li>You are responsible for maintaining opt-in records for your clients.</li>
-          <li>Werzio acts as a data processor for WhatsApp communications you initiate.</li>
+          <li>Salon Central acts as a data processor for WhatsApp communications you initiate.</li>
         </ul>
         <p>
           We do not use your clients' WhatsApp data for our own marketing or share it with third parties.

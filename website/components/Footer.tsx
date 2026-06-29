@@ -16,11 +16,11 @@ export default function Footer() {
         <div className={styles.brand}>
           <div className={styles.logoWrap}>
             <Image
-              src="/werzio-logo.png"
-              alt="Werzio"
-              width={2000}
-              height={2000}
-              style={{ height: "90px", width: "auto" }}
+              src="/salon-central-logo.png"
+              alt="Salon Central"
+              width={1080}
+              height={1080}
+              style={{ height: "110px", width: "110px", objectFit: "contain" }}
             />
           </div>
           <p className={styles.tagline}>
@@ -49,7 +49,7 @@ export default function Footer() {
 
       {/* ── Bottom bar ── */}
       <div className={styles.bottom}>
-        <span style={{ color: "#fff" }}>© 2026 Werzio. All rights reserved.</span>
+        <span style={{ color: "#fff" }}>© 2026 Salon Central. All rights reserved.</span>
         <div className={styles.legal}>
           <a href="/terms">Terms of Service</a>
           <a href="/privacy">Privacy Policy</a>

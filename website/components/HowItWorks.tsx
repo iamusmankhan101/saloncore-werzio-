@@ -70,7 +70,7 @@ export default function HowItWorks() {
                 <div className={styles.sidebar}>
                   <div className={styles.sidebarLogo}>
                     <div className={styles.logoIcon} />
-                    <span>Werzio</span>
+                    <span>Salon Central</span>
                   </div>
                   {["Dashboard", "Bookings", "Clients", "Analytics", "Staff", "Settings"].map((item) => (
                     <div key={item} className={styles.sidebarItem}>{item}</div>

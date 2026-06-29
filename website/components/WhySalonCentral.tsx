@@ -1,4 +1,4 @@
-import styles from "./WhyWerzio.module.css";
+import styles from "./WhySalonCentral.module.css";
 
 const stats = [
   {
@@ -23,11 +23,11 @@ const stats = [
   },
 ];
 
-export default function WhyWerzio() {
+export default function WhySalonCentral() {
   return (
     <section className={styles.section} id="why">
       <div className={styles.header}>
-        <h2 className={styles.title} data-animate data-delay="0">Why Salons Choose Werzio</h2>
+        <h2 className={styles.title} data-animate data-delay="0">Why Salons Choose Salon Central</h2>
         <p className={styles.sub} data-animate data-delay="0.1">
           Trusted by thousands of salons to manage bookings more efficiently.
           Designed to help your beauty business do its best work.

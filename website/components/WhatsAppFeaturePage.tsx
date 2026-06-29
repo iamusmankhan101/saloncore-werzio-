@@ -18,7 +18,7 @@ import styles from "./SchedulingFeaturePage.module.css";
 /* ─── hero WhatsApp card ─────────────────────────────────── */
 function HeroWhatsApp() {
   return (
-    <div className={styles.heroCard} aria-label="Werzio WhatsApp automation preview">
+    <div className={styles.heroCard} aria-label="Salon Central WhatsApp automation preview">
       {/* header */}
       <div className={styles.heroCardTop}>
         <div>
@@ -379,19 +379,19 @@ const rows = [
   {
     eyebrow: "Booking confirmation",
     title: "Confirm every appointment the moment it is booked",
-    body: "As soon as a booking is created — by staff or via online booking — Werzio queues a WhatsApp confirmation with the client name, service, date, time, and salon name. No manual step needed.",
+    body: "As soon as a booking is created — by staff or via online booking — Salon Central queues a WhatsApp confirmation with the client name, service, date, time, and salon name. No manual step needed.",
     visual: <ConfirmationPanel />,
   },
   {
     eyebrow: "Appointment reminders",
     title: "Send reminders 24 hours before, automatically",
-    body: "Werzio's scheduler runs every 60 seconds and sends each client a WhatsApp reminder within your configured window (default 24 hours). Only appointments with booked or confirmed status receive reminders — cancelled and completed ones are skipped.",
+    body: "Salon Central's scheduler runs every 60 seconds and sends each client a WhatsApp reminder within your configured window (default 24 hours). Only appointments with booked or confirmed status receive reminders — cancelled and completed ones are skipped.",
     visual: <ReminderPanel />,
   },
   {
     eyebrow: "Post-visit follow-up",
     title: "Follow up after every completed appointment",
-    body: "Mark an appointment as completed and Werzio queues a personalised follow-up message. It thanks the client by name, mentions the service, and keeps your salon top-of-mind for the next visit — all without lifting a finger.",
+    body: "Mark an appointment as completed and Salon Central queues a personalised follow-up message. It thanks the client by name, mentions the service, and keeps your salon top-of-mind for the next visit — all without lifting a finger.",
     visual: <FollowUpPanel />,
   },
   {
@@ -403,7 +403,7 @@ const rows = [
   {
     eyebrow: "Low stock alerts",
     title: "Get a WhatsApp alert when products run low",
-    body: "When any product drops to or below its minimum stock level, Werzio sends a single daily low-stock alert directly to the salon owner's WhatsApp — listing every item and quantity left. No checking required.",
+    body: "When any product drops to or below its minimum stock level, Salon Central sends a single daily low-stock alert directly to the salon owner's WhatsApp — listing every item and quantity left. No checking required.",
     visual: <LowStockPanel />,
   },
   {
@@ -437,7 +437,7 @@ export default function WhatsAppFeaturePage() {
               </div>
               <h1>Your salon stays in touch, automatically</h1>
               <p>
-                Werzio sends booking confirmations, 24-hour reminders, post-visit follow-ups, and low-stock alerts via
+                Salon Central sends booking confirmations, 24-hour reminders, post-visit follow-ups, and low-stock alerts via
                 WhatsApp — all triggered automatically so your team handles zero manual messages.
               </p>
               <div className={styles.heroActions}>
@@ -456,8 +456,8 @@ export default function WhatsAppFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/werzio-logo.png" alt="" width={96} height={96} />
-                <span>Werzio OS</span>
+                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <span>Salon Central OS</span>
               </div>
               <HeroWhatsApp />
             </div>
@@ -485,7 +485,7 @@ export default function WhatsAppFeaturePage() {
         {/* ── cta band ── */}
         <section className={styles.ctaBand}>
           <div>
-            <span>Available on Werzio Pro and Premium</span>
+            <span>Available on Salon Central Pro and Premium</span>
             <h2>Let WhatsApp work for your salon 24/7</h2>
           </div>
           <div className={styles.ctaActions}>

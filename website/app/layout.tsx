@@ -2,15 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Werzio — The All-in-One Salon Operating System",
+  title: "Salon Central — The All-in-One Salon Operating System",
   description:
     "Manage bookings, clients, staff, and revenue via WhatsApp. Built for Pakistan's beauty industry.",
   icons: {
-    icon: [
-      { url: "/icon.png", type: "image/png", sizes: "512x512" },
-      { url: "/favicon.ico", sizes: "32x32" },
-    ],
-    apple: { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    icon: [{ url: "/salon-central-logo.png", type: "image/png", sizes: "1080x1080" }],
+    apple: { url: "/salon-central-logo.png", sizes: "1080x1080", type: "image/png" },
   },
 };
 

@@ -11,7 +11,7 @@ import styles from "./SchedulingFeaturePage.module.css";
 /* ─── hero client card ───────────────────────────────────── */
 function HeroClient() {
   return (
-    <div className={styles.heroCard} aria-label="Werzio client management preview">
+    <div className={styles.heroCard} aria-label="Salon Central client management preview">
       <div className={styles.heroCardTop}>
         <div>
           <span>Clients</span>
@@ -427,7 +427,7 @@ export default function ClientFeaturePage() {
               </div>
               <h1>Know every client before they walk through the door</h1>
               <p>
-                Werzio builds a rich profile for every client — visit history, lifetime spend, hair formulas, allergy alerts, skin type, and tags — so your team delivers a personalised experience every single time.
+                Salon Central builds a rich profile for every client — visit history, lifetime spend, hair formulas, allergy alerts, skin type, and tags — so your team delivers a personalised experience every single time.
               </p>
               <div className={styles.heroActions}>
                 <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
@@ -438,8 +438,8 @@ export default function ClientFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/werzio-logo.png" alt="" width={96} height={96} />
-                <span>Werzio Clients</span>
+                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <span>Salon Central Clients</span>
               </div>
               <HeroClient />
             </div>

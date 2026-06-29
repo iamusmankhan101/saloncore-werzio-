@@ -20,7 +20,7 @@ const featureLinks = [
 
 const links = [
   { label: "How It Works", href: "/#how" },
-  { label: "Why Werzio",   href: "/#why" },
+  { label: "Why Salon Central",   href: "/#why" },
   { label: "Testimonials", href: "/#testimonials" },
   { label: "Pricing",      href: "/#pricing" },
 ];
@@ -52,7 +52,7 @@ export default function Navbar() {
     <>
       <nav className={`${styles.nav} ${scrolled ? styles.scrolled : ""}`}>
         <Link href="/" className={styles.logo}>
-          <Image src="/werzio-logo.png" alt="Werzio" width={2000} height={2000} style={{ height: "100px", width: "auto" }} priority />
+          <Image src="/salon-central-logo.png" alt="Salon Central" width={1080} height={1080} style={{ height: "58px", width: "58px", objectFit: "contain" }} priority />
         </Link>
 
         <ul className={styles.links}>
@@ -83,7 +83,7 @@ export default function Navbar() {
                 </div>
                 <div className={styles.megaRight}>
                   <div className={styles.featuredCard}>
-                    <span className={styles.featuredBadge}>Werzio Pro</span>
+                    <span className={styles.featuredBadge}>Salon Central Pro</span>
                     <strong className={styles.featuredTitle}>Everything your salon needs, in one place</strong>
                     <p className={styles.featuredBody}>Appointments, POS, inventory, staff, clients &amp; reports — no integrations needed.</p>
                     <div className={styles.featuredStats}>

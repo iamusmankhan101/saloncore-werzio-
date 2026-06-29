@@ -50,7 +50,7 @@ export default function CalendarMockup() {
         <div className={styles.sidebarTop}>
           <div className={styles.avatar}>A</div>
           <div>
-            <div className={styles.sidebarName}>Werzio</div>
+            <div className={styles.sidebarName}>Salon Central</div>
             <div className={styles.sidebarRole}>Admin</div>
           </div>
           <Sparkles size={16} className={styles.sparkle} />

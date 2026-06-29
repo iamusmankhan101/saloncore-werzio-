@@ -24,7 +24,7 @@ function HeroRevenue() {
   ];
 
   return (
-    <div className={styles.heroCard} aria-label="Werzio revenue dashboard preview">
+    <div className={styles.heroCard} aria-label="Salon Central revenue dashboard preview">
       <div className={styles.heroCardTop}>
         <div>
           <span>Revenue</span>
@@ -296,7 +296,7 @@ const rows = [
   {
     eyebrow: "Top services",
     title: "See which services generate the most revenue",
-    body: "Werzio ranks your top 6 services by total revenue earned in the selected period. Each shows the number of times performed and the total PKR generated — so you always know your highest-value offerings.",
+    body: "Salon Central ranks your top 6 services by total revenue earned in the selected period. Each shows the number of times performed and the total PKR generated — so you always know your highest-value offerings.",
     visual: <TopServicesPanel />,
   },
   {
@@ -308,7 +308,7 @@ const rows = [
   {
     eyebrow: "PDF export",
     title: "Export a complete revenue report with one click",
-    body: "Hit Export PDF and Werzio generates a branded A4 report — stats, trend chart, payment method breakdown, top services, and the full daily table — all formatted for print or email. Monthly drill-down views export their own detailed report.",
+    body: "Hit Export PDF and Salon Central generates a branded A4 report — stats, trend chart, payment method breakdown, top services, and the full daily table — all formatted for print or email. Monthly drill-down views export their own detailed report.",
     visual: <PDFExportPanel />,
   },
 ];
@@ -330,7 +330,7 @@ export default function RevenueFeaturePage() {
               </div>
               <h1>Every rupee your salon earns, tracked in real time</h1>
               <p>
-                Werzio gives you a live revenue dashboard with period-over-period comparisons, payment method breakdowns, top service rankings, daily tables, and one-click PDF export — no spreadsheet needed.
+                Salon Central gives you a live revenue dashboard with period-over-period comparisons, payment method breakdowns, top service rankings, daily tables, and one-click PDF export — no spreadsheet needed.
               </p>
               <div className={styles.heroActions}>
                 <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
@@ -343,8 +343,8 @@ export default function RevenueFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/werzio-logo.png" alt="" width={96} height={96} />
-                <span>Werzio Revenue</span>
+                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <span>Salon Central Revenue</span>
               </div>
               <HeroRevenue />
             </div>
@@ -369,7 +369,7 @@ export default function RevenueFeaturePage() {
         {/* ── cta band ── */}
         <section className={styles.ctaBand}>
           <div>
-            <span>Available on Werzio Pro and Premium</span>
+            <span>Available on Salon Central Pro and Premium</span>
             <h2>Know your numbers without opening a spreadsheet</h2>
           </div>
           <div className={styles.ctaActions}>

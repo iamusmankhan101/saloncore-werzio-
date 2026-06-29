@@ -16,7 +16,7 @@ function HeroStaff() {
     { initials: "SA", name: "Sara A.",  role: "Junior Stylist", rev: "PKR 64,200",   appts: 28, color: "#d97706", roleBg: "#fffbeb", roleC: "#d97706" },
   ];
   return (
-    <div className={styles.heroCard} aria-label="Werzio staff management preview">
+    <div className={styles.heroCard} aria-label="Salon Central staff management preview">
       <div className={styles.heroCardTop}>
         <div>
           <span>Staff</span>
@@ -178,11 +178,11 @@ function PlanLimitPanel() {
       </div>
       <div className={styles.blockArea}>
         <div style={{ padding: 14, borderRadius: 14, background: "#f5f3ff", border: "1px solid #ede9fe" }}>
-          <div style={{ fontSize: "0.72rem", fontWeight: 900, color: "#9ca3af", marginBottom: 2 }}>WERZIO FREE</div>
+          <div style={{ fontSize: "0.72rem", fontWeight: 900, color: "#9ca3af", marginBottom: 2 }}>SALON CENTRAL FREE</div>
           <div style={{ fontSize: "0.88rem", fontWeight: 900, color: "#17112a" }}>Up to 5 staff members</div>
         </div>
         <div style={{ padding: 14, borderRadius: 14, background: "#7c3aed", border: "none" }}>
-          <div style={{ fontSize: "0.72rem", fontWeight: 900, color: "rgba(255,255,255,.65)", marginBottom: 2 }}>WERZIO PRO & PREMIUM</div>
+          <div style={{ fontSize: "0.72rem", fontWeight: 900, color: "rgba(255,255,255,.65)", marginBottom: 2 }}>SALON CENTRAL PRO & PREMIUM</div>
           <div style={{ fontSize: "0.88rem", fontWeight: 900, color: "#fff" }}>Unlimited staff members</div>
         </div>
         <div style={{ padding: 12, borderRadius: 12, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: "0.74rem", fontWeight: 800, color: "#166534" }}>
@@ -222,7 +222,7 @@ const rows = [
   {
     eyebrow: "Plan limits",
     title: "Start free, scale your team as you grow",
-    body: "The Free plan supports up to 5 staff members. Upgrade to Werzio Pro or Premium for unlimited team size. Adding a staff member takes under 30 seconds — name, phone, role, and services — and they are live in the system immediately.",
+    body: "The Free plan supports up to 5 staff members. Upgrade to Salon Central Pro or Premium for unlimited team size. Adding a staff member takes under 30 seconds — name, phone, role, and services — and they are live in the system immediately.",
     visual: <PlanLimitPanel />,
   },
 ];
@@ -242,7 +242,7 @@ export default function StaffFeaturePage() {
               </div>
               <h1>Your whole team, managed from one screen</h1>
               <p>
-                Werzio gives every team member a profile with their role, specialties, assigned services, and live performance stats — so your salon runs with clarity from the moment the doors open.
+                Salon Central gives every team member a profile with their role, specialties, assigned services, and live performance stats — so your salon runs with clarity from the moment the doors open.
               </p>
               <div className={styles.heroActions}>
                 <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
@@ -253,8 +253,8 @@ export default function StaffFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/werzio-logo.png" alt="" width={96} height={96} />
-                <span>Werzio Staff</span>
+                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <span>Salon Central Staff</span>
               </div>
               <HeroStaff />
             </div>
@@ -278,7 +278,7 @@ export default function StaffFeaturePage() {
         <section className={styles.ctaBand}>
           <div>
             <span>Free plan includes up to 5 staff</span>
-            <h2>Build your team in Werzio today</h2>
+            <h2>Build your team in Salon Central today</h2>
           </div>
           <div className={styles.ctaActions}>
             <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
@@ -307,7 +307,7 @@ export default function StaffFeaturePage() {
           <div>
             <Star size={19} />
             <strong>Unlimited on Pro</strong>
-            <span>No team size cap on Werzio Pro and Premium plans.</span>
+            <span>No team size cap on Salon Central Pro and Premium plans.</span>
           </div>
         </section>
       </main>

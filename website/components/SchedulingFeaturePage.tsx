@@ -104,21 +104,21 @@ const rows = [
     eyebrow: "Online booking",
     title: "Let clients book from your branded booking page, 24/7",
     body:
-      "Share a branded Werzio booking page where clients pick their service, choose a stylist, and confirm a time — without calling the salon. Bookings land directly in your dashboard with source, services, and total already filled in. Business hours and closed days are respected automatically.",
+      "Share a branded Salon Central booking page where clients pick their service, choose a stylist, and confirm a time — without calling the salon. Bookings land directly in your dashboard with source, services, and total already filled in. Business hours and closed days are respected automatically.",
     visual: <PhoneBookingPanel />,
   },
   {
     eyebrow: "Staff scheduling",
     title: "Schedule every stylist's day without conflicts or guesswork",
     body:
-      "Assign appointments to specific staff members, see each stylist's workload side by side on the weekly calendar, and create new bookings with stylist and service pre-linked. No double-bookings — Werzio shows only the available slots for each team member.",
+      "Assign appointments to specific staff members, see each stylist's workload side by side on the weekly calendar, and create new bookings with stylist and service pre-linked. No double-bookings — Salon Central shows only the available slots for each team member.",
     visual: <StaffSchedulePanel />,
   },
   {
     eyebrow: "Automatic reminders",
     title: "Send confirmations, reminders, and follow-ups automatically",
     body:
-      "Werzio sends a booking confirmation the moment an appointment is created, a 24-hour reminder the day before, a 2-hour reminder on the day, and a post-visit follow-up — all via WhatsApp, with zero manual effort from your team.",
+      "Salon Central sends a booking confirmation the moment an appointment is created, a 24-hour reminder the day before, a 2-hour reminder on the day, and a post-visit follow-up — all via WhatsApp, with zero manual effort from your team.",
     visual: <MessagesPanel />,
   },
   {
@@ -132,7 +132,7 @@ const rows = [
 
 function HeroCalendar() {
   return (
-    <div className={styles.heroCard} aria-label="Werzio scheduling preview">
+    <div className={styles.heroCard} aria-label="Salon Central scheduling preview">
       <div className={styles.heroCardTop}>
         <div>
           <span>Calendar</span>
@@ -190,7 +190,7 @@ function PhoneBookingPanel() {
   return (
       <div className={styles.phoneWrap}>
       <div className={styles.phone}>
-        <div className={styles.phoneTop}>Werzio Booking</div>
+        <div className={styles.phoneTop}>Salon Central Booking</div>
         <div className={styles.phoneField}>Sana Nawaz - 0300 1234567</div>
         <div className={styles.phoneField}>Hair Color</div>
         <div className={styles.phoneFieldActive}>Open 09:00 - 20:00</div>
@@ -219,7 +219,7 @@ export default function SchedulingFeaturePage() {
               </div>
               <h1>Take control of your salon schedule</h1>
               <p>
-                Werzio keeps bookings, client details, stylist assignments, WhatsApp reminders, online booking, and checkout handoff in one dashboard built for Pakistan&apos;s beauty industry.
+                Salon Central keeps bookings, client details, stylist assignments, WhatsApp reminders, online booking, and checkout handoff in one dashboard built for Pakistan&apos;s beauty industry.
               </p>
               <div className={styles.heroActions}>
                 <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
@@ -232,8 +232,8 @@ export default function SchedulingFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/werzio-logo.png" alt="" width={96} height={96} />
-                <span>Werzio OS</span>
+                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <span>Salon Central OS</span>
               </div>
               <HeroCalendar />
             </div>
@@ -257,7 +257,7 @@ export default function SchedulingFeaturePage() {
         <section className={styles.ctaBand}>
           <div>
             <span>Ready to simplify operations?</span>
-            <h2>Find out if Werzio is right for your salon</h2>
+            <h2>Find out if Salon Central is right for your salon</h2>
           </div>
           <div className={styles.ctaActions}>
             <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>

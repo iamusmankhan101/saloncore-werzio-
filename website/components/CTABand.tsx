@@ -7,7 +7,7 @@ export default function CTABand() {
       <h2 className={styles.title}>Ready to Transform Your Salon?</h2>
       <p className={styles.sub}>
         Join 10,000+ salon owners who&apos;ve replaced paper registers, DM chaos, and cash
-        counting with Werzio.
+        counting with Salon Central.
       </p>
       <div className={styles.btns}>
         <a href="#pricing" className={`btn btn-primary btn-lg ${styles.lightBtn}`}>

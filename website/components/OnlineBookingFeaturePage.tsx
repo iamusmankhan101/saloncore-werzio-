@@ -18,7 +18,7 @@ import styles from "./SchedulingFeaturePage.module.css";
 /* ─── hero booking phone ─────────────────────────────────── */
 function HeroBooking() {
   return (
-    <div className={styles.heroCard} aria-label="Werzio online booking preview">
+    <div className={styles.heroCard} aria-label="Salon Central online booking preview">
       <div className={styles.heroCardTop}>
         <div>
           <span>Online Booking</span>
@@ -82,7 +82,7 @@ function SharePanel() {
     <div className={styles.checkoutPanel}>
       <div style={{ fontSize: "0.7rem", fontWeight: 900, color: "#746b83", marginBottom: 10 }}>YOUR BOOKING LINK</div>
       <div style={{ padding: "12px 14px", borderRadius: 12, background: "#f5f3ff", border: "1px solid #ede9fe", fontSize: "0.82rem", fontWeight: 800, color: "#7c3aed", marginBottom: 14, wordBreak: "break-all" }}>
-        app.werzio.com/online-booking
+        app.saloncentral.com/online-booking
       </div>
       {[
         { platform: "Instagram Bio", icon: "📸", action: "Link in bio" },
@@ -256,7 +256,7 @@ const rows = [
   {
     eyebrow: "Shareable booking link",
     title: "One link. Share it anywhere clients find you",
-    body: "Every Werzio salon gets a public booking page. Add the link to your Instagram bio, WhatsApp status, Google Maps website field, or Facebook Book Now button — clients book directly without calling or DMing.",
+    body: "Every Salon Central salon gets a public booking page. Add the link to your Instagram bio, WhatsApp status, Google Maps website field, or Facebook Book Now button — clients book directly without calling or DMing.",
     visual: <SharePanel />,
   },
   {
@@ -280,7 +280,7 @@ const rows = [
   {
     eyebrow: "Client auto-creation",
     title: "New clients are added to your system on their first booking",
-    body: "When a client books online, Werzio checks their phone number. If they are new, a client profile is created automatically — tagged as New, source set to Web, with visit count and spend tracked from day one.",
+    body: "When a client books online, Salon Central checks their phone number. If they are new, a client profile is created automatically — tagged as New, source set to Web, with visit count and spend tracked from day one.",
     visual: <ClientAutoPanel />,
   },
   {
@@ -308,7 +308,7 @@ export default function OnlineBookingFeaturePage() {
               </div>
               <h1>Let clients book while you focus on the salon</h1>
               <p>
-                Werzio gives your salon a public booking page where clients browse services, pick a date, and confirm their appointment — without a single DM or phone call from your team.
+                Salon Central gives your salon a public booking page where clients browse services, pick a date, and confirm their appointment — without a single DM or phone call from your team.
               </p>
               <div className={styles.heroActions}>
                 <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
@@ -321,8 +321,8 @@ export default function OnlineBookingFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/werzio-logo.png" alt="" width={96} height={96} />
-                <span>Werzio OS</span>
+                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <span>Salon Central OS</span>
               </div>
               <HeroBooking />
             </div>
