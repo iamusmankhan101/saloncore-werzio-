@@ -1016,9 +1016,10 @@ export default function AccountPage() {
   const initials = (currentUser?.ownerName || "?")
     .split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 
-  function handleSignOut() {
-    signOut();
+  async function handleSignOut() {
+    await signOut();
     router.replace("/sign-in");
+    router.refresh();
   }
 
   const activeSection = SECTIONS.find(s => s.id === mobileScreen);

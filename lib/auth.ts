@@ -219,9 +219,21 @@ export function updateCurrentPassword(currentPassword: string, nextPassword: str
   localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
 }
 
-export function signOut() {
+export async function signOut() {
   if (!canUseStorage()) return;
+  const sessionId = localStorage.getItem(SESSION_KEY);
   localStorage.removeItem(SESSION_KEY);
+  if (sessionId) localStorage.removeItem(`werzio_user_cache_${sessionId}`);
+  try {
+    await fetch("/api/auth/signout", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+  } catch {
+    // The local session is already cleared. A later server request will still
+    // enforce the remaining cookie until connectivity is restored.
+  }
 }
 
 /**

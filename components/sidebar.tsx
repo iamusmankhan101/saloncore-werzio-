@@ -79,11 +79,10 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     return () => { window.clearTimeout(t); window.removeEventListener(SETTINGS_CHANGED_EVENT, sync); };
   }, [pathname]);
 
-  function handleSignOut() {
-    fetch("/api/auth/signout", { method: "POST" }).finally(() => {
-      signOut();
-      router.replace("/sign-in");
-    });
+  async function handleSignOut() {
+    await signOut();
+    router.replace("/sign-in");
+    router.refresh();
   }
 
   const initials = (user?.ownerName || salonName || "W")
