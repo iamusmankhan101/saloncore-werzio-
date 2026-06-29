@@ -237,7 +237,7 @@ function OnlineBookingInner() {
       <section className="heroSection">
         <div className="heroOverlay" />
         <div className="heroCenterContent">
-          <h1 className="heroBrandName" suppressHydrationWarning>{salonName}</h1>
+          <h1 className="heroBrandName">Online Booking</h1>
           <div className="heroRule"><span className="heroDiamond" /></div>
           <p className="heroBrandSubtitle">Beauty Bar</p>
         </div>
