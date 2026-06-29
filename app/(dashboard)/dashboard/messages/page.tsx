@@ -389,6 +389,16 @@ export default function MessagesPage() {
     load();
   }, [refreshKey]);
 
+  useEffect(() => {
+    function onMessageLogged(event: Event) {
+      const entry = (event as CustomEvent<WaLogEntry>).detail;
+      if (!entry?.id) return;
+      setLogs((current) => current.some((item) => item.id === entry.id) ? current : [entry, ...current]);
+    }
+    window.addEventListener("werzio_wa_message_logged", onMessageLogged);
+    return () => window.removeEventListener("werzio_wa_message_logged", onMessageLogged);
+  }, []);
+
   const ws = settingsStore.wasender as {
     apiKey: string; ownerPhone: string;
     autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean;

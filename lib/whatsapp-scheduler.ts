@@ -353,11 +353,21 @@ async function runSchedulerInternal(): Promise<void> {
       if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
-      if (!appt || !phone) continue;
+      if (!appt) {
+        appendLog({ type: "confirmation", clientName: item.clientName ?? "Unknown client", phone: item.phone ?? "", status: "failed", templateId: "direct", error: "Appointment was not found when the confirmation was processed." });
+        continue;
+      }
+      if (!phone) {
+        appendLog({ type: "confirmation", clientName: appt.clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
+        continue;
+      }
       const sentKey = `confirm_${appt.id}`;
       if (alreadySent(sentKey)) continue;
       const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
-      if (apptTime < now) continue;
+      if (apptTime < now) {
+        appendLog({ type: "confirmation", clientName: appt.clientName, phone, status: "failed", templateId: "direct", error: "Appointment time had already passed before confirmation could be sent." });
+        continue;
+      }
       const text = fillTemplate(waTpl.confirmation, buildVars(appt, salonName));
       const ok = await callSendApi(phone, text, { type: "confirmation", clientName: appt.clientName });
       if (ok) {
@@ -377,7 +387,14 @@ async function runSchedulerInternal(): Promise<void> {
       if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
-      if (!appt || !phone) continue;
+      if (!appt) {
+        appendLog({ type: "followup", clientName: item.clientName ?? "Unknown client", phone: item.phone ?? "", status: "failed", templateId: "direct", error: "Appointment was not found when the follow-up was processed." });
+        continue;
+      }
+      if (!phone) {
+        appendLog({ type: "followup", clientName: appt.clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
+        continue;
+      }
       const sentKey = `followup_${appt.id}`;
       if (alreadySent(sentKey)) continue;
       const text = fillTemplate(waTpl.followup, buildVars(appt, salonName));
@@ -403,7 +420,10 @@ async function runSchedulerInternal(): Promise<void> {
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
       const clientName = appt?.clientName ?? item.clientName ?? "there";
-      if (!phone) continue;
+      if (!phone) {
+        appendLog({ type: "cancellation", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
+        continue;
+      }
       const cancelDiscount = (settingsStore.wasender as { cancelDiscount?: string }).cancelDiscount || "10%";
       const text = appt
         ? fillTemplate(cancelTpl, { ...buildVars(appt, salonName), discount: cancelDiscount })
