@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { Award, ChevronRight, CreditCard, Gift, Loader2, Smartphone, Star } from "lucide-react";
 import { TIER_META, type LoyaltySettings, type LoyaltyTier } from "@/lib/loyalty";
 import type { Client } from "@/lib/types";
@@ -25,10 +25,6 @@ function fmt(n: number) {
   return "PKR " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
 }
 
-function normalizeUrlSalonName(name?: string) {
-  return name || "Werzio Salon";
-}
-
 export default function PublicLoyaltyCardPage({ params }: { params: Promise<{ salonId: string }> }) {
   const { salonId } = use(params);
   const [phone, setPhone] = useState("");
@@ -38,6 +34,19 @@ export default function PublicLoyaltyCardPage({ params }: { params: Promise<{ sa
   const [needsName, setNeedsName] = useState(false);
   const [loading, setLoading] = useState(false);
   const [walletMsg, setWalletMsg] = useState("");
+  const [loadedSalonName, setLoadedSalonName] = useState<string | null>(null);
+
+  // Fetch the real salon name on mount so the card shows it before any lookup
+  useEffect(() => {
+    if (!salonId) return;
+    fetch(`/api/public/salon?salonId=${encodeURIComponent(salonId)}`)
+      .then((r) => r.json())
+      .then((d: { ok: boolean; settings?: { salon?: { name?: string } } }) => {
+        const n = d?.settings?.salon?.name;
+        if (n) setLoadedSalonName(n);
+      })
+      .catch(() => {});
+  }, [salonId]);
 
   async function lookupOrClaim(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -84,7 +93,7 @@ export default function PublicLoyaltyCardPage({ params }: { params: Promise<{ sa
     setWalletMsg(json.error || `${platform === "apple" ? "Apple" : "Google"} Wallet is not configured yet.`);
   }
 
-  const salonName = normalizeUrlSalonName(data?.salon?.name);
+  const salonName = data?.salon?.name || loadedSalonName || "Salon";
   const tier = data?.card?.tier || "none";
   const tierMeta = TIER_META[tier];
 
