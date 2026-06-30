@@ -23,6 +23,17 @@ const defaults = {
     timezone: "Asia/Karachi",
     logo: "",
   },
+  locations: {
+    activeLocationId: "main",
+    items: [
+      {
+        id: "main",
+        name: "Main Branch",
+        address: "Block 5, Gulshan-e-Iqbal, Karachi",
+        city: "Karachi",
+      },
+    ],
+  },
   wasender: {
     provider: "wasender" as "wasender" | "botsailor",
     apiKey: "",
@@ -146,6 +157,13 @@ function load() {
           : (user?.email || dynamicDefaults.salon.email),
       },
       wasender: { ...dynamicDefaults.wasender, ...saved.wasender },
+      locations: {
+        ...dynamicDefaults.locations,
+        ...saved.locations,
+        items: Array.isArray(saved.locations?.items) && saved.locations.items.length > 0
+          ? saved.locations.items
+          : dynamicDefaults.locations.items,
+      },
       hours: saved.hours ?? structuredClone(dynamicDefaults.hours),
       notifications: { ...dynamicDefaults.notifications, ...saved.notifications },
       appearance: { ...dynamicDefaults.appearance, ...saved.appearance },

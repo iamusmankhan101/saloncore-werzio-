@@ -15,6 +15,7 @@ interface ClientPayload {
   id: string;
   name: string;
   phone: string;
+  locationId?: string;
   gender: string;
   tags: string[];
   source: string;
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
           lastVisitDate: appointment.date,
         };
       } else {
-        clients = [client, ...clients];
+        clients = [{ ...client, locationId: client.locationId || "main" }, ...clients];
       }
 
       await db.execute({

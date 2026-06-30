@@ -11,6 +11,7 @@ import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, appendLog } from "@/lib/whatsapp-scheduler";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
+import { addSalonLocation, clientLocationId, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
 
 const SEGMENT_CAMPAIGN_QUEUE_KEY = "werzio_segment_campaign_queue";
 const SEGMENT_CAMPAIGN_SPREAD_WINDOW_MS = 4 * 60 * 60 * 1000;
@@ -164,7 +165,7 @@ function DeleteConfirmModal({ clientName, onConfirm, onCancel }: { clientName: s
 }
 
 // ── Client Detail Panel ───────────────────────────────────────────────────────
-function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { client: Client; onClose: () => void; appointments: Appointment[]; onUpdate?: (c: Client) => void; onDelete?: (id: string) => void }) {
+function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDelete }: { client: Client; onClose: () => void; appointments: Appointment[]; locations: SalonLocation[]; onUpdate?: (c: Client) => void; onDelete?: (id: string) => void }) {
   const panelRouter = useRouter();
   const allClientAppts   = appointments.filter((a) => a.clientId === client.id);
   const completedAppts   = allClientAppts.filter((a) => a.status === "completed").sort((a, b) => b.date.localeCompare(a.date));
@@ -213,6 +214,7 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
     dob: client.dob ?? "",
     source: client.source,
     tag: client.tags[0] ?? "",
+    locationId: clientLocationId(client),
   });
   const [saved, setSaved] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -233,6 +235,7 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
   const displayEmail = saved ? editForm.email : client.email;
   const displayDob = saved ? editForm.dob : client.dob;
   const displaySource = saved ? editForm.source : client.source;
+  const displayLocationId = saved ? editForm.locationId : clientLocationId(client);
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -468,11 +471,17 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
                       style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
                   </div>
                 ))}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     <label style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.06em" }}>Source</label>
                     <select value={editForm.source} onChange={(e) => setE("source", e.target.value)} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
                       {["whatsapp", "walk-in", "web", "manual"].map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.06em" }}>Location</label>
+                    <select value={editForm.locationId} onChange={(e) => setE("locationId", e.target.value)} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+                      {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
                     </select>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -484,7 +493,7 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, paddingTop: 4 }}>
-                  <button onClick={() => { setEditing(false); setEditForm({ name: client.name, phone: client.phone, email: client.email ?? "", dob: client.dob ?? "", source: client.source, tag: client.tags[0] ?? "" }); }}
+                  <button onClick={() => { setEditing(false); setEditForm({ name: client.name, phone: client.phone, email: client.email ?? "", dob: client.dob ?? "", source: client.source, tag: client.tags[0] ?? "", locationId: clientLocationId(client) }); }}
                     style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>
                     Cancel
                   </button>
@@ -496,6 +505,7 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
                       email: editForm.email || undefined,
                       dob: editForm.dob || undefined,
                       source: editForm.source as any,
+                      locationId: editForm.locationId,
                       tags: editForm.tag ? [editForm.tag] : [],
                     };
                     onUpdate?.(updatedC);
@@ -515,6 +525,7 @@ function ClientPanel({ client, onClose, appointments, onUpdate, onDelete }: { cl
                 {displayEmail && <InfoLine icon={<Mail size={13} color="#9898b0" />} label={displayEmail} />}
                 {displayDob && <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`DOB: ${fmtDate(displayDob)}`} />}
                 <InfoLine icon={<Heart size={13} color="#9898b0" />} label={`Source: ${displaySource}`} />
+                <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`Location: ${locationName(displayLocationId)}`} />
                 <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`Last visit: ${fmtDate(liveLastVisit ?? client.lastVisitDate)}`} />
               </div>
             </PanelSection>
@@ -574,9 +585,9 @@ function InfoLine({ icon, label }: { icon: React.ReactNode; label: string }) {
 }
 
 // ── Add Client Modal ──────────────────────────────────────────────────────────
-function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (c: Client) => void }) {
+function AddClientModal({ onClose, onAdd, locations }: { onClose: () => void; onAdd: (c: Client) => void; locations: SalonLocation[] }) {
   const [done, setDone] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", notes: "" });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", notes: "", locationId: getDefaultLocationId() });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const canSubmit = form.name && form.phone;
 
@@ -586,6 +597,7 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (c: Cl
       id: "c_" + Date.now(),
       name: form.name,
       phone: form.phone,
+      locationId: form.locationId,
       email: form.email || undefined,
       gender: "female",
       dob: form.dob || undefined,
@@ -633,11 +645,17 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (c: Cl
                 style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
             </div>
           ))}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Source</label>
               <select value={form.source} onChange={(e) => set("source", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
                 {["whatsapp", "walk-in", "web", "manual"].map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Location</label>
+              <select value={form.locationId} onChange={(e) => set("locationId", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+                {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
               </select>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -672,7 +690,7 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (c: Cl
 
 // ── Export helpers ────────────────────────────────────────────────────────────
 const EXPORT_COLS = [
-  "Name","Phone","Email","Gender","Date of Birth","Source","Tags","Notes",
+  "Name","Phone","Email","Gender","Date of Birth","Location","Source","Tags","Notes",
   "Total Visits","Total Spend","Loyalty Points","Created At",
 ];
 
@@ -683,6 +701,7 @@ function clientsToRows(list: Client[]) {
     "Email":          c.email ?? "",
     "Gender":         c.gender ?? "",
     "Date of Birth":  c.dob ?? "",
+    "Location":       locationName(clientLocationId(c)),
     "Source":         c.source,
     "Tags":           c.tags.join(", "),
     "Notes":          c.notes ?? "",
@@ -735,6 +754,7 @@ function ImportModal({ existing, onClose, onImport }: {
 
       const existingPhones = new Set(existing.map((c) => c.phone.replace(/\s/g, "")));
       const newClients: Client[] = [];
+      const locations = getSalonLocations();
 
       for (const row of rows) {
         const name  = String(row["Name"] ?? row["name"] ?? "").trim();
@@ -744,10 +764,13 @@ function ImportModal({ existing, onClose, onImport }: {
         existingPhones.add(phone);
 
         const gender = String(row["Gender"] ?? "").toLowerCase();
+        const importedLocation = String(row["Location"] ?? row["location"] ?? row["Branch"] ?? "").trim();
+        const matchedLocation = locations.find((location) => location.name.toLowerCase() === importedLocation.toLowerCase() || location.id === importedLocation);
         newClients.push({
           id:          `imp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
           name,
           phone,
+          locationId:   matchedLocation?.id ?? getDefaultLocationId(),
           email:       String(row["Email"] ?? row["email"] ?? "").trim() || undefined,
           gender:      (["female","male","other"].includes(gender) ? gender : undefined) as Client["gender"],
           dob:         String(row["Date of Birth"] ?? row["DOB"] ?? row["dob"] ?? "").trim() || undefined,
@@ -814,9 +837,9 @@ function ImportModal({ existing, onClose, onImport }: {
                   onClick={async () => {
                     const XLSX = await import("xlsx");
                     const sample = [
-                      { "Name":"Sara Ahmed",  "Phone":"923001234567","Email":"sara@example.com","Gender":"female","Date of Birth":"1995-04-12","Source":"walk-in","Tags":"VIP, Regular","Notes":"Prefers mornings","Total Visits":5,"Total Spend":12500,"Loyalty Points":350,"Created At":"2024-01-15" },
-                      { "Name":"Ali Hassan",  "Phone":"923009876543","Email":"ali@example.com", "Gender":"male",  "Date of Birth":"1988-11-30","Source":"whatsapp","Tags":"Regular",      "Notes":"",              "Total Visits":2,"Total Spend":4800, "Loyalty Points":120,"Created At":"2024-03-22" },
-                      { "Name":"Hina Malik",  "Phone":"923011112233","Email":"",                "Gender":"female","Date of Birth":"",          "Source":"manual",  "Tags":"Bridal",       "Notes":"Bridal package", "Total Visits":1,"Total Spend":8000, "Loyalty Points":200,"Created At":"2024-06-01" },
+                      { "Name":"Sara Ahmed",  "Phone":"923001234567","Email":"sara@example.com","Gender":"female","Date of Birth":"1995-04-12","Location":"Main Branch","Source":"walk-in","Tags":"VIP, Regular","Notes":"Prefers mornings","Total Visits":5,"Total Spend":12500,"Loyalty Points":350,"Created At":"2024-01-15" },
+                      { "Name":"Ali Hassan",  "Phone":"923009876543","Email":"ali@example.com", "Gender":"male",  "Date of Birth":"1988-11-30","Location":"Main Branch","Source":"whatsapp","Tags":"Regular",      "Notes":"",              "Total Visits":2,"Total Spend":4800, "Loyalty Points":120,"Created At":"2024-03-22" },
+                      { "Name":"Hina Malik",  "Phone":"923011112233","Email":"",                "Gender":"female","Date of Birth":"",          "Location":"Main Branch","Source":"manual",  "Tags":"Bridal",       "Notes":"Bridal package", "Total Visits":1,"Total Spend":8000, "Loyalty Points":200,"Created At":"2024-06-01" },
                     ];
                     const ws = XLSX.utils.json_to_sheet(sample, { header: EXPORT_COLS });
                     // Bold the header row
@@ -840,6 +863,7 @@ function ImportModal({ existing, onClose, onImport }: {
                   ["Email","Optional"],
                   ["Gender","female / male / other"],
                   ["Date of Birth","YYYY-MM-DD format"],
+                  ["Location","Branch name, e.g. Main Branch"],
                   ["Source","walk-in / whatsapp / manual"],
                   ["Tags","Comma-separated, e.g. VIP, Regular"],
                   ["Notes","Any freeform note"],
@@ -1071,6 +1095,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
   const [selected, setSelected] = useState<Client | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -1084,6 +1109,7 @@ export default function ClientsPage() {
   const [absentDays, setAbsentDays] = useState(60);
   const [showSendModal, setShowSendModal] = useState(false);
   const [campaignQueueCount, setCampaignQueueCount] = useState(0);
+  const [locations, setLocations] = useState<SalonLocation[]>(() => getSalonLocations());
 
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -1094,15 +1120,16 @@ export default function ClientsPage() {
 
     // Recompute stats from completed appointments, but never decrease below POS-recorded values
     const synced = storedClients.map((c) => {
+      const withLocation = { ...c, locationId: c.locationId || getDefaultLocationId() };
       const done = storedAppts.filter((a) => a.clientId === c.id && a.status === "completed");
-      if (done.length === 0) return c;
+      if (done.length === 0) return withLocation;
       const apptVisits    = done.length;
       const apptSpend     = done.reduce((s, a) => s + a.totalAmount, 0);
       const lastVisitDate = done.sort((a, b) => b.date.localeCompare(a.date))[0].date;
       // Use the higher of stored (POS-tracked) vs appointment-computed values
       const totalVisits = Math.max(c.totalVisits || 0, apptVisits);
       const totalSpend  = Math.max(c.totalSpend  || 0, apptSpend);
-      return { ...c, totalVisits, totalSpend, lastVisitDate };
+      return { ...withLocation, totalVisits, totalSpend, lastVisitDate };
     });
 
     // Persist only if something actually changed
@@ -1136,6 +1163,7 @@ export default function ClientsPage() {
     let result = clients.filter((c) => {
       if (tagFilter !== "all" && !c.tags.includes(tagFilter)) return false;
       if (sourceFilter !== "all" && c.source !== sourceFilter) return false;
+      if (locationFilter !== "all" && clientLocationId(c) !== locationFilter) return false;
       if (sortMode === "absent") {
         const diffDays = c.lastVisitDate
           ? Math.floor((todayMs - new Date(c.lastVisitDate).getTime()) / 86400000)
@@ -1161,11 +1189,19 @@ export default function ClientsPage() {
       result = result.sort((a, b) => b.totalSpend - a.totalSpend);
     }
     return result;
-  }, [clients, search, tagFilter, sourceFilter, sortMode, absentDays]);
+  }, [clients, search, tagFilter, sourceFilter, locationFilter, sortMode, absentDays]);
 
   const allTags = Array.from(new Set(clients.flatMap((c) => c.tags)));
   const allSources = Array.from(new Set(clients.map((c) => c.source)));
-  const activeFilters = [tagFilter !== "all", sourceFilter !== "all"].filter(Boolean).length;
+  const activeFilters = [tagFilter !== "all", sourceFilter !== "all", locationFilter !== "all"].filter(Boolean).length;
+
+  function handleAddLocation() {
+    const name = window.prompt("New location / branch name");
+    if (!name?.trim()) return;
+    const location = addSalonLocation(name);
+    setLocations(getSalonLocations());
+    setLocationFilter(location.id);
+  }
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
   const someFilteredSelected = filtered.some((c) => selectedIds.has(c.id));
@@ -1190,6 +1226,7 @@ export default function ClientsPage() {
           client={selected}
           onClose={() => setSelected(null)}
           appointments={appointments}
+          locations={locations}
           onUpdate={(updatedC) => {
             setClients((prevClients) => {
               const updatedList = prevClients.map((c) => c.id === updatedC.id ? updatedC : c);
@@ -1211,6 +1248,7 @@ export default function ClientsPage() {
       {showAdd && (
         <AddClientModal
           onClose={() => setShowAdd(false)}
+          locations={locations}
           onAdd={(newC) => {
             setClients((prevClients) => {
               const updated = [newC, ...prevClients];
@@ -1291,6 +1329,7 @@ export default function ClientsPage() {
           <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em" }}>Clients</div>
           <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>
             {filtered.length} clients
+            {locationFilter !== "all" && <span style={{ marginLeft: 8, color: "var(--accent)", fontWeight: 700 }}>· {locationName(locationFilter)}</span>}
             {plan.clientLimit !== -1 && <span style={{ marginLeft: 8, color: clientLimited ? "#dc2626" : "#b0b0c8", fontWeight: 700 }}>· {clients.length}/{plan.clientLimit} on Free plan</span>}
           </div>
         </div>
@@ -1458,6 +1497,7 @@ export default function ClientsPage() {
           {[
             { label: "Tag", value: tagFilter, onChange: setTagFilter, options: [["all", "All Tags"], ...allTags.map((t) => [t, t])] },
             { label: "Source", value: sourceFilter, onChange: setSourceFilter, options: [["all", "All Sources"], ...allSources.map((s) => [s, s])] },
+            { label: "Location", value: locationFilter, onChange: setLocationFilter, options: [["all", "All Locations"], ...locations.map((location) => [location.id, location.name])] },
           ].map(({ label, value, onChange, options }) => (
             <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label style={{ fontSize: 11, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
@@ -1466,8 +1506,9 @@ export default function ClientsPage() {
               </select>
             </div>
           ))}
+          <button onClick={handleAddLocation} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #ddd6fe", background: "#f5f3ff", fontSize: 12, fontWeight: 800, color: "var(--accent)", cursor: "pointer", transition: "all 0.15s" }}>+ Add Location</button>
           {activeFilters > 0 && (
-            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
+            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); setLocationFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
           )}
         </div>
       )}
@@ -1505,7 +1546,7 @@ export default function ClientsPage() {
       }}>
         <div className="table-scroll-inner">
         <div className="client-table-inner" style={{ background: "#fff" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 1.1fr 1fr 1.1fr 90px 110px 130px", padding: "12px 20px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 1.1fr 1fr 1fr 1.1fr 90px 110px 130px", padding: "12px 20px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd", alignItems: "center" }}>
           <div onClick={toggleSelectAll} style={{ cursor: "pointer", display: "flex", alignItems: "center" }}>
             <input
               type="checkbox"
@@ -1515,7 +1556,7 @@ export default function ClientsPage() {
               style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#7C3AED" }}
             />
           </div>
-          {["CLIENT", "PHONE", "SOURCE", "LAST VISIT", "VISITS", "TOTAL SPEND", ""].map((h) => (
+          {["CLIENT", "PHONE", "LOCATION", "SOURCE", "LAST VISIT", "VISITS", "TOTAL SPEND", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#8e89a3", letterSpacing: "0.08em" }}>{h}</div>
           ))}
         </div>
@@ -1538,7 +1579,7 @@ export default function ClientsPage() {
                   router.push(`/dashboard/clients/${encodeURIComponent(client.id)}`);
                 }
               }}
-              style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 1.1fr 1fr 1.1fr 90px 110px 130px", padding: "14px 20px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", alignItems: "center", cursor: "pointer", background: isChecked ? "#F5F3FF" : "transparent", transition: "background 0.2s" }}
+              style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 1.1fr 1fr 1fr 1.1fr 90px 110px 130px", padding: "14px 20px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", alignItems: "center", cursor: "pointer", background: isChecked ? "#F5F3FF" : "transparent", transition: "background 0.2s" }}
               className="hover-bg-row"
             >
               {/* Checkbox */}
@@ -1566,6 +1607,7 @@ export default function ClientsPage() {
                 </div>
               </div>
               <div style={{ fontSize: 13, color: "#1a1a2e", fontWeight: 600 }}>{client.phone}</div>
+              <div style={{ fontSize: 12, color: "var(--accent)", fontWeight: 700 }}>{locationName(clientLocationId(client))}</div>
               <div style={{ fontSize: 12, color: "#6b6b8a", textTransform: "capitalize", fontWeight: 500 }}>{client.source}</div>
               <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{fmtDate(client.lastVisitDate)}</div>
               <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{client.totalVisits}</div>

@@ -16,6 +16,7 @@ import type { Appointment, Client, Staff, Service } from "@/lib/types";
 import { settingsStore } from "@/lib/settings-store";
 import { fmtCurrency as fmt } from "@/lib/format";
 import { enqueueWhatsAppConfirmation } from "@/lib/whatsapp-scheduler";
+import { getDefaultLocationId } from "@/lib/locations";
 
 interface BusinessHour {
   day: string;
@@ -139,6 +140,7 @@ function OnlineBookingInner() {
     let finalClientId = existing ? existing.id : createId("c");
     const newClientObj: Client | undefined = existing ? undefined : {
       id: finalClientId, name, phone, gender: "female",
+      locationId: getDefaultLocationId(),
       tags: ["New"], source: "web",
       createdAt: selectedDate || new Date().toISOString().split("T")[0],
       totalVisits: 1, totalSpend: totalPrice,

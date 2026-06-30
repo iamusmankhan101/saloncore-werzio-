@@ -53,6 +53,7 @@ export interface Client {
   id: string;
   name: string;
   phone: string;
+  locationId?: string;
   email?: string;
   gender?: "female" | "male" | "other";
   dob?: string;

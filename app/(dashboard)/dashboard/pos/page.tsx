@@ -22,6 +22,7 @@ import {
 import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
+import { getDefaultLocationId } from "@/lib/locations";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -308,6 +309,7 @@ export default function POSPage() {
     const c: Client = {
       id: "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
       name: newName.trim(), phone: newPhone.trim(),
+      locationId: getDefaultLocationId(),
       tags: [], source: "walk-in",
       createdAt: new Date().toISOString().slice(0, 10),
       totalVisits: 0, totalSpend: 0,

@@ -7,7 +7,8 @@
  *   1. Loads their clients from Turso (salon_data table)
  *   2. Finds clients whose birthday is today (month+day match)
  *   3. Enqueues each birthday message at a random time across a 4-hour window
- *   4. Sends only due queued messages, one per cron tick, to avoid back-to-back sends
+ *   4. Sends only due queued messages, one per cron tick, to avoid back-to-back sends.
+ *      Queued messages continue sending even if the salon closes before the spread window ends.
  *   5. Logs to wa_message_logs and records in birthday_sent to prevent duplicates
  *
  * Secured with Authorization: Bearer {CRON_SECRET}
@@ -425,10 +426,6 @@ async function processDueBirthdayMessages(): Promise<{ sent: number; failed: num
     if (!user) {
       await updateQueueAttempt({ ...item, ok: false, error: "Birthday settings or WhatsApp credentials are no longer available." });
       failed++;
-      continue;
-    }
-    if (!isSalonOpen(user)) {
-      deferred++;
       continue;
     }
     if (await alreadySent(item.userId, item.clientId, item.year)) {

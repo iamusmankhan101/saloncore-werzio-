@@ -267,7 +267,7 @@ function birthdaySpreadDelay(index: number, total: number): number {
  * The server-side cron (/api/cron/birthday) is the primary mechanism;
  * this acts as a same-day backup when the dashboard is open.
  */
-export async function checkBirthdayReminders(force = false): Promise<void> {
+export async function checkBirthdayReminders(force = false, queueNewBirthdays = true): Promise<void> {
   if (typeof window === "undefined") return;
 
   const ws = settingsStore.wasender as { provider?: string; apiKey: string; botSailorApiToken?: string; autoReminder: boolean };
@@ -302,24 +302,26 @@ export async function checkBirthdayReminders(force = false): Promise<void> {
   const newQueueItems: QueueItem[] = [];
   let scheduleIndex = 0;
 
-  for (const client of birthdayClients) {
-    const sentKey = `${client.id}_${year}`;
-    if (sent[sentKey]) continue;
-    if (queuedIds.has(client.id)) continue;
+  if (queueNewBirthdays) {
+    for (const client of birthdayClients) {
+      const sentKey = `${client.id}_${year}`;
+      if (sent[sentKey]) continue;
+      if (queuedIds.has(client.id)) continue;
 
-    const phone = normalizePhone(client.phone);
-    if (!phone) continue;
-    newQueueItems.push({
-      id: client.id,
-      retries: 0,
-      sendAfter: Date.now() + (force ? birthdaySpreadDelay(scheduleIndex, birthdayClients.length) : birthdaySpreadDelay(scheduleIndex, birthdayClients.length)),
-      phone,
-      clientName: client.name,
-    });
-    scheduleIndex++;
-  }
-  if (newQueueItems.length > 0) {
-    setQueue(BIRTHDAY_QUEUE_KEY, [...birthdayQueue, ...newQueueItems]);
+      const phone = normalizePhone(client.phone);
+      if (!phone) continue;
+      newQueueItems.push({
+        id: client.id,
+        retries: 0,
+        sendAfter: Date.now() + birthdaySpreadDelay(scheduleIndex, birthdayClients.length),
+        phone,
+        clientName: client.name,
+      });
+      scheduleIndex++;
+    }
+    if (newQueueItems.length > 0) {
+      setQueue(BIRTHDAY_QUEUE_KEY, [...birthdayQueue, ...newQueueItems]);
+    }
   }
 
   const queue = getQueue(BIRTHDAY_QUEUE_KEY);
@@ -534,8 +536,9 @@ async function runSchedulerInternal(): Promise<void> {
   // 5. Low stock alerts (only during salon hours)
   if (openNow) await checkLowStockAlerts();
 
-  // 6. Birthday reminders (only during salon hours)
-  if (openNow) await checkBirthdayReminders();
+  // 6. Birthday reminders are queued during salon hours, but queued birthday
+  // messages continue processing after close so the spread window can finish.
+  await checkBirthdayReminders(false, openNow);
 }
 
 
