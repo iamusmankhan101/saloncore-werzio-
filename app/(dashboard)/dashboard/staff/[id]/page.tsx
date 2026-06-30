@@ -67,27 +67,62 @@ function EditModal({
   onClose: () => void;
   onSave: (s: Staff, assignedServiceIds: string[]) => void;
 }) {
-  const [form, setForm] = useState({ name: staff.name, phone: staff.phone, role: staff.role as string });
+  const [form, setForm] = useState({
+    name: staff.name,
+    phone: staff.phone,
+    email: staff.email ?? "",
+    password: "",
+    role: staff.role as string,
+  });
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
     servicesList.filter((s) => s.assignedStaffIds.includes(staff.id)).map((s) => s.id),
   );
   const [done, setDone] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [accessError, setAccessError] = useState("");
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const canSubmit = form.name && form.phone && form.role;
+  const canSubmit = form.name && form.phone && form.email && form.role && (staff.email || form.password.length >= 8);
 
   const toggleService = (id: string) =>
     setSelectedServiceIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canSubmit) return;
+    setSaving(true);
+    setAccessError("");
     const selectedServices = servicesList.filter((s) => selectedServiceIds.includes(s.id));
-    onSave(
-      { ...staff, name: form.name, phone: form.phone, role: form.role as StaffRole, specialties: selectedServices.map((s) => s.name) },
-      selectedServiceIds,
-    );
-    setDone(true);
+    const updatedStaff = {
+      ...staff,
+      name: form.name,
+      phone: form.phone,
+      email: form.email,
+      role: form.role as StaffRole,
+      specialties: selectedServices.map((s) => s.name),
+    };
+    try {
+      const response = await fetch("/api/auth/staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          staffId: updatedStaff.id,
+          name: updatedStaff.name,
+          email: updatedStaff.email,
+          phone: updatedStaff.phone,
+          password: form.password || undefined,
+          role: updatedStaff.role,
+        }),
+      });
+      const result = await response.json() as { ok: boolean; error?: string };
+      if (!response.ok || !result.ok) throw new Error(result.error || "Unable to save staff access.");
+      onSave(updatedStaff, selectedServiceIds);
+      setDone(true);
+    } catch (error) {
+      setAccessError(error instanceof Error ? error.message : "Unable to save staff access.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inp: React.CSSProperties = { padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", width: "100%", boxSizing: "border-box" };
@@ -119,6 +154,15 @@ function EditModal({
             <input style={inp} value={form.phone} onChange={(e) => set("phone", e.target.value)} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Staff Login Email</label>
+            <input type="email" style={inp} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="staff@salon.com" />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Login Password</label>
+            <input type="password" style={inp} value={form.password} onChange={(e) => set("password", e.target.value)}
+              placeholder={staff.email ? "Leave blank to keep current password" : "Minimum 8 characters"} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Role</label>
             <select style={{ ...inp, background: "#fff" }} value={form.role} onChange={(e) => set("role", e.target.value)}>
               <option value="">Select role…</option>
@@ -143,10 +187,11 @@ function EditModal({
                 })}
             </div>
           </div>
+          {accessError && <div style={{ padding: "9px 11px", borderRadius: 8, background: "#fef2f2", color: "#b91c1c", fontSize: 12 }}>{accessError}</div>}
           <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
             <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
-            <button onClick={handleSave} disabled={!canSubmit} style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit ? "#fff" : "#b0b0c8", cursor: canSubmit ? "pointer" : "not-allowed" }}>
-              Save Changes
+            <button onClick={handleSave} disabled={!canSubmit || saving} style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit ? "#fff" : "#b0b0c8", cursor: canSubmit ? "pointer" : "not-allowed" }}>
+              {saving ? "Saving access…" : "Save Profile & Login"}
             </button>
           </div>
         </div>
