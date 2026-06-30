@@ -129,7 +129,11 @@ function PlanCard({
         <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
           {plan.price === 0
             ? <span style={{ fontSize: 34, fontWeight: 900, color: "#fff" }}>Free</span>
-            : <span style={{ fontSize: 28, fontWeight: 900, color: "#fff", letterSpacing: "-.7px" }}>Contact Sales</span>
+            : <>
+                <span style={{ fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.82)" }}>PKR</span>
+                <span style={{ fontSize: 34, fontWeight: 900, color: "#fff", letterSpacing: "-1px" }}>{plan.price.toLocaleString("en-PK")}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.72)" }}>/ month</span>
+              </>
           }
         </div>
       </div>
@@ -637,7 +641,8 @@ export default function BillingPage() {
             { feature: "Online booking page",   pro: "✓",              premium: "✓" },
             { feature: "WhatsApp automation",   pro: "✓",              premium: "✓" },
             { feature: "Virtual Try-On (AI)",   pro: "—",              premium: "✓" },
-            { feature: "Price",                 pro: "Contact Sales",  premium: "Contact Sales" },
+            { feature: "Multi-location branches", pro: "—",            premium: "✓" },
+            { feature: "Price",                 pro: "PKR 12,000/month",  premium: "PKR 20,000/month" },
           ].map((row, i) => (
             <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>

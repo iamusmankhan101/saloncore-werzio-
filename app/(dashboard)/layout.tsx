@@ -343,12 +343,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       // authoritative plan before rendering so limits never fall back to Free
       // on a different browser/device with an empty local cache.
       const dataOwnerId = user.salonOwnerId || user.id;
+      let resolvedPlanId: PlanId = getCurrentPlanId();
       try {
         const response = await fetch(`/api/billing/user?userId=${encodeURIComponent(dataOwnerId)}`);
         const data = await response.json() as { ok?: boolean; planId?: string };
-        if (data.ok && data.planId) setActivePlan(data.planId);
+        if (data.ok && data.planId) {
+          setActivePlan(data.planId);
+          resolvedPlanId = data.planId as PlanId;
+        }
       } catch {
         // Keep the last cached plan when offline.
+      }
+      if (resolvedPlanId !== "premium") {
+        const mainLocationId = getSalonLocations()[0]?.id ?? "main";
+        if (getActiveLocationFilter() !== mainLocationId) setActiveLocationFilter(mainLocationId);
       }
       setIsReady(true);
     }, 0);
@@ -635,7 +643,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           </div>
         )}
-        {getCurrentUser()?.role !== "staff" && <DashboardLocationSwitcher onLocationChange={handleLocationChange} />}
+        {getCurrentUser()?.role !== "staff" && getCurrentPlanId() === "premium" && (
+          <DashboardLocationSwitcher onLocationChange={handleLocationChange} />
+        )}
         <div key={locationRenderKey}>{children}</div>
       </main>
 

@@ -40,6 +40,7 @@ export interface PlanConfig {
   // Feature flags
   whatsapp: boolean;
   tryOn: boolean;
+  multiLocation: boolean;
   invoicing: boolean;
 
   // Human-readable feature list for the pricing card
@@ -67,6 +68,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
 
     whatsapp: false,
     tryOn: false,
+    multiLocation: false,
     invoicing: true,
 
     features: [
@@ -82,6 +84,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     lockedFeatures: [
       "WhatsApp reminders & alerts",
       "Virtual Try-On (AI)",
+      "Multi-location branches",
       "Unlimited everything",
     ],
   },
@@ -103,6 +106,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
 
     whatsapp: true,
     tryOn: false,
+    multiLocation: false,
     invoicing: true,
 
     features: [
@@ -123,6 +127,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     ],
     lockedFeatures: [
       "Virtual Try-On (AI)",
+      "Multi-location branches",
     ],
   },
 
@@ -143,11 +148,13 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
 
     whatsapp: true,
     tryOn: true,
+    multiLocation: true,
     invoicing: true,
 
     features: [
       "Everything in Pro",
       "Virtual Try-On (AI hair & color)",
+      "Multi-location branch management",
       "Priority support",
     ],
     lockedFeatures: [],
