@@ -12,6 +12,9 @@ import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, appendLog } from "@/lib/whatsapp-scheduler";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 
+const SEGMENT_CAMPAIGN_QUEUE_KEY = "werzio_segment_campaign_queue";
+const SEGMENT_CAMPAIGN_SPREAD_WINDOW_MS = 4 * 60 * 60 * 1000;
+
 const STATUS_CONFIG = {
   booked:        { color: "#6366f1", bg: "#eef2ff" },
   confirmed:     { color: "#059669", bg: "#ecfdf5" },
@@ -33,6 +36,81 @@ function fmtDate(s?: string) {
   if (!s) return "—";
   const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+type SegmentCampaignQueueItem = {
+  id: string;
+  mode: "spend" | "visits" | "absent";
+  clientName: string;
+  phone: string;
+  text: string;
+  templateId: string;
+  sendAfter: number;
+  retries: number;
+};
+
+function segmentCampaignStorageKey() {
+  try {
+    const user = JSON.parse(localStorage.getItem("werzio_current_user") || "null") as { id?: string } | null;
+    return user?.id ? `${SEGMENT_CAMPAIGN_QUEUE_KEY}_${user.id}` : SEGMENT_CAMPAIGN_QUEUE_KEY;
+  } catch {
+    return SEGMENT_CAMPAIGN_QUEUE_KEY;
+  }
+}
+
+function getSegmentCampaignQueue(): SegmentCampaignQueueItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(segmentCampaignStorageKey()) || "[]");
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+function setSegmentCampaignQueue(items: SegmentCampaignQueueItem[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(segmentCampaignStorageKey(), JSON.stringify(items));
+  window.dispatchEvent(new CustomEvent("werzio_segment_campaign_queue_changed"));
+}
+
+function campaignSpreadDelay(index: number, total: number): number {
+  const safeTotal = Math.max(1, total);
+  const slotMs = SEGMENT_CAMPAIGN_SPREAD_WINDOW_MS / safeTotal;
+  return Math.floor(index * slotMs + Math.random() * slotMs);
+}
+
+async function processSegmentCampaignQueueTick() {
+  const queue = getSegmentCampaignQueue();
+  if (queue.length === 0) return;
+  const now = Date.now();
+  const dueIndex = queue.findIndex((item) => item.sendAfter <= now);
+  if (dueIndex === -1) return;
+
+  const item = queue[dueIndex];
+  const remaining = queue.filter((_, index) => index !== dueIndex);
+  const providerConfig = settingsStore.wasender as Record<string, string>;
+  try {
+    const res = await fetch("/api/whatsapp/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...providerConfig, phone: item.phone, text: item.text, messageIntent: "marketing" }),
+    });
+    const data = await res.json() as { ok?: boolean; errorReason?: string; error?: string };
+    if (data.ok) {
+      appendLog({ type: "manual", clientName: item.clientName, phone: item.phone, status: "sent", templateId: item.templateId });
+      setSegmentCampaignQueue(remaining);
+      return;
+    }
+    appendLog({ type: "manual", clientName: item.clientName, phone: item.phone, status: "failed", templateId: item.templateId, error: data.errorReason || data.error || `HTTP ${res.status}` });
+  } catch (error) {
+    appendLog({ type: "manual", clientName: item.clientName, phone: item.phone, status: "failed", templateId: item.templateId, error: String(error) });
+  }
+
+  const retried = item.retries < 4
+    ? [...remaining, { ...item, retries: item.retries + 1, sendAfter: Date.now() + 10 * 60 * 1000 }]
+    : remaining;
+  setSegmentCampaignQueue(retried.sort((a, b) => a.sendAfter - b.sendAfter));
 }
 
 // ── Delete All Confirm Modal ──────────────────────────────────────────────────
@@ -874,31 +952,26 @@ function SendSegmentModal({ mode, clients, onClose }: {
       .replace(/\{\{discount\}\}/g, discount);
   }
 
-  async function send() {
+  function send() {
     if (!activeCredential || !text.trim() || clients.length === 0 || progress) return;
-    setProgress({ done: 0, total: clients.length, failed: 0 });
-    let done = 0, failed = 0;
-    for (const c of clients) {
-      if (!c.phone) { failed++; setProgress({ done: ++done, total: clients.length, failed }); continue; }
-      const msg = buildMsg(c);
-      try {
-        const res = await fetch("/api/whatsapp/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...providerConfig, phone: normalizePhone(c.phone), text: msg, messageIntent: "marketing" }),
-        });
-        const data = await res.json() as { ok: boolean };
-        if (data.ok) {
-          appendLog({ type: "manual", clientName: c.name, phone: normalizePhone(c.phone), status: "sent", templateId: meta.tplKey });
-        } else {
-          failed++;
-          appendLog({ type: "manual", clientName: c.name, phone: normalizePhone(c.phone), status: "failed", templateId: meta.tplKey });
-        }
-      } catch { failed++; }
-      done++;
-      setProgress({ done, total: clients.length, failed });
-    }
+    const recipients = clients.filter((c) => !!c.phone);
+    const skipped = clients.length - recipients.length;
+    const now = Date.now();
+    const existing = getSegmentCampaignQueue();
+    const items: SegmentCampaignQueueItem[] = recipients.map((c, index) => ({
+      id: `${mode}_${c.id}_${now}`,
+      mode,
+      clientName: c.name,
+      phone: normalizePhone(c.phone),
+      text: buildMsg(c),
+      templateId: meta.tplKey,
+      sendAfter: now + campaignSpreadDelay(index, recipients.length),
+      retries: 0,
+    }));
+    setSegmentCampaignQueue([...existing, ...items].sort((a, b) => a.sendAfter - b.sendAfter));
+    setProgress({ done: items.length, total: clients.length, failed: skipped });
     setFinished(true);
+    void processSegmentCampaignQueueTick();
   }
 
   const pct = progress ? Math.round((progress.done / progress.total) * 100) : 0;
@@ -924,16 +997,16 @@ function SendSegmentModal({ mode, clients, onClose }: {
         {finished ? (
           <div style={{ textAlign: "center", padding: "16px 0" }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a2e", marginBottom: 6 }}>Messages Sent!</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a2e", marginBottom: 6 }}>Campaign Queued!</div>
             <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 20 }}>
-              <span style={{ color: "#059669", fontWeight: 700 }}>{(progress?.done || 0) - (progress?.failed || 0)} sent</span>
-              {(progress?.failed || 0) > 0 && <span style={{ color: "#dc2626", fontWeight: 700, marginLeft: 10 }}>{progress?.failed} failed</span>}
+              <span style={{ color: "#059669", fontWeight: 700 }}>{(progress?.done || 0)} queued across ~4 hours</span>
+              {(progress?.failed || 0) > 0 && <span style={{ color: "#dc2626", fontWeight: 700, marginLeft: 10 }}>{progress?.failed} skipped: no phone</span>}
             </div>
             <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`, fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>Done</button>
           </div>
         ) : progress ? (
           <div style={{ padding: "8px 0" }}>
-            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 12 }}>Sending messages… {progress.done}/{progress.total}</div>
+            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 12 }}>Queueing campaign… {progress.done}/{progress.total}</div>
             <div style={{ height: 8, background: "#f0f0f8", borderRadius: 20, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${meta.color}, ${meta.color}aa)`, borderRadius: 20, transition: "width 0.3s" }} />
             </div>
@@ -982,7 +1055,7 @@ function SendSegmentModal({ mode, clients, onClose }: {
                 style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 0", borderRadius: 10, border: "none",
                   background: (!activeCredential || !text.trim()) ? "#e8e8f0" : `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`,
                   fontSize: 13, fontWeight: 700, color: (!activeCredential || !text.trim()) ? "#b0b0c8" : "#fff", cursor: (!activeCredential || !text.trim()) ? "not-allowed" : "pointer" }}>
-                <Send size={14} /> Send to {clients.length} Client{clients.length !== 1 ? "s" : ""}
+                <Send size={14} /> Queue {clients.length} Client{clients.length !== 1 ? "s" : ""}
               </button>
             </div>
           </>
@@ -1010,6 +1083,7 @@ export default function ClientsPage() {
   const [sortMode, setSortMode] = useState<"spend" | "visits" | "absent">("spend");
   const [absentDays, setAbsentDays] = useState(60);
   const [showSendModal, setShowSendModal] = useState(false);
+  const [campaignQueueCount, setCampaignQueueCount] = useState(0);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -1038,6 +1112,20 @@ export default function ClientsPage() {
 
     setClients(synced);
     setAppointments(storedAppts);
+  }, []);
+
+  useEffect(() => {
+    const refreshQueueCount = () => setCampaignQueueCount(getSegmentCampaignQueue().length);
+    refreshQueueCount();
+    void processSegmentCampaignQueueTick();
+    const interval = window.setInterval(() => {
+      void processSegmentCampaignQueueTick().finally(refreshQueueCount);
+    }, 60_000);
+    window.addEventListener("werzio_segment_campaign_queue_changed", refreshQueueCount);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("werzio_segment_campaign_queue_changed", refreshQueueCount);
+    };
   }, []);
 
   const plan          = getCurrentPlan();
@@ -1381,6 +1469,12 @@ export default function ClientsPage() {
           {activeFilters > 0 && (
             <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
           )}
+        </div>
+      )}
+
+      {campaignQueueCount > 0 && (
+        <div style={{ padding: "12px 16px", borderRadius: 14, background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: 12, fontWeight: 700 }}>
+          {campaignQueueCount} campaign message{campaignQueueCount > 1 ? "s" : ""} queued — sending one at a time with random delays, spread across ~4 hours.
         </div>
       )}
 

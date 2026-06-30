@@ -47,7 +47,7 @@ const TPL_CONFIG: TplCfg[] = [
   { key: "followup",     label: "Follow-up Message",       description: "Sent 24h after appointment is marked as completed",         vars: ["name","service","salon_name"],               color: "#0284c7", icon: ThumbsUp },
   { key: "cancellation", label: "Cancellation Win-back",   description: "Sent 24h after cancellation with a discount to re-book",   vars: ["name","salon_name","discount"],              color: "#dc2626", icon: CalendarX },
   { key: "lowstock",     label: "Low Stock Alert",         description: "Sent once daily to your WhatsApp when stock is low",        vars: ["items","count","salon_name"],                color: "#ea580c", icon: Package },
-  { key: "birthday",     label: "Birthday Greeting",       description: "Auto-sent on client's birthday at 9 AM (server cron)",     vars: ["name","salon_name","discount"],              color: "#db2777", icon: Cake },
+  { key: "birthday",     label: "Birthday Greeting",       description: "Queued on each client's birthday and spread randomly across 4 hours",     vars: ["name","salon_name","discount"],              color: "#db2777", icon: Cake },
 ];
 
 const SEGMENT_TPL_CONFIG: TplCfg[] = [
@@ -960,7 +960,7 @@ export default function MessagesPage() {
                   </div>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 900, color: "#1d1d2f" }}>Birthday Reminders</div>
-                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>Auto-sent at 9 AM on each client&apos;s birthday</div>
+                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>Queued from salon opening time and spread randomly across ~4 hours</div>
                   </div>
                   {/* Toggle */}
                   <button type="button" onClick={() => setBdEnabled((v) => !v)}
@@ -996,9 +996,9 @@ export default function MessagesPage() {
                       {bdSaved ? <><Check size={13} /> Saved</> : bdSaving ? "Saving…" : <><Save size={13} /> Save</>}
                     </button>
                     <button type="button" onClick={sendBirthdayNow} disabled={bdSending || todayBirthdayClients.length === 0}
-                      title={todayBirthdayClients.length === 0 ? "No clients have a birthday today" : "Send birthday messages now"}
+                      title={todayBirthdayClients.length === 0 ? "No clients have a birthday today" : "Queue birthday messages across 4 hours"}
                       style={{ flex: 1, border: "1px solid #fce7f3", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: (bdSending || todayBirthdayClients.length === 0) ? "not-allowed" : "pointer", background: bdSendDone ? "#ecfdf5" : "#fff3f8", color: bdSendDone ? "#059669" : "#db2777", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: todayBirthdayClients.length === 0 ? 0.5 : 1 }}>
-                      {bdSendDone ? <><Check size={13} /> Sent!</> : bdSending ? "Sending…" : <><Send size={13} /> Send Now</>}
+                      {bdSendDone ? <><Check size={13} /> Queued!</> : bdSending ? "Queueing…" : <><Send size={13} /> Queue Now</>}
                     </button>
                   </div>
                 </div>

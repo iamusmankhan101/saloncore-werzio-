@@ -1097,7 +1097,7 @@ function WhatsAppSection() {
               style={inputStyle}
               type="number"
               min={1}
-              value={secondsToWholeMinutes(form.randomDelayMinSeconds, 1)}
+              value={secondsToWholeMinutes(form.randomDelayMinSeconds, 5)}
               onChange={(event) => set("randomDelayMinSeconds", Number(event.target.value) * 60)}
             />
           </Field>
@@ -1106,7 +1106,7 @@ function WhatsAppSection() {
               style={inputStyle}
               type="number"
               min={1}
-              value={secondsToWholeMinutes(form.randomDelayMaxSeconds, 3)}
+              value={secondsToWholeMinutes(form.randomDelayMaxSeconds, 10)}
               onChange={(event) => set("randomDelayMaxSeconds", Number(event.target.value) * 60)}
             />
           </Field>

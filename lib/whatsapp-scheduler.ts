@@ -78,6 +78,8 @@ const SENT_KEY = "werzio_wa_sent";
 const CONFIRM_QUEUE_KEY = "werzio_wa_confirm_queue";
 const FOLLOWUP_QUEUE_KEY = "werzio_wa_followup_queue";
 const CANCEL_QUEUE_KEY  = "werzio_wa_cancel_queue";
+const BIRTHDAY_QUEUE_KEY = "werzio_wa_birthday_queue";
+const BIRTHDAY_SPREAD_WINDOW_MS = 4 * 60 * 60 * 1000;
 
 function getSentLog(): Record<string, number> {
   try { return JSON.parse(localStorage.getItem(userKey(SENT_KEY)) || "{}"); } catch { return {}; }
@@ -254,6 +256,12 @@ function buildVars(appt: {
 
 const BIRTHDAY_SENT_KEY = "werzio_wa_birthday_sent";
 
+function birthdaySpreadDelay(index: number, total: number): number {
+  const safeTotal = Math.max(1, total);
+  const slotMs = BIRTHDAY_SPREAD_WINDOW_MS / safeTotal;
+  return Math.floor(index * slotMs + Math.random() * slotMs);
+}
+
 /**
  * Client-side birthday check — runs as part of the scheduler loop.
  * The server-side cron (/api/cron/birthday) is the primary mechanism;
@@ -284,34 +292,74 @@ export async function checkBirthdayReminders(force = false): Promise<void> {
 
   const clients = getStoredClients();
   const salonName = settingsStore.salon.name as string;
-
-  for (const client of clients) {
-    if (!client.dob || !client.phone) continue;
-
+  const birthdayClients = clients.filter((client) => {
+    if (!client.dob || !client.phone) return false;
     const [, dobMonth, dobDay] = client.dob.split("-").map(Number);
-    const isToday = dobMonth === today.getMonth() + 1 && dobDay === today.getDate();
-    if (!isToday) continue;
+    return dobMonth === today.getMonth() + 1 && dobDay === today.getDate();
+  });
+  const birthdayQueue = getQueue(BIRTHDAY_QUEUE_KEY);
+  const queuedIds = new Set(birthdayQueue.map((item) => item.id));
+  const newQueueItems: QueueItem[] = [];
+  let scheduleIndex = 0;
 
+  for (const client of birthdayClients) {
     const sentKey = `${client.id}_${year}`;
-    if (!force && sent[sentKey]) continue; // skip only on auto-run, not manual Send Now
+    if (sent[sentKey]) continue;
+    if (queuedIds.has(client.id)) continue;
 
     const phone = normalizePhone(client.phone);
     if (!phone) continue;
+    newQueueItems.push({
+      id: client.id,
+      retries: 0,
+      sendAfter: Date.now() + (force ? birthdaySpreadDelay(scheduleIndex, birthdayClients.length) : birthdaySpreadDelay(scheduleIndex, birthdayClients.length)),
+      phone,
+      clientName: client.name,
+    });
+    scheduleIndex++;
+  }
+  if (newQueueItems.length > 0) {
+    setQueue(BIRTHDAY_QUEUE_KEY, [...birthdayQueue, ...newQueueItems]);
+  }
+
+  const queue = getQueue(BIRTHDAY_QUEUE_KEY);
+  const remaining: QueueItem[] = [];
+  let sentOneThisTick = false;
+  for (const item of queue) {
+    if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
+    const client = clients.find((candidate) => candidate.id === item.id);
+    const clientName = client?.name ?? item.clientName ?? "there";
+    const phone = item.phone ?? (client?.phone ? normalizePhone(client.phone) : "");
+    const sentKey = `${item.id}_${year}`;
+    if (sent[sentKey]) continue;
+    if (!phone) {
+      appendLog({ type: "birthday", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
+      continue;
+    }
+
+    if (sentOneThisTick) {
+      remaining.push({ ...item, sendAfter: Date.now() + 10 * 60 * 1000 });
+      continue;
+    }
 
     const text = fillTemplate(birthdayTemplate, {
-      name: client.name,
+      name: clientName,
       salon_name: salonName,
       discount: bd.birthdayDiscount || "a special treat",
     });
 
-    console.log(`Birthday wish → ${client.name} (${phone})`);
-    const ok = await callSendApi(phone, text, { type: "birthday", clientName: client.name });
+    console.log(`Birthday wish queued → ${clientName} (${phone})`);
+    const ok = await callSendApi(phone, text, { type: "birthday", clientName });
+    sentOneThisTick = true;
 
     if (ok) {
       sent[sentKey] = todayKey;
       localStorage.setItem(userKey(BIRTHDAY_SENT_KEY), JSON.stringify(sent));
+    } else if (item.retries < MAX_RETRIES - 1) {
+      remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + RETRY_DELAY_MS });
     }
   }
+  setQueue(BIRTHDAY_QUEUE_KEY, remaining);
 }
 
 export async function runWhatsAppScheduler(): Promise<void> {
