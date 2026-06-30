@@ -760,7 +760,7 @@ export default function LoyaltyPage() {
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f7f7fb", padding: "28px 28px 40px" }}>
+    <div className="dashboard-polish" style={{ minHeight: "100vh", background: "#f7f7fb", padding: "28px 28px 40px" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

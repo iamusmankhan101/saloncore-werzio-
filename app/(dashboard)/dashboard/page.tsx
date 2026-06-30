@@ -82,7 +82,7 @@ export default function DashboardPage() {
   const todayTotal = todayAppts.reduce((s, a) => s + a.totalAmount, 0);
 
   return (
-    <div className="dash-page" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="dash-page dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* Header */}
       <DashboardHeader />
@@ -260,5 +260,4 @@ export default function DashboardPage() {
     </div>
   );
 }
-
 

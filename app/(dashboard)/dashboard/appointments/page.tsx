@@ -739,7 +739,7 @@ export default function AppointmentsPage() {
   }
 
   return (
-    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="dash-page dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
 
       {selected && (
         <DetailModal
@@ -1043,4 +1043,3 @@ export default function AppointmentsPage() {
     </div>
   );
 }
-

@@ -19,14 +19,27 @@
   gap: 16px;
   flex-wrap: wrap;
 }
-.pill {
-  padding: 8px 20px;
+.logoCard {
+  width: 118px;
+  height: 82px;
+  padding: 6px 16px;
   border: 1.5px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #9ca3af;
-  letter-spacing: .04em;
-  transition: border-color .2s, color .2s;
+  border-radius: 16px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
 }
-.pill:hover { border-color: var(--purple); color: var(--purple); }
+
+.logoCard:hover {
+  border-color: var(--purple);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(124,58,237,.1);
+}
+
+.logoImage {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+}

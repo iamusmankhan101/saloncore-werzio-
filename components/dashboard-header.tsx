@@ -85,7 +85,7 @@ export default function DashboardHeader({ title = "Dashboard Performances", subt
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, position: "relative", padding: "24px 0" }}>
+    <div className="dashboard-topbar" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, position: "relative", padding: "24px 0" }}>
       <div style={{ paddingLeft: 30 }}>
         <div style={{ fontWeight: 700, fontSize: 20, color: "#1a1a2e" }}>{title}</div>
         <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>{subtitle}</div>

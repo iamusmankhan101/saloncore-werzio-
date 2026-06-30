@@ -190,7 +190,7 @@ export default function ServicesPage() {
   const activeCount = services.filter(s => s.isActive).length;
 
   return (
-    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="dash-page dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
       {(showAdd || editingService) && (
         <AddEditServiceModal
           onClose={() => { setShowAdd(false); setEditingService(null); }}

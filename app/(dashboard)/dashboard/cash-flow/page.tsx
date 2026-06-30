@@ -630,7 +630,7 @@ export default function CashFlowPage() {
   const labelSt: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.05em", textTransform: "uppercase", display: "block", marginBottom: 6 };
 
   return (
-    <div style={{ background: "#f8f8fc", minHeight: "100vh" }}>
+    <div className="dashboard-polish" style={{ background: "#f8f8fc", minHeight: "100vh" }}>
       <DashboardHeader title="Cash Flow" subtitle="Daily expense & income tracking" />
       <MobilePageHeader title="Cash Flow" subtitle={cfg.label} action={{ label: "Add Expense", onClick: openAdd }} />
 

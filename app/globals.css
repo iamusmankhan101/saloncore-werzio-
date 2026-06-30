@@ -217,6 +217,155 @@ input, textarea, select { font-family: inherit; }
   justify-content: space-between;
 }
 
+/* ════════════════════════════════════════════════════════════
+   SHARED DASHBOARD VISUAL SYSTEM
+   Applied to the primary operational pages for a consistent,
+   polished workspace without changing page behaviour.
+════════════════════════════════════════════════════════════ */
+.dashboard-polish {
+  background:
+    radial-gradient(circle at 88% -5%, rgba(124,58,237,.09), transparent 25rem),
+    linear-gradient(180deg, #f8f7fc 0%, #f4f5f8 52%, #f6f7f9 100%) !important;
+}
+
+.dashboard-polish.dash-page,
+.dashboard-polish .dash-page {
+  padding: 30px 34px 44px;
+}
+
+.dashboard-topbar {
+  margin-bottom: 8px !important;
+  padding: 24px 34px 16px !important;
+  background: transparent;
+}
+
+.dashboard-topbar > div:first-child {
+  padding-left: 0 !important;
+}
+
+.dashboard-topbar > div:first-child > div:first-child {
+  font-size: 24px !important;
+  font-weight: 850 !important;
+  letter-spacing: -.025em;
+}
+
+.dashboard-polish .page-header {
+  min-height: 68px;
+  margin-bottom: 22px !important;
+}
+
+.dashboard-polish .page-header h1,
+.dashboard-polish .page-header > div > div:first-child {
+  letter-spacing: -.025em;
+}
+
+.dashboard-polish .page-header-btn {
+  min-height: 44px;
+  padding: 0 20px !important;
+  border-radius: 12px !important;
+  background: var(--accent-gradient) !important;
+  box-shadow: 0 9px 22px var(--accent-glow);
+  font-weight: 750 !important;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.dashboard-polish .page-header-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 13px 28px var(--accent-glow);
+}
+
+.dashboard-polish .stats-grid-4 > *,
+.dashboard-polish .stats-grid-3 > *,
+.dashboard-polish .stat-cards-flex > *,
+.dashboard-polish .dash-grid-3 > *,
+.dashboard-polish .dash-grid-bottom > *,
+.dashboard-polish .cards-grid-auto > * {
+  border-color: rgba(226,223,235,.95) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 28px rgba(38,25,75,.055) !important;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.dashboard-polish .stats-grid-4 > *:hover,
+.dashboard-polish .stats-grid-3 > *:hover,
+.dashboard-polish .stat-cards-flex > *:hover,
+.dashboard-polish .cards-grid-auto > *:hover {
+  transform: translateY(-3px);
+  border-color: rgba(124,58,237,.22) !important;
+  box-shadow: 0 14px 34px rgba(65,38,120,.095) !important;
+}
+
+.dashboard-polish .table-scroll-wrap,
+.dashboard-polish .cal-scroll-wrap {
+  border-color: rgba(226,223,235,.95);
+  border-radius: 18px;
+  box-shadow: 0 12px 34px rgba(38,25,75,.065);
+}
+
+.dashboard-polish input,
+.dashboard-polish select,
+.dashboard-polish textarea {
+  border-color: #e3e0eb !important;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.dashboard-polish input:focus,
+.dashboard-polish select:focus,
+.dashboard-polish textarea:focus {
+  border-color: var(--accent-light) !important;
+  box-shadow: 0 0 0 3px rgba(124,58,237,.09) !important;
+  background: #fff !important;
+}
+
+.dashboard-polish button {
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
+}
+
+.dashboard-polish button:not(:disabled):active {
+  transform: scale(.98);
+}
+
+.dashboard-polish table thead,
+.dashboard-polish [class*="table-inner"] > div:first-child {
+  background: #faf9fd !important;
+}
+
+.dashboard-polish table th {
+  color: #8e89a3 !important;
+  font-size: 10px !important;
+  letter-spacing: .08em;
+}
+
+.dashboard-polish table tbody tr {
+  transition: background .15s ease;
+}
+
+.dashboard-polish table tbody tr:hover {
+  background: #fbfaff;
+}
+
+.pos-polish {
+  padding: 0;
+}
+
+.pos-polish > div:not(:first-child) {
+  gap: 16px !important;
+}
+
+.pos-polish .pos-panel-hide,
+.pos-polish [class*="pos-panel"] {
+  border-radius: 18px !important;
+}
+
+@media (max-width: 768px) {
+  .dashboard-polish.dash-page,
+  .dashboard-polish .dash-page {
+    padding: 12px 14px 28px !important;
+  }
+  .dashboard-topbar { display: none !important; }
+  .dashboard-polish .page-header { min-height: auto; }
+}
+
 /* scrollable table wrapper */
 .table-scroll-wrap {
   overflow: hidden;

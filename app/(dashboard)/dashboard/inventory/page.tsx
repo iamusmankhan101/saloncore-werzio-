@@ -521,7 +521,7 @@ export default function InventoryPage() {
   const activeFilters = [catFilter !== "all", statusFilter !== "all"].filter(Boolean).length;
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh" }}>
+    <div className="dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
 
       {/* ── Modals (shared) ── */}
       {showAdd    && <AddModal    onClose={() => setShowAdd(false)}    onAdd={(item) => persist([item, ...items])} />}
