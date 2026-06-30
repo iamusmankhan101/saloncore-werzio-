@@ -467,6 +467,18 @@ interface WhatsAppSettings {
   cancelDiscount: string;
   autoLowStock: boolean;
   autoGroupBooking: boolean;
+  safetyEnabled: boolean;
+  emergencyPause: boolean;
+  dailySendLimit: number;
+  perRecipientDailyLimit: number;
+  recipientCooldownSeconds: number;
+  randomDelayMinSeconds: number;
+  randomDelayMaxSeconds: number;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  quietHoursTimezone: string;
+  blockMarketingWithoutOptIn: boolean;
 }
 
 const DELAY_PRESETS = [
@@ -538,6 +550,10 @@ function DelaySelector({ minutes, onChange, label }: { minutes: number; onChange
       )}
     </Field>
   );
+}
+
+function secondsToWholeMinutes(seconds: number | undefined, fallbackMinutes: number) {
+  return Math.max(1, Math.round((seconds ?? fallbackMinutes * 60) / 60));
 }
 
 const REMINDER_HOUR_PRESETS = [1, 2, 4, 12, 24, 48];
@@ -712,6 +728,7 @@ function WhatsAppSection() {
           botSailorPhoneNumberId: form.botSailorPhoneNumberId,
           phone: form.bookingGroupJid,
           text: "Salon Central booking group connected ✅",
+          messageIntent: "internal",
         }),
       });
       const data = await res.json();
@@ -1007,6 +1024,102 @@ function WhatsAppSection() {
           enabled={form.autoLowStock}
           onToggle={() => set("autoLowStock", !form.autoLowStock)}
         />
+      </div>
+
+      {/* Safety controls */}
+      <div style={{ fontSize: 11, fontWeight: 800, color: "#7c7c9a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
+        Ban-risk Protection
+      </div>
+      <div style={{ display: "grid", gap: 12, marginBottom: 22 }}>
+        <AutoRow
+          label="WhatsApp Safety Guard"
+          hint="Adds daily limits, recipient cooldowns, quiet hours, and opt-in checks before sending"
+          enabled={form.safetyEnabled !== false}
+          onToggle={() => set("safetyEnabled", !(form.safetyEnabled !== false))}
+        />
+        <AutoRow
+          label="Emergency Pause"
+          hint="Immediately blocks all WhatsApp sends if the account receives warnings or looks unstable"
+          enabled={form.emergencyPause === true}
+          onToggle={() => set("emergencyPause", !(form.emergencyPause === true))}
+        />
+        <AutoRow
+          label="Quiet Hours for Marketing"
+          hint="Marketing broadcasts wait outside these hours; utility invoices and appointment updates can still send"
+          enabled={form.quietHoursEnabled !== false}
+          onToggle={() => set("quietHoursEnabled", !(form.quietHoursEnabled !== false))}
+          extra={
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+              <Field label="Start">
+                <input style={inputStyle} type="time" value={form.quietHoursStart ?? "21:00"} onChange={(event) => set("quietHoursStart", event.target.value)} />
+              </Field>
+              <Field label="End">
+                <input style={inputStyle} type="time" value={form.quietHoursEnd ?? "09:00"} onChange={(event) => set("quietHoursEnd", event.target.value)} />
+              </Field>
+              <Field label="Timezone">
+                <input style={inputStyle} value={form.quietHoursTimezone ?? "Asia/Karachi"} onChange={(event) => set("quietHoursTimezone", event.target.value)} placeholder="Asia/Karachi" />
+              </Field>
+            </div>
+          }
+        />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
+          <Field label="Daily Send Limit" hint="Hard stop per running server instance">
+            <input
+              style={inputStyle}
+              type="number"
+              min={1}
+              value={form.dailySendLimit ?? 300}
+              onChange={(event) => set("dailySendLimit", Number(event.target.value))}
+            />
+          </Field>
+          <Field label="Per-client Daily Limit" hint="Prevents repeat blasts to one phone">
+            <input
+              style={inputStyle}
+              type="number"
+              min={1}
+              value={form.perRecipientDailyLimit ?? 12}
+              onChange={(event) => set("perRecipientDailyLimit", Number(event.target.value))}
+            />
+          </Field>
+          <Field label="Cooldown Seconds" hint="Minimum gap before texting the same client again">
+            <input
+              style={inputStyle}
+              type="number"
+              min={0}
+              value={form.recipientCooldownSeconds ?? 15}
+              onChange={(event) => set("recipientCooldownSeconds", Number(event.target.value))}
+            />
+          </Field>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+          <Field label="Random Delay Min" hint="Shortest random wait before each WhatsApp send, in minutes">
+            <input
+              style={inputStyle}
+              type="number"
+              min={1}
+              value={secondsToWholeMinutes(form.randomDelayMinSeconds, 1)}
+              onChange={(event) => set("randomDelayMinSeconds", Number(event.target.value) * 60)}
+            />
+          </Field>
+          <Field label="Random Delay Max" hint="Longest random wait before each WhatsApp send, in minutes">
+            <input
+              style={inputStyle}
+              type="number"
+              min={1}
+              value={secondsToWholeMinutes(form.randomDelayMaxSeconds, 3)}
+              onChange={(event) => set("randomDelayMaxSeconds", Number(event.target.value) * 60)}
+            />
+          </Field>
+        </div>
+        <AutoRow
+          label="Block Marketing Without Opt-in"
+          hint="When client opt-in data is available, promotional messages are blocked unless the client opted in"
+          enabled={form.blockMarketingWithoutOptIn !== false}
+          onToggle={() => set("blockMarketingWithoutOptIn", !(form.blockMarketingWithoutOptIn !== false))}
+        />
+        <div style={{ border: "1px solid #fed7aa", borderRadius: 12, padding: "13px 16px", background: "#fff7ed", color: "#9a3412", fontSize: 11, lineHeight: 1.6 }}>
+          Recommended: keep broadcasts small, send only to opted-in clients, avoid repeated promotional wording, and use WhatsApp Business approved templates whenever you move to the official Cloud API.
+        </div>
       </div>
 
       {/* Info box */}

@@ -885,7 +885,7 @@ function SendSegmentModal({ mode, clients, onClose }: {
         const res = await fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...providerConfig, phone: normalizePhone(c.phone), text: msg }),
+          body: JSON.stringify({ ...providerConfig, phone: normalizePhone(c.phone), text: msg, messageIntent: "marketing" }),
         });
         const data = await res.json() as { ok: boolean };
         if (data.ok) {

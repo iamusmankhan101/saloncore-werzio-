@@ -494,7 +494,7 @@ export default function MessagesPage() {
       const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...ws, phone: normalizePhone(client.phone), text }),
+        body: JSON.stringify({ ...ws, phone: normalizePhone(client.phone), text, messageIntent: msgType === "followup" ? "marketing" : "utility" }),
       });
       const data = await res.json() as { ok: boolean; status: number; error?: string; errorReason?: string };
       const success = data.ok;

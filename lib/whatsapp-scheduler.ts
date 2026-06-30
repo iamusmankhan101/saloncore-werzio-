@@ -205,13 +205,17 @@ async function callSendApi(
     botSailorApiToken?: string;
     botSailorPhoneNumberId?: string;
   };
+  const messageIntent =
+    logMeta.type === "lowstock" ? "internal"
+    : ["followup", "cancellation", "birthday"].includes(logMeta.type) ? "marketing"
+    : "utility";
   let ok = false;
   let errorReason: string | undefined;
   try {
     const res = await fetch("/api/whatsapp/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...providerConfig, phone, text }),
+      body: JSON.stringify({ ...providerConfig, phone, text, messageIntent }),
     });
     const data = await res.json() as { ok?: boolean; errorReason?: string };
     ok = data.ok === true;

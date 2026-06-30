@@ -2,12 +2,13 @@ import { NextRequest } from "next/server";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { generateSalonInvoicePdf } from "@/lib/salon-invoice-pdf";
 import type { WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { applyWhatsAppRandomDelay, checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
 
 interface RequestBody {
   invoice: SalonInvoice;
   salon: { name: string; phone?: string; email?: string; address?: string };
   phone: string;
-  providerConfig: WhatsAppProviderConfig;
+  providerConfig: WhatsAppProviderConfig & WhatsAppSafetyConfig;
 }
 
 function cleanPhone(phone: string) {
@@ -21,6 +22,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const safetyCheck = checkWhatsAppSafety({ phone: body.phone, intent: "utility", config: body.providerConfig });
+    if (!safetyCheck.ok) {
+      return Response.json(
+        { ok: false, error: safetyCheck.error, errorReason: safetyCheck.error, retryAfter: safetyCheck.retryAfter },
+        { status: safetyCheck.status },
+      );
+    }
+
+    const delayMs = await applyWhatsAppRandomDelay(body.providerConfig);
     const pdf = await generateSalonInvoicePdf(body.invoice, body.salon);
     const pdfArrayBuffer = Uint8Array.from(pdf).buffer;
     const fileName = `${body.invoice.number}.pdf`;
@@ -60,7 +70,8 @@ export async function POST(request: NextRequest) {
       const sendData = await sendResponse.json().catch(() => ({})) as { status?: string | number | boolean; message?: string };
       const ok = sendResponse.ok && (sendData.status === "1" || sendData.status === 1 || sendData.status === true);
       if (!ok) throw new Error(sendData.message || "BotSailor invoice send failed.");
-      return Response.json({ ok: true, provider });
+      recordWhatsAppSafetySend({ phone: body.phone, config: body.providerConfig });
+      return Response.json({ ok: true, provider, safetyDelayMs: delayMs });
     }
 
     const apiKey = body.providerConfig.apiKey || process.env.WASENDER_API_KEY || "";
@@ -86,7 +97,8 @@ export async function POST(request: NextRequest) {
     });
     const sendData = await sendResponse.json().catch(() => ({})) as { success?: boolean; message?: string; error?: string };
     if (!sendResponse.ok || sendData.success !== true) throw new Error(sendData.message || sendData.error || "WaSender invoice send failed.");
-    return Response.json({ ok: true, provider });
+    recordWhatsAppSafetySend({ phone: body.phone, config: body.providerConfig });
+    return Response.json({ ok: true, provider, safetyDelayMs: delayMs });
   } catch (error) {
     console.error("[whatsapp/send-invoice]", error);
     return Response.json({ ok: false, error: error instanceof Error ? error.message : "Invoice send failed." }, { status: 502 });

@@ -289,7 +289,7 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
       const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...ws, phone, text }),
+        body: JSON.stringify({ ...ws, phone, text, messageIntent: "internal" }),
       });
       const data = await res.json() as { ok: boolean };
       setApiResult(data.ok
