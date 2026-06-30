@@ -1,3 +1,5 @@
+import { locationUserKey } from "./locations";
+
 export type ExpenseCategory =
   | "rent"
   | "salaries"
@@ -46,4 +48,3 @@ export function deleteExpense(id: string): void {
 export function updateExpense(id: string, patch: Partial<Omit<Expense, "id" | "createdAt">>): void {
   saveExpenses(getExpenses().map(e => e.id === id ? { ...e, ...patch } : e));
 }
-import { locationUserKey } from "./locations";

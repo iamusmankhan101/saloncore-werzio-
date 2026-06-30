@@ -92,6 +92,7 @@ export default function CashFlowPage() {
   const [showForm, setShowForm]       = useState(false);
   const [editId, setEditId]           = useState<string | null>(null);
   const [form, setForm]               = useState({ ...EMPTY_FORM });
+  const [formError, setFormError]     = useState("");
   const [hoveredBar, setHoveredBar]   = useState<number | null>(null);
   const [fileMessage, setFileMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const importInputRef                 = useRef<HTMLInputElement>(null);
@@ -243,28 +244,46 @@ export default function CashFlowPage() {
   // Form helpers
   function openAdd() {
     setEditId(null);
+    setFormError("");
     setForm({ ...EMPTY_FORM, date: today });
     setShowForm(true);
   }
 
   function openEdit(exp: Expense) {
     setEditId(exp.id);
+    setFormError("");
     setForm({ date: exp.date, category: exp.category, description: exp.description, amount: String(exp.amount), paymentMethod: exp.paymentMethod, notes: exp.notes ?? "" });
     setShowForm(true);
   }
 
   function handleSave() {
     const amt = parseFloat(form.amount);
-    if (!form.description.trim() || !amt || amt <= 0) return;
-    if (editId) {
-      updateExpense(editId, { date: form.date, category: form.category, description: form.description.trim(), amount: amt, paymentMethod: form.paymentMethod, notes: form.notes.trim() || undefined });
-      setExpenses(getExpenses());
-    } else {
-      const newExp = addExpense({ date: form.date, category: form.category, description: form.description.trim(), amount: amt, paymentMethod: form.paymentMethod, notes: form.notes.trim() || undefined });
-      setExpenses(prev => [...prev, newExp]);
+    if (!form.date) {
+      setFormError("Please select an expense date.");
+      return;
     }
-    setShowForm(false);
-    setEditId(null);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setFormError("Please enter an amount greater than zero.");
+      return;
+    }
+
+    const description = form.description.trim()
+      || EXPENSE_CATEGORIES.find(category => category.key === form.category)?.label
+      || "Expense";
+
+    try {
+      if (editId) {
+        updateExpense(editId, { date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, notes: form.notes.trim() || undefined });
+      } else {
+        addExpense({ date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, notes: form.notes.trim() || undefined });
+      }
+      setExpenses(getExpenses());
+      setFormError("");
+      setShowForm(false);
+      setEditId(null);
+    } catch {
+      setFormError("The expense could not be saved. Please try again.");
+    }
   }
 
   function handleDelete(id: string) {
@@ -780,7 +799,7 @@ export default function CashFlowPage() {
           <div style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #7C3AED", padding: "18px 20px", marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1a2e" }}>{editId ? "Edit Expense" : "New Expense"}</span>
-              <button onClick={() => { setShowForm(false); setEditId(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0b0c8" }}><X size={16} /></button>
+              <button onClick={() => { setShowForm(false); setEditId(null); setFormError(""); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0b0c8" }}><X size={16} /></button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
               <div>
@@ -801,10 +820,10 @@ export default function CashFlowPage() {
               </div>
               <div>
                 <label style={labelSt}>Amount (PKR)</label>
-                <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" min={0} style={inputSt} />
+                <input type="number" value={form.amount} onChange={e => { setForm(f => ({ ...f, amount: e.target.value })); setFormError(""); }} placeholder="0" min={0.01} step="0.01" style={inputSt} />
               </div>
               <div style={{ gridColumn: "1 / 4" }}>
-                <label style={labelSt}>Description</label>
+                <label style={labelSt}>Description <span style={{ fontWeight: 500, textTransform: "none" }}>(optional)</span></label>
                 <input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Shampoo & conditioner restock" style={inputSt} />
               </div>
               <div>
@@ -812,8 +831,9 @@ export default function CashFlowPage() {
                 <input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" style={inputSt} />
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
-              <button onClick={() => { setShowForm(false); setEditId(null); }} style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", fontSize: 12, color: "#6b6b8a", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
+            <div style={{ display: "flex", gap: 12, marginTop: 14, alignItems: "center" }}>
+              {formError && <div role="alert" style={{ color: "#dc2626", fontSize: 12, fontWeight: 700, marginRight: "auto" }}>{formError}</div>}
+              <button onClick={() => { setShowForm(false); setEditId(null); setFormError(""); }} style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", fontSize: 12, color: "#6b6b8a", cursor: "pointer", fontWeight: 600, marginLeft: formError ? 0 : "auto" }}>Cancel</button>
               <button onClick={handleSave} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 20px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                 <Check size={13} /> {editId ? "Save Changes" : "Save"}
               </button>
