@@ -400,23 +400,31 @@ export default function MessagesPage() {
   }, []);
 
   const ws = settingsStore.wasender as {
-    apiKey: string; ownerPhone: string;
+    provider?: "wasender" | "botsailor"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; ownerPhone: string;
     autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean;
     autoCancellation: boolean; autoLowStock: boolean;
   };
   const waTpl = settingsStore.whatsapp as { reminder: string; confirmation: string; followup: string };
-  const isConfigured = !!ws.apiKey;
+  const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey;
+  const isConfigured = !!activeCredential && (ws.provider !== "botsailor" || !!ws.botSailorPhoneNumberId);
   const [testingConn, setTestingConn] = useState(false);
   const [connStatus, setConnStatus] = useState<{ ok: boolean; message?: string; status?: string } | null>(null);
   // Use the real API result when available; null = still checking, true/false = known
   const isConnected = isConfigured ? (connStatus === null ? null : connStatus.ok) : false;
 
   async function testConnection() {
-    if (!ws.apiKey || testingConn) return;
+    if (!isConfigured || testingConn) return;
     setTestingConn(true);
     setConnStatus(null);
     try {
-      const res = await fetch(`/api/whatsapp/status?apiKey=${encodeURIComponent(ws.apiKey)}&force=1`);
+      const params = new URLSearchParams({
+        provider: ws.provider || "wasender",
+        apiKey: ws.apiKey,
+        botSailorApiToken: ws.botSailorApiToken || "",
+        botSailorPhoneNumberId: ws.botSailorPhoneNumberId || "",
+        force: "1",
+      });
+      const res = await fetch(`/api/whatsapp/status?${params}`);
       const data = await res.json() as { ok: boolean; connected: boolean; status?: string; message?: string; error?: string };
       setConnStatus({ ok: data.connected, message: data.message || data.error, status: data.status });
     } catch {
@@ -428,7 +436,7 @@ export default function MessagesPage() {
 
   // Auto-check real connection status on mount so the banner reflects reality
   useEffect(() => {
-    if (ws.apiKey) testConnection();
+    if (isConfigured) testConnection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -485,13 +493,13 @@ export default function MessagesPage() {
       const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: ws.apiKey, phone: normalizePhone(client.phone), text }),
+        body: JSON.stringify({ ...ws, phone: normalizePhone(client.phone), text }),
       });
-      const data = await res.json() as { ok: boolean; status: number; error?: string };
+      const data = await res.json() as { ok: boolean; status: number; error?: string; errorReason?: string };
       const success = data.ok;
       setSendResult(success
         ? { ok: true, msg: `✓ Sent to ${client.name} (${normalizePhone(client.phone)})` }
-        : { ok: false, msg: `Failed (${data.status ?? ""}): ${data.error || "Check your WaSender API key"}` },
+        : { ok: false, msg: `Failed (${data.status ?? ""}): ${data.errorReason || data.error || `Check your ${ws.provider === "botsailor" ? "BotSailor" : "WaSender"} credentials`}` },
       );
       if (success) {
         appendLog({ type: "manual", clientName: client.name, phone: normalizePhone(client.phone), status: "sent", templateId: "direct" });

@@ -9,8 +9,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-
-const WASENDER_URL = "https://www.wasenderapi.com/api/send-message";
+import { activeWhatsAppCredential, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -51,16 +50,9 @@ async function markSent(userId: string, itemId: string, today: string) {
   });
 }
 
-async function sendMessage(phone: string, apiKey: string, text: string): Promise<boolean> {
-  const to = phone.startsWith("+") ? phone : `+${phone}`;
+async function sendMessage(phone: string, providerConfig: WhatsAppProviderConfig, text: string): Promise<boolean> {
   try {
-    const res = await fetch(WASENDER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ to, text }),
-    });
-    const data = await res.json() as { success?: boolean };
-    return res.ok && data.success === true;
+    return (await sendWhatsAppMessage(providerConfig, phone, text)).ok;
   } catch { return false; }
 }
 
@@ -101,13 +93,18 @@ async function runLowStockCron() {
       const userId = (row.entity as string).replace(/_settings$/, "");
       const s = JSON.parse(row.data as string);
 
-      const apiKey       = s?.wasender?.apiKey;
+      const providerConfig: WhatsAppProviderConfig = {
+        provider: s?.wasender?.provider || "wasender",
+        apiKey: s?.wasender?.apiKey,
+        botSailorApiToken: s?.wasender?.botSailorApiToken,
+        botSailorPhoneNumberId: s?.wasender?.botSailorPhoneNumberId,
+      };
       const ownerPhone   = s?.wasender?.ownerPhone;
       const autoLowStock = s?.wasender?.autoLowStock;
       const template     = s?.whatsapp?.lowstock;
       const salonName    = s?.salon?.name || "Your Salon";
 
-      if (!apiKey || !ownerPhone || !autoLowStock || !template) continue;
+      if (!activeWhatsAppCredential(providerConfig) || !ownerPhone || !autoLowStock || !template) continue;
 
       usersChecked++;
       const phone = normalizePhone(ownerPhone);
@@ -145,7 +142,7 @@ async function runLowStockCron() {
         salon_name: salonName,
       });
 
-      const ok = await sendMessage(phone, apiKey, text);
+      const ok = await sendMessage(phone, providerConfig, text);
       await logMessage(userId, phone, ok ? "sent" : "failed");
 
       if (ok) {

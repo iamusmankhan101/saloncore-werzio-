@@ -223,12 +223,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // WhatsApp connection status check
   useEffect(() => {
     if (!isReady) return;
-    const apiKey = (settingsStore.wasender as { apiKey: string }).apiKey;
-    if (!apiKey) return; // not configured — don't check
+    const config = settingsStore.wasender as { provider?: "wasender" | "botsailor"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string };
+    const credential = config.provider === "botsailor" ? config.botSailorApiToken : config.apiKey;
+    if (!credential) return;
 
     async function checkWa() {
       try {
-        const res  = await fetch(`/api/whatsapp/status?apiKey=${encodeURIComponent(apiKey)}`);
+        const params = new URLSearchParams({
+          provider: config.provider || "wasender",
+          apiKey: config.apiKey,
+          botSailorApiToken: config.botSailorApiToken || "",
+          botSailorPhoneNumberId: config.botSailorPhoneNumberId || "",
+        });
+        const res  = await fetch(`/api/whatsapp/status?${params}`);
         if (!res.ok) return; // server error — keep current status, don't flip to disconnected
         const data = await res.json() as { connected?: boolean };
         setWaStatus(data.connected ? "connected" : "disconnected");

@@ -9,6 +9,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { activeWhatsAppCredential, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 
 interface ClientPayload {
   id: string;
@@ -131,14 +132,19 @@ export async function POST(req: NextRequest) {
         ? JSON.parse(settingsRow.rows[0].data as string)
         : {};
 
-      const apiKey: string = settings?.wasender?.apiKey || process.env.WASENDER_API_KEY || "";
+      const providerConfig: WhatsAppProviderConfig = {
+        provider: settings?.wasender?.provider || "wasender",
+        apiKey: settings?.wasender?.apiKey,
+        botSailorApiToken: settings?.wasender?.botSailorApiToken,
+        botSailorPhoneNumberId: settings?.wasender?.botSailorPhoneNumberId,
+      };
       const autoConfirmation: boolean = settings?.wasender?.autoConfirmation !== false; // default true
       const bookingGroupJid: string = settings?.wasender?.bookingGroupJid?.trim() || "";
       const autoGroupBooking: boolean = settings?.wasender?.autoGroupBooking === true;
       const salonName: string = settings?.salon?.name || "the salon";
       const tpl = settings?.whatsapp ?? {};
 
-      if (apiKey) {
+      if (activeWhatsAppCredential(providerConfig) || process.env.WASENDER_API_KEY || process.env.BOTSAILOR_API_TOKEN) {
         const to12h = (t: string) => {
           const [h, m] = t.split(":").map(Number);
           return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
@@ -170,14 +176,9 @@ export async function POST(req: NextRequest) {
           const confirmText = fillTemplate(confirmationTpl, vars);
           const normalizedPhone = normalizePhone(phone);
           console.log(`[public/booking] Sending confirmation to ${normalizedPhone}`);
-          const confirmRes = await fetch("https://www.wasenderapi.com/api/send-message", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({ to: `+${normalizedPhone}`, text: confirmText }),
-          });
-          const confirmData = await confirmRes.json().catch(() => ({}));
-          if (!confirmRes.ok || confirmData.success === false) {
-            console.warn("[public/booking] WhatsApp confirmation failed:", confirmRes.status, JSON.stringify(confirmData));
+          const confirmResult = await sendWhatsAppMessage(providerConfig, normalizedPhone, confirmText);
+          if (!confirmResult.ok) {
+            console.warn("[public/booking] WhatsApp confirmation failed:", confirmResult.status, confirmResult.errorReason);
           } else {
             console.log("[public/booking] WhatsApp confirmation sent ✓");
           }
@@ -186,20 +187,15 @@ export async function POST(req: NextRequest) {
         }
 
         // Salon group alert — always fire for online bookings if a group JID is configured
-        if (bookingGroupJid.endsWith("@g.us")) {
+        if (providerConfig.provider !== "botsailor" && bookingGroupJid.endsWith("@g.us")) {
           const groupTpl: string =
             tpl.newBooking ||
             "📅 New Online Booking!\n👤 Name: {{name}}\n💇 Service: {{service}}\n📅 Date: {{date}}\n⏰ Time: {{time}}\n💰 Total: PKR {{amount}}\n\nBooked via {{salon_name}} online booking page.";
           const groupText = fillTemplate(groupTpl, vars);
           console.log(`[public/booking] Sending group alert to ${bookingGroupJid}`);
-          const groupResponse = await fetch("https://www.wasenderapi.com/api/send-message", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({ to: bookingGroupJid, text: groupText }),
-          });
-          const groupData = await groupResponse.json().catch(() => ({}));
-          if (!groupResponse.ok || groupData.success === false) {
-            console.warn("[public/booking] WhatsApp group alert failed:", groupResponse.status, JSON.stringify(groupData));
+          const groupResult = await sendWhatsAppMessage(providerConfig, bookingGroupJid, groupText);
+          if (!groupResult.ok) {
+            console.warn("[public/booking] WhatsApp group alert failed:", groupResult.status, groupResult.errorReason);
           } else {
             console.log("[public/booking] WhatsApp group alert sent ✓");
           }
@@ -210,7 +206,7 @@ export async function POST(req: NextRequest) {
         }
 
       } else {
-        console.warn("[public/booking] No WaSender API key in settings — skipping WhatsApp confirmation");
+        console.warn("[public/booking] No active WhatsApp provider credentials — skipping confirmation");
       }
     } catch (waErr) {
       // Non-fatal — booking is saved regardless

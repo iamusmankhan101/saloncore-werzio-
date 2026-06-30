@@ -378,7 +378,7 @@ export default function POSPage() {
     <div className="dashboard-polish pos-polish" style={{ height: "100vh", background: "#f4f5fa", display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "inherit" }}>
 
       {/* ══ TOP BAR ══ */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #eaeaf4", display: "flex", alignItems: "center", padding: "0 24px", height: 64, gap: 16, flexShrink: 0 }}>
+      <div className="pos-topbar" style={{ background: "#fff", borderBottom: "1px solid #eaeaf4", display: "flex", alignItems: "center", padding: "0 24px", height: 64, gap: 16, flexShrink: 0 }}>
         {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginRight: 8 }}>
           <div style={{ width: 38, height: 38, borderRadius: 11, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 10px rgba(91,33,182,0.3)" }}>
@@ -468,10 +468,10 @@ export default function POSPage() {
       <div className="pos-panels" style={{ flex: 1, display: "grid", gridTemplateColumns: "280px 1fr 340px", overflow: "hidden", gap: 12, padding: "12px 16px 12px" }}>
 
         {/* ══════════════════════ PANEL 1: CUSTOMER ══════════════════════ */}
-        <div className={posTab !== "customer" ? "pos-panel-hide" : ""} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div className={`pos-surface pos-customer-panel ${posTab !== "customer" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
           {/* Panel header */}
-          <div style={{ padding: "14px 16px", borderBottom: "1px solid #f4f4fc", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <div className="pos-panel-heading" style={{ padding: "14px 16px", borderBottom: "1px solid #f4f4fc", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <div style={{ width: 30, height: 30, borderRadius: 9, background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <User size={14} color="#7C3AED" />
             </div>
@@ -651,10 +651,10 @@ export default function POSPage() {
         </div>
 
         {/* ══════════════════════ PANEL 2: CATALOG ══════════════════════ */}
-        <div className={posTab !== "catalog" ? "pos-panel-hide" : ""} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div className={`pos-surface pos-catalog-panel ${posTab !== "catalog" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
           {/* Catalog header */}
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid #f4f4fc", flexShrink: 0 }}>
+          <div className="pos-catalog-heading" style={{ padding: "12px 16px", borderBottom: "1px solid #f4f4fc", flexShrink: 0 }}>
             {/* Search row */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
               <div style={{ position: "relative", flex: 1 }}>
@@ -708,13 +708,13 @@ export default function POSPage() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 10 }}>
+              <div className="pos-catalog-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 10 }}>
                 {cappedCatalog.map(item => {
                   const inCart  = cart.find(e => e.itemId === item.id);
                   const { fg, bg } = catColor(item.category, item.type);
                   const outOfStock = item.type === "product" && (item.stock ?? 999) === 0;
                   return (
-                    <button key={item.id} type="button"
+                    <button key={item.id} type="button" className={`pos-catalog-card${inCart ? " is-in-cart" : ""}${outOfStock ? " is-disabled" : ""}`}
                       onClick={() => !outOfStock && addToCart(item)}
                       disabled={outOfStock}
                       style={{
@@ -785,10 +785,10 @@ export default function POSPage() {
         </div>
 
         {/* ══════════════════════ PANEL 3: CART ══════════════════════ */}
-        <div className={posTab !== "cart" ? "pos-panel-hide" : ""} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div className={`pos-surface pos-cart-panel ${posTab !== "cart" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
           {/* Cart header */}
-          <div style={{ padding: "14px 16px", borderBottom: "1px solid #f4f4fc", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <div className="pos-panel-heading" style={{ padding: "14px 16px", borderBottom: "1px solid #f4f4fc", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <div style={{ width: 30, height: 30, borderRadius: 9, background: totalQty > 0 ? "#f5f3ff" : "#f8f8fc", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <ShoppingCart size={14} color={totalQty > 0 ? "#7C3AED" : "#c0c0d8"} />
             </div>
@@ -811,8 +811,8 @@ export default function POSPage() {
           {/* Cart items */}
           <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
             {cart.length === 0 ? (
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 16px", textAlign: "center" }}>
-                <div style={{ width: 64, height: 64, borderRadius: 18, background: "#f4f4fc", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+              <div className="pos-cart-empty" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 16px", textAlign: "center" }}>
+                <div className="pos-cart-empty-icon" style={{ width: 64, height: 64, borderRadius: 18, background: "#f4f4fc", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
                   <ShoppingCart size={28} color="#d0d0e8" />
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: "#b0b0c8" }}>Your cart is empty</div>

@@ -13,8 +13,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-
-const WASENDER_URL = "https://www.wasenderapi.com/api/send-message";
+import { activeWhatsAppCredential, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -42,7 +41,7 @@ async function ensureTables() {
 interface BirthdayUser {
   userId: string;
   discount: string;
-  apiKey: string;
+  providerConfig: WhatsAppProviderConfig;
   birthdayTemplate: string;
   salonName: string;
 }
@@ -66,15 +65,20 @@ async function getAllBirthdayUsers(): Promise<BirthdayUser[]> {
         const s = JSON.parse(row.data as string);
 
         const autoBirthday = s?.birthday?.autoBirthday;
-        const apiKey       = s?.wasender?.apiKey;
+        const providerConfig: WhatsAppProviderConfig = {
+          provider: s?.wasender?.provider || "wasender",
+          apiKey: s?.wasender?.apiKey,
+          botSailorApiToken: s?.wasender?.botSailorApiToken,
+          botSailorPhoneNumberId: s?.wasender?.botSailorPhoneNumberId,
+        };
         const template     = s?.whatsapp?.birthday;
 
-        if (!autoBirthday || !apiKey || !template) continue;
+        if (!autoBirthday || !activeWhatsAppCredential(providerConfig) || !template) continue;
 
         users.push({
           userId,
           discount:        s?.birthday?.birthdayDiscount || "a special treat",
-          apiKey,
+          providerConfig,
           birthdayTemplate: template,
           salonName:        s?.salon?.name || "Your Salon",
         });
@@ -144,21 +148,11 @@ function normalizePhone(raw: string): string {
 
 async function sendBirthdayMessage(
   phone: string,
-  apiKey: string,
+  providerConfig: WhatsAppProviderConfig,
   text: string,
 ): Promise<boolean> {
-  const to = phone.startsWith("+") ? phone : `+${phone}`;
   try {
-    const res = await fetch(WASENDER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ to, text }),
-    });
-    const data = await res.json() as { success?: boolean };
-    return res.ok && data.success === true;
+    return (await sendWhatsAppMessage(providerConfig, phone, text)).ok;
   } catch {
     return false;
   }
@@ -211,7 +205,7 @@ async function runBirthdayCron(): Promise<{ checked: number; sent: number; faile
         .replace(/\{\{salon_name\}\}/g, user.salonName)
         .replace(/\{\{discount\}\}/g, user.discount || "a special treat");
 
-      const ok = await sendBirthdayMessage(phone, user.apiKey, text);
+      const ok = await sendBirthdayMessage(phone, user.providerConfig, text);
       await logMessage(user.userId, client.name, phone, "birthday", ok ? "sent" : "failed");
 
       if (ok) {

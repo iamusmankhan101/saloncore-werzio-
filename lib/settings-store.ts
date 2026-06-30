@@ -24,7 +24,10 @@ const defaults = {
     logo: "",
   },
   wasender: {
+    provider: "wasender" as "wasender" | "botsailor",
     apiKey: "",
+    botSailorApiToken: "",
+    botSailorPhoneNumberId: "",
     ownerPhone: "",
     bookingGroupJid: "",
     autoReminder: true,

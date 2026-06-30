@@ -851,8 +851,9 @@ function SendSegmentModal({ mode, clients, onClose }: {
   const meta = SEGMENT_META[mode];
   const wa = settingsStore.whatsapp as Record<string, string>;
   const salonName = (settingsStore.salon as Record<string, string>).name || "";
-  const apiKey = (settingsStore.wasender as Record<string, string>).apiKey || "";
-  const discount = (settingsStore.wasender as Record<string, string>).cancelDiscount || "10%";
+  const providerConfig = settingsStore.wasender as Record<string, string>;
+  const activeCredential = providerConfig.provider === "botsailor" ? providerConfig.botSailorApiToken : providerConfig.apiKey;
+  const discount = providerConfig.cancelDiscount || "10%";
 
   const [text, setText] = useState(wa[meta.tplKey] || "");
   const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
@@ -874,7 +875,7 @@ function SendSegmentModal({ mode, clients, onClose }: {
   }
 
   async function send() {
-    if (!apiKey || !text.trim() || clients.length === 0 || progress) return;
+    if (!activeCredential || !text.trim() || clients.length === 0 || progress) return;
     setProgress({ done: 0, total: clients.length, failed: 0 });
     let done = 0, failed = 0;
     for (const c of clients) {
@@ -884,7 +885,7 @@ function SendSegmentModal({ mode, clients, onClose }: {
         const res = await fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apiKey, phone: normalizePhone(c.phone), text: msg }),
+          body: JSON.stringify({ ...providerConfig, phone: normalizePhone(c.phone), text: msg }),
         });
         const data = await res.json() as { ok: boolean };
         if (data.ok) {
@@ -969,7 +970,7 @@ function SendSegmentModal({ mode, clients, onClose }: {
               {clients.length > 5 && <div style={{ fontSize: 12, color: "#b0b0c8", marginTop: 4 }}>…and {clients.length - 5} more</div>}
             </div>
 
-            {!apiKey && (
+            {!activeCredential && (
               <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 12, color: "#dc2626" }}>
                 WhatsApp API key not configured. Go to Account → WhatsApp Settings.
               </div>
@@ -977,10 +978,10 @@ function SendSegmentModal({ mode, clients, onClose }: {
 
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
-              <button onClick={send} disabled={!apiKey || !text.trim()}
+              <button onClick={send} disabled={!activeCredential || !text.trim()}
                 style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 0", borderRadius: 10, border: "none",
-                  background: (!apiKey || !text.trim()) ? "#e8e8f0" : `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`,
-                  fontSize: 13, fontWeight: 700, color: (!apiKey || !text.trim()) ? "#b0b0c8" : "#fff", cursor: (!apiKey || !text.trim()) ? "not-allowed" : "pointer" }}>
+                  background: (!activeCredential || !text.trim()) ? "#e8e8f0" : `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`,
+                  fontSize: 13, fontWeight: 700, color: (!activeCredential || !text.trim()) ? "#b0b0c8" : "#fff", cursor: (!activeCredential || !text.trim()) ? "not-allowed" : "pointer" }}>
                 <Send size={14} /> Send to {clients.length} Client{clients.length !== 1 ? "s" : ""}
               </button>
             </div>

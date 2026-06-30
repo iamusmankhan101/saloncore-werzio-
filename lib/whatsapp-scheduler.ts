@@ -127,12 +127,13 @@ export async function sendGroupBookingAlert(appt: {
   if (typeof window === "undefined") return;
 
   const ws = settingsStore.wasender as {
+    provider?: string;
     apiKey: string;
     bookingGroupJid?: string;
     autoGroupBooking?: boolean;
   };
 
-  if (!ws.autoGroupBooking || !ws.apiKey) return;
+  if (ws.provider === "botsailor" || !ws.autoGroupBooking || !ws.apiKey) return;
   if (!ws.bookingGroupJid?.endsWith("@g.us")) return;
 
   const tpl = (settingsStore.whatsapp as { newBooking?: string }).newBooking ||
@@ -188,21 +189,29 @@ async function callSendApi(
   text: string,
   logMeta: { type: WaMsgType; clientName: string },
 ): Promise<boolean> {
-  // Respect WaSender rate limit: wait until 60s have elapsed since the last send
-  const wait = SEND_RATE_LIMIT_MS - (Date.now() - lastSentAt);
-  if (lastSentAt > 0 && wait > 0) {
-    await new Promise<void>((resolve) => setTimeout(resolve, wait));
+  const selectedProvider = (settingsStore.wasender as { provider?: string }).provider ?? "wasender";
+  // WaSender's free plan is rate limited; BotSailor does not use this throttle.
+  if (selectedProvider === "wasender") {
+    const wait = SEND_RATE_LIMIT_MS - (Date.now() - lastSentAt);
+    if (lastSentAt > 0 && wait > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, wait));
+    }
+    lastSentAt = Date.now();
   }
-  lastSentAt = Date.now();
 
-  const { apiKey } = settingsStore.wasender as { apiKey: string };
+  const providerConfig = settingsStore.wasender as {
+    provider?: "wasender" | "botsailor";
+    apiKey: string;
+    botSailorApiToken?: string;
+    botSailorPhoneNumberId?: string;
+  };
   let ok = false;
   let errorReason: string | undefined;
   try {
     const res = await fetch("/api/whatsapp/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apiKey, phone, text }),
+      body: JSON.stringify({ ...providerConfig, phone, text }),
     });
     const data = await res.json() as { ok?: boolean; errorReason?: string };
     ok = data.ok === true;
@@ -249,14 +258,14 @@ const BIRTHDAY_SENT_KEY = "werzio_wa_birthday_sent";
 export async function checkBirthdayReminders(force = false): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const ws = settingsStore.wasender as { apiKey: string; autoReminder: boolean };
+  const ws = settingsStore.wasender as { provider?: string; apiKey: string; botSailorApiToken?: string; autoReminder: boolean };
   const bd = settingsStore.birthday as {
     autoBirthday: boolean;
     birthdayDiscount: string;
   };
 
   if (!force && !bd.autoBirthday) return;
-  if (!force && !ws.apiKey) return; // on manual Send Now, let the server use its fallback key
+  if (!force && !(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey)) return;
 
   const birthdayTemplate = (settingsStore.whatsapp as { birthday: string }).birthday;
   if (!birthdayTemplate) return;
@@ -324,7 +333,9 @@ function isWithinSalonHours(): boolean {
 
 async function runSchedulerInternal(): Promise<void> {
   const ws = settingsStore.wasender as {
+    provider?: string;
     apiKey: string;
+    botSailorApiToken?: string;
     ownerPhone: string;
     autoReminder: boolean;
     reminderHours: number;
@@ -334,7 +345,7 @@ async function runSchedulerInternal(): Promise<void> {
     autoLowStock: boolean;
   };
 
-  if (!ws.apiKey) return;
+  if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey)) return;
 
   const waTpl = settingsStore.whatsapp as {
     reminder: string;
@@ -481,11 +492,11 @@ export async function checkLowStockAlerts(): Promise<void> {
   if (typeof window === "undefined") return;
 
   const ws = settingsStore.wasender as {
-    apiKey: string; autoLowStock: boolean; ownerPhone: string;
+    provider?: string; apiKey: string; botSailorApiToken?: string; autoLowStock: boolean; ownerPhone: string;
   };
   if (!ws.autoLowStock) { console.warn("⚠️ Low stock alerts disabled — enable in Account → WhatsApp Settings"); return; }
   if (!ws.ownerPhone) { console.warn("⚠️ No owner phone set — add it in Account → WhatsApp Settings"); return; }
-  if (!ws.apiKey) { console.warn("⚠️ No WaSender API key set — add it in Account → WhatsApp Settings"); return; }
+  if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey)) { console.warn("⚠️ No WhatsApp provider credentials set — add them in Account → WhatsApp Settings"); return; }
 
   const lowstockTemplate = (settingsStore.whatsapp as { lowstock: string }).lowstock;
   if (!lowstockTemplate) { console.warn("⚠️ No low stock template found in WhatsApp Settings"); return; }

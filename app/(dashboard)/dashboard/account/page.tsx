@@ -451,7 +451,10 @@ function Security() {
 }
 
 interface WhatsAppSettings {
+  provider: "wasender" | "botsailor";
   apiKey: string;
+  botSailorApiToken: string;
+  botSailorPhoneNumberId: string;
   ownerPhone: string;
   bookingGroupJid: string;
   autoReminder: boolean;
@@ -656,25 +659,33 @@ function WhatsAppSection() {
   }
 
   async function testConnection() {
-    if (!form.apiKey) {
-      setTestResult({ ok: false, msg: "Enter your WaSender API key first." });
+    const credential = form.provider === "botsailor" ? form.botSailorApiToken : form.apiKey;
+    if (!credential || (form.provider === "botsailor" && !form.botSailorPhoneNumberId)) {
+      setTestResult({ ok: false, msg: form.provider === "botsailor" ? "Enter your BotSailor API token and phone number ID first." : "Enter your WaSender API key first." });
       return;
     }
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch(`/api/whatsapp/status?force=1&apiKey=${encodeURIComponent(form.apiKey)}`);
+      const params = new URLSearchParams({
+        force: "1",
+        provider: form.provider,
+        apiKey: form.apiKey,
+        botSailorApiToken: form.botSailorApiToken,
+        botSailorPhoneNumberId: form.botSailorPhoneNumberId,
+      });
+      const res = await fetch(`/api/whatsapp/status?${params}`);
       const data = await res.json();
       if (data.connected) {
         setConnectionState("connected");
         setTestResult({ ok: true, msg: "Connected! The salon WhatsApp session is active." });
       } else {
         setConnectionState("disconnected");
-        setTestResult({ ok: false, msg: data.message || "Session disconnected. Reconnect it in WaSender and copy its current API key." });
+        setTestResult({ ok: false, msg: data.message || `${form.provider === "botsailor" ? "BotSailor" : "WaSender"} connection failed.` });
       }
     } catch {
       setConnectionState("disconnected");
-      setTestResult({ ok: false, msg: "Could not reach WaSender API. Check your internet connection." });
+      setTestResult({ ok: false, msg: `Could not reach ${form.provider === "botsailor" ? "BotSailor" : "WaSender"}. Check your internet connection.` });
     }
     setTesting(false);
   }
@@ -692,6 +703,9 @@ function WhatsAppSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           apiKey: form.apiKey,
+          provider: form.provider,
+          botSailorApiToken: form.botSailorApiToken,
+          botSailorPhoneNumberId: form.botSailorPhoneNumberId,
           phone: form.bookingGroupJid,
           text: "Salon Central booking group connected ✅",
         }),
@@ -780,14 +794,14 @@ function WhatsAppSection() {
     }
   }
 
-  const isConnected = !!form.apiKey && connectionState !== "disconnected";
+  const activeCredential = form.provider === "botsailor" ? form.botSailorApiToken : form.apiKey;
+  const isConnected = !!activeCredential && connectionState !== "disconnected";
 
   return (
     <section>
       <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>WhatsApp Automation</h2>
       <p style={{ margin: "0 0 24px", color: "#9999b0", fontSize: 12 }}>
-        Powered by <strong style={{ color: "#1d1d2f" }}>WaSenderAPI</strong> — connect your WhatsApp number at{" "}
-        <span style={{ color: "var(--accent)", fontWeight: 700 }}>wasenderapi.com</span>, then paste your API key below.
+        Choose WaSenderAPI or BotSailor as the active provider. All automated and manual messages use the selected connection.
       </p>
 
       {/* Connection status */}
@@ -795,7 +809,7 @@ function WhatsAppSection() {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: isConnected ? "var(--accent)" : "#d1d1e0" }} />
           <span style={{ fontSize: 13, fontWeight: 700, color: isConnected ? "var(--accent)" : "#9999b0" }}>
-            {!form.apiKey ? "Not configured" : connectionState === "disconnected" ? "WhatsApp Disconnected" : connectionState === "connected" ? "WhatsApp Connected" : "WhatsApp Configured"}
+            {!activeCredential ? "Not configured" : connectionState === "disconnected" ? "WhatsApp Disconnected" : connectionState === "connected" ? "WhatsApp Connected" : "WhatsApp Configured"}
           </span>
         </div>
         {isConnected && <span style={{ fontSize: 11, color: "#9999b0" }}>Scheduler runs every 60 seconds</span>}
@@ -804,10 +818,16 @@ function WhatsAppSection() {
       {/* Credentials */}
       <div style={{ marginBottom: 22 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: "#7c7c9a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
-          WaSender Credentials
+          Provider & Credentials
         </div>
         <div style={{ display: "grid", gap: 14 }}>
-          <Field label="API Key" hint="wasenderapi.com → Dashboard → API Keys">
+          <Field label="Active Provider" hint="Switching provider affects every new WhatsApp message">
+            <select style={inputStyle} value={form.provider} onChange={(e) => { set("provider", e.target.value as WhatsAppSettings["provider"]); setConnectionState("unknown"); setTestResult(null); }}>
+              <option value="wasender">WaSenderAPI</option>
+              <option value="botsailor">BotSailor</option>
+            </select>
+          </Field>
+          {form.provider === "wasender" ? <Field label="WaSender API Key" hint="wasenderapi.com → Dashboard → API Keys">
             <input
               style={inputStyle}
               type="password"
@@ -815,7 +835,16 @@ function WhatsAppSection() {
               onChange={(e) => set("apiKey", e.target.value)}
               placeholder="your-api-key"
             />
-          </Field>
+          </Field> : (
+            <>
+              <Field label="BotSailor API Token" hint="BotSailor → User menu → API Developer">
+                <input style={inputStyle} type="password" value={form.botSailorApiToken} onChange={(e) => set("botSailorApiToken", e.target.value)} placeholder="your-botsailor-api-token" />
+              </Field>
+              <Field label="WhatsApp Phone Number ID" hint="Select the connected WhatsApp account in BotSailor">
+                <input style={inputStyle} value={form.botSailorPhoneNumberId} onChange={(e) => set("botSailorPhoneNumberId", e.target.value)} placeholder="e.g. 119060000000000" />
+              </Field>
+            </>
+          )}
           <Field label="Your WhatsApp Number" hint="International format — e.g. 923001234567 (for owner alerts)">
             <input
               style={inputStyle}
@@ -824,7 +853,7 @@ function WhatsAppSection() {
               placeholder="923001234567"
             />
           </Field>
-          <Field label="Booking WhatsApp Group" hint="Load groups joined by the connected salon number, then select one">
+          {form.provider === "wasender" && <Field label="Booking WhatsApp Group" hint="Load groups joined by the connected salon number, then select one">
             <div style={{ display: "flex", gap: 8 }}>
               <select
                 style={{ ...inputStyle, flex: 1 }}
@@ -864,16 +893,16 @@ function WhatsAppSection() {
                 Use Invite Link
               </button>
             </div>
-          </Field>
+          </Field>}
           <div>
-            <button
+            {form.provider === "wasender" && <button
               type="button"
               onClick={testConnection}
               disabled={testing}
               style={{ border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", borderRadius: 9, padding: "8px 18px", fontSize: 12, fontWeight: 800, cursor: testing ? "wait" : "pointer" }}
             >
               {testing ? "Testing..." : "Test Connection"}
-            </button>
+            </button>}
             <button
               type="button"
               onClick={testGroup}
@@ -914,7 +943,7 @@ function WhatsAppSection() {
           enabled={form.autoConfirmation}
           onToggle={() => set("autoConfirmation", !form.autoConfirmation)}
         />
-        <AutoRow
+        {form.provider === "wasender" && <AutoRow
           label="New Booking Group Alert"
           hint="Send each online-booking summary to your WhatsApp group from the connected salon number"
           enabled={form.autoGroupBooking ?? false}
@@ -926,7 +955,12 @@ function WhatsAppSection() {
                 : "Enter a valid Group ID ending in @g.us above."}
             </div>
           }
-        />
+        />}
+        {form.provider === "botsailor" && (
+          <div style={{ border: "1px solid #e0e7ff", borderRadius: 12, padding: "13px 16px", background: "#f5f7ff", color: "#5b5b78", fontSize: 11, lineHeight: 1.6 }}>
+            BotSailor uses WhatsApp Cloud API and sends to individual phone numbers. Booking-group alerts remain available when WaSenderAPI is selected.
+          </div>
+        )}
         <AutoRow
           label="Follow-up Message"
           hint="Sent after appointment is completed — ask for review or re-book"

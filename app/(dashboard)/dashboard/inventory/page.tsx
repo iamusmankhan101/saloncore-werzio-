@@ -233,7 +233,7 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
   const [sending, setSending] = useState(false);
   const [apiResult, setApiResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const ws = settingsStore.wasender as { apiKey: string; ownerPhone: string };
+  const ws = settingsStore.wasender as { provider?: "wasender" | "botsailor"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; ownerPhone: string };
   const salonName = settingsStore.salon.name as string;
 
   const message = [
@@ -263,8 +263,8 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
   };
 
   const sendViaApi = async () => {
-    if (!ws.apiKey) {
-      setApiResult({ ok: false, msg: "WaSender API key not set in Account → WhatsApp Settings" });
+    if (!(ws.provider === "botsailor" ? ws.botSailorApiToken && ws.botSailorPhoneNumberId : ws.apiKey)) {
+      setApiResult({ ok: false, msg: "WhatsApp provider credentials are not set in Account → WhatsApp Settings" });
       return;
     }
     if (!ws.ownerPhone) {
@@ -284,12 +284,12 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
       const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: ws.apiKey, phone, text }),
+        body: JSON.stringify({ ...ws, phone, text }),
       });
       const data = await res.json() as { ok: boolean };
       setApiResult(data.ok
         ? { ok: true, msg: `Sent to ${phone}` }
-        : { ok: false, msg: "Failed — check your WaSender API key" });
+        : { ok: false, msg: `Failed — check your ${ws.provider === "botsailor" ? "BotSailor" : "WaSender"} credentials` });
     } catch (err) {
       setApiResult({ ok: false, msg: String(err) });
     }
