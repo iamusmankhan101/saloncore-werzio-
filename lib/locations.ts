@@ -24,6 +24,28 @@ export function getDefaultLocationId() {
   return locations.some((location) => location.id === active) ? active! : locations[0]?.id ?? "main";
 }
 
+export function getActiveLocationFilter() {
+  const locations = getSalonLocations();
+  const active = (settingsStore as { locations?: { activeLocationId?: string } }).locations?.activeLocationId;
+  if (active === "all") return "all";
+  return locations.some((location) => location.id === active) ? active! : locations[0]?.id ?? "main";
+}
+
+export function setActiveLocationFilter(locationId: string) {
+  const locations = getSalonLocations();
+  const nextId = locationId === "all" || locations.some((location) => location.id === locationId)
+    ? locationId
+    : locations[0]?.id ?? "main";
+
+  (settingsStore as any).locations = {
+    ...(settingsStore as any).locations,
+    activeLocationId: nextId,
+    items: locations,
+  };
+  saveSettings();
+  return nextId;
+}
+
 export function clientLocationId(client: { locationId?: string }) {
   return client.locationId || getDefaultLocationId();
 }

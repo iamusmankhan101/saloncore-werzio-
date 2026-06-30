@@ -1,8 +1,9 @@
 /**
  * /api/cron/birthday
  *
- * Runs daily on Vercel Hobby. Each salon is processed only when currently open
- * according to its saved business hours and timezone. For true every-10-minute
+ * Runs 4 times daily on Vercel Hobby, spaced 120 minutes apart
+ * (04:00, 06:00, 08:00, 10:00 UTC). Each salon is processed only when currently
+ * open according to its saved business hours and timezone. For true every-10-minute
  * background queue draining, deploy on a Vercel plan that supports per-minute cron.
  * For every salon that has birthday reminders enabled:
  *   1. Loads their clients from Turso (salon_data table)

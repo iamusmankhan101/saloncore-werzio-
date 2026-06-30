@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff } from "lucide-react";
+import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff, MapPin, Plus } from "lucide-react";
 import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
@@ -15,6 +15,7 @@ import { getStoredInventory } from "@/lib/storage";
 import { syncInvoices } from "@/lib/invoices";
 import { PLAN_CONFIGS, getCurrentPlanId, type PlanId } from "@/lib/plan-limits";
 import { setActivePlan } from "@/lib/payment-requests";
+import { addSalonLocation, getActiveLocationFilter, getSalonLocations, setActiveLocationFilter, type SalonLocation } from "@/lib/locations";
 
 // ─── Notification chime ───────────────────────────────────────────────────────
 
@@ -97,6 +98,121 @@ function SuspensionGate({ reason }: { reason: string | null }) {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardLocationSwitcher() {
+  const [locations, setLocations] = useState<SalonLocation[]>(() => getSalonLocations());
+  const [activeLocation, setActiveLocation] = useState(() => getActiveLocationFilter());
+
+  useEffect(() => {
+    function refresh() {
+      setLocations(getSalonLocations());
+      setActiveLocation(getActiveLocationFilter());
+    }
+    window.addEventListener(SETTINGS_CHANGED_EVENT, refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener(SETTINGS_CHANGED_EVENT, refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
+
+  function changeLocation(locationId: string) {
+    const nextId = setActiveLocationFilter(locationId);
+    setActiveLocation(nextId);
+    setLocations(getSalonLocations());
+  }
+
+  function handleAddLocation() {
+    const name = window.prompt("New location / branch name");
+    if (!name?.trim()) return;
+    const location = addSalonLocation(name);
+    changeLocation(location.id);
+  }
+
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      margin: "16px 20px 0",
+      padding: "12px 14px",
+      border: "1px solid rgba(124,58,237,0.13)",
+      borderRadius: 16,
+      background: "linear-gradient(135deg, rgba(124,58,237,0.06), rgba(255,255,255,0.95))",
+      boxShadow: "0 10px 28px rgba(35,20,70,0.045)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <div style={{
+          width: 36,
+          height: 36,
+          borderRadius: 12,
+          display: "grid",
+          placeItems: "center",
+          background: "var(--accent-gradient)",
+          boxShadow: "0 5px 16px var(--accent-glow)",
+          flexShrink: 0,
+        }}>
+          <MapPin size={17} color="#fff" />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 850, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.09em" }}>
+            Active Location
+          </div>
+          <div style={{ fontSize: 12, color: "#777792", fontWeight: 650, marginTop: 2 }}>
+            Dashboard data is filtered by this branch where supported.
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <select
+          value={activeLocation}
+          onChange={(e) => changeLocation(e.target.value)}
+          style={{
+            minWidth: 180,
+            padding: "9px 34px 9px 12px",
+            borderRadius: 12,
+            border: "1px solid #ddd6fe",
+            background: "#fff",
+            color: "#1a1a2e",
+            fontSize: 13,
+            fontWeight: 800,
+            outline: "none",
+            cursor: "pointer",
+            boxShadow: "0 3px 10px rgba(38,25,75,0.04)",
+          }}
+          aria-label="Select active dashboard location"
+        >
+          <option value="all">All Locations</option>
+          {locations.map((location) => (
+            <option key={location.id} value={location.id}>{location.name}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={handleAddLocation}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "9px 13px",
+            borderRadius: 12,
+            border: "1px solid #ddd6fe",
+            background: "#fff",
+            color: "var(--accent)",
+            fontSize: 12,
+            fontWeight: 850,
+            cursor: "pointer",
+            boxShadow: "0 3px 10px rgba(38,25,75,0.04)",
+          }}
+        >
+          <Plus size={13} /> Add Location
+        </button>
       </div>
     </div>
   );
@@ -441,6 +557,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           </div>
         )}
+        <DashboardLocationSwitcher />
         {children}
       </main>
 

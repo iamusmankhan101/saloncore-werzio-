@@ -8,10 +8,10 @@ import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
 import { Search, X, Plus, Phone, Mail, Calendar, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet, TrendingUp, Clock, Send } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
-import { settingsStore } from "@/lib/settings-store";
+import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { normalizePhone, appendLog } from "@/lib/whatsapp-scheduler";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
-import { addSalonLocation, clientLocationId, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
+import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
 
 const SEGMENT_CAMPAIGN_QUEUE_KEY = "werzio_segment_campaign_queue";
 const SEGMENT_CAMPAIGN_SPREAD_WINDOW_MS = 4 * 60 * 60 * 1000;
@@ -1095,7 +1095,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
-  const [locationFilter, setLocationFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState(() => getActiveLocationFilter());
   const [selected, setSelected] = useState<Client | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -1139,6 +1139,19 @@ export default function ClientsPage() {
 
     setClients(synced);
     setAppointments(storedAppts);
+  }, []);
+
+  useEffect(() => {
+    function refreshLocations() {
+      setLocations(getSalonLocations());
+      setLocationFilter(getActiveLocationFilter());
+    }
+    window.addEventListener(SETTINGS_CHANGED_EVENT, refreshLocations);
+    window.addEventListener("focus", refreshLocations);
+    return () => {
+      window.removeEventListener(SETTINGS_CHANGED_EVENT, refreshLocations);
+      window.removeEventListener("focus", refreshLocations);
+    };
   }, []);
 
   useEffect(() => {
@@ -1193,15 +1206,7 @@ export default function ClientsPage() {
 
   const allTags = Array.from(new Set(clients.flatMap((c) => c.tags)));
   const allSources = Array.from(new Set(clients.map((c) => c.source)));
-  const activeFilters = [tagFilter !== "all", sourceFilter !== "all", locationFilter !== "all"].filter(Boolean).length;
-
-  function handleAddLocation() {
-    const name = window.prompt("New location / branch name");
-    if (!name?.trim()) return;
-    const location = addSalonLocation(name);
-    setLocations(getSalonLocations());
-    setLocationFilter(location.id);
-  }
+  const activeFilters = [tagFilter !== "all", sourceFilter !== "all"].filter(Boolean).length;
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
   const someFilteredSelected = filtered.some((c) => selectedIds.has(c.id));
@@ -1497,7 +1502,6 @@ export default function ClientsPage() {
           {[
             { label: "Tag", value: tagFilter, onChange: setTagFilter, options: [["all", "All Tags"], ...allTags.map((t) => [t, t])] },
             { label: "Source", value: sourceFilter, onChange: setSourceFilter, options: [["all", "All Sources"], ...allSources.map((s) => [s, s])] },
-            { label: "Location", value: locationFilter, onChange: setLocationFilter, options: [["all", "All Locations"], ...locations.map((location) => [location.id, location.name])] },
           ].map(({ label, value, onChange, options }) => (
             <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label style={{ fontSize: 11, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
@@ -1506,9 +1510,8 @@ export default function ClientsPage() {
               </select>
             </div>
           ))}
-          <button onClick={handleAddLocation} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #ddd6fe", background: "#f5f3ff", fontSize: 12, fontWeight: 800, color: "var(--accent)", cursor: "pointer", transition: "all 0.15s" }}>+ Add Location</button>
           {activeFilters > 0 && (
-            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); setLocationFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
+            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
           )}
         </div>
       )}
