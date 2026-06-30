@@ -296,10 +296,10 @@ export default function MessagesPage() {
           </div>
           <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
             <a href="/dashboard/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 12, background: "linear-gradient(135deg,#7C3AED,#9333EA)", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 16px rgba(124,58,237,0.38)" }}>
-              Upgrade to Pro — PKR 12,000/mo →
+              Contact Sales for Pro →
             </a>
             <a href="/dashboard/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 12, background: "linear-gradient(135deg,#9333EA,#A855F7)", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 16px rgba(147,51,234,0.38)" }}>
-              Upgrade to Premium — PKR 20,000/mo →
+              Contact Sales for Premium →
             </a>
           </div>
         </div>
@@ -406,7 +406,8 @@ export default function MessagesPage() {
   };
   const waTpl = settingsStore.whatsapp as { reminder: string; confirmation: string; followup: string };
   const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey;
-  const isConfigured = !!activeCredential && (ws.provider !== "botsailor" || !!ws.botSailorPhoneNumberId);
+  const isConfigured = !!activeCredential
+    && (ws.provider !== "botsailor" || !!ws.botSailorPhoneNumberId);
   const [testingConn, setTestingConn] = useState(false);
   const [connStatus, setConnStatus] = useState<{ ok: boolean; message?: string; status?: string } | null>(null);
   // Use the real API result when available; null = still checking, true/false = known

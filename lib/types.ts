@@ -147,6 +147,7 @@ export interface InventoryItem {
   minStock: number;
   costPrice: number;
   retailPrice?: number;
+  barcode?: string;
   supplier?: string;
   lastRestocked?: string;
   notes?: string;

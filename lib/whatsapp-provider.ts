@@ -15,9 +15,8 @@ export interface WhatsAppSendResult {
 }
 
 export function activeWhatsAppCredential(config: WhatsAppProviderConfig): string {
-  return config.provider === "botsailor"
-    ? (config.botSailorApiToken || "")
-    : (config.apiKey || "");
+  if (config.provider === "botsailor") return config.botSailorApiToken || "";
+  return config.apiKey || "";
 }
 
 export async function sendWhatsAppMessage(

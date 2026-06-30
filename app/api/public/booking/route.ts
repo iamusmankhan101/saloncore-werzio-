@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Salon group alert — always fire for online bookings if a group JID is configured
-        if (providerConfig.provider !== "botsailor" && bookingGroupJid.endsWith("@g.us")) {
+        if (providerConfig.provider === "wasender" && bookingGroupJid.endsWith("@g.us")) {
           const groupTpl: string =
             tpl.newBooking ||
             "📅 New Online Booking!\n👤 Name: {{name}}\n💇 Service: {{service}}\n📅 Date: {{date}}\n⏰ Time: {{time}}\n💰 Total: PKR {{amount}}\n\nBooked via {{salon_name}} online booking page.";

@@ -12,7 +12,7 @@ const PLANS = [
   {
     id: "pro",
     name: "Salon Central Pro",
-    price: "PKR 12,000",
+    price: "Contact Sales",
     icon: Building2,
     color: "#7C3AED",
     bg: "#f5f3ff",
@@ -32,7 +32,7 @@ const PLANS = [
   {
     id: "premium",
     name: "Salon Central Premium",
-    price: "PKR 20,000",
+    price: "Contact Sales",
     icon: Crown,
     color: "#9333EA",
     bg: "#faf5ff",
@@ -44,6 +44,8 @@ const PLANS = [
     ],
   },
 ] as const;
+
+const CONTACT_SALES_URL = "https://wa.me/923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
 
 type PlanId = typeof PLANS[number]["id"];
 
@@ -242,7 +244,7 @@ export default function SignUpPage() {
                             </div>
                             <div>
                               <div style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e" }}>{p.name}</div>
-                              <div style={{ fontSize: 12, color: p.color, fontWeight: 700 }}>{p.price}<span style={{ color: "#9898b0", fontWeight: 400 }}>/mo</span></div>
+                              <div style={{ fontSize: 12, color: p.color, fontWeight: 700 }}>{p.price}</div>
                             </div>
                           </div>
                           <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${selected ? p.color : "#d1d5db"}`, background: selected ? p.color : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -261,13 +263,9 @@ export default function SignUpPage() {
                   })}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setStep("details")}
-                  className={styles.primaryButton}
-                >
-                  Continue with {plan.name} <ArrowRight size={14} />
-                </button>
+                <a href={CONTACT_SALES_URL} target="_blank" rel="noopener noreferrer" className={styles.primaryButton}>
+                  Contact Sales on WhatsApp <ArrowRight size={14} />
+                </a>
 
                 {/* Admin toggle */}
                 <div style={{ marginTop: 14 }}>
@@ -350,7 +348,7 @@ export default function SignUpPage() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, background: plan.bg, border: `1.5px solid ${plan.color}30`, marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <plan.icon size={14} color={plan.color} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: plan.color }}>{plan.name} Plan — {plan.price}/mo</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: plan.color }}>{plan.name} Plan — {plan.price}</span>
                   </div>
                   <button type="button" onClick={() => setStep("plan")}
                     style={{ fontSize: 11, fontWeight: 700, color: plan.color, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>

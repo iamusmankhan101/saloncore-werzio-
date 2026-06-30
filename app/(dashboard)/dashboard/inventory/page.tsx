@@ -67,12 +67,13 @@ type ItemForm = {
   name: string; brand: string; category: InventoryCategory | "";
   unit: InventoryUnit; currentStock: string; minStock: string;
   costPrice: string; retailPrice: string; supplier: string; notes: string;
+  barcode: string;
 };
 
 const EMPTY_FORM: ItemForm = {
   name: "", brand: "", category: "", unit: "pcs",
   currentStock: "", minStock: "", costPrice: "",
-  retailPrice: "", supplier: "", notes: "",
+  retailPrice: "", barcode: "", supplier: "", notes: "",
 };
 
 function itemToForm(item: InventoryItem): ItemForm {
@@ -81,7 +82,7 @@ function itemToForm(item: InventoryItem): ItemForm {
     unit: item.unit,
     currentStock: String(item.currentStock), minStock: String(item.minStock),
     costPrice: String(item.costPrice), retailPrice: item.retailPrice ? String(item.retailPrice) : "",
-    supplier: item.supplier ?? "", notes: item.notes ?? "",
+    barcode: item.barcode ?? "", supplier: item.supplier ?? "", notes: item.notes ?? "",
   };
 }
 
@@ -95,6 +96,7 @@ function formToItem(form: ItemForm, existing?: InventoryItem): InventoryItem {
     minStock: Number(form.minStock),
     costPrice: Number(form.costPrice),
     retailPrice: form.retailPrice ? Number(form.retailPrice) : undefined,
+    barcode: form.barcode.trim() || undefined,
     supplier: form.supplier || undefined,
     notes: form.notes || undefined,
     lastRestocked: existing?.lastRestocked ?? new Date().toLocaleDateString("en-CA"),
@@ -129,6 +131,9 @@ function ItemFormFields({ form, set }: { form: ItemForm; set: (k: keyof ItemForm
         <Field label="Cost Price (PKR) *"><input type="number" min="0" value={form.costPrice} onChange={(e) => set("costPrice", e.target.value)} placeholder="0" style={INP} /></Field>
         <Field label="Retail Price (PKR)"><input type="number" min="0" value={form.retailPrice} onChange={(e) => set("retailPrice", e.target.value)} placeholder="0" style={INP} /></Field>
       </div>
+      <Field label="Product Barcode / SKU">
+        <input value={form.barcode} onChange={(e) => set("barcode", e.target.value.trim())} placeholder="Scan or enter barcode" style={INP} inputMode="numeric" />
+      </Field>
       <Field label="Supplier"><input value={form.supplier} onChange={(e) => set("supplier", e.target.value)} placeholder="e.g. Wella Pakistan" style={INP} /></Field>
       <Field label="Notes"><textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Any notes…" rows={2} style={{ ...INP, resize: "none", lineHeight: 1.5 }} /></Field>
     </div>
@@ -510,6 +515,7 @@ export default function InventoryPage() {
         return (
           item.name.toLowerCase().includes(q) ||
           item.brand.toLowerCase().includes(q) ||
+          (item.barcode ?? "").toLowerCase().includes(q) ||
           (item.supplier ?? "").toLowerCase().includes(q) ||
           CATEGORY_CONFIG[item.category].label.toLowerCase().includes(q)
         );

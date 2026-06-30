@@ -66,6 +66,10 @@
   line-height: 1;
 }
 .featured .amount { color: #fff; }
+.contactPrice {
+  font-size: 2.15rem;
+  letter-spacing: -0.035em;
+}
 
 .period { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
 .featured .period { color: rgba(255,255,255,.5); }

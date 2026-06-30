@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     if (cached) {
       return Response.json({ ok: cached.connected, connected: cached.connected, status: cached.status, message: cached.message, stale: true });
     }
-    return Response.json({ ok: false, connected: false, status: "UNKNOWN", message: `Could not reach ${provider === "botsailor" ? "BotSailor" : "WaSender"}.`, error: String(err) }, { status: 502 });
+    const providerName = provider === "botsailor" ? "BotSailor" : "WaSender";
+    return Response.json({ ok: false, connected: false, status: "UNKNOWN", message: `Could not reach ${providerName}.`, error: String(err) }, { status: 502 });
   }
 }

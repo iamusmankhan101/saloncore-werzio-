@@ -660,8 +660,12 @@ function WhatsAppSection() {
 
   async function testConnection() {
     const credential = form.provider === "botsailor" ? form.botSailorApiToken : form.apiKey;
-    if (!credential || (form.provider === "botsailor" && !form.botSailorPhoneNumberId)) {
-      setTestResult({ ok: false, msg: form.provider === "botsailor" ? "Enter your BotSailor API token and phone number ID first." : "Enter your WaSender API key first." });
+    const missingProviderFields = form.provider === "botsailor" && !form.botSailorPhoneNumberId;
+    if (!credential || missingProviderFields) {
+      const msg = form.provider === "botsailor"
+        ? "Enter your BotSailor API token and phone number ID first."
+        : "Enter your WaSender API key first.";
+      setTestResult({ ok: false, msg });
       return;
     }
     setTesting(true);
@@ -835,7 +839,7 @@ function WhatsAppSection() {
               onChange={(e) => set("apiKey", e.target.value)}
               placeholder="your-api-key"
             />
-          </Field> : (
+          </Field> : form.provider === "botsailor" ? (
             <>
               <Field label="BotSailor API Token" hint="BotSailor → User menu → API Developer">
                 <input style={inputStyle} type="password" value={form.botSailorApiToken} onChange={(e) => set("botSailorApiToken", e.target.value)} placeholder="your-botsailor-api-token" />
@@ -844,7 +848,7 @@ function WhatsAppSection() {
                 <input style={inputStyle} value={form.botSailorPhoneNumberId} onChange={(e) => set("botSailorPhoneNumberId", e.target.value)} placeholder="e.g. 119060000000000" />
               </Field>
             </>
-          )}
+          ) : null}
           <Field label="Your WhatsApp Number" hint="International format — e.g. 923001234567 (for owner alerts)">
             <input
               style={inputStyle}
@@ -958,7 +962,7 @@ function WhatsAppSection() {
         />}
         {form.provider === "botsailor" && (
           <div style={{ border: "1px solid #e0e7ff", borderRadius: 12, padding: "13px 16px", background: "#f5f7ff", color: "#5b5b78", fontSize: 11, lineHeight: 1.6 }}>
-            BotSailor uses WhatsApp Cloud API and sends to individual phone numbers. Booking-group alerts remain available when WaSenderAPI is selected.
+            BotSailor sends to individual phone numbers. Booking-group alerts remain available when WaSenderAPI is selected.
           </div>
         )}
         <AutoRow

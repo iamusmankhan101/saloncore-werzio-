@@ -46,8 +46,8 @@ export default function TermsPage() {
         <p>Salon Central offers the following subscription plans:</p>
         <ul>
           <li><strong>Salon Central Free</strong> — Available at no cost with limited features.</li>
-          <li><strong>Salon Central Pro</strong> — ₨12,000/month, billed monthly.</li>
-          <li><strong>Salon Central Premium</strong> — ₨20,000/month, billed monthly.</li>
+          <li><strong>Salon Central Pro</strong> — contact sales for current pricing.</li>
+          <li><strong>Salon Central Premium</strong> — contact sales for current pricing.</li>
         </ul>
         <p>
           All paid plans are billed in advance on a monthly basis. You may cancel at any time. Cancellations take effect

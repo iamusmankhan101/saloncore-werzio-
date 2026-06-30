@@ -1,6 +1,8 @@
 import styles from "./Pricing.module.css";
 import { Check } from "lucide-react";
 
+const CONTACT_SALES_URL = "https://wa.me/923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
+
 const plans: Array<{
   badge: string;
   badgeStyle: Record<string, string>;
@@ -19,8 +21,8 @@ const plans: Array<{
     badgeStyle: {},
     name: "salon central pro",
     desc: "The complete toolkit for growing salons.",
-    price: "12,000",
-    period: " pkr/month",
+    price: "Contact Sales",
+    period: "",
     features: [
       "Point of Sale (POS)",
       "Unlimited appointment booking",
@@ -32,8 +34,8 @@ const plans: Array<{
       "Services management",
       "whatsapp reminders",
     ],
-    cta: "Get Started",
-    ctaHref: "https://app.werzio.com/sign-up?plan=pro",
+    cta: "Contact Sales",
+    ctaHref: CONTACT_SALES_URL,
     ctaClass: "btn btn-primary",
     featured: true,
   },
@@ -42,8 +44,8 @@ const plans: Array<{
     badgeStyle: { background: "#fef3c7", color: "#d97706" },
     name: "salon central premium",
     desc: "Everything in Pro plus virtual try on.",
-    price: "20,000",
-    period: " pkr/month",
+    price: "Contact Sales",
+    period: "",
     features: [
       "Point of Sale (POS)",
       "Unlimited appointment booking",
@@ -56,8 +58,8 @@ const plans: Array<{
       "whatsapp reminders",
       "virtual try on",
     ],
-    cta: "Get Started",
-    ctaHref: "https://app.werzio.com/sign-up?plan=premium",
+    cta: "Contact Sales",
+    ctaHref: CONTACT_SALES_URL,
     ctaClass: "btn btn-outline",
     featured: false,
   },
@@ -68,8 +70,8 @@ export default function Pricing() {
     <section className={styles.section} id="pricing">
       <div className="text-center">
         <div className="section-label" data-animate data-delay="0">✦ Pricing</div>
-        <h2 className="section-title" data-animate data-delay="0.1">Simple, PKR Pricing.<br />No Hidden Fees.</h2>
-        <p className="section-sub" data-animate data-delay="0.2">Simple monthly plans. No hidden fees. Cancel anytime.</p>
+        <h2 className="section-title" data-animate data-delay="0.1">Plans Built Around<br />Your Salon.</h2>
+        <p className="section-sub" data-animate data-delay="0.2">Talk to our sales team and choose the setup that fits your salon.</p>
       </div>
       <div className={styles.grid}>
         {plans.map((p, i) => (
@@ -78,7 +80,9 @@ export default function Pricing() {
             <div className={styles.planName}>{p.name}</div>
             <p className={styles.planDesc}>{p.desc}</p>
             <div className={styles.price}>
-              {p.price === "0" ? (
+              {p.price === "Contact Sales" ? (
+                <span className={`${styles.amount} ${styles.contactPrice}`}>Contact Sales</span>
+              ) : p.price === "0" ? (
                 <span className={styles.amount} style={{ fontSize: "2.4rem" }}>Free</span>
               ) : (
                 <>

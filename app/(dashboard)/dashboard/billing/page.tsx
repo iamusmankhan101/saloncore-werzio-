@@ -20,6 +20,7 @@ import {
 
 const EP_DETAILS  = { name: "Muhammad Usman Khan", phone: "03058562523" };
 const BANK_DETAILS = { bank: "Meezan Bank", name: "Muhammad Usman Khan", account: "02361019994452" };
+const CONTACT_SALES_URL = "https://wa.me/923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
 
 const STATUS_META: Record<InvoiceStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   paid:    { label: "Paid",    color: "#059669", bg: "#ecfdf5", icon: CheckCircle },
@@ -127,11 +128,7 @@ function PlanCard({
         <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
           {plan.price === 0
             ? <span style={{ fontSize: 34, fontWeight: 900, color: "#fff" }}>Free</span>
-            : <>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.75)", marginTop: 4 }}>PKR</span>
-                <span style={{ fontSize: 34, fontWeight: 900, color: "#fff", letterSpacing: "-1px" }}>{plan.price.toLocaleString("en-PK")}</span>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>/month</span>
-              </>
+            : <span style={{ fontSize: 28, fontWeight: 900, color: "#fff", letterSpacing: "-.7px" }}>Contact Sales</span>
           }
         </div>
       </div>
@@ -168,10 +165,10 @@ function PlanCard({
             Downgrade to Free
           </button>
         ) : (
-          <button onClick={onUpgrade} disabled={hasPending}
-            style={{ width: "100%", padding: "12px 0", borderRadius: 12, border: "none", background: hasPending ? "#e8e8f0" : plan.gradient, fontSize: 13, fontWeight: 800, color: hasPending ? "#aaaabc" : "#fff", cursor: hasPending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: hasPending ? "none" : `0 4px 16px ${plan.color}40` }}>
-            {hasPending ? "Payment pending…" : <><ArrowRight size={14} /> Upgrade to {plan.name}</>}
-          </button>
+          <a href={CONTACT_SALES_URL} target="_blank" rel="noopener noreferrer"
+            style={{ width: "100%", padding: "12px 0", borderRadius: 12, border: "none", background: plan.gradient, fontSize: 13, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 16px ${plan.color}40` }}>
+            <Smartphone size={14} /> Contact Sales
+          </a>
         )}
       </div>
     </div>
@@ -285,7 +282,7 @@ export default function BillingPage() {
     { feature: "Inventory",             pro: "Full",            premium: "Full" },
     { feature: "WhatsApp automation",   pro: "✓",               premium: "✓" },
     { feature: "Virtual Try-On (AI)",   pro: "—",               premium: "✓" },
-    { feature: "Price",                 pro: "PKR 12,000/mo",   premium: "PKR 20,000/mo" },
+    { feature: "Price",                 pro: "Contact Sales",   premium: "Contact Sales" },
   ];
 
   return (
@@ -638,7 +635,7 @@ export default function BillingPage() {
             { feature: "Online booking page",   pro: "✓",              premium: "✓" },
             { feature: "WhatsApp automation",   pro: "✓",              premium: "✓" },
             { feature: "Virtual Try-On (AI)",   pro: "—",              premium: "✓" },
-            { feature: "Price",                 pro: "PKR 12,000/mo",  premium: "PKR 20,000/mo" },
+            { feature: "Price",                 pro: "Contact Sales",  premium: "Contact Sales" },
           ].map((row, i) => (
             <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Search, Scissors, Package, Plus, Minus, Trash2, Phone,
   X, ShoppingCart, ReceiptText, Banknote, CreditCard,
   Smartphone, Zap, Tag, UserPlus, CheckCircle2, Printer,
   MessageSquare, RefreshCw, User, ChevronRight, Sparkles,
   Clock, AlertCircle, Gift,
+  ScanBarcode,
 } from "lucide-react";
 import { awardPoints, redeemPoints, type LoyaltySettings } from "@/lib/loyalty";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
@@ -36,6 +37,7 @@ interface CatalogItem {
   category: string;
   stock?: number;
   unit?: string;
+  barcode?: string;
 }
 
 interface CartEntry {
@@ -162,6 +164,10 @@ export default function POSPage() {
   // ── Catalog ───────────────────────────────────────────────────────────────
   const [catalogTab,    setCatalogTab]    = useState<CatalogTab>("all");
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [barcodeInput, setBarcodeInput] = useState("");
+  const [scanFeedback, setScanFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+  const scannerBuffer = useRef("");
+  const scannerLastKeyAt = useRef(0);
 
   // ── Cart ──────────────────────────────────────────────────────────────────
   const [cart,          setCart]          = useState<CartEntry[]>([]);
@@ -190,7 +196,7 @@ export default function POSPage() {
     const prod: CatalogItem[] = (catalogTab !== "services" ? inventory : [])
       .filter(i => (i.retailPrice ?? 0) > 0)
       .filter(i => !q || i.name.toLowerCase().includes(q) || i.brand.toLowerCase().includes(q))
-      .map(i => ({ id: i.id, type: "product", name: `${i.brand ? i.brand + " " : ""}${i.name}`, price: i.retailPrice!, category: i.category, stock: i.currentStock, unit: i.unit }));
+      .map(i => ({ id: i.id, type: "product", name: `${i.brand ? i.brand + " " : ""}${i.name}`, price: i.retailPrice!, category: i.category, stock: i.currentStock, unit: i.unit, barcode: i.barcode }));
     return [...svc, ...prod];
   }, [services, inventory, catalogTab, catalogSearch]);
 
@@ -228,6 +234,63 @@ export default function POSPage() {
       return [...prev, { cartId: crypto.randomUUID(), itemId: item.id, type: item.type, name: item.name, qty: 1, unitPrice: item.price, total: item.price }];
     });
   }, []);
+
+  const addBarcodeToCart = useCallback((rawCode: string) => {
+    const code = rawCode.trim();
+    if (!code) return;
+    const product = inventory.find(item => item.barcode?.trim().toLowerCase() === code.toLowerCase());
+    if (!product) {
+      setScanFeedback({ ok: false, message: `No product found for barcode ${code}` });
+      return;
+    }
+    if (!(product.retailPrice && product.retailPrice > 0)) {
+      setScanFeedback({ ok: false, message: `${product.name} needs a retail price before it can be sold.` });
+      return;
+    }
+    if (product.currentStock <= 0) {
+      setScanFeedback({ ok: false, message: `${product.name} is out of stock.` });
+      return;
+    }
+    addToCart({
+      id: product.id,
+      type: "product",
+      name: `${product.brand ? product.brand + " " : ""}${product.name}`,
+      price: product.retailPrice,
+      category: product.category,
+      stock: product.currentStock,
+      unit: product.unit,
+      barcode: product.barcode,
+    });
+    setScanFeedback({ ok: true, message: `${product.name} added to cart.` });
+    setBarcodeInput("");
+  }, [addToCart, inventory]);
+
+  useEffect(() => {
+    function handleScannerKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+      const nowMs = Date.now();
+      if (nowMs - scannerLastKeyAt.current > 120) scannerBuffer.current = "";
+      scannerLastKeyAt.current = nowMs;
+      if (event.key === "Enter") {
+        if (scannerBuffer.current.length >= 3) {
+          event.preventDefault();
+          addBarcodeToCart(scannerBuffer.current);
+        }
+        scannerBuffer.current = "";
+      } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        scannerBuffer.current += event.key;
+      }
+    }
+    window.addEventListener("keydown", handleScannerKey);
+    return () => window.removeEventListener("keydown", handleScannerKey);
+  }, [addBarcodeToCart]);
+
+  useEffect(() => {
+    if (!scanFeedback) return;
+    const timer = window.setTimeout(() => setScanFeedback(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [scanFeedback]);
 
   function updateQty(cartId: string, delta: number) {
     setCart(prev => {
@@ -673,6 +736,39 @@ export default function POSPage() {
                 {cappedCatalog.length} item{cappedCatalog.length !== 1 ? "s" : ""}
               </span>
             </div>
+
+            {/* Barcode scanner */}
+            <form
+              onSubmit={(event) => { event.preventDefault(); addBarcodeToCart(barcodeInput); }}
+              style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}
+            >
+              <div style={{ position: "relative", flex: 1 }}>
+                <ScanBarcode size={15} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "#7C3AED", pointerEvents: "none" }} />
+                <input
+                  value={barcodeInput}
+                  onChange={(event) => setBarcodeInput(event.target.value)}
+                  placeholder="Scan barcode or enter code…"
+                  autoComplete="off"
+                  autoFocus
+                  inputMode="numeric"
+                  style={{ width: "100%", height: 36, padding: "0 12px 0 35px", borderRadius: 10, border: "1.5px solid #ddd6fe", fontSize: 12, color: "#1d1d2f", outline: "none", background: "#faf8ff", boxSizing: "border-box" }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!barcodeInput.trim()}
+                style={{ height: 36, padding: "0 13px", borderRadius: 10, border: "none", background: barcodeInput.trim() ? "linear-gradient(135deg,#5B21B6,#9333EA)" : "#eceaf2", color: barcodeInput.trim() ? "#fff" : "#aaa8b7", fontSize: 11, fontWeight: 800, cursor: barcodeInput.trim() ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}
+              >
+                Add Product
+              </button>
+            </form>
+
+            {scanFeedback && (
+              <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 7, borderRadius: 9, padding: "7px 10px", background: scanFeedback.ok ? "#ecfdf5" : "#fef2f2", border: `1px solid ${scanFeedback.ok ? "#bbf7d0" : "#fecaca"}`, color: scanFeedback.ok ? "#047857" : "#dc2626", fontSize: 11, fontWeight: 700 }}>
+                {scanFeedback.ok ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                {scanFeedback.message}
+              </div>
+            )}
 
             {/* Tab switcher */}
             <div style={{ display: "flex", gap: 6 }}>
