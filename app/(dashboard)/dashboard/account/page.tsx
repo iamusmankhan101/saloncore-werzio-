@@ -38,22 +38,23 @@ const BASE_SECTIONS: { id: SectionId; label: string; icon: React.ElementType }[]
 
 const inputStyle: CSSProperties = {
   width: "100%",
-  height: 42,
-  padding: "0 14px",
-  borderRadius: 10,
-  border: "1px solid #e4e4ee",
-  fontSize: 13,
+  height: 48,
+  padding: "0 15px",
+  borderRadius: 12,
+  border: "1.5px solid #e5e3ef",
+  fontSize: 14,
   color: "#29293d",
   outline: "none",
   background: "#fff",
+  boxShadow: "0 1px 2px rgba(30,20,60,.02)",
 };
 
 function Field({ label, children, full = false, hint }: { label: string; children: ReactNode; full?: boolean; hint?: string }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 8, gridColumn: full ? "1 / -1" : undefined }}>
-      <span style={{ color: "#242438", fontSize: 13, fontWeight: 800 }}>{label}</span>
+      <span style={{ color: "#29263d", fontSize: 12, fontWeight: 800, letterSpacing: ".01em" }}>{label}</span>
       {children}
-      {hint && <span style={{ color: "#9999b0", fontSize: 11 }}>{hint}</span>}
+      {hint && <span style={{ color: "#9995ad", fontSize: 11, lineHeight: 1.5 }}>{hint}</span>}
     </label>
   );
 }
@@ -68,7 +69,7 @@ function SavedBanner({ text = "Changes saved successfully." }: { text?: string }
 
 function SaveButton({ label = "Save Changes", onClick, disabled = false }: { label?: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 18, borderTop: "1px solid #eeeeF6", marginTop: 22 }}>
+    <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 22, borderTop: "1px solid #efedf5", marginTop: 26 }}>
       <button
         type="button"
         disabled={disabled}
@@ -78,13 +79,14 @@ function SaveButton({ label = "Save Changes", onClick, disabled = false }: { lab
           alignItems: "center",
           gap: 8,
           border: "none",
-          borderRadius: 10,
-          padding: "12px 24px",
-          background: disabled ? "#e8e8f0" : "var(--accent)",
+          borderRadius: 12,
+          padding: "13px 24px",
+          background: disabled ? "#e8e8f0" : "linear-gradient(135deg,#6D28D9,#9333EA)",
           color: disabled ? "#aaaabc" : "#fff",
           fontSize: 13,
           fontWeight: 800,
           cursor: disabled ? "not-allowed" : "pointer",
+          boxShadow: disabled ? "none" : "0 8px 20px rgba(109,40,217,.2)",
         }}
       >
         <Save size={15} /> {label}
@@ -110,6 +112,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: () => void }) {
 
 function ProfileSection() {
   const user = getCurrentUser();
+  const salonLogo = (settingsStore.salon as SalonSettings).logo;
   const initials = (user?.ownerName || "?")
     .split(" ")
     .map((w) => w[0])
@@ -157,25 +160,37 @@ function ProfileSection() {
       {/* Avatar card */}
       <div style={{
         display: "flex", alignItems: "center", gap: 18,
-        padding: "22px 24px", marginBottom: 30,
-        background: "linear-gradient(135deg, #5B21B6 0%, #9333EA 100%)",
-        borderRadius: 16,
+        padding: "26px 28px", marginBottom: 32,
+        background: "linear-gradient(120deg, #3b176f 0%, #6D28D9 48%, #A334F0 100%)",
+        borderRadius: 20,
+        boxShadow: "0 18px 42px rgba(91,33,182,.2)",
+        position: "relative", overflow: "hidden",
       }}>
+        <div style={{ position: "absolute", width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,.07)", right: -70, top: -120 }} />
         <div style={{
-          width: 60, height: 60, borderRadius: "50%",
+          width: 68, height: 68, borderRadius: "50%",
           background: "rgba(255,255,255,0.2)", flexShrink: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 22, fontWeight: 900, color: "#fff",
-          border: "2px solid rgba(255,255,255,0.35)",
+          border: "3px solid rgba(255,255,255,0.62)",
+          overflow: "hidden", position: "relative",
         }}>
-          {initials}
+          {salonLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={salonLogo} alt="Salon logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : initials}
         </div>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", lineHeight: 1.2 }}>{user?.ownerName}</div>
+        <div style={{ position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", lineHeight: 1.2 }}>{user?.ownerName}</div>
+            <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", background: "rgba(255,255,255,.16)", color: "#fff", border: "1px solid rgba(255,255,255,.2)", padding: "3px 7px", borderRadius: 20 }}>
+              {user?.role === "manager" ? "Manager" : "Admin"}
+            </span>
+          </div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>{user?.email}</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{user?.salonName}</div>
         </div>
-        <div style={{ marginLeft: "auto", textAlign: "right" }}>
+        <div style={{ marginLeft: "auto", textAlign: "right", position: "relative" }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Member since</div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 700, marginTop: 2 }}>
             {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("en-PK", { month: "short", year: "numeric" }) : "—"}
@@ -183,7 +198,10 @@ function ProfileSection() {
         </div>
       </div>
 
-      <h2 style={{ margin: "0 0 22px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>My Profile</h2>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ margin: 0, color: "#1d1d2f", fontSize: 22, fontWeight: 900 }}>Personal details</h2>
+        <p style={{ margin: "6px 0 0", color: "#9995ad", fontSize: 12 }}>Update the information connected to your Salon Central account.</p>
+      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px 18px" }}>
         <Field label="Owner Name">
@@ -1141,7 +1159,7 @@ export default function AccountPage() {
   const activeSection = SECTIONS.find(s => s.id === mobileScreen);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f6f9" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg,#f7f5fc 0%,#f4f5f8 42%,#f6f7f9 100%)" }}>
 
       {/* ══════════ MOBILE LAYOUT ══════════ */}
 
@@ -1254,19 +1272,21 @@ export default function AccountPage() {
       )}
 
       {/* ══════════ DESKTOP LAYOUT ══════════ */}
-      <div className="desktop-only" style={{ padding: "28px 32px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+      <div className="desktop-only" style={{ padding: "34px 36px 48px", maxWidth: 1500, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
           <div>
-            <h1 style={{ margin: 0, color: "#1d1d2f", fontSize: 22, fontWeight: 900 }}>Account</h1>
-            <p style={{ margin: "5px 0 0", color: "#9393aa", fontSize: 12 }}>Manage your salon profile, operations, and account preferences.</p>
+            <div style={{ color: "var(--accent)", fontSize: 10, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".14em", marginBottom: 7 }}>Workspace settings</div>
+            <h1 style={{ margin: 0, color: "#1d1d2f", fontSize: 30, letterSpacing: "-.03em", fontWeight: 900 }}>Account &amp; preferences</h1>
+            <p style={{ margin: "7px 0 0", color: "#9390a6", fontSize: 13 }}>Manage your salon identity, operations, security, and connected services.</p>
           </div>
-          <button onClick={handleSignOut} style={{ display: "flex", alignItems: "center", gap: 7, border: "1px solid #fecaca", background: "#fff", color: "#dc2626", borderRadius: 20, padding: "8px 14px", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+          <button onClick={handleSignOut} style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #fecaca", background: "rgba(255,255,255,.85)", color: "#dc2626", borderRadius: 12, padding: "11px 16px", fontSize: 12, fontWeight: 800, cursor: "pointer", boxShadow: "0 5px 15px rgba(40,20,60,.05)" }}>
             <LogOut size={14} /> Sign out
           </button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 22 }}>
-          <aside style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 16, overflow: "hidden", alignSelf: "start", boxShadow: "0 1px 4px rgba(20,20,40,0.03)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "250px minmax(0,1fr)", gap: 24, alignItems: "start" }}>
+          <aside style={{ background: "rgba(255,255,255,.82)", border: "1px solid rgba(227,224,238,.9)", borderRadius: 20, padding: 10, alignSelf: "start", boxShadow: "0 12px 35px rgba(40,24,80,.06)", backdropFilter: "blur(12px)" }}>
+            <div style={{ padding: "10px 12px 12px", color: "#aaa6b8", fontSize: 9, fontWeight: 900, letterSpacing: ".13em", textTransform: "uppercase" }}>Account settings</div>
             {SECTIONS.map((section) => {
               const Icon = section.icon;
               const isActive = active === section.id;
@@ -1275,17 +1295,19 @@ export default function AccountPage() {
                   key={section.id}
                   type="button"
                   onClick={() => setActive(section.id)}
-                  style={{ width: "100%", height: 56, display: "flex", alignItems: "center", gap: 14, padding: "0 20px", border: "none", borderLeft: isActive ? "4px solid var(--accent)" : "4px solid transparent", background: isActive ? "var(--accent-dim)" : "#fff", color: isActive ? "var(--accent)" : "#8989a6", fontSize: 15, fontWeight: isActive ? 900 : 600, cursor: "pointer", textAlign: "left" }}
+                  style={{ width: "100%", minHeight: 50, display: "flex", alignItems: "center", gap: 11, padding: "7px 10px", marginBottom: 4, border: isActive ? "1px solid rgba(124,58,237,.14)" : "1px solid transparent", borderRadius: 12, background: isActive ? "linear-gradient(135deg,rgba(124,58,237,.12),rgba(147,51,234,.07))" : "transparent", color: isActive ? "var(--accent)" : "#747087", fontSize: 13, fontWeight: isActive ? 800 : 650, cursor: "pointer", textAlign: "left" }}
                 >
-                  <Icon size={18} />
+                  <span style={{ width: 32, height: 32, borderRadius: 9, display: "grid", placeItems: "center", background: isActive ? "#fff" : "#f6f4fa", boxShadow: isActive ? "0 4px 10px rgba(91,33,182,.1)" : "none" }}>
+                    <Icon size={15} />
+                  </span>
                   <span style={{ flex: 1 }}>{section.label}</span>
-                  <ChevronRight size={17} color={isActive ? "var(--accent)" : "#b8b8c8"} />
+                  <ChevronRight size={14} color={isActive ? "var(--accent)" : "#c2bfce"} />
                 </button>
               );
             })}
           </aside>
 
-          <main style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 16, padding: "32px 34px", minHeight: 520, boxShadow: "0 1px 4px rgba(20,20,40,0.03)" }}>
+          <main style={{ background: "rgba(255,255,255,.94)", border: "1px solid rgba(227,224,238,.95)", borderRadius: 22, padding: "38px 40px", minHeight: 560, boxShadow: "0 18px 50px rgba(40,24,80,.07)" }}>
             <SectionContent active={active} />
           </main>
         </div>

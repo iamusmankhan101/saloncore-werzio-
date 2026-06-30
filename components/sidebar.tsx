@@ -64,6 +64,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const router   = useRouter();
   const [user,      setUser]      = useState<AuthUser | null>(null);
   const [salonName, setSalonName] = useState("Salon Central");
+  const [salonLogo, setSalonLogo] = useState("");
   const [planBadge, setPlanBadge] = useState({ badge: "FREE", color: "#6b7280", bg: "#f9fafb" });
 
   useEffect(() => {
@@ -71,6 +72,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       reloadSettings();
       setUser(getCurrentUser());
       setSalonName(settingsStore.salon.name || getCurrentUser()?.salonName || "Salon Central");
+      setSalonLogo(settingsStore.salon.logo || "");
       const plan = getCurrentPlan();
       setPlanBadge({ badge: plan.badge, color: plan.color, bg: plan.bg });
     }
@@ -252,7 +254,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
               boxShadow: "0 2px 10px rgba(91,33,182,0.55)",
               border: "2px solid rgba(255,255,255,.82)",
             }}>
-              {initials}
+              {salonLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={salonLogo}
+                  alt={`${salonName} logo`}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                />
+              ) : initials}
             </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>

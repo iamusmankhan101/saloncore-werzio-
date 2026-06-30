@@ -178,6 +178,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     syncFromDB().then(() => {
       reloadSettings();
+      window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT));
       runWhatsAppScheduler();
 
       // After DB sync, read plan from localStorage and check for unpaid invoices
