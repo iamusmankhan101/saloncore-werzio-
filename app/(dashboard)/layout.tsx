@@ -103,9 +103,13 @@ function SuspensionGate({ reason }: { reason: string | null }) {
   );
 }
 
-function DashboardLocationSwitcher() {
+function DashboardLocationSwitcher({ onLocationChange }: { onLocationChange: (locationId: string) => Promise<void> }) {
   const [locations, setLocations] = useState<SalonLocation[]>(() => getSalonLocations());
   const [activeLocation, setActiveLocation] = useState(() => getActiveLocationFilter());
+  const [showAddLocation, setShowAddLocation] = useState(false);
+  const [locationForm, setLocationForm] = useState({ name: "", address: "", city: "" });
+  const [locationError, setLocationError] = useState("");
+  const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
     function refresh() {
@@ -120,21 +124,33 @@ function DashboardLocationSwitcher() {
     };
   }, []);
 
-  function changeLocation(locationId: string) {
+  async function changeLocation(locationId: string) {
+    if (locationId === activeLocation || switching) return;
+    setSwitching(true);
     const nextId = setActiveLocationFilter(locationId);
     setActiveLocation(nextId);
     setLocations(getSalonLocations());
-    window.location.reload();
+    try {
+      await onLocationChange(nextId);
+    } finally {
+      setSwitching(false);
+    }
   }
 
   function handleAddLocation() {
-    const name = window.prompt("New location / branch name");
-    if (!name?.trim()) return;
-    const location = addSalonLocation(name);
-    changeLocation(location.id);
+    setLocationError("");
+    try {
+      const location = addSalonLocation(locationForm);
+      setShowAddLocation(false);
+      setLocationForm({ name: "", address: "", city: "" });
+      void changeLocation(location.id);
+    } catch (error) {
+      setLocationError(error instanceof Error ? error.message : "Unable to add this location.");
+    }
   }
 
   return (
+    <>
     <div style={{
       display: "flex",
       alignItems: "center",
@@ -173,7 +189,8 @@ function DashboardLocationSwitcher() {
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
         <select
           value={activeLocation}
-          onChange={(e) => changeLocation(e.target.value)}
+          onChange={(e) => void changeLocation(e.target.value)}
+          disabled={switching}
           style={{
             minWidth: 180,
             padding: "9px 34px 9px 12px",
@@ -184,7 +201,8 @@ function DashboardLocationSwitcher() {
             fontSize: 13,
             fontWeight: 800,
             outline: "none",
-            cursor: "pointer",
+            cursor: switching ? "wait" : "pointer",
+            opacity: switching ? 0.65 : 1,
             boxShadow: "0 3px 10px rgba(38,25,75,0.04)",
           }}
           aria-label="Select active dashboard location"
@@ -195,7 +213,7 @@ function DashboardLocationSwitcher() {
         </select>
         <button
           type="button"
-          onClick={handleAddLocation}
+          onClick={() => { setLocationError(""); setShowAddLocation(true); }}
           style={{
             display: "flex",
             alignItems: "center",
@@ -215,6 +233,59 @@ function DashboardLocationSwitcher() {
         </button>
       </div>
     </div>
+    {showAddLocation && (
+      <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(20,15,35,0.45)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", padding: 20 }}>
+        <div style={{ width: "min(520px, 100%)", background: "#fff", borderRadius: 20, boxShadow: "0 24px 80px rgba(25,15,50,0.25)", overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 22px", borderBottom: "1px solid #eeeaf6" }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "#1a1a2e" }}>Add New Location</div>
+              <div style={{ fontSize: 12, color: "#8a8aa3", marginTop: 3 }}>Create a separate branch workspace.</div>
+            </div>
+            <button type="button" onClick={() => setShowAddLocation(false)} style={{ border: 0, background: "#f5f3ff", width: 34, height: 34, borderRadius: 10, display: "grid", placeItems: "center", cursor: "pointer", color: "#766f8c" }} aria-label="Close add location form">
+              <X size={17} />
+            </button>
+          </div>
+          <div style={{ padding: 22, display: "grid", gap: 16 }}>
+            <label style={{ display: "grid", gap: 7, fontSize: 12, fontWeight: 800, color: "#55536b" }}>
+              Branch Name
+              <input
+                autoFocus
+                value={locationForm.name}
+                onChange={(event) => { setLocationForm((form) => ({ ...form, name: event.target.value })); setLocationError(""); }}
+                placeholder="e.g. DHA Branch"
+                style={{ padding: "12px 14px", border: "1px solid #ddd8e9", borderRadius: 12, outline: "none", fontSize: 14 }}
+              />
+            </label>
+            <label style={{ display: "grid", gap: 7, fontSize: 12, fontWeight: 800, color: "#55536b" }}>
+              Address
+              <input
+                value={locationForm.address}
+                onChange={(event) => { setLocationForm((form) => ({ ...form, address: event.target.value })); setLocationError(""); }}
+                placeholder="Street, block, building"
+                style={{ padding: "12px 14px", border: "1px solid #ddd8e9", borderRadius: 12, outline: "none", fontSize: 14 }}
+              />
+            </label>
+            <label style={{ display: "grid", gap: 7, fontSize: 12, fontWeight: 800, color: "#55536b" }}>
+              City
+              <input
+                value={locationForm.city}
+                onChange={(event) => setLocationForm((form) => ({ ...form, city: event.target.value }))}
+                placeholder="e.g. Karachi"
+                style={{ padding: "12px 14px", border: "1px solid #ddd8e9", borderRadius: 12, outline: "none", fontSize: 14 }}
+              />
+            </label>
+            {locationError && <div role="alert" style={{ padding: "10px 12px", borderRadius: 10, background: "#fef2f2", color: "#b91c1c", fontSize: 12, fontWeight: 700 }}>{locationError}</div>}
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "16px 22px", borderTop: "1px solid #eeeaf6", background: "#fcfbfe" }}>
+            <button type="button" onClick={() => setShowAddLocation(false)} style={{ padding: "10px 17px", borderRadius: 11, border: "1px solid #ddd8e9", background: "#fff", color: "#68647b", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>Cancel</button>
+            <button type="button" onClick={handleAddLocation} style={{ padding: "10px 18px", borderRadius: 11, border: 0, background: "var(--accent-gradient)", color: "#fff", fontSize: 13, fontWeight: 850, cursor: "pointer", boxShadow: "0 5px 14px var(--accent-glow)" }}>
+              Add Location
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -242,6 +313,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [invoiceBadgeDismissed, setInvoiceBadgeDismissed] = useState(false);
   const [waStatus,      setWaStatus]       = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
+  const [locationRenderKey, setLocationRenderKey] = useState(() => getActiveLocationFilter());
+
+  async function handleLocationChange(locationId: string) {
+    await syncFromDB();
+    setLocationRenderKey(locationId);
+  }
 
   // Auth guard
   useEffect(() => {
@@ -252,6 +329,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return;
       }
       if (user.role === "staff") {
+        if (user.locationId) setActiveLocationFilter(user.locationId);
         const key = pathname === "/dashboard"
           ? "dashboard"
           : pathname.replace("/dashboard/", "").split("/")[0];
@@ -557,8 +635,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           </div>
         )}
-        <DashboardLocationSwitcher />
-        {children}
+        {getCurrentUser()?.role !== "staff" && <DashboardLocationSwitcher onLocationChange={handleLocationChange} />}
+        <div key={locationRenderKey}>{children}</div>
       </main>
 
       {/* Mobile Bottom Navigation Bar */}

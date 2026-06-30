@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Store, Clock, Bell, Palette, Shield, Smartphone, ChevronRight, Check, Sparkles, Banknote, PrinterIcon } from "lucide-react";
 import { settingsStore, saveSettings } from "@/lib/settings-store";
+import { getActiveLocationFilter, locationName, updateActiveLocationDetails } from "@/lib/locations";
 import PageTitle from "@/components/page-title";
 
 const SECTIONS = [
@@ -64,12 +65,24 @@ function SaveBar({ onSave }: { onSave: () => void }) {
 function SalonProfile() {
   const [form, setForm] = useState({ ...settingsStore.salon });
   const [saved, setSaved] = useState(false);
+  const activeLocation = getActiveLocationFilter();
+  const [branchName, setBranchName] = useState(() => locationName(activeLocation));
   const set = (k: string, v: string) => setForm((f: any) => ({ ...f, [k]: v }));
-  const save = () => { Object.assign(settingsStore.salon, form); saveSettings(); setSaved(true); setTimeout(() => setSaved(false), 3000); };
+  const save = () => {
+    Object.assign(settingsStore.salon, form);
+    updateActiveLocationDetails({ name: branchName, address: form.address, city: form.city });
+    saveSettings();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       {saved && <SavedBanner />}
+      <div style={{ padding: "10px 14px", borderRadius: 10, background: "#f5f3ff", color: "#6d28d9", fontSize: 12, fontWeight: 700 }}>
+        Editing location: {branchName || locationName(activeLocation)}
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <Field label="Branch Name"><input value={branchName} onChange={(e) => setBranchName(e.target.value)} style={inp} /></Field>
         <Field label="Salon Name"><input value={form.name} onChange={(e) => set("name", e.target.value)} style={inp} /></Field>
         <Field label="Phone"><input value={form.phone} onChange={(e) => set("phone", e.target.value)} style={inp} /></Field>
         <Field label="Email"><input value={form.email} onChange={(e) => set("email", e.target.value)} style={inp} /></Field>

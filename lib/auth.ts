@@ -8,6 +8,7 @@ export interface AuthUser {
   createdAt: string;
   salonOwnerId?: string;
   staffId?: string;
+  locationId?: string;
   permissions?: string[];
 }
 

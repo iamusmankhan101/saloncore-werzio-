@@ -13,6 +13,7 @@ import { fmtCurrency as fmt } from "@/lib/format";
 import { Check, X, Plus, FileDown } from "lucide-react";
 import { exportStaffPdf } from "@/lib/export-pdf";
 import { settingsStore } from "@/lib/settings-store";
+import { getActiveLocationFilter } from "@/lib/locations";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   owner:            { color: "#7C3AED", bg: "#EDE9FE" },
@@ -112,6 +113,7 @@ function EditModal({
           phone: updatedStaff.phone,
           password: form.password || undefined,
           role: updatedStaff.role,
+          locationId: getActiveLocationFilter(),
         }),
       });
       const result = await response.json() as { ok: boolean; error?: string };

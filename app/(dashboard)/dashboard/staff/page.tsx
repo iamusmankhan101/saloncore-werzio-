@@ -7,6 +7,7 @@ import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
 import { X, Plus, Check, ChevronRight, Trash2, UserCog } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import PageTitle from "@/components/page-title";
+import { getActiveLocationFilter } from "@/lib/locations";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   owner:           { color: "#7C3AED", bg: "#EDE9FE" },
@@ -91,6 +92,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
           phone: savedStaff.phone,
           password: form.password || undefined,
           role: savedStaff.role,
+          locationId: getActiveLocationFilter(),
         }),
       });
       const result = await response.json() as { ok: boolean; error?: string };

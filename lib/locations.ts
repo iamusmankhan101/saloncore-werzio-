@@ -36,12 +36,17 @@ export function setActiveLocationFilter(locationId: string) {
   const nextId = locations.some((location) => location.id === locationId)
     ? locationId
     : locations[0]?.id ?? "main";
+  const selected = locations.find((location) => location.id === nextId);
 
   (settingsStore as any).locations = {
     ...(settingsStore as any).locations,
     activeLocationId: nextId,
     items: locations,
   };
+  if (selected) {
+    (settingsStore.salon as any).address = selected.address || "";
+    (settingsStore.salon as any).city = selected.city || "";
+  }
   saveSettings();
   return nextId;
 }
@@ -63,12 +68,15 @@ export function locationName(locationId?: string) {
   return getSalonLocations().find((location) => location.id === id)?.name || "Main Branch";
 }
 
-export function addSalonLocation(name: string): SalonLocation {
-  const cleanName = name.trim();
+export function addSalonLocation(input: { name: string; address: string; city?: string }): SalonLocation {
+  const cleanName = input.name.trim();
+  const cleanAddress = input.address.trim();
+  const cleanCity = input.city?.trim() || "";
   if (!cleanName) throw new Error("Location name is required.");
+  if (!cleanAddress) throw new Error("Location address is required.");
   const locations = getSalonLocations();
   const existing = locations.find((location) => location.name.toLowerCase() === cleanName.toLowerCase());
-  if (existing) return existing;
+  if (existing) throw new Error("A location with this branch name already exists.");
 
   const baseId = slug(cleanName);
   let id = baseId;
@@ -77,11 +85,28 @@ export function addSalonLocation(name: string): SalonLocation {
     id = `${baseId}-${counter++}`;
   }
 
-  const next = { id, name: cleanName };
+  const next = { id, name: cleanName, address: cleanAddress, city: cleanCity };
   (settingsStore as any).locations = {
     activeLocationId: getDefaultLocationId(),
     items: [...locations, next],
   };
   saveSettings();
   return next;
+}
+
+export function updateActiveLocationDetails(details: { name?: string; address: string; city?: string }) {
+  const activeId = getActiveLocationFilter();
+  const locations = getSalonLocations();
+  (settingsStore as any).locations = {
+    ...(settingsStore as any).locations,
+    activeLocationId: activeId,
+    items: locations.map((location) => location.id === activeId
+      ? {
+          ...location,
+          name: details.name?.trim() || location.name,
+          address: details.address.trim(),
+          city: details.city?.trim() || "",
+        }
+      : location),
+  };
 }

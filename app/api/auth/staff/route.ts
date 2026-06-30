@@ -16,11 +16,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json() as {
-    staffId?: string; name?: string; email?: string; phone?: string; password?: string;
+    staffId?: string; name?: string; email?: string; phone?: string; password?: string; locationId?: string;
     role?: string;
   };
-  if (!body.staffId || !body.name || !body.email) {
-    return Response.json({ ok: false, error: "Staff name, email and ID are required." }, { status: 400 });
+  if (!body.staffId || !body.name || !body.email || !body.locationId) {
+    return Response.json({ ok: false, error: "Staff name, email, ID and assigned location are required." }, { status: 400 });
   }
 
   const isManager = body.role === "manager";
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
       password: body.password,
       role: isManager ? "manager" : "staff",
       permissions: isManager ? MANAGER_PERMISSIONS : STAFF_PERMISSIONS,
+      locationId: body.locationId,
     });
     return Response.json({ ok: true, user });
   } catch (error) {

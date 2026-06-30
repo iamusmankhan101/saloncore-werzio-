@@ -54,6 +54,7 @@ export async function ensureAuthTables(): Promise<void> {
   await db.execute("ALTER TABLE users ADD COLUMN salon_owner_id TEXT").catch(() => {});
   await db.execute("ALTER TABLE users ADD COLUMN staff_id TEXT").catch(() => {});
   await db.execute("ALTER TABLE users ADD COLUMN permissions TEXT").catch(() => {});
+  await db.execute("ALTER TABLE users ADD COLUMN location_id TEXT").catch(() => {});
 
   // Create index for faster email lookups
   await db.execute(`
@@ -77,6 +78,7 @@ export interface User {
   role: "owner" | "manager" | "staff" | "admin";
   salonOwnerId?: string;
   staffId?: string;
+  locationId?: string;
   permissions?: string[];
   emailVerified: boolean;
   createdAt: string;
@@ -91,6 +93,7 @@ export interface AuthUser {
   role: "owner" | "manager" | "staff" | "admin";
   salonOwnerId?: string;
   staffId?: string;
+  locationId?: string;
   permissions?: string[];
   emailVerified: boolean;
   createdAt: string;
@@ -110,6 +113,7 @@ function rowToUser(r: any): User {
     role: r.role as User["role"],
     salonOwnerId: (r.salon_owner_id as string) || undefined,
     staffId: (r.staff_id as string) || undefined,
+    locationId: (r.location_id as string) || undefined,
     permissions: r.permissions ? JSON.parse(r.permissions as string) : undefined,
     emailVerified: (r.email_verified as number) === 1,
     createdAt: r.created_at as string,
@@ -175,6 +179,7 @@ export async function upsertStaffUser(input: {
   password?: string;
   role?: "manager" | "staff";
   permissions: string[];
+  locationId: string;
 }): Promise<AuthUser> {
   await ensureAuthTables();
   const existing = await db.execute({
@@ -187,10 +192,10 @@ export async function upsertStaffUser(input: {
     const password = input.password ? hashPassword(input.password) : current.password;
     await db.execute({
       sql: `UPDATE users SET email = ?, password = ?, owner_name = ?, salon_name = ?,
-            phone = ?, role = ?, permissions = ? WHERE id = ?`,
+            phone = ?, role = ?, permissions = ?, location_id = ? WHERE id = ?`,
       args: [
         input.email.trim().toLowerCase(), password, input.name.trim(), input.salonName,
-        input.phone, input.role || "staff", JSON.stringify(input.permissions), current.id,
+        input.phone, input.role || "staff", JSON.stringify(input.permissions), input.locationId, current.id,
       ],
     });
     const updated = await getUserById(current.id);
@@ -206,13 +211,13 @@ export async function upsertStaffUser(input: {
   await db.execute({
     sql: `INSERT INTO users
           (id, email, password, owner_name, salon_name, phone, role, email_verified,
-           created_at, salon_owner_id, staff_id, permissions)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+           created_at, salon_owner_id, staff_id, permissions, location_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`,
     args: [
       id, input.email.trim().toLowerCase(), hashPassword(input.password), input.name.trim(),
       input.salonName, input.phone, input.role || "staff",
       new Date().toISOString().slice(0, 10), input.salonOwnerId, input.staffId,
-      JSON.stringify(input.permissions),
+      JSON.stringify(input.permissions), input.locationId,
     ],
   });
   const created = await getUserById(id);

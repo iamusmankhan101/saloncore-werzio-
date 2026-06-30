@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { COOKIE_NAME, verifySessionToken } from "@/lib/session";
+import { getUserById } from "@/lib/auth-db";
 
 const ALLOWED = new Set(["clients", "appointments", "staff", "services", "inventory", "salon_invoices"]);
 
@@ -22,14 +24,21 @@ async function ensureTable() {
  */
 export async function GET(req: NextRequest) {
   const entity = req.nextUrl.searchParams.get("entity");
-  const userId = req.nextUrl.searchParams.get("userId");
-  const locationId = req.nextUrl.searchParams.get("locationId") || "main";
+  let userId = req.nextUrl.searchParams.get("userId");
+  let locationId = req.nextUrl.searchParams.get("locationId") || "main";
 
   if (!entity || !ALLOWED.has(entity)) {
     return Response.json({ error: "Invalid entity" }, { status: 400 });
   }
 
   try {
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+    const actorId = token ? verifySessionToken(token) : null;
+    const actor = actorId ? await getUserById(actorId) : null;
+    if (actor?.role === "staff") {
+      userId = actor.salonOwnerId || actor.id;
+      locationId = actor.locationId || "main";
+    }
     await ensureTable();
     const key = userId
       ? locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`
@@ -61,12 +70,20 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Invalid body." }, { status: 400 });
   }
 
-  const { entity, data, userId, locationId = "main" } = body;
+  const { entity, data } = body;
+  let { userId, locationId = "main" } = body;
   if (!entity || !ALLOWED.has(entity)) {
     return Response.json({ error: "Invalid entity" }, { status: 400 });
   }
 
   try {
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+    const actorId = token ? verifySessionToken(token) : null;
+    const actor = actorId ? await getUserById(actorId) : null;
+    if (actor?.role === "staff") {
+      userId = actor.salonOwnerId || actor.id;
+      locationId = actor.locationId || "main";
+    }
     await ensureTable();
     const key = userId
       ? locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`

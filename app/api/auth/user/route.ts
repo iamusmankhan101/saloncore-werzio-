@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
         createdAt: user.createdAt,
         salonOwnerId: user.salonOwnerId,
         staffId: user.staffId,
+        locationId: user.locationId,
         permissions: user.permissions,
       },
     });
