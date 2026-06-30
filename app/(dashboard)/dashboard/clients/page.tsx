@@ -1434,7 +1434,16 @@ export default function ClientsPage() {
           return (
             <div
               key={client.id}
-              onClick={() => setSelected(client)}
+              role="link"
+              tabIndex={0}
+              aria-label={`Open ${client.name}'s profile`}
+              onClick={() => router.push(`/dashboard/clients/${encodeURIComponent(client.id)}`)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  router.push(`/dashboard/clients/${encodeURIComponent(client.id)}`);
+                }
+              }}
               style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 1.1fr 1fr 1.1fr 90px 110px 130px", padding: "14px 20px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", alignItems: "center", cursor: "pointer", background: isChecked ? "#F5F3FF" : "transparent", transition: "background 0.2s" }}
               className="hover-bg-row"
             >
@@ -1469,7 +1478,7 @@ export default function ClientsPage() {
               <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{fmt(client.totalSpend)}</div>
               <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                 <button
-                  onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                  onClick={() => router.push(`/dashboard/clients/${encodeURIComponent(client.id)}`)}
                   style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "1px solid #e3e0eb", background: "#fff", fontSize: 11, fontWeight: 700, color: "#6b6b8a", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}
                   className="hover-bg-light"
                 >

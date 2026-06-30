@@ -185,7 +185,7 @@ export default function POSPage() {
   const [printInvoice,     setPrintInvoice]     = useState<SalonInvoice | null>(null);
   const [completed,        setCompleted]        = useState(false);
   const [lastInvoice,      setLastInvoice]      = useState<SalonInvoice | null>(null);
-  const [waStatus,         setWaStatus]         = useState<"idle" | "sent" | "failed">("idle");
+  const [waStatus,         setWaStatus]         = useState<"idle" | "sending" | "sent" | "failed">("idle");
 
   // ── Derived catalog ───────────────────────────────────────────────────────
   const catalogItems = useMemo<CatalogItem[]>(() => {
@@ -395,31 +395,32 @@ export default function POSPage() {
       setPrintInvoice(invoice);
       setCompleted(true);
 
-      if (!isCredit) sendReceiptWA(invoice, selectedClient);
+      void sendReceiptWA(invoice, selectedClient);
     } finally {
       setCompleting(false);
     }
   }
 
-  // ── WhatsApp receipt ──────────────────────────────────────────────────────
-  // Opens a wa.me receipt link only. Follow-ups are handled by the 24h scheduler,
-  // not sent immediately here — that caused duplicate/immediate sends on every checkout.
-  function sendReceiptWA(invoice: SalonInvoice, client: Client | null) {
+  // ── WhatsApp PDF invoice ──────────────────────────────────────────────────
+  async function sendReceiptWA(invoice: SalonInvoice, client: Client | null) {
     if (!client?.phone) { setWaStatus("idle"); return; }
-    const salonName = (settingsStore.salon as { name: string }).name;
-    const serviceList = invoice.items.filter(i => i.type === "service").map(i => i.description).join(", ") || invoice.items[0]?.description || "your service";
-    const phone = normalizePhone(client.phone);
-
-    const wa = settingsStore.whatsapp as Record<string, string>;
-    const tpl = wa.receipt || "";
-    const msg = tpl
-      ? tpl.replace(/\{\{name\}\}/g, client.name).replace(/\{\{service\}\}/g, serviceList).replace(/\{\{salon_name\}\}/g, salonName)
-      : `Hi ${client.name}! 🧾 Thanks for visiting *${salonName}*.\n\n*Receipt ${invoice.number}*\n` +
-        invoice.items.map(i => `• ${i.description} ×${i.qty} — ${pkr(i.total)}`).join("\n") +
-        (invoice.discountAmount > 0 ? `\n• Discount — −${pkr(invoice.discountAmount)}` : "") +
-        `\n\n*Total: ${pkr(invoice.total)}*\n\nSee you again soon! 💜`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
-    setWaStatus("sent");
+    setWaStatus("sending");
+    try {
+      const response = await fetch("/api/whatsapp/send-invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoice,
+          salon,
+          phone: normalizePhone(client.phone),
+          providerConfig: settingsStore.wasender,
+        }),
+      });
+      const result = await response.json() as { ok?: boolean };
+      setWaStatus(result.ok ? "sent" : "failed");
+    } catch {
+      setWaStatus("failed");
+    }
   }
 
   const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string };
@@ -509,6 +510,7 @@ export default function POSPage() {
               <span>· {lastInvoice.clientName}</span>
               {lastInvoice.status === "unpaid" && <span style={{ fontWeight: 700 }}>· Awaiting payment</span>}
               {waStatus === "sent" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#059669", fontWeight: 700 }}><CheckCircle2 size={11} /> WhatsApp sent</span>}
+              {waStatus === "sending" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#7C3AED", fontWeight: 700 }}><RefreshCw size={11} /> Sending PDF…</span>}
               {waStatus === "failed" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#d97706", fontWeight: 700 }}><AlertCircle size={11} /> WhatsApp failed</span>}
             </div>
           </div>
@@ -520,7 +522,7 @@ export default function POSPage() {
             {selectedClient?.phone && lastInvoice.status !== "unpaid" && (
               <button type="button" onClick={() => sendReceiptWA(lastInvoice, selectedClient)}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                <MessageSquare size={14} /> Resend WA
+                <MessageSquare size={14} /> Resend PDF
               </button>
             )}
           </div>
@@ -1118,7 +1120,7 @@ export default function POSPage() {
               {selectedClient?.phone && (
                 <div style={{ marginTop: 8, textAlign: "center", fontSize: 11, color: "#b0b0c8", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
                   <MessageSquare size={11} color="#25d366" />
-                  Receipt will be sent to {selectedClient.phone}
+                  PDF invoice will be sent to {selectedClient.phone}
                 </div>
               )}
             </div>
