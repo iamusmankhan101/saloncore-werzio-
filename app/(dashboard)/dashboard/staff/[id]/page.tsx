@@ -155,11 +155,11 @@ function EditModal({
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Staff Login Email</label>
-            <input type="email" style={inp} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="staff@salon.com" />
+            <input type="email" name="staff-access-email" autoComplete="off" style={inp} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="staff@salon.com" />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Login Password</label>
-            <input type="password" style={inp} value={form.password} onChange={(e) => set("password", e.target.value)}
+            <input type="password" name="staff-access-new-password" autoComplete="new-password" style={inp} value={form.password} onChange={(e) => set("password", e.target.value)}
               placeholder={staff.email ? "Leave blank to keep current password" : "Minimum 8 characters"} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

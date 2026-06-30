@@ -7,7 +7,7 @@ import {
   LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare,
   UserCog, BarChart3, Package, Globe, Sparkles, CreditCard, Scissors,
   CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart,
-  X, Gift, Banknote, ChevronRight,
+  X, Gift, Banknote, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
 import { SETTINGS_CHANGED_EVENT, settingsStore, reloadSettings } from "@/lib/settings-store";
@@ -118,7 +118,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
           border-radius: 9px;
           font-size: 13px;
           font-weight: 500;
-          color: #5a5a82;
+          color: #f5f3ff;
           text-decoration: none;
           transition: background 0.13s, color 0.13s;
           margin-bottom: 1px;
@@ -126,7 +126,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         }
         .sb-item:hover {
           background: rgba(124,58,237,0.09);
-          color: #b8a9f0;
+          color: #fff;
         }
         .sb-active {
           background: linear-gradient(135deg,#5B21B6,#7C3AED) !important;
@@ -144,7 +144,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         .sb-section {
           font-size: 10px;
           font-weight: 700;
-          color: #2a2a44;
+          color: rgba(255,255,255,0.68);
           letter-spacing: 0.12em;
           text-transform: uppercase;
           padding: 10px 11px 5px;
@@ -155,7 +155,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
           width: 100%;
           border: 1px solid #1e1e2e;
           background: transparent;
-          color: #3e3e5e;
+          color: #fff;
           border-radius: 10px;
           padding: 9px 12px;
           font-size: 12px;
@@ -238,44 +238,46 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         <div style={{ padding: "10px 12px 12px", borderBottom: "1px solid #18182a" }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 10,
-            padding: "9px 11px",
+            padding: "11px 12px",
             borderRadius: 12,
-            background: "rgba(255,255,255,0.025)",
-            border: "1px solid #1c1c2c",
+            background: "linear-gradient(135deg,rgba(91,33,182,.22),rgba(30,27,75,.36))",
+            border: "1px solid rgba(167,139,250,.18)",
           }}>
             {/* Avatar */}
             <div style={{
-              width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-              background: "linear-gradient(135deg,#5B21B6,#9333EA)",
+              width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+              background: "linear-gradient(135deg,#7C3AED,#A855F7)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 12, fontWeight: 800, color: "#fff",
+              fontSize: 14, fontWeight: 800, color: "#fff",
               boxShadow: "0 2px 10px rgba(91,33,182,0.55)",
+              border: "2px solid rgba(255,255,255,.82)",
             }}>
               {initials}
             </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                fontWeight: 700, fontSize: 13, color: "#dcdcf0",
+                fontWeight: 700, fontSize: 13, color: "#fff",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
-                {isStaffUser ? user?.ownerName : salonName}
+                {user?.ownerName || salonName}
               </div>
-              <div style={{ fontSize: 10, color: "#3e3e60", textTransform: "capitalize", marginTop: 1 }}>
-                {user?.role || "owner"}
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,.68)", textTransform: "capitalize", marginTop: 2 }}>
+                {user?.role === "owner" ? "Salon Admin" : user?.role === "manager" ? "Salon Manager" : user?.role || "Salon Admin"}
               </div>
             </div>
 
-            {/* Plan badge */}
-            <div style={{
-              borderRadius: 6, padding: "2px 7px", flexShrink: 0,
+            <ChevronDown size={15} color="rgba(255,255,255,.72)" style={{ flexShrink: 0 }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", padding: "6px 5px 0" }}>
+            <span style={{
+              borderRadius: 6, padding: "2px 7px",
               background: planBadge.bg + "18",
               border: `1px solid ${planBadge.color}40`,
+              fontSize: 9, fontWeight: 800, color: planBadge.color, letterSpacing: "0.08em",
             }}>
-              <span style={{ fontSize: 9, fontWeight: 800, color: planBadge.color, letterSpacing: "0.08em" }}>
-                {planBadge.badge}
-              </span>
-            </div>
+              {planBadge.badge}
+            </span>
           </div>
         </div>
 

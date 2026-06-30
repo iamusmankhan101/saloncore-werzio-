@@ -14,6 +14,7 @@ import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
 import { getStoredInventory } from "@/lib/storage";
 import { syncInvoices } from "@/lib/invoices";
 import { PLAN_CONFIGS, getCurrentPlanId, type PlanId } from "@/lib/plan-limits";
+import { setActivePlan } from "@/lib/payment-requests";
 
 // ─── Notification chime ───────────────────────────────────────────────────────
 
@@ -128,7 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Auth guard
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    const timer = window.setTimeout(async () => {
       const user = getCurrentUser();
       if (!user) {
         router.replace("/sign-in");
@@ -142,6 +143,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           router.replace("/dashboard");
           return;
         }
+      }
+
+      // Staff and managers inherit the salon owner's subscription. Fetch the
+      // authoritative plan before rendering so limits never fall back to Free
+      // on a different browser/device with an empty local cache.
+      const dataOwnerId = user.salonOwnerId || user.id;
+      try {
+        const response = await fetch(`/api/billing/user?userId=${encodeURIComponent(dataOwnerId)}`);
+        const data = await response.json() as { ok?: boolean; planId?: string };
+        if (data.ok && data.planId) setActivePlan(data.planId);
+      } catch {
+        // Keep the last cached plan when offline.
       }
       setIsReady(true);
     }, 0);
