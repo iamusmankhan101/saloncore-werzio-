@@ -40,6 +40,9 @@ export async function GET(req: NextRequest) {
         role: user.role,
         emailVerified: user.emailVerified,
         createdAt: user.createdAt,
+        salonOwnerId: user.salonOwnerId,
+        staffId: user.staffId,
+        permissions: user.permissions,
       },
     });
   } catch (err) {

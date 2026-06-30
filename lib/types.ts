@@ -36,6 +36,7 @@ export interface Staff {
   specialties: string[];
   color: string;
   isActive: boolean;
+  email?: string;
 }
 
 export interface Service {

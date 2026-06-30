@@ -27,9 +27,13 @@ function getStaffStats(staffId: string, appointments: Appointment[]) {
 // ── Staff Form Modal (Add & Edit) ─────────────────────────────────────────────
 function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () => void; onSave: (s: Staff, assignedServiceIds: string[]) => void; staff?: Staff; servicesList: Service[] }) {
   const [done, setDone] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [accessError, setAccessError] = useState("");
   const [form, setForm] = useState({
     name: staff?.name ?? "",
     phone: staff?.phone ?? "",
+    email: staff?.email ?? "",
+    password: "",
     role: staff?.role ?? "",
   });
 
@@ -41,7 +45,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
   });
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const canSubmit = form.name && form.phone && form.role;
+  const canSubmit = form.name && form.phone && form.email && form.role && (staff || form.password.length >= 8);
 
   const toggleService = (id: string) => {
     const current = [...selectedServiceIds];
@@ -52,8 +56,10 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canSubmit) return;
+    setSaving(true);
+    setAccessError("");
 
     // Determine specialties from selected services names
     const selectedServices = servicesList.filter(s => selectedServiceIds.includes(s.id));
@@ -66,14 +72,35 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
       id: staff?.id ?? "s" + Date.now(),
       name: form.name,
       phone: form.phone,
+      email: form.email,
       role: form.role as StaffRole,
       specialties: specialtiesArray,
       color,
       isActive: staff?.isActive ?? true,
     };
 
-    onSave(savedStaff, selectedServiceIds);
-    setDone(true);
+    try {
+      const response = await fetch("/api/auth/staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          staffId: savedStaff.id,
+          name: savedStaff.name,
+          email: form.email,
+          phone: savedStaff.phone,
+          password: form.password || undefined,
+          role: savedStaff.role,
+        }),
+      });
+      const result = await response.json() as { ok: boolean; error?: string };
+      if (!response.ok || !result.ok) throw new Error(result.error || "Unable to save staff access.");
+      onSave(savedStaff, selectedServiceIds);
+      setDone(true);
+    } catch (error) {
+      setAccessError(error instanceof Error ? error.message : "Unable to save staff access.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (done) return (
@@ -109,6 +136,21 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Staff Login Email</label>
+            <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="staff@salon.com"
+              style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              {staff ? "New Password (optional)" : "Staff Login Password"}
+            </label>
+            <input type="password" value={form.password} onChange={(e) => set("password", e.target.value)}
+              placeholder={staff ? "Leave blank to keep current password" : "Minimum 8 characters"}
+              style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Role</label>
             <select value={form.role} onChange={(e) => set("role", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
               <option value="">Select a role…</option>
@@ -135,10 +177,12 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
             </div>
           </div>
 
+          {accessError && <div style={{ padding: "9px 11px", borderRadius: 8, background: "#fef2f2", color: "#b91c1c", fontSize: 12 }}>{accessError}</div>}
+
           <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
             <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
-            <button onClick={handleSave} style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit ? "#fff" : "#b0b0c8", cursor: canSubmit ? "pointer" : "not-allowed" }}>
-              {staff ? "Save Changes" : "Add Staff Member"}
+            <button onClick={handleSave} disabled={!canSubmit || saving} style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit ? "#fff" : "#b0b0c8", cursor: canSubmit ? "pointer" : "not-allowed" }}>
+              {saving ? "Saving access…" : staff ? "Save Changes" : "Add Staff & Login"}
             </button>
           </div>
         </div>

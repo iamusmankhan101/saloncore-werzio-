@@ -129,14 +129,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Auth guard
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      if (!getCurrentUser()) {
+      const user = getCurrentUser();
+      if (!user) {
         router.replace("/sign-in");
         return;
+      }
+      if (user.role === "staff") {
+        const key = pathname === "/dashboard"
+          ? "dashboard"
+          : pathname.replace("/dashboard/", "").split("/")[0];
+        if (!(user.permissions || []).includes(key)) {
+          router.replace("/dashboard");
+          return;
+        }
       }
       setIsReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [router]);
+  }, [router, pathname]);
 
   // Appearance
   useEffect(() => {
@@ -151,6 +161,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!isReady) return;
     const user = getCurrentUser();
     if (!user) return;
+    const dataOwnerId = user.salonOwnerId || user.id;
 
     syncFromDB().then(() => {
       reloadSettings();
@@ -161,11 +172,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const plan = PLAN_CONFIGS[planId];
       if (plan && plan.price > 0) {
         const invoices = syncInvoices(
-          { id: user.id, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
+          { id: dataOwnerId, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
           { id: plan.id, name: plan.label, price: plan.price },
           user.createdAt,
         );
-        const unpaid = invoices.filter((inv) => inv.userId === user.id && inv.status !== "paid");
+        const unpaid = invoices.filter((inv) => inv.userId === dataOwnerId && inv.status !== "paid");
         if (unpaid.length > 0) {
           const oldest = unpaid[unpaid.length - 1]; // oldest = last in desc-sorted list
           setUnpaidInvoice({ number: oldest.number, amount: oldest.total, status: oldest.status, dueDate: oldest.dueDate });
@@ -176,7 +187,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     checkInvoiceNotifications();
 
     // Check suspension status
-    fetch(`/api/billing/status?userId=${encodeURIComponent(user.id)}`)
+    if (user.role !== "staff") fetch(`/api/billing/status?userId=${encodeURIComponent(dataOwnerId)}`)
       .then((r) => r.json())
       .then((data: { ok: boolean; suspended?: boolean; reason?: string | null }) => {
         if (data.ok && data.suspended) {

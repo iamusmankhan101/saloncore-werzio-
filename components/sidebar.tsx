@@ -87,6 +87,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
   const initials = (user?.ownerName || salonName || "W")
     .split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+  const isStaffUser = user?.role === "staff";
+  const canAccess = (href: string) => {
+    if (!isStaffUser) return true;
+    const key = href === "/dashboard"
+      ? "dashboard"
+      : href.replace("/dashboard/", "").split("/")[0];
+    return user.permissions?.includes(key) ?? false;
+  };
 
   const NavItem = ({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) => {
     const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -251,7 +259,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                 fontWeight: 700, fontSize: 13, color: "#dcdcf0",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
-                {salonName}
+                {isStaffUser ? user?.ownerName : salonName}
               </div>
               <div style={{ fontSize: 10, color: "#3e3e60", textTransform: "capitalize", marginTop: 1 }}>
                 {user?.role || "owner"}
@@ -273,22 +281,29 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
         {/* ── Navigation ───────────────────────────────────── */}
         <nav className="sb-nav" style={{ flex: 1, padding: "6px 8px 8px", overflowY: "auto" }}>
-          {NAV_GROUPS.map((group) => (
+          {NAV_GROUPS.map((group) => {
+            const visibleItems = group.items.filter((item) => canAccess(item.href));
+            if (visibleItems.length === 0) return null;
+            return (
             <div key={group.label}>
               <div className="sb-section">{group.label}</div>
-              {group.items.map((item) => (
+              {visibleItems.map((item) => (
                 <NavItem
                   key={item.href}
-                  href={item.dynamicHref && user ? `${item.href}?salon=${encodeURIComponent(user.id)}` : item.href}
+                  href={item.dynamicHref && user ? `${item.href}?salon=${encodeURIComponent(user.salonOwnerId || user.id)}` : item.href}
                   icon={item.icon}
                   label={item.label}
                 />
               ))}
             </div>
-          ))}
+          )})}
 
-          <div className="sb-section" style={{ paddingTop: 12 }}>Settings</div>
-          {SETTINGS_NAV.map((item) => <NavItem key={item.href} {...item} />)}
+          {!isStaffUser && (
+            <>
+              <div className="sb-section" style={{ paddingTop: 12 }}>Settings</div>
+              {SETTINGS_NAV.map((item) => <NavItem key={item.href} {...item} />)}
+            </>
+          )}
 
           {user?.role === "admin" && (
             <>
@@ -300,7 +315,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
         {/* ── Bottom: upgrade + sign out ───────────────────── */}
         <div style={{ padding: "10px 12px 16px", borderTop: "1px solid #18182a" }}>
-          {planBadge.badge !== "PREMIUM" && (
+          {!isStaffUser && planBadge.badge !== "PREMIUM" && (
             <Link href="/dashboard/billing" className="sb-upgrade" style={{ display: "block", textDecoration: "none", marginBottom: 8, transition: "opacity 0.15s" }}>
               <div style={{
                 borderRadius: 13,

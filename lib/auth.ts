@@ -6,6 +6,9 @@ export interface AuthUser {
   phone: string;
   role: "owner" | "manager" | "staff" | "admin";
   createdAt: string;
+  salonOwnerId?: string;
+  staffId?: string;
+  permissions?: string[];
 }
 
 interface StoredUser extends AuthUser {
@@ -243,9 +246,9 @@ export async function signOut() {
  */
 export function userKey(base: string): string {
   if (!canUseStorage()) return base;
-  const sessionId = localStorage.getItem(SESSION_KEY);
-  if (!sessionId) return base;
-  return `${base}_${sessionId}`;
+  const current = getCurrentUser();
+  if (!current) return base;
+  return `${base}_${current.salonOwnerId || current.id}`;
 }
 
 /**

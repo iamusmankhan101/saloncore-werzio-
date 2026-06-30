@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import styles from "../auth.module.css";
 
@@ -15,6 +15,7 @@ export default function SignInPage() {
   const [error, setError] = useState("");
   const [rateLocked, setRateLocked] = useState(false);
   const [verifiedMessage, setVerifiedMessage] = useState(false);
+  const [portal, setPortal] = useState<"admin" | "staff">("admin");
 
   useEffect(() => {
     if (getCurrentUser()) router.replace("/dashboard");
@@ -34,7 +35,7 @@ export default function SignInPage() {
     fetch("/api/auth/signin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, portal }),
     })
       .then(async res => {
         const data = await res.json() as { ok: boolean; error?: string; retryAfter?: number; user?: { id: string } & Record<string, unknown> };
@@ -93,8 +94,34 @@ export default function SignInPage() {
         <section className={styles.formPanel}>
           <div className={styles.formCard}>
             <div className={styles.formHeader}>
-              <h2 className={styles.formTitle}>Welcome back</h2>
-              <p className={styles.formSubtitle}>Sign in to continue managing your salon workspace.</p>
+              <h2 className={styles.formTitle}>{portal === "admin" ? "Admin login" : "Staff login"}</h2>
+              <p className={styles.formSubtitle}>
+                {portal === "admin"
+                  ? "Full access for salon owners and managers."
+                  : "Sign in to your assigned salon workspace."}
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: 4, borderRadius: 12, background: "#f3f0fa", marginBottom: 20 }}>
+              {([
+                { key: "admin", label: "Admin", Icon: ShieldCheck },
+                { key: "staff", label: "Staff", Icon: Users },
+              ] as const).map(({ key, label, Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => { setPortal(key); setError(""); }}
+                  style={{
+                    border: "none", borderRadius: 9, padding: "10px 12px", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                    background: portal === key ? "#fff" : "transparent",
+                    color: portal === key ? "#6d28d9" : "#77738a",
+                    fontWeight: 700, boxShadow: portal === key ? "0 2px 8px rgba(40,20,80,.08)" : "none",
+                  }}
+                >
+                  <Icon size={15} /> {label}
+                </button>
+              ))}
             </div>
 
             {verifiedMessage && (

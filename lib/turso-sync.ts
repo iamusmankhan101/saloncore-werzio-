@@ -10,13 +10,14 @@ type Entity = typeof ENTITIES[number];
 export async function syncFromDB(): Promise<void> {
   const user = getCurrentUser();
   if (!user) return;
+  const dataOwnerId = user.salonOwnerId || user.id;
 
   // Sync core entities (clients, appointments, staff, services, inventory)
   await Promise.all(
     ENTITIES.map(async (entity) => {
       try {
         const res = await fetch(
-          `/api/db?entity=${entity}&userId=${encodeURIComponent(user.id)}`,
+          `/api/db?entity=${entity}&userId=${encodeURIComponent(dataOwnerId)}`,
         );
         if (!res.ok) return;
         const incoming = await res.json() as unknown[];
@@ -54,7 +55,7 @@ export async function syncFromDB(): Promise<void> {
 
   // Sync settings
   try {
-    const res = await fetch(`/api/settings?userId=${encodeURIComponent(user.id)}`);
+    const res = await fetch(`/api/settings?userId=${encodeURIComponent(dataOwnerId)}`);
     if (res.ok) {
       const { data } = await res.json() as { data: object | null };
       if (data && typeof data === "object") {
@@ -65,7 +66,7 @@ export async function syncFromDB(): Promise<void> {
 
   // Sync loyalty transaction history
   try {
-    const res = await fetch(`/api/loyalty?userId=${encodeURIComponent(user.id)}`);
+    const res = await fetch(`/api/loyalty?userId=${encodeURIComponent(dataOwnerId)}`);
     if (res.ok) {
       const { data } = await res.json() as { data: unknown[] };
       if (Array.isArray(data) && data.length > 0) {
@@ -82,8 +83,9 @@ export async function syncFromDB(): Promise<void> {
 export function saveToDB(entity: Entity, data: unknown[]): void {
   const user = getCurrentUser();
   if (!user) return;
+  const dataOwnerId = user.salonOwnerId || user.id;
 
-  const body = JSON.stringify({ entity, data, userId: user.id });
+  const body = JSON.stringify({ entity, data, userId: dataOwnerId });
 
   async function attempt(tries: number): Promise<void> {
     try {
@@ -117,7 +119,7 @@ export function saveSettingsToDB(data: object): void {
   fetch("/api/settings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: user.id, data }),
+    body: JSON.stringify({ userId: user.salonOwnerId || user.id, data }),
   }).catch(() => {});
 }
 
@@ -131,7 +133,7 @@ export function saveLoyaltyHistoryToDB(data: unknown[]): void {
   fetch("/api/loyalty", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: user.id, data }),
+    body: JSON.stringify({ userId: user.salonOwnerId || user.id, data }),
   }).catch(() => {});
 }
 
@@ -147,6 +149,6 @@ export function syncWalletPass(clientId: string, client?: unknown): void {
   fetch("/api/wallet/loyalty", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ salonId: user.id, clientId, client }),
+    body: JSON.stringify({ salonId: user.salonOwnerId || user.id, clientId, client }),
   }).catch(() => {});
 }

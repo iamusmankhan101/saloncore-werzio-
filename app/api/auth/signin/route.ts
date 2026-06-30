@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { email: string; password: string };
+  let body: { email: string; password: string; portal?: "admin" | "staff" };
   try {
     body = await req.json();
   } catch {
@@ -106,6 +106,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const user = await validateCredentials(email, password);
+    const isStaff = user.role === "staff";
+    if ((body.portal === "staff" && !isStaff) || (body.portal === "admin" && isStaff)) {
+      return Response.json(
+        { ok: false, error: `This account belongs to the ${isStaff ? "Staff" : "Admin"} login.` },
+        { status: 403 },
+      );
+    }
 
     // Success — clear the rate-limit counter for this IP
     rateClear(ip);
@@ -121,6 +128,9 @@ export async function POST(req: NextRequest) {
         role: user.role,
         emailVerified: user.emailVerified,
         createdAt: user.createdAt,
+        salonOwnerId: user.salonOwnerId,
+        staffId: user.staffId,
+        permissions: user.permissions,
       },
     });
 

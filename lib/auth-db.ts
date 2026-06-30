@@ -51,6 +51,9 @@ export async function ensureAuthTables(): Promise<void> {
 
   // Add google_id column to existing tables that were created before this column was added
   await db.execute("ALTER TABLE users ADD COLUMN google_id TEXT").catch(() => {});
+  await db.execute("ALTER TABLE users ADD COLUMN salon_owner_id TEXT").catch(() => {});
+  await db.execute("ALTER TABLE users ADD COLUMN staff_id TEXT").catch(() => {});
+  await db.execute("ALTER TABLE users ADD COLUMN permissions TEXT").catch(() => {});
 
   // Create index for faster email lookups
   await db.execute(`
@@ -71,7 +74,10 @@ export interface User {
   ownerName: string;
   salonName: string;
   phone: string;
-  role: "owner" | "admin";
+  role: "owner" | "manager" | "staff" | "admin";
+  salonOwnerId?: string;
+  staffId?: string;
+  permissions?: string[];
   emailVerified: boolean;
   createdAt: string;
 }
@@ -82,7 +88,10 @@ export interface AuthUser {
   ownerName: string;
   salonName: string;
   phone: string;
-  role: "owner" | "admin";
+  role: "owner" | "manager" | "staff" | "admin";
+  salonOwnerId?: string;
+  staffId?: string;
+  permissions?: string[];
   emailVerified: boolean;
   createdAt: string;
 }
@@ -98,7 +107,10 @@ function rowToUser(r: any): User {
     ownerName: r.owner_name as string,
     salonName: r.salon_name as string,
     phone: (r.phone as string) ?? "",
-    role: r.role as "owner" | "admin",
+    role: r.role as User["role"],
+    salonOwnerId: (r.salon_owner_id as string) || undefined,
+    staffId: (r.staff_id as string) || undefined,
+    permissions: r.permissions ? JSON.parse(r.permissions as string) : undefined,
     emailVerified: (r.email_verified as number) === 1,
     createdAt: r.created_at as string,
   };
@@ -117,7 +129,7 @@ export async function createUser(input: {
   ownerName: string;
   salonName: string;
   phone: string;
-  role?: "owner" | "admin";
+  role?: "owner" | "manager" | "staff" | "admin";
   emailVerified?: boolean;
 }): Promise<AuthUser> {
   await ensureAuthTables();
@@ -151,6 +163,61 @@ export async function createUser(input: {
     }
     throw err;
   }
+}
+
+export async function upsertStaffUser(input: {
+  salonOwnerId: string;
+  staffId: string;
+  name: string;
+  salonName: string;
+  email: string;
+  phone: string;
+  password?: string;
+  role?: "manager" | "staff";
+  permissions: string[];
+}): Promise<AuthUser> {
+  await ensureAuthTables();
+  const existing = await db.execute({
+    sql: "SELECT * FROM users WHERE staff_id = ? AND salon_owner_id = ?",
+    args: [input.staffId, input.salonOwnerId],
+  });
+
+  if (existing.rows.length) {
+    const current = rowToUser(existing.rows[0]);
+    const password = input.password ? hashPassword(input.password) : current.password;
+    await db.execute({
+      sql: `UPDATE users SET email = ?, password = ?, owner_name = ?, salon_name = ?,
+            phone = ?, role = ?, permissions = ? WHERE id = ?`,
+      args: [
+        input.email.trim().toLowerCase(), password, input.name.trim(), input.salonName,
+        input.phone, input.role || "staff", JSON.stringify(input.permissions), current.id,
+      ],
+    });
+    const updated = await getUserById(current.id);
+    if (!updated) throw new Error("Failed to update staff login.");
+    return withoutPassword(updated);
+  }
+
+  if (!input.password || input.password.length < 8) {
+    throw new Error("Staff password must be at least 8 characters.");
+  }
+
+  const id = `staff_user_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  await db.execute({
+    sql: `INSERT INTO users
+          (id, email, password, owner_name, salon_name, phone, role, email_verified,
+           created_at, salon_owner_id, staff_id, permissions)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+    args: [
+      id, input.email.trim().toLowerCase(), hashPassword(input.password), input.name.trim(),
+      input.salonName, input.phone, input.role || "staff",
+      new Date().toISOString().slice(0, 10), input.salonOwnerId, input.staffId,
+      JSON.stringify(input.permissions),
+    ],
+  });
+  const created = await getUserById(id);
+  if (!created) throw new Error("Failed to create staff login.");
+  return withoutPassword(created);
 }
 
 export async function getUserById(id: string): Promise<User | null> {
@@ -339,7 +406,7 @@ export async function validateCredentials(
   // user-enumeration (attacker measuring response time to detect valid emails)
   const valid = user ? verifyPassword(password, user.password) : false;
   if (!user || !valid) throw new Error("Invalid email or password.");
-  if (!user.emailVerified && user.role !== "admin") {
+  if (!user.emailVerified && user.role !== "admin" && user.role !== "staff" && user.role !== "manager") {
     throw new Error("EMAIL_NOT_VERIFIED");
   }
   // Upgrade legacy plaintext password to hashed format on first successful login
