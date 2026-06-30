@@ -50,7 +50,7 @@ export default function Hero() {
           Easily manage bookings, clients, staff and revenue from start to finish.
         </p>
         <div className={styles.btns}>
-          <Link href="/#contact" className={styles.btnPrimary}>Get Started Free</Link>
+          <Link href="/#pricing" className={styles.btnPrimary}>View Pricing</Link>
           <button type="button" onClick={() => setDemo(true)} className={styles.btnOutline}>Book a Demo</button>
         </div>
       </div>

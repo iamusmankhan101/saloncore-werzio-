@@ -731,6 +731,167 @@
   margin-top: 2px;
 }
 
+/* ── LOYALTY POINTS PREVIEW ─────────── */
+.loyaltyCard {
+  color: #fff;
+  background: linear-gradient(135deg, #1e1b4b, #6d28d9 60%, #9333ea);
+  border-radius: 12px;
+  padding: 13px 14px;
+  box-shadow: 0 8px 22px rgba(109,40,217,.2);
+}
+
+.loyaltyTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .55rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  margin-bottom: 11px;
+}
+
+.loyaltyTier {
+  letter-spacing: 0;
+  background: rgba(255,255,255,.16);
+  padding: 3px 7px;
+  border-radius: 20px;
+}
+
+.loyaltyLabel {
+  font-size: .5rem;
+  letter-spacing: .1em;
+  color: rgba(255,255,255,.65);
+  font-weight: 700;
+}
+
+.loyaltyPoints {
+  font-size: 1.4rem;
+  line-height: 1.1;
+  font-weight: 900;
+}
+
+.loyaltyValue,
+.loyaltyNext {
+  font-size: .52rem;
+  color: rgba(255,255,255,.68);
+}
+
+.loyaltyProgress {
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(255,255,255,.2);
+  overflow: hidden;
+  margin: 9px 0 4px;
+}
+
+.loyaltyProgressFill {
+  width: 76%;
+  height: 100%;
+  border-radius: inherit;
+  background: #fcd34d;
+}
+
+.loyaltyStats {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.loyaltyStats span {
+  flex: 1;
+  padding: 7px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #ede9fe;
+  color: #6d28d9;
+  font-size: .56rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ── CASH FLOW PREVIEW ──────────────── */
+.cashStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.cashStats div {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 7px;
+}
+
+.cashStats span {
+  display: block;
+  color: #9ca3af;
+  font-size: .48rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.cashStats strong {
+  display: block;
+  font-size: .68rem;
+}
+
+.cashIncome { color: #7c3aed; }
+.cashExpense { color: #ef4444; }
+.cashNet { color: #059669; }
+
+.cashChart {
+  height: 70px;
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  padding: 9px 8px 0;
+  border-bottom: 1px solid #ddd6fe;
+}
+
+.cashBarGroup {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.cashBarIncome,
+.cashBarExpense {
+  flex: 1;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+}
+
+.cashBarIncome { background: #7c3aed; }
+.cashBarExpense { background: #ef4444; }
+
+.cashLegend {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: .52rem;
+  font-weight: 600;
+}
+
+.cashLegend span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cashLegend i {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+}
+
+.cashIncomeDot { background: #7c3aed; }
+.cashExpenseDot { background: #ef4444; }
+
 /* ── RESPONSIVE ─────────────────────── */
 @media (max-width: 700px) {
   .grid {

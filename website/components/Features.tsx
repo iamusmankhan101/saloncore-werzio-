@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import styles from "./Features.module.css";
 import {
-  CalendarDays, Package, Users, Check, Wallet, Megaphone,
+  CalendarDays, Package, Users, Check, Wallet, Megaphone, Gift, Banknote,
 } from "lucide-react";
 
 /* ── mini UI previews ─────────────────────────────────────── */
@@ -154,6 +154,62 @@ function InventoryPreview() {
   );
 }
 
+function LoyaltyPreview() {
+  return (
+    <div className={styles.prev}>
+      <div className={styles.loyaltyCard}>
+        <div className={styles.loyaltyTop}>
+          <span>LOYALTY CARD</span>
+          <span className={styles.loyaltyTier}>🥇 Gold</span>
+        </div>
+        <div className={styles.loyaltyLabel}>POINTS BALANCE</div>
+        <div className={styles.loyaltyPoints}>2,480</div>
+        <div className={styles.loyaltyValue}>≈ ₨2,480 redeemable</div>
+        <div className={styles.loyaltyProgress}>
+          <div className={styles.loyaltyProgressFill} />
+        </div>
+        <div className={styles.loyaltyNext}>520 points to Platinum</div>
+      </div>
+      <div className={styles.loyaltyStats}>
+        <span>Auto-earn at POS</span>
+        <span>Google Wallet</span>
+      </div>
+    </div>
+  );
+}
+
+function CashFlowPreview() {
+  const bars = [
+    { income: 56, expense: 25 },
+    { income: 76, expense: 42 },
+    { income: 62, expense: 31 },
+    { income: 91, expense: 48 },
+    { income: 72, expense: 36 },
+  ];
+
+  return (
+    <div className={styles.prev}>
+      <div className={styles.cashStats}>
+        <div><span>Income</span><strong className={styles.cashIncome}>₨285K</strong></div>
+        <div><span>Expenses</span><strong className={styles.cashExpense}>₨96K</strong></div>
+        <div><span>Net Flow</span><strong className={styles.cashNet}>+₨189K</strong></div>
+      </div>
+      <div className={styles.cashChart}>
+        {bars.map((bar, index) => (
+          <div className={styles.cashBarGroup} key={index}>
+            <div className={styles.cashBarIncome} style={{ height: `${bar.income}%` }} />
+            <div className={styles.cashBarExpense} style={{ height: `${bar.expense}%` }} />
+          </div>
+        ))}
+      </div>
+      <div className={styles.cashLegend}>
+        <span><i className={styles.cashIncomeDot} />Income</span>
+        <span><i className={styles.cashExpenseDot} />Expenses</span>
+      </div>
+    </div>
+  );
+}
+
 /* ── feature card data ─────────────────────────────────────── */
 const features = [
   {
@@ -201,6 +257,24 @@ const features = [
     preview: <InventoryPreview />,
     gc: "1/3", gr: "3",
   },
+  {
+    icon: Gift,
+    color: "#9333ea",
+    title: "Loyalty Points",
+    desc: "Turn every visit into a reason to return with automatic points, rewards, and membership tiers.",
+    bullets: ["Automatic points at POS", "Redeemable discounts", "Bronze-to-Platinum tiers", "Digital & Google Wallet cards"],
+    preview: <LoyaltyPreview />,
+    gc: "1/2", gr: "4",
+  },
+  {
+    icon: Banknote,
+    color: "#0f766e",
+    title: "Cash Flow",
+    desc: "See money coming in and going out, with a live view of your salon's real financial position.",
+    bullets: ["Appointment & POS income", "Categorized expenses", "Net cash-flow charts", "PDF, Excel & data import"],
+    preview: <CashFlowPreview />,
+    gc: "2/3", gr: "4",
+  },
 ];
 
 export default function Features() {
@@ -231,7 +305,7 @@ export default function Features() {
         <div className="section-label" data-animate data-delay="0">✦ Everything You Need</div>
         <h2 className="section-title" data-animate data-delay="0.1">Powerful Features Built<br />for Pakistan&apos;s Salons</h2>
         <p className="section-sub" data-animate data-delay="0.2">
-          Five modules. One dashboard. Everything from booking to inventory — all connected.
+          Seven modules. One dashboard. Everything from booking to cash flow — all connected.
         </p>
       </div>
 
