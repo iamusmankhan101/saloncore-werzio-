@@ -1,10 +1,12 @@
 "use client";
 
-import { Bell, X, AlertTriangle, FileText, Calendar } from "lucide-react";
+import type React from "react";
+import { Bell, X, AlertTriangle, FileText, Calendar, LayoutDashboard } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getStoredInventory, getStoredAppointments } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { InventoryItem } from "@/lib/types";
+import PageTitle from "@/components/page-title";
 
 type Notif = {
   id: string;
@@ -70,7 +72,15 @@ function buildNotifications(): Notif[] {
   return notifs;
 }
 
-export default function DashboardHeader({ title = "Dashboard Performances", subtitle = "Salon Overview" }: { title?: string; subtitle?: string }) {
+export default function DashboardHeader({
+  title = "Dashboard",
+  subtitle = "Salon Overview",
+  icon = <LayoutDashboard size={24} />,
+}: {
+  title?: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+}) {
   const [showNotif, setShowNotif] = useState(false);
   const [notifs, setNotifs] = useState<Notif[]>([]);
 
@@ -85,11 +95,8 @@ export default function DashboardHeader({ title = "Dashboard Performances", subt
   }
 
   return (
-    <div className="dashboard-topbar" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, position: "relative", padding: "24px 0" }}>
-      <div style={{ paddingLeft: 30 }}>
-        <div style={{ fontWeight: 700, fontSize: 20, color: "#1a1a2e" }}>{title}</div>
-        <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>{subtitle}</div>
-      </div>
+    <div className="dashboard-topbar" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, position: "relative", padding: "24px 30px" }}>
+      <PageTitle icon={icon} title={title} subtitle={subtitle} />
 
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         {/* Notification bell */}

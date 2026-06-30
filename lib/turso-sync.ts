@@ -1,4 +1,5 @@
 import { getCurrentUser, userKey } from "./auth";
+import { getActiveLocationFilter, locationUserKey } from "./locations";
 
 const ENTITIES = ["clients", "appointments", "staff", "services", "inventory", "salon_invoices"] as const;
 type Entity = typeof ENTITIES[number];
@@ -11,13 +12,14 @@ export async function syncFromDB(): Promise<void> {
   const user = getCurrentUser();
   if (!user) return;
   const dataOwnerId = user.salonOwnerId || user.id;
+  const locationId = getActiveLocationFilter();
 
   // Sync core entities (clients, appointments, staff, services, inventory)
   await Promise.all(
     ENTITIES.map(async (entity) => {
       try {
         const res = await fetch(
-          `/api/db?entity=${entity}&userId=${encodeURIComponent(dataOwnerId)}`,
+          `/api/db?entity=${entity}&userId=${encodeURIComponent(dataOwnerId)}&locationId=${encodeURIComponent(locationId)}`,
         );
         if (!res.ok) return;
         const incoming = await res.json() as unknown[];
@@ -27,7 +29,7 @@ export async function syncFromDB(): Promise<void> {
           // Merge: never overwrite a client's numeric progress (loyalty pts, visits, spend)
           // with a staler value from DB — guards against the race where a POS save
           // completes after syncFromDB already started its fetch.
-          const lsRaw = localStorage.getItem(userKey("werzio_clients"));
+          const lsRaw = localStorage.getItem(locationUserKey("werzio_clients", locationId));
           const local: Record<string, Record<string, unknown>> = {};
           if (lsRaw) {
             try {
@@ -45,9 +47,9 @@ export async function syncFromDB(): Promise<void> {
               totalSpend:          Math.max(Number(lc.totalSpend           ?? 0), Number(dbClient.totalSpend           ?? 0)),
             };
           });
-          localStorage.setItem(userKey("werzio_clients"), JSON.stringify(merged));
+          localStorage.setItem(locationUserKey("werzio_clients", locationId), JSON.stringify(merged));
         } else {
-          localStorage.setItem(userKey(`werzio_${entity}`), JSON.stringify(incoming));
+          localStorage.setItem(locationUserKey(`werzio_${entity}`, locationId), JSON.stringify(incoming));
         }
       } catch { /* keep localStorage */ }
     }),
@@ -66,11 +68,11 @@ export async function syncFromDB(): Promise<void> {
 
   // Sync loyalty transaction history
   try {
-    const res = await fetch(`/api/loyalty?userId=${encodeURIComponent(dataOwnerId)}`);
+    const res = await fetch(`/api/loyalty?userId=${encodeURIComponent(dataOwnerId)}&locationId=${encodeURIComponent(locationId)}`);
     if (res.ok) {
       const { data } = await res.json() as { data: unknown[] };
       if (Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(userKey("werzio_loyalty_history"), JSON.stringify(data));
+        localStorage.setItem(locationUserKey("werzio_loyalty_history", locationId), JSON.stringify(data));
       }
     }
   } catch { /* keep localStorage */ }
@@ -84,8 +86,9 @@ export function saveToDB(entity: Entity, data: unknown[]): void {
   const user = getCurrentUser();
   if (!user) return;
   const dataOwnerId = user.salonOwnerId || user.id;
+  const locationId = getActiveLocationFilter();
 
-  const body = JSON.stringify({ entity, data, userId: dataOwnerId });
+  const body = JSON.stringify({ entity, data, userId: dataOwnerId, locationId });
 
   async function attempt(tries: number): Promise<void> {
     try {
@@ -133,7 +136,11 @@ export function saveLoyaltyHistoryToDB(data: unknown[]): void {
   fetch("/api/loyalty", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: user.salonOwnerId || user.id, data }),
+    body: JSON.stringify({
+      userId: user.salonOwnerId || user.id,
+      locationId: getActiveLocationFilter(),
+      data,
+    }),
   }).catch(() => {});
 }
 

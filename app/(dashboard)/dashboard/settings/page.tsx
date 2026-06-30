@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Store, Clock, Bell, Palette, Shield, Smartphone, ChevronRight, Check, Sparkles, Banknote, PrinterIcon } from "lucide-react";
 import { settingsStore, saveSettings } from "@/lib/settings-store";
+import PageTitle from "@/components/page-title";
 
 const SECTIONS = [
   { id: "salon",         label: "Salon Profile",  icon: Store },
@@ -512,8 +513,7 @@ export default function SettingsPage() {
   return (
     <div className="dash-page dashboard-polish desktop-only" style={{ background: "#ffffff", minHeight: "100vh", padding: "32px 32px 48px", display: "flex", flexDirection: "column", gap: 24 }}>
       <div className="page-header" style={{ marginBottom: 4 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 850, color: "#1a1a2e", margin: 0, letterSpacing: "-0.025em" }}>Settings</h1>
-        <p style={{ fontSize: 13, color: "#6b6b8a", margin: "4px 0 0", fontWeight: 500 }}>Manage your salon preferences</p>
+        <PageTitle icon={<Shield size={24} />} title="Settings" subtitle="Manage your salon preferences" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 24, alignItems: "start" }}>

@@ -5,6 +5,7 @@ import { getStoredAppointments, getStoredStaff, getStoredServices } from "@/lib/
 import type { AppointmentStatus, Appointment, Staff, Service } from "@/lib/types";
 import { ChevronLeft, ChevronRight, X, Clock, User, Scissors, Tag, CalendarDays } from "lucide-react";
 import { fmtCurrency as fmt } from "@/lib/format";
+import PageTitle from "@/components/page-title";
 
 const HOURS  = Array.from({ length: 24 }, (_, i) => i);
 const SLOT_H = 64;
@@ -246,15 +247,7 @@ export default function CalendarPage() {
 
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 10, letterSpacing: "-0.025em" }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--accent-gradient)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px var(--accent-glow)" }}>
-              <CalendarDays size={18} color="#fff" />
-            </div>
-            Calendar
-          </div>
-          <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 4, marginLeft: 46, fontWeight: 500 }}>{weekStart} – {weekEnd}</div>
-        </div>
+        <PageTitle icon={<CalendarDays size={24} />} title="Calendar" subtitle={`${weekStart} – ${weekEnd}`} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button

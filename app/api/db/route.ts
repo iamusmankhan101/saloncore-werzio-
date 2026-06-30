@@ -23,6 +23,7 @@ async function ensureTable() {
 export async function GET(req: NextRequest) {
   const entity = req.nextUrl.searchParams.get("entity");
   const userId = req.nextUrl.searchParams.get("userId");
+  const locationId = req.nextUrl.searchParams.get("locationId") || "main";
 
   if (!entity || !ALLOWED.has(entity)) {
     return Response.json({ error: "Invalid entity" }, { status: 400 });
@@ -30,7 +31,9 @@ export async function GET(req: NextRequest) {
 
   try {
     await ensureTable();
-    const key = userId ? `${userId}_${entity}` : entity;
+    const key = userId
+      ? locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`
+      : entity;
     const result = await db.execute({
       sql: "SELECT data FROM salon_data WHERE entity = ?",
       args: [key],
@@ -51,21 +54,23 @@ export async function GET(req: NextRequest) {
  * "{userId}_{entity}" so each salon owner has isolated data.
  */
 export async function POST(req: NextRequest) {
-  let body: { entity: string; data: unknown[]; userId?: string };
+  let body: { entity: string; data: unknown[]; userId?: string; locationId?: string };
   try {
     body = await req.json();
   } catch {
     return Response.json({ error: "Invalid body." }, { status: 400 });
   }
 
-  const { entity, data, userId } = body;
+  const { entity, data, userId, locationId = "main" } = body;
   if (!entity || !ALLOWED.has(entity)) {
     return Response.json({ error: "Invalid entity" }, { status: 400 });
   }
 
   try {
     await ensureTable();
-    const key = userId ? `${userId}_${entity}` : entity;
+    const key = userId
+      ? locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`
+      : entity;
     await db.execute({
       sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
       args: [key, JSON.stringify(data), new Date().toISOString()],

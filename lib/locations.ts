@@ -1,4 +1,5 @@
 import { saveSettings, settingsStore } from "./settings-store";
+import { userKey } from "./auth";
 
 export interface SalonLocation {
   id: string;
@@ -27,13 +28,12 @@ export function getDefaultLocationId() {
 export function getActiveLocationFilter() {
   const locations = getSalonLocations();
   const active = (settingsStore as { locations?: { activeLocationId?: string } }).locations?.activeLocationId;
-  if (active === "all") return "all";
   return locations.some((location) => location.id === active) ? active! : locations[0]?.id ?? "main";
 }
 
 export function setActiveLocationFilter(locationId: string) {
   const locations = getSalonLocations();
-  const nextId = locationId === "all" || locations.some((location) => location.id === locationId)
+  const nextId = locations.some((location) => location.id === locationId)
     ? locationId
     : locations[0]?.id ?? "main";
 
@@ -44,6 +44,14 @@ export function setActiveLocationFilter(locationId: string) {
   };
   saveSettings();
   return nextId;
+}
+
+/**
+ * Keeps the original Main Branch key for backward compatibility while giving
+ * every additional branch a completely independent user-scoped data slot.
+ */
+export function locationUserKey(baseKey: string, locationId = getActiveLocationFilter()) {
+  return userKey(locationId === "main" ? baseKey : `${baseKey}__location_${locationId}`);
 }
 
 export function clientLocationId(client: { locationId?: string }) {

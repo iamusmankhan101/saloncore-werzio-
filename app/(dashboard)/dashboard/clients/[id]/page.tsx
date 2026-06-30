@@ -11,6 +11,7 @@ import { fmtCurrency as fmt } from "@/lib/format";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { exportClientPdf } from "@/lib/export-pdf";
+import { locationUserKey } from "@/lib/locations";
 import {
   ArrowLeft, Phone, Mail, Calendar, Heart, Star, Camera, X,
   Plus, Edit2, TrendingUp, Clock, Users, Scissors,
@@ -125,14 +126,14 @@ export default function ClientProfilePage() {
     setPosInvoices(invoices);
 
     try {
-      const stored = localStorage.getItem(`werzio_photos_${clientId}`);
+      const stored = localStorage.getItem(locationUserKey(`werzio_photos_${clientId}`));
       if (stored) setVisitPhotos(JSON.parse(stored));
     } catch { /* ignore */ }
   }, [clientId]);
 
   const persistPhotos = (photos: Record<string, { before?: string; after?: string }>) => {
     setVisitPhotos(photos);
-    try { localStorage.setItem(`werzio_photos_${clientId}`, JSON.stringify(photos)); } catch { /* ignore */ }
+    try { localStorage.setItem(locationUserKey(`werzio_photos_${clientId}`), JSON.stringify(photos)); } catch { /* ignore */ }
   };
 
   const handlePhotoUpload = (apptId: string, side: "before" | "after", file: File) => {

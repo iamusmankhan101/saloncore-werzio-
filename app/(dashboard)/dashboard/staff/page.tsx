@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments } from "@/lib/storage";
 import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
-import { X, Plus, Check, ChevronRight, Trash2 } from "lucide-react";
+import { X, Plus, Check, ChevronRight, Trash2, UserCog } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
+import PageTitle from "@/components/page-title";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   owner:           { color: "#7C3AED", bg: "#EDE9FE" },
@@ -284,13 +285,16 @@ export default function StaffPage() {
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em" }}>Staff</div>
-          <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>
+        <PageTitle
+          icon={<UserCog size={24} />}
+          title="Staff"
+          subtitle={
+            <>
             {staffList.length} team members
             {plan.staffLimit !== -1 && <span style={{ marginLeft: 8, color: staffLimited ? "#dc2626" : "#b0b0c8", fontWeight: 700 }}>· {activeCount}/{plan.staffLimit} active</span>}
-          </div>
-        </div>
+            </>
+          }
+        />
         <button
           onClick={() => !staffLimited && setShowAdd(true)}
           title={staffLimited ? `Free plan: ${plan.staffLimit} active staff limit reached. Upgrade to Pro for unlimited.` : ""}

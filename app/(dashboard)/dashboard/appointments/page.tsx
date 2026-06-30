@@ -8,6 +8,7 @@ import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCa
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
+import PageTitle from "@/components/page-title";
 
 const STATUS: Record<AppointmentStatus, { label: string; color: string; bg: string }> = {
   booked:        { label: "Booked",      color: "#6366f1", bg: "#EEF2FF" },
@@ -862,12 +863,11 @@ export default function AppointmentsPage() {
 
       {/* Page header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em" }}>Appointments</div>
-          <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>
-            {filtered.length} appointments · <span style={{ color: "var(--accent)", fontWeight: 700 }}>{fmt(totalRevenue)} total</span>
-          </div>
-        </div>
+        <PageTitle
+          icon={<CalendarDays size={24} />}
+          title="Appointments"
+          subtitle={<>{filtered.length} appointments · <span style={{ color: "var(--accent)", fontWeight: 700 }}>{fmt(totalRevenue)} total</span></>}
+        />
         <button
           onClick={() => !apptLimited && setShowCreate(true)}
           title={apptLimited ? `Free plan: 30 appointments/month limit reached. Upgrade to Pro for unlimited.` : ""}

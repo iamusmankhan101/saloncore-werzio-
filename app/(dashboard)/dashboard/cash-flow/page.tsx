@@ -6,8 +6,8 @@ import { getSalonInvoices } from "@/lib/salon-invoices";
 import { getExpenses, saveExpenses, addExpense, deleteExpense, updateExpense, type Expense, type ExpenseCategory } from "@/lib/expenses";
 import { getManualCashIncome, saveManualCashIncome, type ManualCashIncome } from "@/lib/cash-flow-income";
 import type { Appointment } from "@/lib/types";
-import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
+import PageTitle from "@/components/page-title";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
   Plus, Trash2, TrendingUp, TrendingDown,
@@ -631,22 +631,17 @@ export default function CashFlowPage() {
 
   return (
     <div style={{ background: "#ffffff", minHeight: "100vh" }}>
-      <DashboardHeader title="Cash Flow" subtitle="Daily expense & income tracking" />
       <MobilePageHeader title="Cash Flow" subtitle={cfg.label} action={{ label: "Add Expense", onClick: openAdd }} />
 
       <div className="dash-page dashboard-polish desktop-only" style={{ background: "#ffffff", display: "flex", flexDirection: "column", gap: 20, paddingTop: 20, minHeight: "100vh" }}>
 
         {/* ── Header row ──────────────────────────────────────────────── */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <div>
-            <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--accent-gradient)", display: "grid", placeItems: "center", boxShadow: "0 4px 12px var(--accent-glow)" }}>
-                <Wallet size={20} color="#fff" />
-              </div>
-              Cash Flow
-            </div>
-            <p style={{ fontSize: 12, color: "#9898b0", margin: "4px 0 0", fontWeight: 500 }}>{rangeStart === filterEnd ? rangeStart : `${rangeStart} → ${filterEnd}`}</p>
-          </div>
+          <PageTitle
+            icon={<Wallet size={24} />}
+            title="Cash Flow"
+            subtitle={rangeStart === filterEnd ? rangeStart : `${rangeStart} → ${filterEnd}`}
+          />
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             {/* Period tabs */}
             <div style={{ display: "flex", background: "#fff", border: "1px solid #e3e0eb", borderRadius: 14, padding: 5, gap: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.01)" }}>

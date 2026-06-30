@@ -4,8 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { getStoredAppointments } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { Appointment } from "@/lib/types";
-import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
+import PageTitle from "@/components/page-title";
 import {
   Download, ArrowUpRight, ArrowDownRight,
   TrendingUp, CalendarDays, CreditCard, Wallet, ChevronLeft,
@@ -527,7 +527,6 @@ export default function RevenuePage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh" }}>
-      <DashboardHeader title="Revenue" subtitle="Earnings & financial overview" />
 
       {/* ── Native mobile app bar ── */}
       <MobilePageHeader
@@ -615,10 +614,11 @@ export default function RevenuePage() {
 
       {/* Title + controls */}
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 850, color: "#1a1a2e", margin: 0, letterSpacing: "-0.025em" }}>Revenue</h1>
-          <p style={{ fontSize: 13, color: "#6b6b8a", margin: "4px 0 0", fontWeight: 500 }}>Track your salon&apos;s financial performance</p>
-        </div>
+        <PageTitle
+          icon={<TrendingUp size={24} />}
+          title="Revenue"
+          subtitle="Track your salon's financial performance"
+        />
         <div className="rev-header-controls" style={{ display: "flex", gap: 12 }}>
           <div className="rev-period-selector segment-control">
             {PERIODS.map(p => (

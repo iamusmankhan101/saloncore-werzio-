@@ -5,8 +5,8 @@ import { getStoredInventory, saveInventory } from "@/lib/storage";
 import { checkLowStockAlerts } from "@/lib/whatsapp-scheduler";
 import { settingsStore } from "@/lib/settings-store";
 import type { InventoryItem, InventoryCategory, InventoryUnit } from "@/lib/types";
-import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
+import PageTitle from "@/components/page-title";
 import {
   Search, X, Plus, AlertTriangle, Package, ChevronDown,
   Edit2, Trash2, Bell, Copy, CheckCircle, TrendingDown,
@@ -801,21 +801,22 @@ export default function InventoryPage() {
       <div className="dash-page dashboard-polish desktop-only" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em", display: "flex", alignItems: "center", gap: 10 }}>
-              Inventory
-              {tab === "stock" && alertItems.length > 0 && (
-                <span style={{ fontSize: 12, fontWeight: 750, background: outCount > 0 ? "#fef2f2" : "#fffbeb", color: outCount > 0 ? "#dc2626" : "#d97706", border: `1px solid ${outCount > 0 ? "#fecaca" : "#fed7aa"}`, borderRadius: 20, padding: "3px 10px", boxShadow: `0 2px 8px ${outCount > 0 ? "rgba(220,38,38,0.1)" : "rgba(217,119,6,0.1)"}` }}>
-                  {alertItems.length} alert{alertItems.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>
-              {tab === "stock"
-                ? `${items.length} items · ${fmtV(totalValue)} total value`
-                : `${retailItems.length} products available in POS · ${items.filter(i => !(i.retailPrice ?? 0)).length} not listed`}
-            </div>
-          </div>
+          <PageTitle
+            icon={<Package size={24} />}
+            title="Inventory"
+            subtitle={
+              <>
+                {tab === "stock"
+                  ? `${items.length} items · ${fmtV(totalValue)} total value`
+                  : `${retailItems.length} products available in POS · ${items.filter(i => !(i.retailPrice ?? 0)).length} not listed`}
+                {tab === "stock" && alertItems.length > 0 && (
+                  <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 750, background: outCount > 0 ? "#fef2f2" : "#fffbeb", color: outCount > 0 ? "#dc2626" : "#d97706", border: `1px solid ${outCount > 0 ? "#fecaca" : "#fed7aa"}`, borderRadius: 20, padding: "3px 10px", boxShadow: `0 2px 8px ${outCount > 0 ? "rgba(220,38,38,0.1)" : "rgba(217,119,6,0.1)"}` }}>
+                    {alertItems.length} alert{alertItems.length !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </>
+            }
+          />
           <div style={{ display: "flex", gap: 10 }}>
             {tab === "stock" && alertItems.length > 0 && (
               <button onClick={() => setShowReminder(true)}

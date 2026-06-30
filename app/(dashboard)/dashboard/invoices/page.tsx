@@ -12,6 +12,7 @@ import {
 import { settingsStore } from "@/lib/settings-store";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
 import MobilePageHeader from "@/components/mobile-page-header";
+import PageTitle from "@/components/page-title";
 import { fmtCurrency as fmt } from "@/lib/format";
 
 function fmtDate(d: string) {
@@ -206,17 +207,11 @@ export default function InvoicesPage() {
       <div className="dash-page dashboard-polish desktop-only" style={{ background: "#ffffff", display: "flex", flexDirection: "column", gap: 20, paddingTop: 20, minHeight: "100vh" }}>
 
         {/* Page header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--accent-gradient)", display: "grid", placeItems: "center", boxShadow: "0 4px 12px var(--accent-glow)" }}>
-                <ShoppingCart size={20} color="#fff" />
-              </div>
-              POS Invoices
-            </div>
-            <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>Receipts from completed POS transactions</div>
-          </div>
-        </div>
+        <PageTitle
+          icon={<ShoppingCart size={24} />}
+          title="POS Invoices"
+          subtitle="Receipts from completed POS transactions"
+        />
 
         {/* Stats */}
         <div className="stats-grid-4">

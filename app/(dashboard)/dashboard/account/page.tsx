@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
 import MobilePageHeader from "@/components/mobile-page-header";
+import PageTitle from "@/components/page-title";
 
 type SectionId = "profile" | "salon" | "hours" | "security" | "whatsapp" | "decidr" | "tryon";
 
@@ -1425,11 +1426,11 @@ export default function AccountPage() {
       {/* ══════════ DESKTOP LAYOUT ══════════ */}
       <div className="desktop-only" style={{ padding: "34px 36px 48px", maxWidth: 1500, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-          <div>
-            <div style={{ color: "var(--accent)", fontSize: 10, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".14em", marginBottom: 7 }}>Workspace settings</div>
-            <h1 style={{ margin: 0, color: "#1d1d2f", fontSize: 30, letterSpacing: "-.03em", fontWeight: 900 }}>Account &amp; preferences</h1>
-            <p style={{ margin: "7px 0 0", color: "#9390a6", fontSize: 13 }}>Manage your salon identity, operations, security, and connected services.</p>
-          </div>
+          <PageTitle
+            icon={<User size={24} />}
+            title="Account & preferences"
+            subtitle="Manage your salon identity, operations, security, and connected services."
+          />
           <button onClick={handleSignOut} style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #fecaca", background: "rgba(255,255,255,.85)", color: "#dc2626", borderRadius: 12, padding: "11px 16px", fontSize: 12, fontWeight: 800, cursor: "pointer", boxShadow: "0 5px 15px rgba(40,20,60,.05)" }}>
             <LogOut size={14} /> Sign out
           </button>

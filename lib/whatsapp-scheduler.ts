@@ -1,6 +1,7 @@
-import { userKey, getCurrentUser } from "./auth";
+import { getCurrentUser } from "./auth";
 import { settingsStore } from "./settings-store";
 import { getStoredAppointments, getStoredClients, getStoredInventory } from "./storage";
+import { locationUserKey } from "./locations";
 
 /**
  * Normalize a phone number to international format required by WhatsApp API.
@@ -44,7 +45,7 @@ const LOW_STOCK_SENT_KEY = "werzio_wa_lowstock_sent";
 
 export function getWaLogs(): WaLogEntry[] {
   if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(userKey(LOG_KEY)) || "[]"); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(locationUserKey(LOG_KEY)) || "[]"); } catch { return []; }
 }
 
 export function appendLog(entry: Omit<WaLogEntry, "id" | "timestamp">) {
@@ -56,7 +57,7 @@ export function appendLog(entry: Omit<WaLogEntry, "id" | "timestamp">) {
   const logs = getWaLogs();
   logs.unshift(fullEntry);
   if (logs.length > MAX_LOG) logs.length = MAX_LOG;
-  localStorage.setItem(userKey(LOG_KEY), JSON.stringify(logs));
+  localStorage.setItem(locationUserKey(LOG_KEY), JSON.stringify(logs));
 
   // Notify the dashboard UI so it can show a toast
   if (typeof window !== "undefined") {
@@ -82,13 +83,13 @@ const BIRTHDAY_QUEUE_KEY = "werzio_wa_birthday_queue";
 const BIRTHDAY_SPREAD_WINDOW_MS = 4 * 60 * 60 * 1000;
 
 function getSentLog(): Record<string, number> {
-  try { return JSON.parse(localStorage.getItem(userKey(SENT_KEY)) || "{}"); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(locationUserKey(SENT_KEY)) || "{}"); } catch { return {}; }
 }
 
 function markSent(key: string) {
   const log = getSentLog();
   log[key] = Date.now();
-  localStorage.setItem(userKey(SENT_KEY), JSON.stringify(log));
+  localStorage.setItem(locationUserKey(SENT_KEY), JSON.stringify(log));
 }
 
 function alreadySent(key: string): boolean {
@@ -108,14 +109,14 @@ type QueueItem = { id: string; retries: number; sendAfter?: number; phone?: stri
 
 function getQueue(storageKey: string): QueueItem[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(userKey(storageKey)) || "[]") as (string | QueueItem)[];
+    const raw = JSON.parse(localStorage.getItem(locationUserKey(storageKey)) || "[]") as (string | QueueItem)[];
     // Migrate old string[] format → {id, retries} format
     return raw.map((item) => typeof item === "string" ? { id: item, retries: 0 } : item);
   } catch { return []; }
 }
 
 function setQueue(storageKey: string, items: QueueItem[]) {
-  localStorage.setItem(userKey(storageKey), JSON.stringify(items));
+  localStorage.setItem(locationUserKey(storageKey), JSON.stringify(items));
 }
 
 /** Send a new-booking alert to the salon WhatsApp group immediately (fire-and-forget). */
@@ -287,7 +288,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
   const year = String(today.getFullYear());
 
   const sent: Record<string, string> = (() => {
-    try { return JSON.parse(localStorage.getItem(userKey(BIRTHDAY_SENT_KEY)) || "{}"); } catch { return {}; }
+    try { return JSON.parse(localStorage.getItem(locationUserKey(BIRTHDAY_SENT_KEY)) || "{}"); } catch { return {}; }
   })();
 
   const clients = getStoredClients();
@@ -356,7 +357,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
 
     if (ok) {
       sent[sentKey] = todayKey;
-      localStorage.setItem(userKey(BIRTHDAY_SENT_KEY), JSON.stringify(sent));
+      localStorage.setItem(locationUserKey(BIRTHDAY_SENT_KEY), JSON.stringify(sent));
     } else if (item.retries < MAX_RETRIES - 1) {
       remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + RETRY_DELAY_MS });
     }
@@ -558,7 +559,7 @@ export async function checkLowStockAlerts(): Promise<void> {
 
   const today = new Date().toISOString().slice(0, 10);
   const sent: Record<string, string> = (() => {
-    try { return JSON.parse(localStorage.getItem(userKey(LOW_STOCK_SENT_KEY)) || "{}"); } catch { return {}; }
+    try { return JSON.parse(localStorage.getItem(locationUserKey(LOW_STOCK_SENT_KEY)) || "{}"); } catch { return {}; }
   })();
 
   const inventory = getStoredInventory();
@@ -582,5 +583,5 @@ export async function checkLowStockAlerts(): Promise<void> {
 
   // Mark attempted regardless of outcome — low stock alerts send once per day only
   newlyLow.forEach((i) => { sent[i.id] = today; });
-  localStorage.setItem(userKey(LOW_STOCK_SENT_KEY), JSON.stringify(sent));
+  localStorage.setItem(locationUserKey(LOW_STOCK_SENT_KEY), JSON.stringify(sent));
 }

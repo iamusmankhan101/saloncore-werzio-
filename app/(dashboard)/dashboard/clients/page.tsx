@@ -11,7 +11,8 @@ import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { normalizePhone, appendLog } from "@/lib/whatsapp-scheduler";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
-import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
+import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, locationUserKey, type SalonLocation } from "@/lib/locations";
+import PageTitle from "@/components/page-title";
 
 const SEGMENT_CAMPAIGN_QUEUE_KEY = "werzio_segment_campaign_queue";
 const SEGMENT_CAMPAIGN_SPREAD_WINDOW_MS = 4 * 60 * 60 * 1000;
@@ -51,12 +52,7 @@ type SegmentCampaignQueueItem = {
 };
 
 function segmentCampaignStorageKey() {
-  try {
-    const user = JSON.parse(localStorage.getItem("werzio_current_user") || "null") as { id?: string } | null;
-    return user?.id ? `${SEGMENT_CAMPAIGN_QUEUE_KEY}_${user.id}` : SEGMENT_CAMPAIGN_QUEUE_KEY;
-  } catch {
-    return SEGMENT_CAMPAIGN_QUEUE_KEY;
-  }
+  return locationUserKey(SEGMENT_CAMPAIGN_QUEUE_KEY);
 }
 
 function getSegmentCampaignQueue(): SegmentCampaignQueueItem[] {
@@ -1330,14 +1326,17 @@ export default function ClientsPage() {
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em" }}>Clients</div>
-          <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>
+        <PageTitle
+          icon={<Heart size={24} />}
+          title="Clients"
+          subtitle={
+            <>
             {filtered.length} clients
             {locationFilter !== "all" && <span style={{ marginLeft: 8, color: "var(--accent)", fontWeight: 700 }}>· {locationName(locationFilter)}</span>}
             {plan.clientLimit !== -1 && <span style={{ marginLeft: 8, color: clientLimited ? "#dc2626" : "#b0b0c8", fontWeight: 700 }}>· {clients.length}/{plan.clientLimit} on Free plan</span>}
-          </div>
-        </div>
+            </>
+          }
+        />
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {clients.length > 0 && (
             <button

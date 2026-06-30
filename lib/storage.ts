@@ -2,6 +2,7 @@ import { APPOINTMENTS as mockAppointments, CLIENTS as mockClients, STAFF as mock
 import type { Appointment, Client, Staff, Service, InventoryItem } from "./types";
 import { saveToDB } from "./turso-sync";
 import { userKey } from "./auth";
+import { getActiveLocationFilter, locationUserKey } from "./locations";
 
 const SCHEMA_VERSION = "v6";
 
@@ -17,25 +18,35 @@ const K = {
 
 function checkSchema() {
   if (typeof window === "undefined") return;
-  const vk = userKey(K.schemaVersion);
+  const vk = locationUserKey(K.schemaVersion);
   const ver = localStorage.getItem(vk);
   if (ver !== SCHEMA_VERSION) {
-    localStorage.removeItem(userKey(K.appointments));
-    localStorage.removeItem(userKey(K.clients));
-    localStorage.removeItem(userKey(K.staff));
-    localStorage.removeItem(userKey(K.services));
-    localStorage.removeItem(userKey(K.inventory));
+    // Only the legacy Main Branch needs the old schema reset behavior.
+    // New branches start with clean, empty stores.
+    if (getActiveLocationFilter() === "main") {
+      localStorage.removeItem(userKey(K.appointments));
+      localStorage.removeItem(userKey(K.clients));
+      localStorage.removeItem(userKey(K.staff));
+      localStorage.removeItem(userKey(K.services));
+      localStorage.removeItem(userKey(K.inventory));
+    }
     localStorage.setItem(vk, SCHEMA_VERSION);
   }
+}
+
+function initialData<T>(mock: T[]): T[] {
+  return getActiveLocationFilter() === "main" ? mock : [];
 }
 
 export function getStoredAppointments(): Appointment[] {
   if (typeof window === "undefined") return mockAppointments;
   checkSchema();
-  const saved = localStorage.getItem(userKey(K.appointments));
+  const key = locationUserKey(K.appointments);
+  const saved = localStorage.getItem(key);
   if (!saved) {
-    localStorage.setItem(userKey(K.appointments), JSON.stringify(mockAppointments));
-    return mockAppointments;
+    const initial = initialData(mockAppointments);
+    localStorage.setItem(key, JSON.stringify(initial));
+    return initial;
   }
   return JSON.parse(saved);
 }
@@ -43,7 +54,7 @@ export function getStoredAppointments(): Appointment[] {
 export function saveAppointments(appts: Appointment[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    localStorage.setItem(userKey(K.appointments), JSON.stringify(appts));
+    localStorage.setItem(locationUserKey(K.appointments), JSON.stringify(appts));
     saveToDB("appointments", appts);
   }
 }
@@ -51,10 +62,12 @@ export function saveAppointments(appts: Appointment[]) {
 export function getStoredClients(): Client[] {
   if (typeof window === "undefined") return mockClients;
   checkSchema();
-  const saved = localStorage.getItem(userKey(K.clients));
+  const key = locationUserKey(K.clients);
+  const saved = localStorage.getItem(key);
   if (!saved) {
-    localStorage.setItem(userKey(K.clients), JSON.stringify(mockClients));
-    return mockClients;
+    const initial = initialData(mockClients);
+    localStorage.setItem(key, JSON.stringify(initial));
+    return initial;
   }
   return JSON.parse(saved);
 }
@@ -62,7 +75,7 @@ export function getStoredClients(): Client[] {
 export function saveClients(clients: Client[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    localStorage.setItem(userKey(K.clients), JSON.stringify(clients));
+    localStorage.setItem(locationUserKey(K.clients), JSON.stringify(clients));
     saveToDB("clients", clients);
   }
 }
@@ -70,10 +83,12 @@ export function saveClients(clients: Client[]) {
 export function getStoredStaff(): Staff[] {
   if (typeof window === "undefined") return mockStaff;
   checkSchema();
-  const saved = localStorage.getItem(userKey(K.staff));
+  const key = locationUserKey(K.staff);
+  const saved = localStorage.getItem(key);
   if (!saved) {
-    localStorage.setItem(userKey(K.staff), JSON.stringify(mockStaff));
-    return mockStaff;
+    const initial = initialData(mockStaff);
+    localStorage.setItem(key, JSON.stringify(initial));
+    return initial;
   }
   return JSON.parse(saved);
 }
@@ -81,7 +96,7 @@ export function getStoredStaff(): Staff[] {
 export function saveStaff(staffList: Staff[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    localStorage.setItem(userKey(K.staff), JSON.stringify(staffList));
+    localStorage.setItem(locationUserKey(K.staff), JSON.stringify(staffList));
     saveToDB("staff", staffList);
   }
 }
@@ -89,10 +104,12 @@ export function saveStaff(staffList: Staff[]) {
 export function getStoredServices(): Service[] {
   if (typeof window === "undefined") return mockServices;
   checkSchema();
-  const saved = localStorage.getItem(userKey(K.services));
+  const key = locationUserKey(K.services);
+  const saved = localStorage.getItem(key);
   if (!saved) {
-    localStorage.setItem(userKey(K.services), JSON.stringify(mockServices));
-    return mockServices;
+    const initial = initialData(mockServices);
+    localStorage.setItem(key, JSON.stringify(initial));
+    return initial;
   }
   return JSON.parse(saved);
 }
@@ -100,7 +117,7 @@ export function getStoredServices(): Service[] {
 export function saveServices(servicesList: Service[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    localStorage.setItem(userKey(K.services), JSON.stringify(servicesList));
+    localStorage.setItem(locationUserKey(K.services), JSON.stringify(servicesList));
     saveToDB("services", servicesList);
   }
 }
@@ -108,10 +125,12 @@ export function saveServices(servicesList: Service[]) {
 export function getStoredInventory(): InventoryItem[] {
   if (typeof window === "undefined") return mockInventory;
   checkSchema();
-  const saved = localStorage.getItem(userKey(K.inventory));
+  const key = locationUserKey(K.inventory);
+  const saved = localStorage.getItem(key);
   if (!saved) {
-    localStorage.setItem(userKey(K.inventory), JSON.stringify(mockInventory));
-    return mockInventory;
+    const initial = initialData(mockInventory);
+    localStorage.setItem(key, JSON.stringify(initial));
+    return initial;
   }
   return JSON.parse(saved);
 }
@@ -119,7 +138,7 @@ export function getStoredInventory(): InventoryItem[] {
 export function saveInventory(items: InventoryItem[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    localStorage.setItem(userKey(K.inventory), JSON.stringify(items));
+    localStorage.setItem(locationUserKey(K.inventory), JSON.stringify(items));
     saveToDB("inventory", items);
   }
 }

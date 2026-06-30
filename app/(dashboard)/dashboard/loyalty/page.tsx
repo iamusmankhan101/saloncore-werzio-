@@ -17,6 +17,7 @@ import {
   Award, Users, Plus, Minus, X, CreditCard, Printer, Share2,
   QrCode, Copy, ExternalLink, Smartphone,
 } from "lucide-react";
+import PageTitle from "@/components/page-title";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -760,15 +761,7 @@ export default function LoyaltyPage() {
     <div className="dash-page dashboard-polish desktop-only" style={{ minHeight: "100vh", background: "#ffffff", padding: "28px 32px 48px", display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 14, background: "var(--accent-gradient)", display: "grid", placeItems: "center", boxShadow: "0 4px 12px var(--accent-glow)" }}>
-            <Gift size={24} color="#fff" />
-          </div>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 850, color: "#1a1a2e", letterSpacing: "-0.025em" }}>Loyalty Program</div>
-            <div style={{ fontSize: 13, color: "#9898b0", fontWeight: 500, marginTop: 4 }}>Reward your clients, grow retention</div>
-          </div>
-        </div>
+        <PageTitle icon={<Gift size={24} />} title="Loyalty Program" subtitle="Reward your clients, grow retention" />
         <div style={{ display: "flex", gap: 12 }}>
           <button onClick={() => setShowSettings(true)} style={{
             display: "flex", alignItems: "center", gap: 6, padding: "10px 18px",

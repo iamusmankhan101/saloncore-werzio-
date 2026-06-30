@@ -124,6 +124,7 @@ function DashboardLocationSwitcher() {
     const nextId = setActiveLocationFilter(locationId);
     setActiveLocation(nextId);
     setLocations(getSalonLocations());
+    window.location.reload();
   }
 
   function handleAddLocation() {
@@ -164,7 +165,7 @@ function DashboardLocationSwitcher() {
             Active Location
           </div>
           <div style={{ fontSize: 12, color: "#777792", fontWeight: 650, marginTop: 2 }}>
-            Dashboard data is filtered by this branch where supported.
+            All appointments, sales, stock, staff and reports belong to this branch.
           </div>
         </div>
       </div>
@@ -188,7 +189,6 @@ function DashboardLocationSwitcher() {
           }}
           aria-label="Select active dashboard location"
         >
-          <option value="all">All Locations</option>
           {locations.map((location) => (
             <option key={location.id} value={location.id}>{location.name}</option>
           ))}

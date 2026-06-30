@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import {
   Check, X, Crown, AlertTriangle, Smartphone, Building2, Copy,
   BadgeCheck, ImagePlus, Clock, Eye, CheckCircle, AlertCircle,
-  Zap, Sparkles, Lock, ArrowRight, Shield,
+  Zap, Sparkles, Lock, ArrowRight, Shield, CreditCard,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { addPaymentRequest, getActivePlan, setActivePlan, getPaymentRequests, type PaymentMethod } from "@/lib/payment-requests";
 import { syncInvoices, type Invoice, type InvoiceStatus } from "@/lib/invoices";
 import InvoiceViewer from "@/components/invoice-viewer";
 import MobilePageHeader from "@/components/mobile-page-header";
+import PageTitle from "@/components/page-title";
 import {
   PLAN_CONFIGS, ORDERED_PLANS, getCurrentPlanId,
   type PlanId, type PlanConfig,
@@ -547,10 +548,11 @@ export default function BillingPage() {
       <div className="dash-page desktop-only" style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         {/* Page header */}
-        <div>
-          <div style={{ fontWeight: 900, fontSize: 24, color: "#1a1a2e" }}>Billing & Plans</div>
-          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 3 }}>Manage your subscription and view invoice history</div>
-        </div>
+        <PageTitle
+          icon={<CreditCard size={24} />}
+          title="Billing & Plans"
+          subtitle="Manage your subscription and view invoice history"
+        />
 
         {/* Pending notice */}
         {hasPending && (

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
 import type { Service, Staff, ServiceCategory } from "@/lib/types";
 import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2 } from "lucide-react";
+import PageTitle from "@/components/page-title";
 
 const CATEGORY_LABELS: Record<string, { label: string; bg: string; color: string }> = {
   hair:   { label: "Hair Care", bg: "#EDE9FE", color: "#7C3AED" },
@@ -209,12 +210,15 @@ export default function ServicesPage() {
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em" }}>Services</div>
-          <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>
+        <PageTitle
+          icon={<Scissors size={24} />}
+          title="Services"
+          subtitle={
+            <>
             {services.length} salon services · <span style={{ color: "var(--accent)", fontWeight: 700 }}>{activeCount} active</span>
-          </div>
-        </div>
+            </>
+          }
+        />
         <button onClick={() => setShowAdd(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 12, border: "none", background: "var(--accent-gradient)", fontSize: 13, fontWeight: 750, color: "#fff", boxShadow: "0 4px 14px var(--accent-glow)", cursor: "pointer", transition: "all 0.18s ease" }} className="page-header-btn">
           <Plus size={16} /> Add Service
         </button>

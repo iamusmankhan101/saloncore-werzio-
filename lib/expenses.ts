@@ -23,12 +23,12 @@ const KEY = "werzio_expenses";
 
 export function getExpenses(): Expense[] {
   if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(KEY) ?? "[]"); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(locationUserKey(KEY)) ?? "[]"); } catch { return []; }
 }
 
 export function saveExpenses(list: Expense[]): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(KEY, JSON.stringify(list));
+  localStorage.setItem(locationUserKey(KEY), JSON.stringify(list));
 }
 
 export function addExpense(data: Omit<Expense, "id" | "createdAt">): Expense {
@@ -46,3 +46,4 @@ export function deleteExpense(id: string): void {
 export function updateExpense(id: string, patch: Partial<Omit<Expense, "id" | "createdAt">>): void {
   saveExpenses(getExpenses().map(e => e.id === id ? { ...e, ...patch } : e));
 }
+import { locationUserKey } from "./locations";

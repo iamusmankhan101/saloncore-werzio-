@@ -5,6 +5,7 @@ import { Upload, Wand2, RefreshCw, Download, ChevronRight, Sparkles, ImagePlus, 
 import { settingsStore } from "@/lib/settings-store";
 import { generateHairMask, compositeWithMask } from "@/lib/hair-mask";
 import { getCurrentPlan } from "@/lib/plan-limits";
+import PageTitle from "@/components/page-title";
 
 // ── Service catalogue ────────────────────────────────────────────────────────
 
@@ -266,17 +267,11 @@ export default function TryOnPage() {
     <div className="dash-page dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Wand2 size={20} color="#fff" />
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e" }}>Virtual Try-On</div>
-            <div style={{ fontSize: 13, color: "#9898b0", marginTop: 1 }}>Show clients how any service will look on them using AI</div>
-          </div>
-        </div>
-      </div>
+      <PageTitle
+        icon={<Wand2 size={24} />}
+        title="Virtual Try-On"
+        subtitle="Show clients how any service will look on them using AI"
+      />
 
       <div style={{ display: "grid", gridTemplateColumns: "360px 1fr", gap: 20, alignItems: "start" }}>
 

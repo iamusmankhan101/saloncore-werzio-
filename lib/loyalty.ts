@@ -1,6 +1,6 @@
-import { userKey } from "./auth";
 import { saveLoyaltyHistoryToDB, syncWalletPass } from "./turso-sync";
 import type { Client, LoyaltyTransaction } from "./types";
+import { locationUserKey } from "./locations";
 
 const HISTORY_KEY = "werzio_loyalty_history";
 
@@ -51,7 +51,7 @@ export function pointsToRupees(points: number, rpp: number): number {
 export function getLoyaltyHistory(): LoyaltyTransaction[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(userKey(HISTORY_KEY)) || "[]");
+    return JSON.parse(localStorage.getItem(locationUserKey(HISTORY_KEY)) || "[]");
   } catch { return []; }
 }
 
@@ -68,7 +68,7 @@ function appendHistory(tx: Omit<LoyaltyTransaction, "id" | "date">, updatedClien
   };
   history.unshift(entry);
   if (history.length > 2000) history.length = 2000;
-  localStorage.setItem(userKey(HISTORY_KEY), JSON.stringify(history));
+  localStorage.setItem(locationUserKey(HISTORY_KEY), JSON.stringify(history));
   saveLoyaltyHistoryToDB(history);
   // Pass the fresh client so the PATCH handler uses current data directly
   // instead of re-fetching from Turso (which may not have settled yet).
