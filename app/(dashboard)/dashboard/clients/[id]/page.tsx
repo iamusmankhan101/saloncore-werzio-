@@ -201,7 +201,7 @@ export default function ClientProfilePage() {
   const setE = (k: string, v: string) => setEditForm((f) => ({ ...f, [k]: v }));
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh" }}>
+    <div className="dashboard-polish detail-page-polish" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
 
       {/* Top bar */}
       <div style={{ background: "#fff", borderBottom: "1px solid #e8e8f0", padding: "13px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>

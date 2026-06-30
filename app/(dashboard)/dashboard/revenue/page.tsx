@@ -526,7 +526,7 @@ export default function RevenuePage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="dashboard-polish" style={{ background: "#f8f8fc", minHeight: "100vh" }}>
+    <div className="dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh" }}>
       <DashboardHeader title="Revenue" subtitle="Earnings & financial overview" />
 
       {/* ── Native mobile app bar ── */}
@@ -611,27 +611,21 @@ export default function RevenuePage() {
       </div>
 
       {/* ── Desktop layout ── */}
-      <div className="dash-page desktop-only" style={{ background: "#f8f8fc" }}>
+      <div className="dash-page dashboard-polish desktop-only" style={{ background: "#ffffff", padding: "28px 32px 48px", display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* Title + controls */}
-      <div className="page-header" style={{ marginBottom: 24 }}>
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1a1a2e", margin: 0 }}>Revenue</h1>
-          <p style={{ fontSize: 13, color: "#a0a0b8", margin: "4px 0 0" }}>Track your salon&apos;s financial performance</p>
+          <h1 style={{ fontSize: 24, fontWeight: 850, color: "#1a1a2e", margin: 0, letterSpacing: "-0.025em" }}>Revenue</h1>
+          <p style={{ fontSize: 13, color: "#6b6b8a", margin: "4px 0 0", fontWeight: 500 }}>Track your salon&apos;s financial performance</p>
         </div>
-        <div className="rev-header-controls">
-          <div className="rev-period-selector" style={{ display: "flex", background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: 4, gap: 2 }}>
+        <div className="rev-header-controls" style={{ display: "flex", gap: 12 }}>
+          <div className="rev-period-selector segment-control">
             {PERIODS.map(p => (
               <button
                 key={p.key}
                 onClick={() => setPeriod(p.key)}
-                style={{
-                  padding: "7px 16px", borderRadius: 7, border: "none", cursor: "pointer",
-                  fontSize: 13, fontWeight: period === p.key ? 700 : 500,
-                  background: period === p.key ? "linear-gradient(135deg, #5B21B6, #9333EA)" : "transparent",
-                  color: period === p.key ? "#fff" : "#6b6b8a",
-                  transition: "all 0.15s",
-                }}
+                className={`segment-btn ${period === p.key ? "active" : ""}`}
               >
                 {p.label}
               </button>
@@ -639,7 +633,8 @@ export default function RevenuePage() {
           </div>
           <button
             onClick={exportPDF}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 20px", borderRadius: 10, border: "none", cursor: "pointer", background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff", fontSize: 13, fontWeight: 600, boxShadow: "0 2px 8px rgba(91, 33, 182, 0.35)" }}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 12, border: "1px solid #e3e0eb", cursor: "pointer", background: "#fff", color: "#6b6b8a", fontSize: 13, fontWeight: 750, transition: "all 0.15s" }}
+            className="hover-bg-light"
           >
             <Download size={15} /> Export PDF
           </button>
@@ -676,28 +671,28 @@ export default function RevenuePage() {
       )}
 
       {/* Stat cards */}
-      <div className="stats-grid-4" style={{ marginBottom: 20 }}>
+      <div className="stats-grid-4">
         {[
-          { label: "Total Revenue", value: fmt(totalRevenue), change: revChange, icon: TrendingUp,   color: "#7C3AED", bg: "#F5F3FF", showTrend: true  },
+          { label: "Total Revenue", value: fmt(totalRevenue), change: revChange, icon: TrendingUp,   color: "var(--accent)", bg: "rgba(124, 58, 237, 0.08)", showTrend: true  },
           { label: "Appointments",  value: String(totalCount), change: cntChange, icon: CalendarDays, color: "#3b82f6", bg: "#eff6ff", showTrend: true  },
           { label: "Avg Ticket",    value: fmt(avgTicket),     change: avgChange, icon: CreditCard,   color: "#059669", bg: "#f0fdf4", showTrend: true  },
           { label: "Est. Tips",     value: fmt(tipsTotal),     change: 0,         icon: Wallet,       color: "#d97706", bg: "#fffbeb", showTrend: false },
         ].map(({ label, value, change, icon: Icon, color, bg, showTrend }) => (
-          <div key={label} style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "18px 20px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</span>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon size={16} color={color} />
-              </div>
+          <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)", flex: 1 }}>
+            <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color }}>
+              <Icon size={24} color={color} />
             </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#1a1a2e", marginBottom: 6 }}>{value}</div>
-            {showTrend && <Trend change={change} />}
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 850, color, lineHeight: 1.1 }}>{value}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+              {showTrend && <div style={{ marginTop: 2 }}><Trend change={change} /></div>}
+            </div>
           </div>
         ))}
       </div>
 
       {/* ── Daily Report ── */}
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", marginBottom: 20, overflow: "hidden" }}>
+      <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", overflow: "hidden" }}>
         {/* Header */}
         <div
           style={{ padding: "18px 24px", borderBottom: dailyReportOpen ? "1px solid #f0f0f8" : "none", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
@@ -809,7 +804,7 @@ export default function RevenuePage() {
       </div>
 
       {/* Revenue bar chart */}
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "22px 26px", marginBottom: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "26px 30px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22 }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>Revenue Trend</div>
@@ -922,10 +917,10 @@ export default function RevenuePage() {
       </div>
 
       {/* Payment methods + Top services */}
-      <div className="dash-grid-bottom" style={{ marginBottom: 20 }}>
+      <div className="dash-grid-bottom">
         {/* Payment Methods */}
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "22px 24px" }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e", marginBottom: 4 }}>Payment Methods</div>
+        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "26px 30px" }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 4 }}>Payment Methods</div>
           <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>Revenue by channel</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {methodBreakdown.map(m => (
@@ -949,8 +944,8 @@ export default function RevenuePage() {
         </div>
 
         {/* Top Services */}
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "22px 24px" }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e", marginBottom: 4 }}>Top Services</div>
+        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "26px 30px" }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 4 }}>Top Services</div>
           <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>Most profitable this period</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {topServices.length === 0 ? (
@@ -981,7 +976,7 @@ export default function RevenuePage() {
       </div>
 
       {/* Daily / Monthly breakdown table */}
-      <div className="table-scroll-wrap">
+      <div className="table-scroll-wrap" style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", overflow: "hidden" }}>
         {/* Table header */}
         <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>

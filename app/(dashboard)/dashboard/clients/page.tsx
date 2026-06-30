@@ -1094,7 +1094,7 @@ export default function ClientsPage() {
   };
 
   return (
-    <div className="dash-page dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="dash-page dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
 
       {selected && (
         <ClientPanel
@@ -1197,28 +1197,32 @@ export default function ClientsPage() {
       )}
 
       {/* Header */}
-      <div className="page-header">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 22, color: "#1a1a2e" }}>Clients</div>
-          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>
+          <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em" }}>Clients</div>
+          <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>
             {filtered.length} clients
-            {plan.clientLimit !== -1 && <span style={{ marginLeft: 8, color: clientLimited ? "#dc2626" : "#b0b0c8" }}>· {clients.length}/{plan.clientLimit} on Free plan</span>}
+            {plan.clientLimit !== -1 && <span style={{ marginLeft: 8, color: clientLimited ? "#dc2626" : "#b0b0c8", fontWeight: 700 }}>· {clients.length}/{plan.clientLimit} on Free plan</span>}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {clients.length > 0 && (
             <button
               onClick={() => setShowDeleteAll(true)}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 13, fontWeight: 600, color: "#dc2626", cursor: "pointer" }}>
-              <Trash2 size={15} /> Delete All
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 13, fontWeight: 750, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}
+              className="hover-bg-light"
+            >
+              <Trash2 size={14} /> Delete All
             </button>
           )}
 
           {/* Import button */}
           <button
             onClick={() => setShowImport(true)}
-            style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 10, border: "1px solid #ddd6fe", background: "#f5f3ff", fontSize: 13, fontWeight: 600, color: "#5B21B6", cursor: "pointer" }}>
-            <Upload size={15} /> Import
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 12, border: "1px solid rgba(124, 58, 237, 0.15)", background: "rgba(124, 58, 237, 0.04)", fontSize: 13, fontWeight: 750, color: "var(--accent)", cursor: "pointer", transition: "all 0.15s" }}
+            className="hover-bg-light"
+          >
+            <Upload size={14} /> Import
           </button>
 
           {/* Export dropdown */}
@@ -1226,19 +1230,21 @@ export default function ClientsPage() {
             <button
               onClick={() => setShowExportMenu((v) => !v)}
               disabled={clients.length === 0}
-              style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 10, border: "1px solid #ddd6fe", background: "#f5f3ff", fontSize: 13, fontWeight: 600, color: clients.length === 0 ? "#b0b0c8" : "#5B21B6", cursor: clients.length === 0 ? "not-allowed" : "pointer" }}>
-              <Download size={15} /> Export <ChevronDown size={13} style={{ transform: showExportMenu ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 12, border: "1px solid rgba(124, 58, 237, 0.15)", background: "rgba(124, 58, 237, 0.04)", fontSize: 13, fontWeight: 750, color: clients.length === 0 ? "#b0b0c8" : "var(--accent)", cursor: clients.length === 0 ? "not-allowed" : "pointer", transition: "all 0.15s" }}
+              className="hover-bg-light"
+            >
+              <Download size={14} /> Export <ChevronDown size={12} style={{ transform: showExportMenu ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
             </button>
             {showExportMenu && (
               <>
                 <div onClick={() => setShowExportMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 10 }} />
-                <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20, minWidth: 160, overflow: "hidden" }}>
+                <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.08)", zIndex: 20, minWidth: 160, overflow: "hidden" }}>
                   {[
                     { fmt: "xlsx" as const, label: "Excel (.xlsx)", icon: "📊" },
                     { fmt: "csv"  as const, label: "CSV (.csv)",   icon: "📄" },
                   ].map(({ fmt, label, icon }) => (
                     <button key={fmt} onClick={() => { setShowExportMenu(false); exportClients(filtered.length < clients.length ? filtered : clients, fmt); }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", fontSize: 13, fontWeight: 600, color: "#1a1a2e", cursor: "pointer", textAlign: "left" }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 16px", border: "none", background: "none", fontSize: 13, fontWeight: 750, color: "#1a1a2e", cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "#f5f3ff")}
                       onMouseLeave={e => (e.currentTarget.style.background = "none")}>
                       <span>{icon}</span>{label}
@@ -1256,9 +1262,10 @@ export default function ClientsPage() {
 
           <button
             onClick={() => !clientLimited && setShowAdd(true)}
-            className="page-header-btn"
             title={clientLimited ? `Free plan: ${plan.clientLimit} client limit reached. Upgrade to Pro for unlimited.` : ""}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: clientLimited ? "#e8e8f0" : "#7C3AED", fontSize: 13, fontWeight: 600, color: clientLimited ? "#aaaabc" : "#fff", cursor: clientLimited ? "not-allowed" : "pointer" }}>
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 12, border: "none", background: clientLimited ? "#e8e8f0" : "var(--accent-gradient)", fontSize: 13, fontWeight: 750, color: clientLimited ? "#aaaabc" : "#fff", boxShadow: clientLimited ? "none" : "0 4px 14px var(--accent-glow)", cursor: clientLimited ? "not-allowed" : "pointer", transition: "all 0.18s ease" }}
+            className={!clientLimited ? "page-header-btn" : ""}
+          >
             <Plus size={16} /> Add Client
             {clientLimited && <span style={{ fontSize: 10, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px" }}>Limit reached</span>}
           </button>
@@ -1266,25 +1273,35 @@ export default function ClientsPage() {
       </div>
 
       {clientLimited && (
-        <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 600 }}>
+        <div style={{
+          padding: "14px 20px",
+          borderRadius: 14,
+          background: "#fef2f2",
+          border: "1px solid #fecaca",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          boxShadow: "0 4px 12px rgba(220,38,38,0.03)"
+        }}>
+          <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 700 }}>
             Free plan allows up to {plan.clientLimit} clients. Upgrade to Pro for unlimited client management.
           </span>
-          <a href="/dashboard/billing" style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", textDecoration: "none", whiteSpace: "nowrap", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 7, padding: "5px 12px" }}>Upgrade →</a>
+          <a href="/dashboard/billing" style={{ fontSize: 11, fontWeight: 800, color: "#7C3AED", textDecoration: "none", whiteSpace: "nowrap", background: "#fff", border: "1px solid rgba(124,58,237,0.15)", borderRadius: 8, padding: "6px 12px", boxShadow: "0 2px 6px rgba(0,0,0,0.02)", transition: "all 0.15s" }} className="hover-bg-light">Upgrade Plan</a>
         </div>
       )}
 
       {/* Search + filters */}
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 10, padding: "9px 14px" }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e3e0eb", borderRadius: 12, padding: "10px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.01)", transition: "border-color 0.15s" }}>
           <Search size={15} color="#b0b0c8" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, phone, or email…"
             style={{ flex: 1, border: "none", outline: "none", fontSize: 13, color: "#1a1a2e", background: "transparent" }} />
           {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}><X size={14} color="#b0b0c8" /></button>}
         </div>
-        <button onClick={() => setShowFilters(!showFilters)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `1px solid ${activeFilters > 0 ? "#7C3AED" : "#e8e8f0"}`, background: activeFilters > 0 ? "#F5F3FF" : "#fff", fontSize: 13, fontWeight: 500, color: activeFilters > 0 ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
+        <button onClick={() => setShowFilters(!showFilters)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 12, border: `1px solid ${activeFilters > 0 ? "var(--accent-light)" : "#e3e0eb"}`, background: activeFilters > 0 ? "rgba(124, 58, 237, 0.04)" : "#fff", fontSize: 13, fontWeight: 750, color: activeFilters > 0 ? "var(--accent)" : "#6b6b8a", cursor: "pointer", transition: "all 0.15s" }} className="hover-bg-light">
           Filter
-          {activeFilters > 0 && <span style={{ background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeFilters}</span>}
+          {activeFilters > 0 && <span style={{ background: "var(--accent-gradient)", color: "#fff", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px var(--accent-glow)" }}>{activeFilters}</span>}
           <ChevronDown size={13} style={{ transform: showFilters ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
         </button>
       </div>
@@ -1297,19 +1314,21 @@ export default function ClientsPage() {
           { key: "absent", label: "Long Absent",    icon: <Clock size={12} /> },
         ] as const).map(({ key, label, icon }) => (
           <button key={key} onClick={() => setSortMode(key)}
-            style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 13px", borderRadius: 20,
-              border: `1px solid ${sortMode === key ? "#7C3AED" : "#e8e8f0"}`,
-              background: sortMode === key ? "#7C3AED" : "#fff",
-              fontSize: 12, fontWeight: 600,
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 20,
+              border: `1px solid ${sortMode === key ? "var(--accent-light)" : "#e3e0eb"}`,
+              background: sortMode === key ? "var(--accent-gradient)" : "#fff",
+              fontSize: 12, fontWeight: 750,
               color: sortMode === key ? "#fff" : "#6b6b8a",
-              cursor: "pointer" }}>
+              boxShadow: sortMode === key ? "0 2px 8px var(--accent-glow)" : "none",
+              cursor: "pointer", transition: "all 0.18s ease" }}
+            className={sortMode !== key ? "hover-bg-light" : ""}>
             {icon}{label}
           </button>
         ))}
         {sortMode === "absent" && (
           <select value={absentDays} onChange={(e) => setAbsentDays(Number(e.target.value))}
-            style={{ padding: "5px 10px", borderRadius: 20, border: "1px solid #ddd6fe", background: "#f5f3ff",
-              fontSize: 12, fontWeight: 600, color: "#5B21B6", cursor: "pointer", outline: "none" }}>
+            style={{ padding: "5px 12px", borderRadius: 20, border: "1px solid rgba(124, 58, 237, 0.15)", background: "rgba(124, 58, 237, 0.04)",
+              fontSize: 12, fontWeight: 750, color: "var(--accent)", cursor: "pointer", outline: "none" }}>
             <option value={30}>30+ days</option>
             <option value={60}>60+ days</option>
             <option value={90}>90+ days</option>
@@ -1318,14 +1337,16 @@ export default function ClientsPage() {
         )}
         {sortMode !== "spend" && (
           <>
-            <span style={{ fontSize: 12, color: "#b0b0c8", marginLeft: 4 }}>
+            <span style={{ fontSize: 12, color: "#b0b0c8", marginLeft: 4, fontWeight: 600 }}>
               {filtered.length} client{filtered.length !== 1 ? "s" : ""}
             </span>
             {filtered.length > 0 && (
               <button onClick={() => setShowSendModal(true)}
-                style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 13px", borderRadius: 20,
-                  border: "none", background: "linear-gradient(135deg,#5B21B6,#9333EA)",
-                  fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 20,
+                  border: "none", background: "var(--accent-gradient)",
+                  fontSize: 12, fontWeight: 800, color: "#fff", cursor: "pointer", boxShadow: "0 3px 8px var(--accent-glow)", transition: "transform 0.15s" }}
+                className="hover-scale"
+              >
                 <Send size={11} /> Send Message
               </button>
             )}
@@ -1334,53 +1355,73 @@ export default function ClientsPage() {
       </div>
 
       {showFilters && (
-        <div style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, padding: "16px 20px", display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div style={{
+          background: "#fff",
+          border: "1px solid rgba(226,223,235,.95)",
+          borderRadius: 14,
+          padding: "16px 20px",
+          display: "flex",
+          gap: 20,
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+          boxShadow: "0 8px 24px rgba(38,25,75,.03)"
+        }}>
           {[
             { label: "Tag", value: tagFilter, onChange: setTagFilter, options: [["all", "All Tags"], ...allTags.map((t) => [t, t])] },
             { label: "Source", value: sourceFilter, onChange: setSourceFilter, options: [["all", "All Sources"], ...allSources.map((s) => [s, s])] },
           ].map(({ label, value, onChange, options }) => (
             <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
-              <select value={value} onChange={(e) => onChange(e.target.value)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff", cursor: "pointer" }}>
+              <label style={{ fontSize: 11, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
+              <select value={value} onChange={(e) => onChange(e.target.value)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e3e0eb", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff", cursor: "pointer" }}>
                 {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
           ))}
           {activeFilters > 0 && (
-            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 600, color: "#dc2626", cursor: "pointer" }}>Clear all</button>
+            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
           )}
         </div>
       )}
 
       {/* Selection action bar */}
       {someFilteredSelected && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 10, background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#7C3AED" }}>{selectedIds.size} client{selectedIds.size !== 1 ? "s" : ""} selected</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 12, background: "#1a1a2e", color: "#fff", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>{selectedIds.size} client{selectedIds.size !== 1 ? "s" : ""} selected</span>
           <button
             onClick={() => setShowDeleteSelected(true)}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, border: "none", background: "#dc2626", fontSize: 12, fontWeight: 600, color: "#fff", cursor: "pointer" }}>
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderRadius: 8, border: "none", background: "#dc2626", fontSize: 12, fontWeight: 800, color: "#fff", cursor: "pointer" }}>
             <Trash2 size={13} /> Delete Selected
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
-            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #ddd6fe", background: "#fff", fontSize: 12, fontWeight: 600, color: "#7C3AED", cursor: "pointer" }}>
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", background: "transparent", color: "#ccc", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>
             Clear
           </button>
         </div>
       )}
 
       {/* Table */}
-      <div className="table-scroll-wrap">
+      <div className="table-scroll-wrap" style={{
+        background: "#fff",
+        borderRadius: 18,
+        border: "1px solid rgba(226,223,235,.95)",
+        boxShadow: "0 8px 28px rgba(38,25,75,.04)",
+        overflow: "hidden"
+      }}>
         <div className="table-scroll-inner">
         <div className="client-table-inner" style={{ background: "#fff" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 130px 100px 120px 110px 120px 110px", padding: "10px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafa", alignItems: "center" }}>
-          <div onClick={toggleSelectAll} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${allFilteredSelected ? "#7C3AED" : "#d1d1e0"}`, background: allFilteredSelected ? "#7C3AED" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
-              {allFilteredSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            </div>
+        <div style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 1.1fr 1fr 1.1fr 90px 110px 130px", padding: "12px 20px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd", alignItems: "center" }}>
+          <div onClick={toggleSelectAll} style={{ cursor: "pointer", display: "flex", alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={allFilteredSelected}
+              ref={el => { if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected; }}
+              onChange={toggleSelectAll}
+              style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#7C3AED" }}
+            />
           </div>
           {["CLIENT", "PHONE", "SOURCE", "LAST VISIT", "VISITS", "TOTAL SPEND", ""].map((h) => (
-            <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+            <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#8e89a3", letterSpacing: "0.08em" }}>{h}</div>
           ))}
         </div>
 
@@ -1388,51 +1429,55 @@ export default function ClientsPage() {
           <div style={{ padding: "48px 20px", textAlign: "center", color: "#b0b0c8", fontSize: 14 }}>No clients match your search.</div>
         ) : filtered.map((client, i) => {
           const isLast = i === filtered.length - 1;
+          const isChecked = selectedIds.has(client.id);
           return (
             <div
               key={client.id}
               onClick={() => setSelected(client)}
-              style={{ display: "grid", gridTemplateColumns: "40px 1fr 130px 100px 120px 110px 120px 110px", padding: "13px 20px", borderBottom: isLast ? "none" : "1px solid #f4f4f8", alignItems: "center", cursor: "pointer", background: selectedIds.has(client.id) ? "#faf7ff" : "transparent" }}
-              onMouseEnter={(e) => { if (!selectedIds.has(client.id)) e.currentTarget.style.background = "#fafafa"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = selectedIds.has(client.id) ? "#faf7ff" : "transparent"; }}
+              style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 1.1fr 1fr 1.1fr 90px 110px 130px", padding: "14px 20px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", alignItems: "center", cursor: "pointer", background: isChecked ? "#F5F3FF" : "transparent", transition: "background 0.2s" }}
+              className="hover-bg-row"
             >
               {/* Checkbox */}
-              <div onClick={(e) => { e.stopPropagation(); toggleOne(client.id); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${selectedIds.has(client.id) ? "#7C3AED" : "#d1d1e0"}`, background: selectedIds.has(client.id) ? "#7C3AED" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
-                  {selectedIds.has(client.id) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                </div>
+              <div onClick={(e) => { e.stopPropagation(); toggleOne(client.id); }} style={{ display: "flex", alignItems: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => toggleOne(client.id)}
+                  style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#7C3AED" }}
+                />
               </div>
               {/* Client */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #9333EA22, #ec489922)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#9333EA", flexShrink: 0 }}>
-                  {client.name.charAt(0)}
+                <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #9333EA15, #ec489915)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#9333EA", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.8)", boxShadow: "0 2px 4px rgba(0,0,0,0.04)" }}>
+                  {client.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{client.name}</div>
-                  <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
+                  <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e", letterSpacing: "-0.01em" }}>{client.name}</div>
+                  <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
                     {client.tags.map((tag) => {
                       const tc = TAG_COLORS[tag] ?? { color: "#6b6b8a", bg: "#F5F3FF" };
-                      return <span key={tag} style={{ fontSize: 9, fontWeight: 600, color: tc.color, background: tc.bg, padding: "1px 6px", borderRadius: 10 }}>{tag}</span>;
+                      return <span key={tag} style={{ fontSize: 9, fontWeight: 800, color: tc.color, background: tc.bg, padding: "1px 6px", borderRadius: 10, textTransform: "uppercase", letterSpacing: "0.02em" }}>{tag}</span>;
                     })}
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize: 13, color: "#1a1a2e" }}>{client.phone}</div>
-              <div style={{ fontSize: 12, color: "#6b6b8a", textTransform: "capitalize" }}>{client.source}</div>
-              <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(client.lastVisitDate)}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{client.totalVisits}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(client.totalSpend)}</div>
-              <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 6 }}>
+              <div style={{ fontSize: 13, color: "#1a1a2e", fontWeight: 600 }}>{client.phone}</div>
+              <div style={{ fontSize: 12, color: "#6b6b8a", textTransform: "capitalize", fontWeight: 500 }}>{client.source}</div>
+              <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{fmtDate(client.lastVisitDate)}</div>
+              <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{client.totalVisits}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{fmt(client.totalSpend)}</div>
+              <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                 <button
                   onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", fontSize: 11, fontWeight: 600, color: "#7C3AED", cursor: "pointer", whiteSpace: "nowrap" }}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "1px solid #e3e0eb", background: "#fff", fontSize: 11, fontWeight: 700, color: "#6b6b8a", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}
+                  className="hover-bg-light"
                 >
                   <ExternalLink size={11} /> View
                 </button>
                 <button
                   onClick={() => setDeleteTarget(client)}
                   title="Delete client"
-                  style={{ display: "flex", alignItems: "center", padding: "5px 8px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", padding: "6px 8px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer", transition: "all 0.15s" }}
                 >
                   <Trash2 size={12} color="#dc2626" />
                 </button>

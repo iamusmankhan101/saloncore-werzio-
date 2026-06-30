@@ -289,7 +289,7 @@ export default function BillingPage() {
   ];
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh" }}>
+    <div className="dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
 
       {/* Shared overlays */}
       {viewInvoice && <InvoiceViewer invoice={viewInvoice} onClose={() => setViewInvoice(null)} />}
@@ -547,7 +547,7 @@ export default function BillingPage() {
       )}
 
       {/* ══════════ DESKTOP LAYOUT ══════════ */}
-      <div className="desktop-only" style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div className="dash-page desktop-only" style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         {/* Page header */}
         <div>

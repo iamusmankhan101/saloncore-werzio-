@@ -265,7 +265,7 @@ export default function StaffPage() {
   };
 
   return (
-    <div className="dash-page" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="dash-page dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
 
       {showAdd && (
         <StaffFormModal
@@ -283,19 +283,20 @@ export default function StaffPage() {
       )}
 
       {/* Header */}
-      <div className="page-header">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 22, color: "#1a1a2e" }}>Staff</div>
-          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>
+          <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em" }}>Staff</div>
+          <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>
             {staffList.length} team members
-            {plan.staffLimit !== -1 && <span style={{ marginLeft: 8, color: staffLimited ? "#dc2626" : "#b0b0c8" }}>· {activeCount}/{plan.staffLimit} active</span>}
+            {plan.staffLimit !== -1 && <span style={{ marginLeft: 8, color: staffLimited ? "#dc2626" : "#b0b0c8", fontWeight: 700 }}>· {activeCount}/{plan.staffLimit} active</span>}
           </div>
         </div>
         <button
           onClick={() => !staffLimited && setShowAdd(true)}
-          className="page-header-btn"
           title={staffLimited ? `Free plan: ${plan.staffLimit} active staff limit reached. Upgrade to Pro for unlimited.` : ""}
-          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: staffLimited ? "#e8e8f0" : "#7C3AED", fontSize: 13, fontWeight: 600, color: staffLimited ? "#aaaabc" : "#fff", cursor: staffLimited ? "not-allowed" : "pointer" }}>
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 12, border: "none", background: staffLimited ? "#e8e8f0" : "var(--accent-gradient)", fontSize: 13, fontWeight: 750, color: staffLimited ? "#aaaabc" : "#fff", boxShadow: staffLimited ? "none" : "0 4px 14px var(--accent-glow)", cursor: staffLimited ? "not-allowed" : "pointer", transition: "all 0.18s ease" }}
+          className={!staffLimited ? "page-header-btn" : ""}
+        >
           <Plus size={16} /> Add Staff
           {staffLimited && <span style={{ fontSize: 10, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px" }}>Limit reached</span>}
         </button>
@@ -303,11 +304,21 @@ export default function StaffPage() {
 
       {/* Free-plan staff limit banner */}
       {staffLimited && (
-        <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 600 }}>
+        <div style={{
+          padding: "14px 20px",
+          borderRadius: 14,
+          background: "#fef2f2",
+          border: "1px solid #fecaca",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          boxShadow: "0 4px 12px rgba(220,38,38,0.03)"
+        }}>
+          <span style={{ fontSize: 13, color: "#991b1b", fontWeight: 700 }}>
             Free plan allows up to {plan.staffLimit} active staff members. Deactivate a member or upgrade to add more.
           </span>
-          <a href="/dashboard/billing" style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", textDecoration: "none", whiteSpace: "nowrap", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 7, padding: "5px 12px" }}>Upgrade →</a>
+          <a href="/dashboard/billing" style={{ fontSize: 11, fontWeight: 800, color: "#7C3AED", textDecoration: "none", whiteSpace: "nowrap", background: "#fff", border: "1px solid rgba(124,58,237,0.15)", borderRadius: 8, padding: "6px 12px", boxShadow: "0 2px 6px rgba(0,0,0,0.02)", transition: "all 0.15s" }} className="hover-bg-light">Upgrade Plan</a>
         </div>
       )}
 
@@ -320,57 +331,65 @@ export default function StaffPage() {
             <div
               key={s.id}
               onClick={() => router.push(`/dashboard/staff/${s.id}`)}
-              style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "20px", cursor: "pointer", transition: "box-shadow 0.15s" }}
-              onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.1)")}
-              onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)")}
+              style={{ background: "#fff", padding: "24px", cursor: "pointer", display: "flex", flexDirection: "column", gap: 16 }}
             >
               {/* Top row */}
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: "50%", background: s.color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: s.color }}>
-                    {s.name.charAt(0)}
+                  <div style={{ width: 48, height: 48, borderRadius: "50%", background: s.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: s.color, border: "1.5px solid rgba(255,255,255,0.8)", boxShadow: "0 2px 4px rgba(0,0,0,0.04)" }}>
+                    {s.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "#1a1a2e" }}>{s.name}</div>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: role.color, background: role.bg, padding: "2px 8px", borderRadius: 20, textTransform: "capitalize" }}>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", letterSpacing: "-0.01em" }}>{s.name}</div>
+                    <span style={{ display: "inline-block", fontSize: 10, fontWeight: 800, color: role.color, background: role.bg, padding: "2px 8px", borderRadius: 20, textTransform: "capitalize", marginTop: 4 }}>
                       {s.role.replace(/-/g, " ")}
                     </span>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: s.isActive ? "#059669" : "#dc2626", background: s.isActive ? "#ecfdf5" : "#fef2f2", padding: "3px 8px", borderRadius: 20 }}>
+                  <span style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: s.isActive ? "#059669" : "#dc2626",
+                    background: s.isActive ? "#ecfdf5" : "#fef2f2",
+                    padding: "3px 8px",
+                    borderRadius: 20
+                  }}>
+                    <span style={{ width: 4, height: 4, borderRadius: "50%", background: s.isActive ? "#059669" : "#dc2626" }} />
                     {s.isActive ? "Active" : "Inactive"}
                   </span>
                   <button
                     onClick={(e) => { e.stopPropagation(); setDeleteTarget(s); }}
-                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "#fee2e2"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "#fef2f2"; }}>
+                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                  >
                     <Trash2 size={13} color="#dc2626" />
                   </button>
                 </div>
               </div>
 
               {/* Specialties */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 14 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {s.specialties.length > 0
                   ? s.specialties.slice(0, 3).map((sp) => (
-                    <span key={sp} style={{ fontSize: 11, color: s.color, background: s.color + "15", padding: "2px 8px", borderRadius: 12 }}>{sp}</span>
+                    <span key={sp} style={{ fontSize: 11, fontWeight: 600, color: s.color, background: s.color + "10", padding: "3px 10px", borderRadius: 12 }}>{sp}</span>
                   ))
-                  : <span style={{ fontSize: 11, color: "#9898b0", fontStyle: "italic" }}>No specialties</span>}
+                  : <span style={{ fontSize: 11, color: "#9898b0", fontStyle: "italic", fontWeight: 500 }}>No specialties</span>}
               </div>
 
               {/* Stats + view profile CTA */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, borderTop: "1px solid #f4f4f8", paddingTop: 14, alignItems: "center" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, borderTop: "1px solid #f8f8fc", paddingTop: 14, alignItems: "center" }}>
                 <div>
-                  <div style={{ fontSize: 10, color: "#b0b0c8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Appointments</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#1a1a2e", marginTop: 2 }}>{stats.total}</div>
+                  <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Appointments</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: "#1a1a2e", marginTop: 4 }}>{stats.total}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: "#b0b0c8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Revenue</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#7C3AED", marginTop: 2 }}>{fmt(stats.revenue)}</div>
+                  <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Revenue</div>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: "var(--accent)", marginTop: 4 }}>{fmt(stats.revenue)}</div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "50%", background: "#f0eeff" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "50%", background: "#f0eeff", transition: "transform 0.15s" }} className="hover-scale">
                   <ChevronRight size={14} color="#7C3AED" />
                 </div>
               </div>

@@ -393,7 +393,7 @@ export default function StaffProfilePage() {
   const maxSvc   = stats.topServices[0]?.count ?? 1;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f4f5f7" }}>
+    <div className="dashboard-polish detail-page-polish" style={{ minHeight: "100vh", background: "#f4f5f7" }}>
 
       {showEdit && (
         <EditModal staff={staff} servicesList={services} onClose={() => setShowEdit(false)} onSave={handleSave} />

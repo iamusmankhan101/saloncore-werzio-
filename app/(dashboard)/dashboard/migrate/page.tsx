@@ -42,7 +42,7 @@ export default function MigratePage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f4f5f7", padding: "40px 32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div className="dashboard-polish" style={{ minHeight: "100vh", background: "#f4f5f7", padding: "40px 32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ maxWidth: 600, width: "100%", background: "#fff", borderRadius: 20, padding: "40px", boxShadow: "0 8px 40px rgba(0,0,0,0.08)" }}>
         
         {/* Header */}

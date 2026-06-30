@@ -28,17 +28,17 @@ const METHOD_LABELS: Record<string, string> = {
   raast: "Raast", card: "Card", bank: "Bank Transfer", "": "—",
 };
 
-function StatCard({ label, value, sub, color = "#7C3AED", icon }: {
-  label: string; value: string; sub?: string; color?: string; icon?: React.ReactNode;
+function StatCard({ label, value, sub, color = "var(--accent)", bg = "rgba(124, 58, 237, 0.08)", icon }: {
+  label: string; value: string; sub?: string; color?: string; bg?: string; icon?: React.ReactNode;
 }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "18px 22px", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {icon && <div style={{ width: 32, height: 32, borderRadius: 9, background: color + "15", display: "grid", placeItems: "center", color }}>{icon}</div>}
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</div>
+    <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)", flex: 1 }}>
+      {icon && <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color }}>{icon}</div>}
+      <div>
+        <div style={{ fontSize: 24, fontWeight: 850, color, lineHeight: 1.1 }}>{value}</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+        {sub && <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2, fontWeight: 500 }}>{sub}</div>}
       </div>
-      <div style={{ fontSize: 22, fontWeight: 900, color, letterSpacing: "-0.5px" }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: "#9898b0" }}>{sub}</div>}
     </div>
   );
 }
@@ -203,41 +203,41 @@ export default function InvoicesPage() {
       )}
 
       {/* Desktop layout */}
-      <div className="dash-page desktop-only" style={{ background: "#f4f5f7", display: "flex", flexDirection: "column", gap: 16, paddingTop: 16 }}>
+      <div className="dash-page dashboard-polish desktop-only" style={{ background: "#ffffff", display: "flex", flexDirection: "column", gap: 20, paddingTop: 20, minHeight: "100vh" }}>
 
         {/* Page header */}
-        <div className="page-header">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 11, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "grid", placeItems: "center" }}>
-                <ShoppingCart size={18} color="#fff" />
+            <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--accent-gradient)", display: "grid", placeItems: "center", boxShadow: "0 4px 12px var(--accent-glow)" }}>
+                <ShoppingCart size={20} color="#fff" />
               </div>
               POS Invoices
             </div>
-            <div style={{ fontSize: 13, color: "#9898b0", marginTop: 4 }}>Receipts from completed POS transactions</div>
+            <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>Receipts from completed POS transactions</div>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="stat-cards-flex">
-          <StatCard label="Total Transactions" value={String(stats.total)}        sub={`${stats.paidCount} paid · ${stats.unpaidCount} unpaid`} icon={<ReceiptText size={16} />} />
-          <StatCard label="Revenue Collected"  value={fmt(stats.revenue)}         color="#059669" icon={<TrendingUp size={16} />} />
-          <StatCard label="Outstanding"        value={fmt(stats.outstanding)}      color="#d97706" sub={`${stats.unpaidCount} unpaid`} icon={<Clock size={16} />} />
-          <StatCard label="Unique Clients"     value={String(stats.uniqueClients)} color="#0284c7" icon={<Users size={16} />} />
+        <div className="stats-grid-4">
+          <StatCard label="Total Transactions" value={String(stats.total)}        sub={`${stats.paidCount} paid · ${stats.unpaidCount} unpaid`} icon={<ReceiptText size={22} />} bg="rgba(124, 58, 237, 0.08)" color="var(--accent)" />
+          <StatCard label="Revenue Collected"  value={fmt(stats.revenue)}         icon={<TrendingUp size={22} />} bg="#ecfdf5" color="#059669" />
+          <StatCard label="Outstanding"        value={fmt(stats.outstanding)}      sub={`${stats.unpaidCount} unpaid`} icon={<Clock size={22} />} bg="#fffbeb" color="#d97706" />
+          <StatCard label="Unique Clients"     value={String(stats.uniqueClients)} icon={<Users size={22} />} bg="#f0f9ff" color="#0284c7" />
         </div>
 
         {/* Table card */}
-        <div className="table-scroll-wrap">
+        <div className="table-scroll-wrap" style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", overflow: "hidden" }}>
 
           {/* Toolbar */}
-          <div style={{ padding: "16px 24px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ padding: "16px 24px", borderBottom: "1px solid #f0f0f5", display: "flex", alignItems: "center", gap: 12, background: "#fff" }}>
             <div style={{ flex: 1, position: "relative" }}>
-              <Search size={14} color="#b0b0c8" style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)" }} />
+              <Search size={15} color="#b0b0c8" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by client, invoice #, or staff…"
-                style={{ ...inputStyle, paddingLeft: 34, maxWidth: 360 }}
+                style={{ ...inputStyle, paddingLeft: 38, maxWidth: 360, borderRadius: 12, border: "1px solid #e3e0eb", padding: "10px 14px 10px 38px", boxShadow: "0 2px 8px rgba(0,0,0,0.01)", transition: "border-color 0.15s" }}
               />
             </div>
             {(["all", "paid", "unpaid"] as const).map((s) => (
@@ -245,11 +245,13 @@ export default function InvoicesPage() {
                 key={s}
                 onClick={() => setFilterStatus(s)}
                 style={{
-                  padding: "7px 16px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 700,
-                  border: filterStatus === s ? "none" : "1px solid #e8e8f0",
-                  background: filterStatus === s ? "linear-gradient(135deg,#5B21B6,#9333EA)" : "#fff",
+                  padding: "9px 20px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 750, transition: "all 0.15s",
+                  border: filterStatus === s ? "none" : "1px solid #e3e0eb",
+                  background: filterStatus === s ? "var(--accent-gradient)" : "#fff",
                   color: filterStatus === s ? "#fff" : "#6b6b8a",
+                  boxShadow: filterStatus === s ? "0 3px 10px var(--accent-glow)" : "none",
                 }}
+                className={filterStatus !== s ? "hover-bg-light" : ""}
               >
                 {s === "all" ? "All" : s === "paid" ? "Paid" : "Unpaid"}
               </button>
@@ -260,20 +262,20 @@ export default function InvoicesPage() {
             <div style={{ background: "#fff" }}>
 
               {/* Column headers */}
-              <div style={{ display: "grid", gridTemplateColumns: "150px 1fr 160px 110px 80px 110px 100px 100px", padding: "10px 24px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "150px 1fr 160px 110px 80px 110px 100px 100px", padding: "12px 24px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd", alignItems: "center" }}>
                 {["Invoice #", "Client", "Staff", "Date", "Items", "Method", "Amount", "Actions"].map((h) => (
-                  <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</div>
+                  <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#8e89a3", letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</div>
                 ))}
               </div>
 
               {filtered.length === 0 ? (
                 <div style={{ padding: "64px 24px", textAlign: "center" }}>
-                  <div style={{ width: 64, height: 64, borderRadius: 18, background: "#f4f5f7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
-                    <ShoppingCart size={28} color="#c0c0d8" />
+                  <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(226,223,235,0.5)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", boxShadow: "0 4px 12px rgba(0,0,0,0.02)" }}>
+                    <ShoppingCart size={28} color="#9898b0" />
                   </div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a2e", marginBottom: 8 }}>No POS transactions yet</div>
-                  <div style={{ fontSize: 13, color: "#9898b0" }}>
-                    Complete a sale through the <strong style={{ color: "#7C3AED" }}>POS</strong> to see invoices here.
+                  <div style={{ fontSize: 13, color: "#9898b0", fontWeight: 500 }}>
+                    Complete a sale through the <strong style={{ color: "var(--accent)", fontWeight: 700 }}>POS</strong> to see invoices here.
                   </div>
                 </div>
               ) : filtered.map((inv, i) => {
@@ -282,68 +284,70 @@ export default function InvoicesPage() {
                 return (
                   <div
                     key={inv.id}
+                    className="hover-bg-row"
                     style={{
                       display: "grid", gridTemplateColumns: "150px 1fr 160px 110px 80px 110px 100px 100px",
-                      padding: "13px 24px",
-                      borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none",
-                      alignItems: "center", transition: "background 0.1s",
+                      padding: "16px 24px",
+                      borderBottom: i < filtered.length - 1 ? "1px solid #f8f8fc" : "none",
+                      alignItems: "center", transition: "background 0.15s",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     {/* Invoice # */}
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#7C3AED", fontFamily: "monospace" }}>{inv.number}</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)", fontFamily: "monospace", letterSpacing: "-0.02em" }}>{inv.number}</div>
 
                     {/* Client */}
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{inv.clientName}</div>
-                      {inv.clientPhone && <div style={{ fontSize: 11, color: "#9898b0" }}>{inv.clientPhone}</div>}
+                      <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{inv.clientName}</div>
+                      {inv.clientPhone && <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2, fontWeight: 500 }}>{inv.clientPhone}</div>}
                     </div>
 
                     {/* Staff */}
-                    <div style={{ fontSize: 13, color: "#4a4a6a" }}>{inv.staffName || "—"}</div>
+                    <div style={{ fontSize: 13, color: "#4a4a6a", fontWeight: 600 }}>{inv.staffName || "—"}</div>
 
                     {/* Date */}
-                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(inv.date)}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{fmtDate(inv.date)}</div>
 
                     {/* Items count */}
-                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{inv.items.length} item{inv.items.length !== 1 ? "s" : ""}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{inv.items.length} item{inv.items.length !== 1 ? "s" : ""}</div>
 
                     {/* Payment method */}
-                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod}</div>
 
                     {/* Amount */}
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>{fmt(inv.total)}</div>
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 3, padding: "2px 8px", borderRadius: 20, background: sm.bg, fontSize: 10, fontWeight: 700, color: sm.color }}>
-                        <StatusIcon size={9} /> {sm.label}
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4, padding: "3px 8px", borderRadius: 20, background: sm.bg, fontSize: 10, fontWeight: 750, color: sm.color, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                        <StatusIcon size={10} /> {sm.label}
                       </div>
                     </div>
 
                     {/* Actions */}
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 8 }}>
                       <button
                         onClick={() => setViewingInvoice(inv)}
                         title="View / Print"
-                        style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #e8e8f0", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                        style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #e3e0eb", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                        className="hover-bg-light"
                       >
-                        <Eye size={13} color="#9898b0" />
+                        <Eye size={14} color="#9898b0" />
                       </button>
                       {inv.status === "unpaid" && (
                         <button
                           onClick={() => handleMarkPaid(inv.id)}
                           title="Mark Paid"
-                          style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #bbf7d0", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                          style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #bbf7d0", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                          className="hover-scale"
                         >
-                          <CheckCircle size={13} color="#059669" />
+                          <CheckCircle size={14} color="#059669" />
                         </button>
                       )}
                       <button
                         onClick={() => setDeleteConfirm(inv.id)}
                         title="Delete"
-                        style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #fecaca", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                        style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                        className="hover-scale"
                       >
-                        <Trash2 size={13} color="#dc2626" />
+                        <Trash2 size={14} color="#dc2626" />
                       </button>
                     </div>
                   </div>

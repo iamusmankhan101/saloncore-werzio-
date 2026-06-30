@@ -18,9 +18,10 @@ const SECTIONS = [
 ];
 
 const inp: CSSProperties = {
-  width: "100%", padding: "9px 12px", borderRadius: 8,
-  border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e",
+  width: "100%", padding: "10px 14px", borderRadius: 12,
+  border: "1px solid #e3e0eb", fontSize: 13, color: "#1a1a2e",
   outline: "none", background: "#fff", boxSizing: "border-box",
+  transition: "border-color 0.15s", boxShadow: "0 2px 8px rgba(0,0,0,0.01)",
 };
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -35,8 +36,8 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 function Toggle({ value, onChange }: { value: boolean; onChange: () => void }) {
   return (
-    <div onClick={onChange} style={{ width: 44, height: 24, borderRadius: 12, background: value ? "#7C3AED" : "#e0e0ec", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
-      <div style={{ position: "absolute", top: 3, left: value ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
+    <div onClick={onChange} style={{ width: 44, height: 24, borderRadius: 12, background: value ? "var(--accent)" : "#e3e0eb", cursor: "pointer", position: "relative", transition: "all 0.25s", flexShrink: 0 }}>
+      <div style={{ position: "absolute", top: 3, left: value ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "all 0.25s", boxShadow: "0 2px 6px rgba(0,0,0,0.15)" }} />
     </div>
   );
 }
@@ -51,8 +52,8 @@ function SavedBanner() {
 
 function SaveBar({ onSave }: { onSave: () => void }) {
   return (
-    <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 8, borderTop: "1px solid #f0f0f8", marginTop: 8 }}>
-      <button onClick={onSave} style={{ padding: "9px 24px", borderRadius: 9, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}>
+    <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 16, borderTop: "1px solid #f0f0f5", marginTop: 16 }}>
+      <button onClick={onSave} style={{ padding: "10px 24px", borderRadius: 12, border: "none", background: "var(--accent-gradient)", fontSize: 13, fontWeight: 750, color: "#fff", cursor: "pointer", transition: "all 0.15s", boxShadow: "0 4px 14px var(--accent-glow)" }} className="hover-scale">
         Save Changes
       </button>
     </div>
@@ -206,17 +207,18 @@ function Security() {
   const canSave = form.current.length > 0 && form.newPass.length > 0 && form.newPass === form.confirm;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {saved && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "#ecfdf5", borderRadius: 8, fontSize: 13, color: "#059669", fontWeight: 500 }}><Check size={14} /> Password updated successfully.</div>}
+      {saved && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "#ecfdf5", borderRadius: 12, fontSize: 13, color: "#059669", fontWeight: 500 }}><Check size={14} /> Password updated successfully.</div>}
       <Field label="Current Password"><input type="password" value={form.current} onChange={(e) => set("current", e.target.value)} placeholder="••••••••" style={inp} /></Field>
       <Field label="New Password"><input type="password" value={form.newPass} onChange={(e) => set("newPass", e.target.value)} placeholder="••••••••" style={inp} /></Field>
       <Field label="Confirm New Password">
-        <input type="password" value={form.confirm} onChange={(e) => set("confirm", e.target.value)} placeholder="••••••••" style={{ ...inp, borderColor: form.confirm && form.confirm !== form.newPass ? "#dc2626" : "#e8e8f0" }} />
+        <input type="password" value={form.confirm} onChange={(e) => set("confirm", e.target.value)} placeholder="••••••••" style={{ ...inp, borderColor: form.confirm && form.confirm !== form.newPass ? "#dc2626" : "#e3e0eb" }} />
         {form.confirm && form.confirm !== form.newPass && <div style={{ fontSize: 11, color: "#dc2626", marginTop: 4 }}>Passwords do not match.</div>}
       </Field>
-      <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 8, borderTop: "1px solid #f0f0f8", marginTop: 8 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 16, borderTop: "1px solid #f0f0f5", marginTop: 16 }}>
         <button
           onClick={() => { if (canSave) { setSaved(true); setForm({ current: "", newPass: "", confirm: "" }); setTimeout(() => setSaved(false), 3000); } }}
-          style={{ padding: "9px 24px", borderRadius: 9, border: "none", background: canSave ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSave ? "#fff" : "#b0b0c8", cursor: canSave ? "pointer" : "not-allowed" }}>
+          style={{ padding: "10px 24px", borderRadius: 12, border: "none", background: canSave ? "var(--accent-gradient)" : "#e3e0eb", fontSize: 13, fontWeight: 750, color: canSave ? "#fff" : "#9898b0", cursor: canSave ? "pointer" : "not-allowed", transition: "all 0.15s", boxShadow: canSave ? "0 4px 14px var(--accent-glow)" : "none" }}
+          className={canSave ? "hover-scale" : ""}>
           Update Password
         </button>
       </div>
@@ -508,32 +510,32 @@ export default function SettingsPage() {
   const [active, setActive] = useState("salon");
 
   return (
-    <div style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
-      <div>
-        <div style={{ fontWeight: 700, fontSize: 22, color: "#1a1a2e" }}>Settings</div>
-        <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>Manage your salon preferences</div>
+    <div className="dash-page dashboard-polish desktop-only" style={{ background: "#ffffff", minHeight: "100vh", padding: "32px 32px 48px", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div className="page-header" style={{ marginBottom: 4 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 850, color: "#1a1a2e", margin: 0, letterSpacing: "-0.025em" }}>Settings</h1>
+        <p style={{ fontSize: 13, color: "#6b6b8a", margin: "4px 0 0", fontWeight: 500 }}>Manage your salon preferences</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 20, alignItems: "start" }}>
-        <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 24, alignItems: "start" }}>
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", boxShadow: "0 4px 16px rgba(0,0,0,0.02)", overflow: "hidden", padding: "8px 0" }}>
           {SECTIONS.map(({ id, label, icon: Icon }) => {
             const isActive = active === id;
             return (
-              <button key={id} onClick={() => setActive(id)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", background: isActive ? "#F5F3FF" : "transparent", border: "none", borderLeft: `3px solid ${isActive ? "#7C3AED" : "transparent"}`, cursor: "pointer" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <Icon size={15} color={isActive ? "#7C3AED" : "#9898b0"} />
-                  <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? "#7C3AED" : "#6b6b8a" }}>{label}</span>
+              <button key={id} onClick={() => setActive(id)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", background: isActive ? "var(--accent-light)" : "transparent", border: "none", borderLeft: `3px solid ${isActive ? "var(--accent)" : "transparent"}`, cursor: "pointer", transition: "all 0.15s" }} className={isActive ? "" : "hover-bg-light"}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <Icon size={16} color={isActive ? "var(--accent)" : "#6b6b8a"} />
+                  <span style={{ fontSize: 13, fontWeight: isActive ? 750 : 500, color: isActive ? "var(--accent-dark)" : "#1a1a2e" }}>{label}</span>
                 </div>
-                <ChevronRight size={13} color={isActive ? "#7C3AED" : "#c0c0d0"} />
+                <ChevronRight size={14} color={isActive ? "var(--accent)" : "#d0d0e0"} />
               </button>
             );
           })}
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "24px 28px" }}>
+        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "30px 32px" }}>
           {SECTIONS.map(({ id, label }) => (
             <div key={id} style={{ display: active === id ? "block" : "none" }}>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e", marginBottom: 20 }}>{label}</div>
+              <div style={{ fontWeight: 800, fontSize: 18, color: "#1a1a2e", marginBottom: 24 }}>{label}</div>
               {id === "salon"         && <SalonProfile />}
               {id === "hours"         && <BusinessHours />}
               {id === "notifications" && <Notifications />}

@@ -523,8 +523,8 @@ export default function MessagesPage() {
   const inputSt: React.CSSProperties = { width: "100%", height: 38, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", background: "#fff", outline: "none", boxSizing: "border-box" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f6f9" }}>
-      <div style={{ paddingLeft: 25 }}>
+    <div className="dashboard-polish" style={{ minHeight: "100vh", background: "#f5f6f9" }}>
+      <div className="dashboard-topbar" style={{ paddingLeft: 25 }}>
         <DashboardHeader title="WhatsApp Messaging" subtitle="Send & manage client messages" />
       </div>
 

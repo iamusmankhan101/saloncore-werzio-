@@ -190,7 +190,7 @@ export default function ServicesPage() {
   const activeCount = services.filter(s => s.isActive).length;
 
   return (
-    <div className="dash-page dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="dash-page dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
       {(showAdd || editingService) && (
         <AddEditServiceModal
           onClose={() => { setShowAdd(false); setEditingService(null); }}
@@ -208,41 +208,63 @@ export default function ServicesPage() {
       )}
 
       {/* Header */}
-      <div className="page-header">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 22, color: "#1a1a2e" }}>Services</div>
-          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 2 }}>{services.length} salon services · {activeCount} active</div>
+          <div style={{ fontWeight: 850, fontSize: 24, color: "#1a1a2e", letterSpacing: "-0.025em" }}>Services</div>
+          <div style={{ fontSize: 12, color: "#9898b0", marginTop: 4, fontWeight: 500 }}>
+            {services.length} salon services · <span style={{ color: "var(--accent)", fontWeight: 700 }}>{activeCount} active</span>
+          </div>
         </div>
-        <button onClick={() => setShowAdd(true)} className="page-header-btn" style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}>
+        <button onClick={() => setShowAdd(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 12, border: "none", background: "var(--accent-gradient)", fontSize: 13, fontWeight: 750, color: "#fff", boxShadow: "0 4px 14px var(--accent-glow)", cursor: "pointer", transition: "all 0.18s ease" }} className="page-header-btn">
           <Plus size={16} /> Add Service
         </button>
       </div>
 
       {/* Stats */}
-      <div className="stats-grid-4">
+      <div className="stats-grid-4" style={{ marginBottom: 4 }}>
         {[
-          { label: "Total Services",    value: totalCount,       icon: <Scissors size={18} color="#7C3AED" />,  bg: "#F5F3FF" },
-          { label: "Active Services",   value: activeCount,      icon: <Sparkles size={18} color="#059669" />,  bg: "#ecfdf5" },
-          { label: "Average Duration",  value: `${avgDuration} min`, icon: <Clock size={18} color="#0284c7" />, bg: "#f0f9ff" },
-          { label: "Highest Price",     value: fmt(maxPrice),    icon: <DollarSign size={18} color="#db2777" />, bg: "#fdf2f8" },
+          { label: "Total Services",    value: totalCount,       icon: <Scissors size={18} />,  color: "var(--accent)", bg: "rgba(124, 58, 237, 0.08)" },
+          { label: "Active Services",   value: activeCount,      icon: <Sparkles size={18} />,  color: "#059669", bg: "rgba(5, 150, 105, 0.08)" },
+          { label: "Average Duration",  value: `${avgDuration} min`, icon: <Clock size={18} />, color: "#3b82f6", bg: "rgba(59, 130, 246, 0.08)" },
+          { label: "Highest Price",     value: fmt(maxPrice),    icon: <DollarSign size={18} />, color: "#db2777", bg: "rgba(219, 39, 119, 0.08)" },
         ].map((stat, i) => (
-          <div key={i} style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", padding: "20px", display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: stat.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>{stat.icon}</div>
+          <div key={i} style={{
+            background: "#fff",
+            borderRadius: 18,
+            border: "1px solid rgba(226,223,235,.95)",
+            boxShadow: "0 8px 28px rgba(38,25,75,.04)",
+            padding: "20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 16
+          }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: stat.bg, color: stat.color, display: "flex", alignItems: "center", justifyContent: "center" }}>{stat.icon}</div>
             <div>
-              <div style={{ fontSize: 11, color: "#9898b0", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{stat.label}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a2e", marginTop: 4 }}>{stat.value}</div>
+              <div style={{ fontSize: 11, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>{stat.label}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "#1a1a2e", marginTop: 6, letterSpacing: "-0.01em" }}>{stat.value}</div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Category filter */}
-      <div className="filter-tabs" style={{ borderBottom: "1px solid #ebebf0" }}>
+      <div className="filter-tabs" style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 12, padding: 4, alignSelf: "flex-start", marginBottom: 4 }}>
         {["all", "hair", "skin", "nails", "bridal"].map((cat) => {
           const active = filter === cat;
           return (
             <button key={cat} onClick={() => setFilter(cat)}
-              style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: active ? "#7C3AED" : "transparent", color: active ? "#fff" : "#6b6b8a", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>
+              style={{
+                padding: "7px 16px",
+                borderRadius: 9,
+                border: "none",
+                background: active ? "var(--accent-gradient)" : "transparent",
+                color: active ? "#fff" : "#6b6b8a",
+                fontSize: 13,
+                fontWeight: 750,
+                cursor: "pointer",
+                boxShadow: active ? "0 4px 10px var(--accent-glow)" : "none",
+                transition: "all 0.18s ease"
+              }}>
               {cat === "all" ? "All Services" : CATEGORY_LABELS[cat]?.label}
             </button>
           );
@@ -262,23 +284,20 @@ export default function ServicesPage() {
             const badge    = CATEGORY_LABELS[sv.category] || { label: sv.category, bg: "#f3f4f6", color: "#4b5563" };
             const assigned = staff.filter((st) => sv.assignedStaffIds.includes(st.id));
             return (
-              <div key={sv.id} style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", padding: "20px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <div key={sv.id} style={{ background: "#fff", padding: "24px", display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                   <div>
-                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", background: badge.bg, color: badge.color, padding: "3px 8px", borderRadius: 20 }}>{badge.label}</span>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e", marginTop: 8 }}>{sv.name}</div>
+                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", background: badge.bg, color: badge.color, padding: "3px 10px", borderRadius: 20, letterSpacing: "0.05em" }}>{badge.label}</span>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e", marginTop: 12, letterSpacing: "-0.01em" }}>{sv.name}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <button onClick={() => setEditingService(sv)}
-                      style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #EDE9FE", background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "#EDE9FE"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "#F5F3FF"; }}>
+                      style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #EDE9FE", background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                      className="hover-bg-light">
                       <Pencil size={14} color="#7C3AED" />
                     </button>
                     <button onClick={() => setDeleteTarget(sv)}
-                      style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "#fee2e2"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "#fef2f2"; }}>
+                      style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}>
                       <Trash2 size={14} color="#dc2626" />
                     </button>
                     <div onClick={() => toggleServiceStatus(sv.id)} style={{ width: 40, height: 20, borderRadius: 10, background: sv.isActive ? "#059669" : "#e0e0ec", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
@@ -286,22 +305,22 @@ export default function ServicesPage() {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, borderTop: "1px solid #f4f4f8", borderBottom: "1px solid #f4f4f8", padding: "12px 0" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, borderTop: "1px solid #f8f8fc", borderBottom: "1px solid #f8f8fc", padding: "14px 0" }}>
                   <div>
-                    <div style={{ fontSize: 10, color: "#b0b0c8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Price</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#7C3AED", marginTop: 2 }}>{fmt(sv.price)}</div>
+                    <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Price</div>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: "var(--accent)", marginTop: 4 }}>{fmt(sv.price)}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: "#b0b0c8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Duration</div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "#1a1a2e", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}><Clock size={13} color="#9898b0" />{sv.durationMin} min</div>
+                    <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Duration</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}><Clock size={13} color="#9898b0" />{sv.durationMin} min</div>
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: "#b0b0c8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}><Users size={12} /> Assigned Staff ({assigned.length})</div>
+                  <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}><Users size={12} /> Assigned Staff ({assigned.length})</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                     {assigned.length > 0 ? assigned.map((st) => (
-                      <span key={st.id} style={{ fontSize: 11, fontWeight: 500, color: st.color, background: st.color + "15", padding: "2px 8px", borderRadius: 12 }}>{st.name}</span>
-                    )) : <span style={{ fontSize: 12, color: "#9898b0", fontStyle: "italic" }}>No staff assigned</span>}
+                      <span key={st.id} style={{ fontSize: 11, fontWeight: 600, color: st.color, background: st.color + "12", padding: "3px 10px", borderRadius: 12 }}>{st.name}</span>
+                    )) : <span style={{ fontSize: 12, color: "#9898b0", fontStyle: "italic", fontWeight: 500 }}>No staff assigned</span>}
                   </div>
                 </div>
               </div>

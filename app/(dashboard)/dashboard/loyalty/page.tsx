@@ -38,20 +38,17 @@ function TierBadge({ tier }: { tier: ReturnType<typeof getTier> }) {
   );
 }
 
-function StatCard({ icon, label, value, sub, color }: {
-  icon: React.ReactNode; label: string; value: string; sub?: string; color: string;
+function StatCard({ icon, label, value, sub, color, bg }: {
+  icon: React.ReactNode; label: string; value: string; sub?: string; color: string; bg?: string;
 }) {
   return (
-    <div style={{
-      background: "#fff", borderRadius: 16, border: "1px solid #e8e8f0",
-      padding: "20px 22px", display: "flex", flexDirection: "column", gap: 6,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: color + "18", display: "grid", placeItems: "center", color }}>{icon}</div>
-        <span style={{ fontSize: 12, color: "#9898b0", fontWeight: 600 }}>{label}</span>
+    <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)", flex: 1 }}>
+      <div style={{ width: 46, height: 46, borderRadius: 12, background: bg || (color + "18"), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color }}>{icon}</div>
+      <div>
+        <div style={{ fontSize: 24, fontWeight: 850, color, lineHeight: 1.1 }}>{value}</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+        {sub && <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2, fontWeight: 500 }}>{sub}</div>}
       </div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: "#1a1a2e" }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: "#9898b0" }}>{sub}</div>}
     </div>
   );
 }
@@ -760,32 +757,33 @@ export default function LoyaltyPage() {
   ];
 
   return (
-    <div className="dashboard-polish" style={{ minHeight: "100vh", background: "#f7f7fb", padding: "28px 28px 40px" }}>
+    <div className="dash-page dashboard-polish desktop-only" style={{ minHeight: "100vh", background: "#ffffff", padding: "28px 32px 48px", display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#7C3AED,#9333EA)", display: "grid", placeItems: "center" }}>
-            <Gift size={22} color="#fff" />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 14, background: "var(--accent-gradient)", display: "grid", placeItems: "center", boxShadow: "0 4px 12px var(--accent-glow)" }}>
+            <Gift size={24} color="#fff" />
           </div>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#1a1a2e" }}>Loyalty Program</div>
-            <div style={{ fontSize: 13, color: "#9898b0" }}>Reward your clients, grow retention</div>
+            <div style={{ fontSize: 24, fontWeight: 850, color: "#1a1a2e", letterSpacing: "-0.025em" }}>Loyalty Program</div>
+            <div style={{ fontSize: 13, color: "#9898b0", fontWeight: 500, marginTop: 4 }}>Reward your clients, grow retention</div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 12 }}>
           <button onClick={() => setShowSettings(true)} style={{
-            display: "flex", alignItems: "center", gap: 6, padding: "9px 16px",
-            borderRadius: 10, border: "1.5px solid #e8e8f0", background: "#fff",
-            fontSize: 13, fontWeight: 600, color: "#5a5a7a", cursor: "pointer",
-          }}>
-            <Settings2 size={15} /> Settings
+            display: "flex", alignItems: "center", gap: 6, padding: "10px 18px",
+            borderRadius: 12, border: "1px solid #e3e0eb", background: "#fff",
+            fontSize: 13, fontWeight: 750, color: "#6b6b8a", cursor: "pointer", transition: "all 0.15s"
+          }} className="hover-bg-light">
+            <Settings2 size={16} /> Settings
           </button>
           <div style={{
-            display: "flex", alignItems: "center", gap: 6, padding: "9px 16px",
-            borderRadius: 10, border: "none",
+            display: "flex", alignItems: "center", gap: 6, padding: "10px 18px",
+            borderRadius: 12, border: "none",
             background: settings.enabled ? "#f0fdf4" : "#fef2f2",
-            fontSize: 13, fontWeight: 700,
+            fontSize: 13, fontWeight: 800,
             color: settings.enabled ? "#059669" : "#dc2626",
+            boxShadow: settings.enabled ? "0 4px 12px rgba(5,150,105,0.06)" : "none"
           }}>
             {settings.enabled ? "● Active" : "● Paused"}
           </div>
@@ -794,10 +792,11 @@ export default function LoyaltyPage() {
 
       {/* Universal QR */}
       <div style={{
-        display: "grid", gridTemplateColumns: "220px 1fr", gap: 20, alignItems: "center",
-        background: "#fff", border: "1px solid #e8e8f0", borderRadius: 18, padding: 18, marginBottom: 24,
+        display: "grid", gridTemplateColumns: "220px 1fr", gap: 24, alignItems: "center",
+        background: "#fff", border: "1px solid rgba(226,223,235,.95)", borderRadius: 18, padding: 20,
+        boxShadow: "0 8px 28px rgba(38,25,75,.04)"
       }}>
-        <div style={{ width: 190, height: 190, borderRadius: 16, background: "#f7f7fb", border: "1px solid #eeeeF6", display: "grid", placeItems: "center", overflow: "hidden" }}>
+        <div style={{ width: 190, height: 190, borderRadius: 16, background: "rgba(124, 58, 237, 0.04)", border: "1px solid rgba(124, 58, 237, 0.1)", display: "grid", placeItems: "center", overflow: "hidden" }}>
           {qrSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={qrSrc} alt="Universal salon loyalty QR code" width={168} height={168} />
@@ -821,11 +820,12 @@ export default function LoyaltyPage() {
                 setTimeout(() => setQrCopied(false), 1800);
               }}
               disabled={!claimUrl}
-              style={{ display: "flex", alignItems: "center", gap: 7, border: "none", borderRadius: 10, background: "#7C3AED", color: "#fff", padding: "10px 14px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", gap: 8, border: "none", borderRadius: 12, background: "var(--accent-gradient)", color: "#fff", padding: "10px 18px", fontSize: 13, fontWeight: 800, cursor: "pointer", transition: "all 0.15s", boxShadow: "0 4px 14px var(--accent-glow)" }}
+              className="hover-scale"
             >
               <Copy size={15} /> {qrCopied ? "Copied" : "Copy Link"}
             </button>
-            <a href={claimUrl || "#"} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 7, border: "1.5px solid #e8e8f0", borderRadius: 10, background: "#fff", color: "#5a5a7a", padding: "10px 14px", fontSize: 13, fontWeight: 800 }}>
+            <a href={claimUrl || "#"} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #e3e0eb", borderRadius: 12, background: "#fff", color: "#6b6b8a", padding: "10px 18px", fontSize: 13, fontWeight: 800, textDecoration: "none", transition: "all 0.15s" }} className="hover-bg-light">
               <ExternalLink size={15} /> Open Claim Page
             </a>
           </div>
@@ -834,32 +834,33 @@ export default function LoyaltyPage() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 24 }}>
-        <StatCard icon={<Users size={18} />}     label="Active Members"    value={activeMembers.toString()} sub={`of ${clients.length} clients`} color="#7C3AED" />
-        <StatCard icon={<Star size={18} />}       label="Total Points Balance" value={totalPts.toLocaleString()} sub={`≈ ${fmt(totalPts * settings.rupeePerPoint)}`} color="#d97706" />
-        <StatCard icon={<TrendingUp size={18} />} label="Lifetime Earned"   value={totalEarned.toLocaleString()} sub="all time" color="#059669" />
-        <StatCard icon={<Award size={18} />}      label="Platinum Members"  value={platCount.toString()} sub="top tier" color="#6b21a8" />
+      <div className="stats-grid-4">
+        <StatCard icon={<Users size={22} />}     label="Active Members"    value={activeMembers.toString()} sub={`of ${clients.length} clients`} color="var(--accent)" bg="rgba(124, 58, 237, 0.08)" />
+        <StatCard icon={<Star size={22} />}       label="Total Points Balance" value={totalPts.toLocaleString()} sub={`≈ ${fmt(totalPts * settings.rupeePerPoint)}`} color="#d97706" bg="#fffbeb" />
+        <StatCard icon={<TrendingUp size={22} />} label="Lifetime Earned"   value={totalEarned.toLocaleString()} sub="all time" color="#059669" bg="#ecfdf5" />
+        <StatCard icon={<Award size={22} />}      label="Platinum Members"  value={platCount.toString()} sub="top tier" color="#6b21a8" bg="#f3e8ff" />
       </div>
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 0 }}>
-          <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9898b0" }} />
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ position: "relative", flex: "1 1 240px", minWidth: 0 }}>
+          <Search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#9898b0" }} />
           <input
             value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search clients..."
-            style={{ width: "100%", padding: "9px 12px 9px 34px", borderRadius: 10, border: "1.5px solid #e8e8f0", fontSize: 13, outline: "none", background: "#fff", boxSizing: "border-box" }}
+            style={{ width: "100%", padding: "10px 14px 10px 38px", borderRadius: 12, border: "1px solid #e3e0eb", fontSize: 13, outline: "none", background: "#fff", boxSizing: "border-box", boxShadow: "0 2px 8px rgba(0,0,0,0.01)", transition: "border-color 0.15s" }}
           />
         </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {TIER_FILTERS.map((f) => (
             <button key={f.value} onClick={() => setTierFilter(f.value)} style={{
-              padding: "7px 14px", borderRadius: 20, cursor: "pointer",
-              fontSize: 12, fontWeight: 700,
-              background: tierFilter === f.value ? "#7C3AED" : "#fff",
-              color: tierFilter === f.value ? "#fff" : "#5a5a7a",
-              border: tierFilter === f.value ? "none" : "1.5px solid #e8e8f0",
-            } as React.CSSProperties}>
+              padding: "9px 18px", borderRadius: 20, cursor: "pointer",
+              fontSize: 13, fontWeight: 750, transition: "all 0.15s",
+              background: tierFilter === f.value ? "var(--accent)" : "#fff",
+              color: tierFilter === f.value ? "#fff" : "#6b6b8a",
+              border: tierFilter === f.value ? "none" : "1px solid #e3e0eb",
+              boxShadow: tierFilter === f.value ? "0 4px 12px rgba(124, 58, 237, 0.2)" : "none"
+            }} className={tierFilter !== f.value ? "hover-bg-light" : ""}>
               {f.label}
             </button>
           ))}
@@ -867,26 +868,28 @@ export default function LoyaltyPage() {
       </div>
 
       {/* Leaderboard */}
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e8e8f0", overflow: "hidden" }}>
-        <div style={{ padding: "16px 22px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>Client Leaderboard</div>
-          <div style={{ fontSize: 12, color: "#9898b0" }}>{filtered.length} clients</div>
+      <div className="table-scroll-wrap" style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", overflow: "hidden" }}>
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid #f0f0f5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a2e" }}>Client Leaderboard</div>
+          <div style={{ fontSize: 13, color: "#9898b0", fontWeight: 600 }}>{filtered.length} clients</div>
         </div>
 
         {filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "48px 24px", color: "#9898b0" }}>
-            <Gift size={36} style={{ marginBottom: 10, opacity: 0.4 }} />
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>No members yet</div>
-            <div style={{ fontSize: 13, marginTop: 4 }}>Points are awarded when appointments are marked completed</div>
+          <div style={{ textAlign: "center", padding: "64px 24px", color: "#9898b0" }}>
+            <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(226,223,235,0.5)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", boxShadow: "0 4px 12px rgba(0,0,0,0.02)" }}>
+              <Gift size={32} color="#9898b0" />
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a2e", marginBottom: 8 }}>No members yet</div>
+            <div style={{ fontSize: 13, color: "#9898b0", fontWeight: 500 }}>Points are awarded when appointments are marked completed</div>
           </div>
         ) : (
-          <div>
+          <div className="table-scroll-inner">
             {/* Table header */}
             <div style={{
               display: "grid", gridTemplateColumns: "40px 1fr 120px 100px 100px 80px 36px",
-              padding: "10px 18px", background: "#f7f7fb",
-              fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em",
-              gap: 8,
+              padding: "12px 24px", background: "#faf9fd",
+              fontSize: 10, fontWeight: 800, color: "#8e89a3", textTransform: "uppercase", letterSpacing: "0.08em",
+              gap: 12, alignItems: "center"
             }}>
               <div>#</div><div>Client</div><div>Tier</div>
               <div style={{ textAlign: "right" }}>Balance</div>
@@ -898,24 +901,23 @@ export default function LoyaltyPage() {
               <div
                 key={e.client.id}
                 onClick={() => setSelected(e.client)}
+                className="hover-bg-row"
                 style={{
                   display: "grid", gridTemplateColumns: "40px 1fr 120px 100px 100px 80px 36px",
-                  padding: "13px 18px", gap: 8, alignItems: "center",
-                  borderBottom: "1px solid #f7f7fb", cursor: "pointer",
+                  padding: "16px 24px", gap: 12, alignItems: "center",
+                  borderBottom: i < filtered.length - 1 ? "1px solid #f8f8fc" : "none", cursor: "pointer",
                   transition: "background 0.15s",
                 }}
-                onMouseEnter={(el) => (el.currentTarget.style.background = "#f7f7fb")}
-                onMouseLeave={(el) => (el.currentTarget.style.background = "transparent")}
               >
                 {/* Rank */}
-                <div style={{ fontSize: 13, fontWeight: 800, color: i < 3 ? "#7C3AED" : "#9898b0" }}>
+                <div style={{ fontSize: 14, fontWeight: 850, color: i < 3 ? "var(--accent)" : "#9898b0" }}>
                   {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
                 </div>
 
                 {/* Name */}
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>{e.client.name}</div>
-                  <div style={{ fontSize: 11, color: "#9898b0" }}>{e.client.phone}</div>
+                  <div style={{ fontSize: 14, fontWeight: 750, color: "#1a1a2e" }}>{e.client.name}</div>
+                  <div style={{ fontSize: 12, color: "#9898b0", fontWeight: 500 }}>{e.client.phone}</div>
                 </div>
 
                 {/* Tier */}

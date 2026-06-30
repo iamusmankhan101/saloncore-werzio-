@@ -1159,7 +1159,7 @@ export default function AccountPage() {
   const activeSection = SECTIONS.find(s => s.id === mobileScreen);
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg,#f7f5fc 0%,#f4f5f8 42%,#f6f7f9 100%)" }}>
+    <div className="dashboard-polish" style={{ minHeight: "100vh", background: "linear-gradient(180deg,#f7f5fc 0%,#f4f5f8 42%,#f6f7f9 100%)" }}>
 
       {/* ══════════ MOBILE LAYOUT ══════════ */}
 
