@@ -1026,3 +1026,38 @@ input, textarea, select { font-family: inherit; }
   0%, 100% { transform: scale(1);    box-shadow: 0 4px 20px rgba(220,38,38,0.4), 0 0 0 3px rgba(220,38,38,0.15); }
   50%       { transform: scale(1.04); box-shadow: 0 6px 28px rgba(220,38,38,0.55), 0 0 0 6px rgba(220,38,38,0.08); }
 }
+
+/* ── Custom Dashboard UI Enhancements ── */
+@keyframes pulse {
+  0% { transform: scale(0.92); opacity: 0.8; }
+  70% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.92); opacity: 0.8; }
+}
+
+.hover-bg-row {
+  cursor: pointer;
+}
+.hover-bg-row:hover {
+  background-color: #faf9fe !important;
+}
+
+.hover-bg-light {
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.hover-bg-light:hover {
+  background-color: #faf9fe !important;
+  color: var(--accent) !important;
+}
+
+.chart-bar {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.chart-bar:hover {
+  transform: scaleX(1.05) !important;
+  filter: drop-shadow(0 4px 12px rgba(124,58,237,0.35)) !important;
+}
+
+.chart-bar:hover .chart-tooltip {
+  opacity: 1 !important;
+  transform: translate(-50%, -4px) !important;
+}

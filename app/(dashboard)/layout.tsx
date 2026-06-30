@@ -331,9 +331,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
         if (latest.id !== lastSeenId) {
           // New booking detected — find all we haven't seen yet
-          const newOnes = data.appointments.filter((a) => a.id !== lastSeenId);
+          const lastSeenIndex = data.appointments.findIndex((a) => a.id === lastSeenId);
+          
+          // If the last seen ID is not in the list anymore (e.g. deleted), just update the baseline
+          if (lastSeenIndex === -1) {
+            lastSeenId = latest.id;
+            return;
+          }
+
+          const newOnes = data.appointments.slice(0, lastSeenIndex);
           lastSeenId = latest.id;
-          for (const appt of newOnes) {
+
+          // Broadcast in chronological order (oldest of the new ones first)
+          for (const appt of [...newOnes].reverse()) {
             broadcast({
               clientName:   appt.clientName,
               serviceNames: appt.serviceNames ?? [],
