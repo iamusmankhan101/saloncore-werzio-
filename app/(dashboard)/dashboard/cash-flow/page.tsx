@@ -362,6 +362,14 @@ export default function CashFlowPage() {
       const errors: string[] = [];
       rows.forEach((row, index) => {
         const line = index + 2;
+        
+        // Skip completely empty rows
+        const hasAnyData = Object.values(row).some(val => {
+          const str = String(val).trim();
+          return str !== "" && str !== "0" && str !== "undefined" && str !== "null";
+        });
+        if (!hasAnyData) return;
+        
         const date = parseDate(field(row, "date"));
         const categoryRaw = String(field(row, "category")).trim().toLowerCase();
         const category = categoryMap.get(categoryRaw);
@@ -381,7 +389,10 @@ export default function CashFlowPage() {
         if (!Number.isFinite(incomeAmount) || incomeAmount < 0) rowErrors.push("invalid income amount");
         if (!Number.isFinite(expenseAmount) || expenseAmount < 0) rowErrors.push("invalid expense amount");
         if (incomeAmount <= 0 && expenseAmount <= 0) rowErrors.push("income or expense amount is required");
-        if (expenseAmount > 0 && !category) rowErrors.push("invalid expense category");
+        if (expenseAmount > 0 && !category) {
+          const validCategories = EXPENSE_CATEGORIES.map(c => c.label).join(", ");
+          rowErrors.push(`invalid expense category "${categoryLabel}". Valid categories: ${validCategories}`);
+        }
         if (rowErrors.length > 0) {
           errors.push(`Row ${line}: ${rowErrors.join(", ")}`);
           return;
@@ -400,7 +411,10 @@ export default function CashFlowPage() {
       });
 
       if (errors.length > 0) {
-        throw new Error(`${errors.slice(0, 4).join(" · ")}${errors.length > 4 ? ` · ${errors.length - 4} more error(s)` : ""}`);
+        const displayErrors = errors.slice(0, 10);
+        const remainingCount = errors.length - 10;
+        const errorMessage = displayErrors.join(" · ") + (remainingCount > 0 ? ` · ${remainingCount} more error(s). Fix the shown errors first.` : "");
+        throw new Error(errorMessage);
       }
 
       const existingExpenseKeys = new Set(expenses.map(expenseKey));
