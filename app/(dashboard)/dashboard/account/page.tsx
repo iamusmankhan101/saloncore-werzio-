@@ -943,8 +943,8 @@ function WhatsAppSection() {
                     <Smartphone size={18} style={{ color: "#fff" }} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Connect Your WhatsApp</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.9)" }}>Quick 3-step setup using Zaptick dashboard</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Connect WhatsApp Business API</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.9)" }}>Secure setup via Facebook Business integration</div>
                   </div>
                 </div>
                 <div style={{ padding: "20px", background: "#fafafa", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -956,7 +956,7 @@ function WhatsAppSection() {
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: "#1f2937", marginBottom: 4 }}>Open Zaptick Dashboard</div>
                         <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 10, lineHeight: 1.5 }}>
-                          Click the button below to open Zaptick in a new tab. Create an account if you don't have one (takes 1 minute).
+                          Click the button below to open Zaptick. You'll need a Facebook Business account to connect.
                         </div>
                         <a 
                           href="https://app.zaptick.io/connect" 
@@ -974,13 +974,15 @@ function WhatsAppSection() {
                     <div style={{ display: "flex", gap: 14, padding: "16px", background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb" }}>
                       <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #0891b2, #0e7490)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, flexShrink: 0 }}>2</div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: "#1f2937", marginBottom: 4 }}>Connect Your WhatsApp</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#1f2937", marginBottom: 4 }}>Connect with Facebook</div>
                         <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8, lineHeight: 1.5 }}>
-                          In the Zaptick dashboard, you'll see a QR code. Scan it with WhatsApp on your phone:
+                          Click "Connect with Facebook" button in Zaptick dashboard. This will:
                         </div>
                         <div style={{ fontSize: 11, color: "#4b5563", background: "#f9fafb", padding: "10px 12px", borderRadius: 6, border: "1px solid #e5e7eb" }}>
-                          📱 <strong>Android:</strong> WhatsApp → Menu (⋮) → Linked Devices → Link a Device<br/>
-                          📱 <strong>iPhone:</strong> WhatsApp → Settings → Linked Devices → Link a Device
+                          ✓ Authenticate with Meta/Facebook<br/>
+                          ✓ Link your WhatsApp Business Account<br/>
+                          ✓ Activate templates and campaigns instantly<br/>
+                          ✓ Secure, encrypted connection (Official Meta Partner)
                         </div>
                       </div>
                     </div>
@@ -1004,10 +1006,17 @@ function WhatsAppSection() {
                   {/* Visual connection indicator */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, padding: "16px", background: "#fff", borderRadius: 10, border: "1px dashed #cbd5e1" }}>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ width: 48, height: 48, borderRadius: 12, background: "#f0fdfa", border: "2px solid #99f6e4", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px" }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: "#eff6ff", border: "2px solid #3b82f6", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px" }}>
+                        <span style={{ fontSize: 24 }}>f</span>
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6" }}>Facebook</div>
+                    </div>
+                    <div style={{ fontSize: 20, color: "#cbd5e1" }}>→</div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: "#f0fdfa", border: "2px solid #14b8a6", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px" }}>
                         <Smartphone size={24} style={{ color: "#14b8a6" }} />
                       </div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "#14b8a6" }}>Your Phone</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#14b8a6" }}>WhatsApp</div>
                     </div>
                     <div style={{ fontSize: 20, color: "#cbd5e1" }}>→</div>
                     <div style={{ textAlign: "center" }}>
@@ -1028,7 +1037,7 @@ function WhatsAppSection() {
               </div>
               
               <div style={{ fontSize: 12, color: "#6b7280", background: "#f9fafb", padding: "12px 16px", borderRadius: 10, border: "1px solid #e5e7eb", gridColumn: "1 / -1" }}>
-                💡 <strong>How it works:</strong> Zaptick uses WhatsApp Web protocol (like WhatsApp Web on your browser). You connect your existing WhatsApp number (personal or business) by scanning a QR code. No need to create a new WhatsApp account! Your phone must stay connected to the internet.
+                💡 <strong>Official Meta Partner:</strong> Zaptick connects via Facebook Business integration, giving you access to WhatsApp Business API with approved message templates, instant activation, and end-to-end encryption. Works with existing or new WhatsApp Business numbers.
               </div>
             </>
           ) : null}

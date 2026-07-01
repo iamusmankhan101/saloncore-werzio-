@@ -441,8 +441,36 @@ export default function CashFlowPage() {
       const mergedIncome = [...manualIncome, ...uniqueIncome];
       saveExpenses(mergedExpenses);
       saveManualCashIncome(mergedIncome);
+      
+      console.log("✅ Cash Flow Import Complete:", {
+        importedIncome: uniqueIncome.length,
+        importedExpenses: uniqueExpenses.length,
+        totalIncome: mergedIncome.length,
+        totalExpenses: mergedExpenses.length,
+        sampleIncome: uniqueIncome.slice(0, 2),
+        sampleExpenses: uniqueExpenses.slice(0, 2),
+      });
+      
       setExpenses(mergedExpenses);
       setManualIncome(mergedIncome);
+      
+      // Auto-expand the date range to show imported data
+      const allDates = [...uniqueExpenses.map(e => e.date), ...uniqueIncome.map(i => i.date)];
+      if (allDates.length > 0) {
+        const minDate = allDates.reduce((min, d) => d < min ? d : min);
+        const maxDate = allDates.reduce((max, d) => d > max ? d : max);
+        
+        console.log("📅 Imported date range:", { minDate, maxDate, currentRange: { rangeStart, filterEnd } });
+        
+        // If imported data is outside current period, switch to custom range
+        if (minDate < rangeStart || maxDate > filterEnd) {
+          console.log("🔄 Switching to custom period to show imported data");
+          setPeriod("custom");
+          setCustomStart(minDate < rangeStart ? minDate : rangeStart);
+          setCustomEnd(maxDate > filterEnd ? maxDate : filterEnd);
+        }
+      }
+      
       setFileMessage({
         type: "success",
         text: `Imported ${uniqueIncome.length} income and ${uniqueExpenses.length} expense entr${uniqueIncome.length + uniqueExpenses.length === 1 ? "y" : "ies"}${skipped ? `; skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}` : ""}.`,
