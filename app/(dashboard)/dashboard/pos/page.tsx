@@ -13,7 +13,7 @@ import { awardPoints, redeemPoints, type LoyaltySettings } from "@/lib/loyalty";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
 import {
   getStoredServices, getStoredClients, getStoredInventory,
-  getStoredStaff, getStoredAppointments, saveClients, saveInventory,
+  getStoredStaff, getStoredAppointments, saveAppointments, saveClients, saveInventory,
 } from "@/lib/storage";
 import {
   createSalonInvoice, calcTotals,
@@ -97,6 +97,7 @@ export default function POSPage() {
   const [staff,     setStaff]     = useState<Staff[]>([]);
   const [now,       setNow]       = useState(new Date());
   const [apptBanner, setApptBanner] = useState<string | null>(null);
+  const [checkoutAppointmentId, setCheckoutAppointmentId] = useState<string | null>(null);
 
   useEffect(() => {
     const allServices  = getStoredServices().filter(s => s.isActive);
@@ -145,6 +146,7 @@ export default function POSPage() {
         // Note the source appointment
         setSaleNotes(`Appointment checkout${appt.date ? ` · ${appt.date}` : ""}`);
         setApptBanner(`Checking out: ${appt.clientName} · ${appt.serviceNames.join(", ")} · ${appt.date}`);
+        setCheckoutAppointmentId(appt.id);
       }
     }
 
@@ -340,6 +342,7 @@ export default function POSPage() {
       const today = new Date().toISOString().slice(0, 10);
       const staffMember = staff.find(s => s.id === selectedStaffId);
       const invoice = createSalonInvoice({
+        appointmentId: checkoutAppointmentId || undefined,
         clientId:      selectedClient?.id || undefined,
         clientName:    selectedClient?.name || "Walk-in Customer",
         clientPhone:   selectedClient?.phone || "",
@@ -352,6 +355,17 @@ export default function POSPage() {
         notes: saleNotes.trim(),
         source: "pos",
       });
+
+      // Checking out from a booked appointment doesn't otherwise touch the
+      // appointment record — mark it completed so it's reflected in the
+      // calendar and in dashboard/revenue stats that key off appointment status.
+      if (checkoutAppointmentId) {
+        const freshAppointments = getStoredAppointments();
+        const updatedAppointments = freshAppointments.map(a =>
+          a.id === checkoutAppointmentId ? { ...a, status: "completed" as const, totalAmount: total } : a
+        );
+        saveAppointments(updatedAppointments);
+      }
 
       const soldProducts = cart.filter(e => e.type === "product");
       if (soldProducts.length > 0) {
