@@ -3,12 +3,12 @@
  * Server-side billing state stored in Turso (SQLite).
  *
  * Billing model — 30-day rolling cycles (not calendar months):
- *   • billing_anchor  = signup_date + 30 days  (first invoice issued after 30-day grace)
+ *   • billing_anchor  = signup_date             (invoice issued on day 1 of account)
  *   • cycle_index     = floor((today − anchor) / 30)  starting at 0
  *   • period_start    = anchor + cycle_index × 30 days
- *   • due_date        = period_start + 7 days  (7 days to pay)
- *   • overdue after   due_date + 3 days    (day 40 from invoice)
- *   • suspended on    same day as overdue  (day 40 from invoice)
+ *   • due_date        = period_start + 30 days  (30 days to pay)
+ *   • overdue on      due_date                  (no extra grace)
+ *   • suspended on    due_date                  (no extra grace)
  *
  * Invoice ID format : {userId}_{period_start}   e.g.  user_123_2026-05-15
  * Invoice number    : INV-{YYYYMMDD}              e.g.  INV-20260515
@@ -17,11 +17,11 @@
 import { db } from "@/lib/db";
 
 // ─── Billing constants ────────────────────────────────────────────────────────
-export const TRIAL_DAYS = 30;
+export const TRIAL_DAYS = 0;
 export const BILLING_CYCLE_DAYS = 30;
-export const INVOICE_DUE_DAYS = 7;
-export const OVERDUE_GRACE_DAYS = 3;     // days after due_date before marking overdue
-export const SUSPENSION_GRACE_DAYS = 3;  // days after due_date before suspension (= same as overdue)
+export const INVOICE_DUE_DAYS = 30;
+export const OVERDUE_GRACE_DAYS = 0;     // overdue immediately at due_date (day 30 from signup)
+export const SUSPENSION_GRACE_DAYS = 0;  // suspend immediately at due_date
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 

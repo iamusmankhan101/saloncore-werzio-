@@ -4,10 +4,10 @@
  * Automated 30-day rolling billing engine. Called by Vercel Cron every day at 09:00 UTC.
  *
  * Each user has their own billing cycle:
- *   Invoice issued on: signup_date + 30 days, then every 30 days
- *   Due date         = issued_date + 7 days   (day 37 from signup)
- *   Overdue after    : due_date + 3 days      (day 40 from signup)
- *   Suspended on     : same day as overdue    (day 40 from signup)
+ *   Invoice issued on: signup_date + 7 days, then every 30 days
+ *   Due date         = issued_date + 7 days   (day 14 from signup)
+ *   Overdue on       : due_date               (no grace — day 14 from signup)
+ *   Suspended on     : same day as overdue    (day 14 from signup)
  *
  * Secured with Authorization: Bearer {CRON_SECRET}
  * Can also be triggered manually with the same header.
@@ -106,7 +106,7 @@ function issuedEmail(user: BillingUser, inv: BillingInvoice) {
       "Your invoice is ready",
       `<p style="color:#6b6b8a;font-size:14px;line-height:1.7;margin:0 0 4px">
         Hi <strong>${user.ownerName}</strong>,<br>
-        Your <strong>${user.planName} Plan</strong> invoice has been generated for the next 30-day billing period.
+        Your <strong>${user.planName} Plan</strong> invoice has been generated for the next billing period.
       </p>
       ${invoiceBox(inv, "#7C3AED")}
       <p style="color:#6b6b8a;font-size:13px;line-height:1.6;margin:0">
