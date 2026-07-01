@@ -430,9 +430,6 @@ export async function validateCredentials(
   // user-enumeration (attacker measuring response time to detect valid emails)
   const valid = user ? verifyPassword(password, user.password) : false;
   if (!user || !valid) throw new Error("Invalid email or password.");
-  if (!user.emailVerified && user.role !== "admin" && user.role !== "staff" && user.role !== "manager") {
-    throw new Error("EMAIL_NOT_VERIFIED");
-  }
   // Upgrade legacy plaintext password to hashed format on first successful login
   if (!user.password.startsWith("pbkdf2:")) {
     await db.execute({
