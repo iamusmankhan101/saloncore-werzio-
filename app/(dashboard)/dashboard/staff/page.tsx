@@ -33,7 +33,6 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
   const [form, setForm] = useState({
     name: staff?.name ?? "",
     phone: staff?.phone ?? "",
-    email: staff?.email ?? "",
     role: staff?.role ?? "",
   });
 
@@ -45,7 +44,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
   });
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const canSubmit = form.name && form.phone && form.email && form.role;
+  const canSubmit = form.name && form.phone && form.role;
 
   const toggleService = (id: string) => {
     const current = [...selectedServiceIds];
@@ -70,7 +69,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
       id: staff?.id ?? "s" + Date.now(),
       name: form.name,
       phone: form.phone,
-      email: form.email,
+      email: staff?.email ?? "",
       role: form.role as StaffRole,
       specialties: specialtiesArray,
       color,
@@ -110,12 +109,6 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Phone</label>
             <input type="text" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="e.g. 0300-1234567"
-              style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Email</label>
-            <input type="email" name="staff-access-email" autoComplete="off" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="staff@salon.com"
               style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
           </div>
 
