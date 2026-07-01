@@ -127,7 +127,6 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     ],
     lockedFeatures: [
       "Virtual Try-On (AI)",
-      "Multi-location branches",
     ],
   },
 

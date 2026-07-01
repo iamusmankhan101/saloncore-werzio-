@@ -25,6 +25,16 @@ interface BusinessHour {
   to: string;
 }
 
+const DEFAULT_BUSINESS_HOURS: BusinessHour[] = [
+  { day: "Monday",    open: true, from: "09:00", to: "20:00" },
+  { day: "Tuesday",   open: true, from: "09:00", to: "20:00" },
+  { day: "Wednesday", open: true, from: "09:00", to: "20:00" },
+  { day: "Thursday",  open: true, from: "09:00", to: "20:00" },
+  { day: "Friday",    open: true, from: "09:00", to: "20:00" },
+  { day: "Saturday",  open: true, from: "10:00", to: "18:00" },
+  { day: "Sunday",    open: false, from: "10:00", to: "18:00" },
+];
+
 function addMinutes(timeStr: string, mins: number): string {
   const [h, m] = timeStr.split(":").map(Number);
   const total = h * 60 + m + mins;
@@ -100,15 +110,18 @@ function OnlineBookingInner() {
   const [notes, setNotes]                       = useState("");
 
   // Use remote settings (when external customer) or local settingsStore (owner's device)
-  const hoursSource = salonId
+  const rawHoursSource = salonId
     ? ((remoteSettings?.hours ?? []) as BusinessHour[])
     : (settingsStore.hours as BusinessHour[]);
+  const hoursSource = Array.isArray(rawHoursSource) && rawHoursSource.length > 0
+    ? rawHoursSource
+    : DEFAULT_BUSINESS_HOURS;
 
   function getHoursForDate(date: string): BusinessHour | undefined {
     if (!date) return undefined;
     const [y, m, d] = date.split("-").map(Number);
     const dayName = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long" });
-    return hoursSource.find((h) => h.day === dayName);
+    return hoursSource.find((h) => h.day === dayName) ?? DEFAULT_BUSINESS_HOURS.find((h) => h.day === dayName);
   }
 
   const availableServices  = selectedStaffId
@@ -122,7 +135,7 @@ function OnlineBookingInner() {
   const today              = new Date().toISOString().split("T")[0];
 
   const timeSlots = useMemo(() => {
-    if (!selectedDate || !selectedHours?.open) return [];
+    if (!selectedDate || !selectedHours?.open || totalDuration <= 0) return [];
     return generateTimeSlots(selectedHours.from, selectedHours.to, totalDuration);
   }, [selectedDate, selectedHours, totalDuration]);
 

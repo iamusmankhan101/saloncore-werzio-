@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { getStoredAppointments } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
-import { getExpenses, saveExpenses, addExpense, deleteExpense, updateExpense, type Expense, type ExpenseCategory } from "@/lib/expenses";
+import { getExpenses, saveExpenses, addExpense, updateExpense, type Expense, type ExpenseCategory } from "@/lib/expenses";
 import { getManualCashIncome, saveManualCashIncome, type ManualCashIncome } from "@/lib/cash-flow-income";
 import type { Appointment } from "@/lib/types";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -288,8 +288,13 @@ export default function CashFlowPage() {
 
   function handleDelete(id: string) {
     try {
-      deleteExpense(id);
-      setExpenses(getExpenses());
+      setExpenses((prev) => {
+        const latest = getExpenses();
+        const source = latest.some((expense) => expense.id === id) ? latest : prev;
+        const updated = source.filter((expense) => expense.id !== id);
+        saveExpenses(updated);
+        return updated;
+      });
       if (editId === id) {
         setShowForm(false);
         setEditId(null);

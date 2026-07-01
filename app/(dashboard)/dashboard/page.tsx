@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { getStoredAppointments, getStoredClients, getStoredStaff } from "@/lib/storage";
+import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { AppointmentStatus, Appointment, Client, Staff } from "@/lib/types";
+import type { SalonInvoice } from "@/lib/salon-invoices";
 import DashboardHeader from "@/components/dashboard-header";
 import { MoreHorizontal, TrendingUp, Calendar, Users, Award, Clock, ArrowUpRight, Tag, Star } from "lucide-react";
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -87,6 +89,7 @@ export default function DashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [posInvoices, setPosInvoices] = useState<SalonInvoice[]>([]);
   const [today] = useState(() => new Date().toLocaleDateString("en-CA"));
 
   useEffect(() => {
@@ -94,6 +97,7 @@ export default function DashboardPage() {
       setAppointments(getStoredAppointments());
       setClients(getStoredClients());
       setStaffList(getStoredStaff());
+      setPosInvoices(getSalonInvoices());
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -106,6 +110,9 @@ export default function DashboardPage() {
         totals.set(appointment.date, (totals.get(appointment.date) ?? 0) + appointment.totalAmount);
       }
     });
+    posInvoices.forEach((invoice) => {
+      totals.set(invoice.date, (totals.get(invoice.date) ?? 0) + invoice.total);
+    });
 
     const endDate = new Date(`${today}T12:00:00`);
     return Array.from({ length: 7 }, (_, index) => {
@@ -114,15 +121,17 @@ export default function DashboardPage() {
       const dateKey = date.toLocaleDateString("en-CA");
       return { date: dateKey, total: totals.get(dateKey) ?? 0 };
     });
-  }, [appointments, today]);
+  }, [appointments, posInvoices, today]);
 
   const maxRevenue = Math.max(...revenueLast7Days.map((day) => day.total), 0);
   const axisMax = maxRevenue > 0 ? Math.ceil((maxRevenue * 1.2) / 1000) * 1000 : 60000;
   const yAxisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0]
     .map((value) => value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(Math.round(value)));
   const topClients = [...clients].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
-  const todayTotal = todayAppts.reduce((s, a) => s + a.totalAmount, 0);
-  const avgTicket = todayAppts.length > 0 ? todayTotal / todayAppts.length : 0;
+  const todayPosInvoices = posInvoices.filter((invoice) => invoice.date === today);
+  const todayTotal = todayAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPosInvoices.reduce((s, invoice) => s + invoice.total, 0);
+  const todayTransactionCount = todayAppts.length + todayPosInvoices.length;
+  const avgTicket = todayTransactionCount > 0 ? todayTotal / todayTransactionCount : 0;
   const activeStaffCount = staffList.length;
 
   return (

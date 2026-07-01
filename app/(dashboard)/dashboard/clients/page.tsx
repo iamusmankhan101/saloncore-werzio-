@@ -1089,7 +1089,6 @@ function SendSegmentModal({ mode, clients, onClose }: {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ClientsPage() {
-  const router = useRouter();
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
@@ -1209,16 +1208,25 @@ export default function ClientsPage() {
   const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
   const someFilteredSelected = filtered.some((c) => selectedIds.has(c.id));
 
-  const toggleSelectAll = () => {
-    if (allFilteredSelected) {
+  const toggleSelectAll = (checked: boolean) => {
+    if (!checked) {
       setSelectedIds((prev) => { const next = new Set(prev); filtered.forEach((c) => next.delete(c.id)); return next; });
     } else {
       setSelectedIds((prev) => { const next = new Set(prev); filtered.forEach((c) => next.add(c.id)); return next; });
     }
   };
 
-  const toggleOne = (id: string) => {
-    setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  const setOneSelected = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const openClient = (client: Client) => {
+    setSelected(client);
   };
 
   return (
@@ -1558,7 +1566,7 @@ export default function ClientsPage() {
               aria-label="Select all visible clients"
               checked={allFilteredSelected}
               ref={el => { if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected; }}
-              onChange={toggleSelectAll}
+              onChange={(event) => toggleSelectAll(event.currentTarget.checked)}
               style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#7C3AED" }}
             />
           </div>
@@ -1577,11 +1585,11 @@ export default function ClientsPage() {
               key={client.id}
               tabIndex={0}
               aria-label={`Open ${client.name}'s profile`}
-              onClick={() => router.push(`/dashboard/clients/${encodeURIComponent(client.id)}`)}
+              onClick={() => openClient(client)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  router.push(`/dashboard/clients/${encodeURIComponent(client.id)}`);
+                  openClient(client);
                 }
               }}
               style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 1.1fr 1fr 1fr 1.1fr 90px 110px 130px", padding: "14px 20px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", alignItems: "center", cursor: "pointer", background: isChecked ? "#F5F3FF" : "transparent", transition: "background 0.2s" }}
@@ -1593,8 +1601,12 @@ export default function ClientsPage() {
                   type="checkbox"
                   aria-label={`Select ${client.name}`}
                   checked={isChecked}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
-                  onChange={() => toggleOne(client.id)}
+                  onChange={(event) => {
+                    event.stopPropagation();
+                    setOneSelected(client.id, event.currentTarget.checked);
+                  }}
                   style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#7C3AED" }}
                 />
               </div>
@@ -1625,7 +1637,7 @@ export default function ClientsPage() {
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
-                    router.push(`/dashboard/clients/${encodeURIComponent(client.id)}`);
+                    openClient(client);
                   }}
                   style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "1px solid #e3e0eb", background: "#fff", fontSize: 11, fontWeight: 700, color: "#6b6b8a", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}
                   className="hover-bg-light"

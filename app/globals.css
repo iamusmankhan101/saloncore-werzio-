@@ -191,6 +191,44 @@ input, textarea, select { font-family: inherit; }
 
 /* Revenue page header controls */
 .rev-header-controls { display: flex; align-items: center; gap: 12px; }
+.rev-period-selector.segment-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid #e3e0eb;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(38, 25, 75, 0.04);
+}
+.rev-period-selector .segment-btn {
+  appearance: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #6b6b8a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+.rev-period-selector .segment-btn:hover {
+  background: rgba(124, 58, 237, 0.08);
+  color: var(--accent);
+}
+.rev-period-selector .segment-btn.active {
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+.rev-period-selector .segment-btn:active {
+  transform: scale(0.97);
+}
 
 /* Page padding – desktop default */
 .dash-page { padding: 28px 32px; }

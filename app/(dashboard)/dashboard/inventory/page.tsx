@@ -454,10 +454,10 @@ function ItemRow({ item, isLast, onEdit, onDelete }: {
 
       {/* Actions */}
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <button onClick={onEdit} title="Edit" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <button type="button" onClick={onEdit} aria-label={`Edit inventory item: ${item.name}`} title="Edit" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Edit2 size={13} color="#7C3AED" />
         </button>
-        <button onClick={onDelete} title="Delete" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #fecaca", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <button type="button" onClick={onDelete} aria-label={`Delete inventory item: ${item.name}`} title="Delete" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #fecaca", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Trash2 size={13} color="#dc2626" />
         </button>
       </div>
@@ -532,7 +532,7 @@ export default function InventoryPage() {
       {/* ── Modals (shared) ── */}
       {showAdd    && <AddModal    onClose={() => setShowAdd(false)}    onAdd={(item) => persist([item, ...items])} />}
       {editItem   && <EditModal   item={editItem} onClose={() => setEditItem(null)} onSave={(updated) => persist(items.map((i) => i.id === updated.id ? updated : i))} />}
-      {deleteItem && <DeleteModal item={deleteItem} onClose={() => setDeleteItem(null)} onDelete={() => persist(items.filter((i) => i.id !== deleteItem.id))} />}
+      {deleteItem && <DeleteModal item={deleteItem} onClose={() => setDeleteItem(null)} onDelete={() => persist(getStoredInventory().filter((i) => i.id !== deleteItem.id))} />}
       {showReminder && <ReminderModal alertItems={alertItems} onClose={() => setShowReminder(false)} />}
 
       {/* ══════════ MOBILE LAYOUT ══════════ */}

@@ -379,8 +379,14 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       notes: form.notes || undefined,
     };
 
-    onAdd(appt, newClientObj);
-    setDone(true);
+    try {
+      onAdd(appt, newClientObj);
+      setDone(true);
+    } catch (error) {
+      console.error("[appointments] Could not create appointment", error);
+      // Booking creation must never be blocked by a non-critical side effect
+      // such as WhatsApp scheduling. Keep the modal usable and visible.
+    }
   };
 
   if (done) {
@@ -831,8 +837,16 @@ export default function AppointmentsPage() {
               saveAppointments(updated);
               return updated;
             });
-            enqueueWhatsAppConfirmation(newAppt.id);
-            sendGroupBookingAlert(newAppt);
+            try {
+              enqueueWhatsAppConfirmation(newAppt.id);
+            } catch (error) {
+              console.warn("[appointments] WhatsApp confirmation queue skipped", error);
+            }
+            try {
+              sendGroupBookingAlert(newAppt);
+            } catch (error) {
+              console.warn("[appointments] WhatsApp group alert skipped", error);
+            }
 
             if (newClientObj) {
               setClients((prevClients) => {

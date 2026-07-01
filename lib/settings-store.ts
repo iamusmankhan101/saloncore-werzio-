@@ -140,6 +140,14 @@ function load() {
     if (!raw) return dynamicDefaults;
     // Deep merge so new default keys are always present
     const saved = JSON.parse(raw);
+    const wasender = { ...dynamicDefaults.wasender, ...saved.wasender };
+    // Migrate the old anti-ban default (1–3 minutes) to the safer 5–10 minute
+    // default, while preserving any custom non-default values a salon chose.
+    if (wasender.randomDelayMinSeconds === 60 && wasender.randomDelayMaxSeconds === 180) {
+      wasender.randomDelayMinSeconds = dynamicDefaults.wasender.randomDelayMinSeconds;
+      wasender.randomDelayMaxSeconds = dynamicDefaults.wasender.randomDelayMaxSeconds;
+    }
+
     return {
       replicate: { ...dynamicDefaults.replicate, ...saved.replicate },
       huggingface: { ...dynamicDefaults.huggingface, ...saved.huggingface },
@@ -156,7 +164,7 @@ function load() {
           ? saved.salon.email
           : (user?.email || dynamicDefaults.salon.email),
       },
-      wasender: { ...dynamicDefaults.wasender, ...saved.wasender },
+      wasender,
       locations: {
         ...dynamicDefaults.locations,
         ...saved.locations,
