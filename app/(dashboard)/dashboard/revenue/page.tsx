@@ -328,13 +328,19 @@ export default function RevenuePage() {
 
   // ── PDF Export ─────────────────────────────────────────────────────────────
   function exportPDF() {
+    if (period === "custom" && (!customStart || !customEnd || customStart > customEnd)) {
+      alert("Please select a valid start and end date for the custom range before downloading.");
+      return;
+    }
+
     const now = new Date();
     const isYearDrill = !!selectedMonth;
     const tableRows  = isYearDrill ? (drillRows ?? []) : dailyRows.slice(0, 60);
     const pdfTotal   = isYearDrill ? drillTotal   : totalRevenue;
     const pdfCount   = isYearDrill ? drillCount   : totalCount;
     const pdfAvg     = isYearDrill ? drillAvg     : avgTicket;
-    const pdfTitle   = isYearDrill ? `${selectedMonthLabel} — Daily Detail` : `Revenue Report — ${cfg.label}`;
+    const periodLabel = period === "custom" ? `${rangeStart} → ${filterEnd}` : cfg.label;
+    const pdfTitle   = isYearDrill ? `${selectedMonthLabel} — Daily Detail` : `Revenue Report — ${periodLabel}`;
     const pdfRange   = isYearDrill ? selectedMonthLabel : `${rangeStart} to ${filterEnd}`;
 
     const html = `<!DOCTYPE html>
@@ -511,11 +517,19 @@ export default function RevenuePage() {
 </body>
 </html>`;
 
-    const win = window.open("", "_blank", "width=920,height=750");
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    win.onload = () => { win.focus(); win.print(); };
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (!win) {
+      URL.revokeObjectURL(url);
+      alert("Pop-up was blocked. Please allow pop-ups for this site to download the PDF.");
+      return;
+    }
+    win.addEventListener("load", () => {
+      win.focus();
+      win.print();
+      URL.revokeObjectURL(url);
+    });
   }
 
   // ── Table rows to display ──────────────────────────────────────────────────
@@ -742,7 +756,7 @@ export default function RevenuePage() {
               </div>
             ) : (
               <>
-                {todayAppts.map((a, i) => (
+                {todayAppts.map((a) => (
                   <div key={a.id} style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", borderBottom: "1px solid #f8f8fc", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b6b8a" }}>
                       <Clock size={12} color="#c0c0d0" />
@@ -758,7 +772,7 @@ export default function RevenuePage() {
                   </div>
                 ))}
 
-                {todayPos.map((inv, i) => (
+                {todayPos.map((inv) => (
                   <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", borderBottom: "1px solid #f8f8fc", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b6b8a" }}>
                       <Clock size={12} color="#c0c0d0" />
