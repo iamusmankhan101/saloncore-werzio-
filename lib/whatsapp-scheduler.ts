@@ -395,9 +395,11 @@ function isWithinSalonHours(): boolean {
 
 async function runSchedulerInternal(): Promise<void> {
   const ws = settingsStore.wasender as {
+    enabled?: boolean;
     provider?: string;
     apiKey: string;
     botSailorApiToken?: string;
+    zaptickApiKey?: string;
     ownerPhone: string;
     autoReminder: boolean;
     reminderHours: number;
@@ -407,7 +409,10 @@ async function runSchedulerInternal(): Promise<void> {
     autoLowStock: boolean;
   };
 
-  if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey)) return;
+  // Check if WhatsApp automation is enabled
+  if (ws.enabled === false) return;
+
+  if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey)) return;
 
   const waTpl = settingsStore.whatsapp as {
     reminder: string;

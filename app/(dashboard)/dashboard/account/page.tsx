@@ -456,6 +456,7 @@ function Security() {
 }
 
 interface WhatsAppSettings {
+  enabled: boolean;
   provider: "wasender" | "botsailor" | "zaptick";
   apiKey: string;
   botSailorApiToken: string;
@@ -826,29 +827,61 @@ function WhatsAppSection() {
     }
   }
 
-  const activeCredential = form.provider === "botsailor" ? form.botSailorApiToken : form.apiKey;
+  const activeCredential = form.provider === "botsailor" ? form.botSailorApiToken : form.provider === "zaptick" ? form.zaptickApiKey : form.apiKey;
   const isConnected = !!activeCredential && connectionState !== "disconnected";
+  const isEnabled = form.enabled !== false; // Default to true if not set
 
   return (
     <section>
-      <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>WhatsApp Automation</h2>
-      <p style={{ margin: "0 0 24px", color: "#9999b0", fontSize: 12 }}>
-        Choose WaSenderAPI or BotSailor as the active provider. All automated and manual messages use the selected connection.
-      </p>
-
-      {/* Connection status */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 12, border: `1px solid ${isConnected ? "#c4b5fd" : "#e8e8f4"}`, background: isConnected ? "rgba(124,58,237,0.06)" : "#fafafd", marginBottom: 22 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: isConnected ? "var(--accent)" : "#d1d1e0" }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: isConnected ? "var(--accent)" : "#9999b0" }}>
-            {!activeCredential ? "Not configured" : connectionState === "disconnected" ? "WhatsApp Disconnected" : connectionState === "connected" ? "WhatsApp Connected" : "WhatsApp Configured"}
+      {/* Header with toggle */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, marginBottom: 8 }}>
+        <div style={{ flex: 1 }}>
+          <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>WhatsApp Automation</h2>
+          <p style={{ margin: 0, color: "#9999b0", fontSize: 12 }}>
+            Choose WaSenderAPI, BotSailor, or Zaptick as the active provider. All automated and manual messages use the selected connection.
+          </p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: isEnabled ? "#059669" : "#9999b0" }}>
+              {isEnabled ? "Enabled" : "Disabled"}
+            </span>
+            <Toggle value={isEnabled} onChange={() => set("enabled", !isEnabled)} />
+          </div>
+          <span style={{ fontSize: 10, color: "#b0b0c8", textAlign: "right", maxWidth: 180 }}>
+            {isEnabled ? "All WhatsApp automation is active" : "All WhatsApp messages are paused"}
           </span>
         </div>
-        {isConnected && <span style={{ fontSize: 11, color: "#9999b0" }}>Scheduler runs every 60 seconds</span>}
+      </div>
+      
+      {/* Disabled overlay */}
+      {!isEnabled && (
+        <div style={{ padding: "16px 20px", borderRadius: 12, background: "#fef3c7", border: "1px solid #fcd34d", marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#fbbf24", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            ⚠️
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#92400e", marginBottom: 2 }}>WhatsApp Automation Disabled</div>
+            <div style={{ fontSize: 12, color: "#78350f", lineHeight: 1.5 }}>
+              All scheduled messages, reminders, confirmations, and automated WhatsApp features are currently paused. Toggle on to resume automation.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connection status */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 12, border: `1px solid ${isConnected ? "#c4b5fd" : "#e8e8f4"}`, background: isConnected ? "rgba(124,58,237,0.06)" : "#fafafd", marginBottom: 22, opacity: isEnabled ? 1 : 0.5 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: isConnected && isEnabled ? "var(--accent)" : "#d1d1e0" }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: isConnected && isEnabled ? "var(--accent)" : "#9999b0" }}>
+            {!activeCredential ? "Not configured" : !isEnabled ? "Disabled" : connectionState === "disconnected" ? "WhatsApp Disconnected" : connectionState === "connected" ? "WhatsApp Connected" : "WhatsApp Configured"}
+          </span>
+        </div>
+        {isConnected && isEnabled && <span style={{ fontSize: 11, color: "#9999b0" }}>Scheduler runs every 60 seconds</span>}
       </div>
 
       {/* Credentials */}
-      <div style={{ marginBottom: 22 }}>
+      <div style={{ marginBottom: 22, opacity: isEnabled ? 1 : 0.5, pointerEvents: isEnabled ? "auto" : "none" }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: "#7c7c9a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
           Provider & Credentials
         </div>

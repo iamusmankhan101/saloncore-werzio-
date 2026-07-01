@@ -400,7 +400,7 @@ export default function MessagesPage() {
   }, []);
 
   const ws = settingsStore.wasender as {
-    provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; ownerPhone: string;
+    enabled?: boolean; provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; ownerPhone: string;
     autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean;
     autoCancellation: boolean; autoLowStock: boolean;
   };
@@ -472,6 +472,13 @@ export default function MessagesPage() {
 
   async function sendManual() {
     if (!selClientId) return;
+    
+    // Check if WhatsApp is enabled
+    if (ws.enabled === false) {
+      setSendResult({ ok: false, msg: "WhatsApp automation is currently disabled. Enable it in Account → WhatsApp Settings to send messages." });
+      return;
+    }
+    
     const client = clients.find((c) => c.id === selClientId);
     if (!client) return;
     setSending(true);
