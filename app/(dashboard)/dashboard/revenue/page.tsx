@@ -8,7 +8,7 @@ import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import {
   Download, ArrowUpRight, ArrowDownRight,
-  TrendingUp, CalendarDays, CreditCard, Wallet, ChevronLeft,
+  TrendingUp, CalendarDays, CreditCard, ChevronLeft,
   ChevronDown, ChevronUp, Receipt, Clock,
 } from "lucide-react";
 
@@ -141,7 +141,6 @@ export default function RevenuePage() {
   const prevCount  = prevAppts.length  + prevPos.length;
   const avgTicket  = totalCount ? totalRevenue / totalCount : 0;
   const prevAvg    = prevCount  ? prevRevenue  / prevCount  : 0;
-  const tipsTotal    = Math.round(totalRevenue * 0.08);
 
   const revChange = prevRevenue ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
   const cntChange = prevCount   ? ((totalCount   - prevCount)   / prevCount)   * 100 : 0;
@@ -623,7 +622,6 @@ export default function RevenuePage() {
           {[
             { label: "Appointments", value: String(totalCount), color: "#3b82f6", change: cntChange },
             { label: "Avg Ticket",   value: fmtK(avgTicket),   color: "#059669", change: avgChange },
-            { label: "Tips est.",    value: fmtK(totalRevenue * 0.08), color: "#d97706", change: 0 },
           ].map((s) => (
             <div key={s.label} className="mobile-stat-card">
               <div className="mobile-stat-card-label">{s.label}</div>
@@ -737,12 +735,11 @@ export default function RevenuePage() {
       )}
 
       {/* Stat cards */}
-      <div className="stats-grid-4">
+      <div className="stats-grid-3">
         {[
           { label: "Total Revenue", value: fmt(totalRevenue), change: revChange, icon: TrendingUp,   color: "var(--accent)", bg: "rgba(124, 58, 237, 0.08)", showTrend: true  },
           { label: "Appointments",  value: String(totalCount), change: cntChange, icon: CalendarDays, color: "#3b82f6", bg: "#eff6ff", showTrend: true  },
           { label: "Avg Ticket",    value: fmt(avgTicket),     change: avgChange, icon: CreditCard,   color: "#059669", bg: "#f0fdf4", showTrend: true  },
-          { label: "Est. Tips",     value: fmt(tipsTotal),     change: 0,         icon: Wallet,       color: "#d97706", bg: "#fffbeb", showTrend: false },
         ].map(({ label, value, change, icon: Icon, color, bg, showTrend }) => (
           <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)", flex: 1 }}>
             <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color }}>
