@@ -400,14 +400,15 @@ export default function MessagesPage() {
   }, []);
 
   const ws = settingsStore.wasender as {
-    provider?: "wasender" | "botsailor"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; ownerPhone: string;
+    provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; zaptickPhoneNumber?: string; ownerPhone: string;
     autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean;
     autoCancellation: boolean; autoLowStock: boolean;
   };
   const waTpl = settingsStore.whatsapp as { reminder: string; confirmation: string; followup: string };
-  const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey;
+  const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey;
   const isConfigured = !!activeCredential
-    && (ws.provider !== "botsailor" || !!ws.botSailorPhoneNumberId);
+    && (ws.provider !== "botsailor" || !!ws.botSailorPhoneNumberId)
+    && (ws.provider !== "zaptick" || !!ws.zaptickPhoneNumber);
   const [testingConn, setTestingConn] = useState(false);
   const [connStatus, setConnStatus] = useState<{ ok: boolean; message?: string; status?: string } | null>(null);
   // Use the real API result when available; null = still checking, true/false = known
@@ -491,19 +492,37 @@ export default function MessagesPage() {
         .replace(/\{\{date\}\}/g, dateLabel)
         .replace(/\{\{time\}\}/g, manualTime.trim() || "your appointment time")
         .replace(/\{\{salon_name\}\}/g, salonName);
+      
+      const normalizedPhone = normalizePhone(client.phone);
+      const isGroup = normalizedPhone.endsWith("@g.us");
+      
+      // If sending to a group and provider is BotSailor, switch to WaSender
+      const provider = isGroup && ws.provider === "botsailor" ? "wasender" : ws.provider;
+      
+      // Show warning if BotSailor is configured but sending to group and no WaSender key
+      if (isGroup && ws.provider === "botsailor" && !ws.apiKey) {
+        setSendResult({ 
+          ok: false, 
+          msg: "Cannot send to WhatsApp group: BotSailor doesn't support groups. Please configure WaSender API key in Account → WhatsApp Settings." 
+        });
+        setSending(false);
+        return;
+      }
+      
       const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...ws, phone: normalizePhone(client.phone), text, messageIntent: msgType === "followup" ? "marketing" : "utility" }),
+        body: JSON.stringify({ ...ws, provider, phone: normalizedPhone, text, messageIntent: msgType === "followup" ? "marketing" : "utility" }),
       });
       const data = await res.json() as { ok: boolean; status: number; error?: string; errorReason?: string };
       const success = data.ok;
+      const providerName = ws.provider === "botsailor" ? "BotSailor" : ws.provider === "zaptick" ? "Zaptick" : "WaSender";
       setSendResult(success
-        ? { ok: true, msg: `✓ Sent to ${client.name} (${normalizePhone(client.phone)})` }
-        : { ok: false, msg: `Failed (${data.status ?? ""}): ${data.errorReason || data.error || `Check your ${ws.provider === "botsailor" ? "BotSailor" : "WaSender"} credentials`}` },
+        ? { ok: true, msg: `✓ Sent to ${client.name} (${normalizedPhone})${isGroup ? " (WhatsApp group)" : ""}` }
+        : { ok: false, msg: `Failed (${data.status ?? ""}): ${data.errorReason || data.error || `Check your ${providerName} credentials`}` },
       );
       if (success) {
-        appendLog({ type: "manual", clientName: client.name, phone: normalizePhone(client.phone), status: "sent", templateId: "direct" });
+        appendLog({ type: "manual", clientName: client.name, phone: normalizedPhone, status: "sent", templateId: "direct" });
         setTimeout(() => setRefreshKey((k) => k + 1), 600);
       }
     } catch (err) { setSendResult({ ok: false, msg: String(err) }); }

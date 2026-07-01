@@ -456,10 +456,12 @@ function Security() {
 }
 
 interface WhatsAppSettings {
-  provider: "wasender" | "botsailor";
+  provider: "wasender" | "botsailor" | "zaptick";
   apiKey: string;
   botSailorApiToken: string;
   botSailorPhoneNumberId: string;
+  zaptickApiKey: string;
+  zaptickPhoneNumber: string;
   ownerPhone: string;
   bookingGroupJid: string;
   autoReminder: boolean;
@@ -706,11 +708,11 @@ function WhatsAppSection() {
         setTestResult({ ok: true, msg: "Connected! The salon WhatsApp session is active." });
       } else {
         setConnectionState("disconnected");
-        setTestResult({ ok: false, msg: data.message || `${form.provider === "botsailor" ? "BotSailor" : "WaSender"} connection failed.` });
+        setTestResult({ ok: false, msg: data.message || `${form.provider === "botsailor" ? "BotSailor" : form.provider === "zaptick" ? "Zaptick" : "WaSender"} connection failed.` });
       }
     } catch {
       setConnectionState("disconnected");
-      setTestResult({ ok: false, msg: `Could not reach ${form.provider === "botsailor" ? "BotSailor" : "WaSender"}. Check your internet connection.` });
+      setTestResult({ ok: false, msg: `Could not reach ${form.provider === "botsailor" ? "BotSailor" : form.provider === "zaptick" ? "Zaptick" : "WaSender"}. Check your internet connection.` });
     }
     setTesting(false);
   }
@@ -851,6 +853,7 @@ function WhatsAppSection() {
             <select style={inputStyle} value={form.provider} onChange={(e) => { set("provider", e.target.value as WhatsAppSettings["provider"]); setConnectionState("unknown"); setTestResult(null); }}>
               <option value="wasender">WaSenderAPI</option>
               <option value="botsailor">BotSailor</option>
+              <option value="zaptick">Zaptick.io</option>
             </select>
           </Field>
           {form.provider === "wasender" ? <Field label="WaSender API Key" hint="wasenderapi.com → Dashboard → API Keys">
@@ -868,6 +871,15 @@ function WhatsAppSection() {
               </Field>
               <Field label="WhatsApp Phone Number ID" hint="Select the connected WhatsApp account in BotSailor">
                 <input style={inputStyle} value={form.botSailorPhoneNumberId} onChange={(e) => set("botSailorPhoneNumberId", e.target.value)} placeholder="e.g. 119060000000000" />
+              </Field>
+            </>
+          ) : form.provider === "zaptick" ? (
+            <>
+              <Field label="Zaptick API Key" hint="Zaptick.io → Dashboard → Settings → API Key">
+                <input style={inputStyle} type="password" value={form.zaptickApiKey} onChange={(e) => set("zaptickApiKey", e.target.value)} placeholder="your-zaptick-api-key" />
+              </Field>
+              <Field label="WhatsApp Phone Number" hint="Your connected WhatsApp business number (international format)">
+                <input style={inputStyle} value={form.zaptickPhoneNumber} onChange={(e) => set("zaptickPhoneNumber", e.target.value)} placeholder="e.g. 923001234567" />
               </Field>
             </>
           ) : null}
