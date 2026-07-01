@@ -427,11 +427,11 @@ function Security() {
   const [error, setError] = useState("");
   const canSave = form.current.length > 0 && form.next.length >= 8 && form.next === form.confirm;
 
-  function save() {
+  async function save() {
     if (!canSave) return;
     setError("");
     try {
-      updateCurrentPassword(form.current, form.next);
+      await updateCurrentPassword(form.current, form.next);
       setForm({ current: "", next: "", confirm: "" });
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2200);

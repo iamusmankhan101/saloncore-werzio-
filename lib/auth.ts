@@ -207,20 +207,15 @@ export function updateCurrentUser(input: Partial<Pick<AuthUser, "ownerName" | "s
   }
 }
 
-export function updateCurrentPassword(currentPassword: string, nextPassword: string) {
-  const current = getCurrentUser();
-  if (!current) throw new Error("You must be signed in to update your password.");
-
-  const users = getUsers();
-  const user = users.find((item) => item.id === current.id);
-  if (!user || user.password !== currentPassword) {
-    throw new Error("Current password is incorrect.");
-  }
-
-  const updatedUsers = users.map((item) =>
-    item.id === current.id ? { ...item, password: nextPassword } : item
-  );
-  localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+export async function updateCurrentPassword(currentPassword: string, nextPassword: string) {
+  const res = await fetch("/api/auth/change-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ currentPassword, newPassword: nextPassword }),
+  });
+  const data = await res.json() as { ok: boolean; error?: string };
+  if (!data.ok) throw new Error(data.error || "Password could not be updated.");
 }
 
 export async function signOut() {
