@@ -4,10 +4,10 @@
  * Automated 30-day rolling billing engine. Called by Vercel Cron every day at 09:00 UTC.
  *
  * Each user has their own billing cycle:
- *   Invoice issued on: signup_date + 7 days, then every 30 days
- *   Due date         = issued_date + 7 days   (day 14 from signup)
- *   Overdue on       : due_date               (no grace — day 14 from signup)
- *   Suspended on     : same day as overdue    (day 14 from signup)
+ *   Invoice issued on: signup_date (day 1), then every 30 days
+ *   Due date         = issued_date + 30 days  (day 30 from signup)
+ *   Overdue on       : due_date               (no grace — day 30 from signup)
+ *   Suspended on     : same day as overdue    (day 30 from signup)
  *
  * Secured with Authorization: Bearer {CRON_SECRET}
  * Can also be triggered manually with the same header.
