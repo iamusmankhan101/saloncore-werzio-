@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   Check, X, Crown, AlertTriangle, Smartphone, Building2, Copy,
   BadgeCheck, ImagePlus, Clock, Eye, CheckCircle, AlertCircle,
-  Zap, Sparkles, Lock, ArrowRight, Shield, CreditCard,
+  Zap, Sparkles, Lock, Shield, CreditCard,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { addPaymentRequest, getActivePlan, setActivePlan, getPaymentRequests, type PaymentMethod } from "@/lib/payment-requests";
+import { addPaymentRequest, setActivePlan, getPaymentRequests, type PaymentMethod } from "@/lib/payment-requests";
 import { syncInvoices, type Invoice, type InvoiceStatus } from "@/lib/invoices";
 import InvoiceViewer from "@/components/invoice-viewer";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -37,7 +37,6 @@ const PLAN_ICONS: Record<PlanId, React.ElementType> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmt(n: number) { return n === 0 ? "Free" : "PKR " + n.toLocaleString("en-PK"); }
 function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-PK", { year: "numeric", month: "short", day: "numeric" });
 }
@@ -75,14 +74,11 @@ function CopyField({ label, value }: { label: string; value: string }) {
 // ─── Plan card ────────────────────────────────────────────────────────────────
 
 function PlanCard({
-  plan, isCurrent, isPopular, hasPending,
-  onUpgrade, onDowngrade,
+  plan, isCurrent, isPopular, onDowngrade,
 }: {
   plan: PlanConfig;
   isCurrent: boolean;
   isPopular: boolean;
-  hasPending: boolean;
-  onUpgrade: () => void;
   onDowngrade: () => void;
 }) {
   const Icon = PLAN_ICONS[plan.id];
@@ -287,6 +283,7 @@ export default function BillingPage() {
     { feature: "Inventory",             pro: "Full",            premium: "Full" },
     { feature: "WhatsApp automation",   pro: "✓",               premium: "✓" },
     { feature: "Virtual Try-On (AI)",   pro: "—",               premium: "✓" },
+    { feature: "Multi-location branches", pro: "—",             premium: "✓" },
     { feature: "Price",                 pro: "Contact Sales",   premium: "Contact Sales" },
   ];
 
@@ -482,8 +479,6 @@ export default function BillingPage() {
                 plan={PLAN_CONFIGS[planId]}
                 isCurrent={planId === activePlanId}
                 isPopular={planId === "pro"}
-                hasPending={hasPending}
-                onUpgrade={() => { setShowModal(planId); setScreenshot(null); setPayMethod("easypaisa"); }}
                 onDowngrade={handleDowngrade}
               />
             </div>
@@ -615,8 +610,6 @@ export default function BillingPage() {
                 plan={PLAN_CONFIGS[planId]}
                 isCurrent={planId === activePlanId}
                 isPopular={planId === "pro"}
-                hasPending={hasPending}
-                onUpgrade={() => { setShowModal(planId); setScreenshot(null); setPayMethod("easypaisa"); }}
                 onDowngrade={handleDowngrade}
               />
             ))}
