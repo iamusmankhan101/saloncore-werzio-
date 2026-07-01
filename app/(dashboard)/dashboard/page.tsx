@@ -9,6 +9,14 @@ import DashboardHeader from "@/components/dashboard-header";
 import { MoreHorizontal, TrendingUp, Calendar, Users, Award, Clock, ArrowUpRight, Tag, Star } from "lucide-react";
 import { fmtCurrency as fmt } from "@/lib/format";
 
+function fmtTime(t: string) {
+  const [hourValue, minuteValue] = t.split(":").map(Number);
+  if (!Number.isFinite(hourValue) || !Number.isFinite(minuteValue)) return t;
+  const period = hourValue < 12 ? "AM" : "PM";
+  const hour = hourValue % 12 || 12;
+  return `${hour}:${String(minuteValue).padStart(2, "0")} ${period}`;
+}
+
 const STATUS_CONFIG: Record<AppointmentStatus, { label: string; color: string; bg: string }> = {
   booked:        { label: "Booked",      color: "#6366f1", bg: "#EEF2FF" },
   confirmed:     { label: "Confirmed",   color: "#059669", bg: "#ecfdf5" },
@@ -361,7 +369,7 @@ export default function DashboardPage() {
                       borderRadius: 6,
                       fontFamily: "monospace"
                     }}>
-                      {appt.startTime}
+                      {fmtTime(appt.startTime)}
                     </span>
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#9898b0" }}>
                       {fmt(appt.totalAmount)}
@@ -682,7 +690,7 @@ export default function DashboardPage() {
                       <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{appt.serviceNames[0]}</div>
                       <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3, display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
                         <Clock size={10} />
-                        <span>{appt.startTime}</span>
+                        <span>{fmtTime(appt.startTime)}</span>
                       </div>
                     </div>
                     <div style={{ fontSize: 12, color: "#4a4a6a", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}</div>
