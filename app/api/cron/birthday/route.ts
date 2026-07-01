@@ -286,7 +286,7 @@ async function sendBirthdayMessage(
   try {
     const safety = checkWhatsAppSafety({ phone, intent: "marketing", config: providerConfig });
     if (!safety.ok) throw new Error(safety.error);
-    const result = await sendWhatsAppMessage(providerConfig, phone, text);
+    const result = await sendWhatsAppMessage(providerConfig, phone, text, { messageType: "birthday" });
     if (result.ok) recordWhatsAppSafetySend({ phone, config: providerConfig });
     return result.ok;
   } catch {

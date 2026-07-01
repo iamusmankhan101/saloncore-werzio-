@@ -460,8 +460,12 @@ interface WhatsAppSettings {
   apiKey: string;
   botSailorApiToken: string;
   botSailorPhoneNumberId: string;
+  botSailorTemplateReminder?: string;
+  botSailorTemplateConfirmation?: string;
+  botSailorTemplateFollowup?: string;
+  botSailorTemplateCancellation?: string;
+  botSailorTemplateBirthday?: string;
   zaptickApiKey: string;
-  zaptickPhoneNumber: string;
   ownerPhone: string;
   bookingGroupJid: string;
   autoReminder: boolean;
@@ -872,15 +876,77 @@ function WhatsAppSection() {
               <Field label="WhatsApp Phone Number ID" hint="Select the connected WhatsApp account in BotSailor">
                 <input style={inputStyle} value={form.botSailorPhoneNumberId} onChange={(e) => set("botSailorPhoneNumberId", e.target.value)} placeholder="e.g. 119060000000000" />
               </Field>
+              <div style={{ fontSize: 12, color: "#6b7280", background: "#fef3c7", padding: "12px 16px", borderRadius: 10, border: "1px solid #fcd34d", marginTop: 8 }}>
+                ℹ️ <strong>BotSailor uses Meta Message Templates:</strong> You must create and get approval for message templates in your Meta Business Manager. Enter the template IDs below for each message type.
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 8 }}>
+                <Field label="Reminder Template ID" hint="Template for appointment reminders">
+                  <input style={inputStyle} value={form.botSailorTemplateReminder || ""} onChange={(e) => set("botSailorTemplateReminder", e.target.value)} placeholder="e.g. appointment_reminder" />
+                </Field>
+                <Field label="Confirmation Template ID" hint="Template for booking confirmations">
+                  <input style={inputStyle} value={form.botSailorTemplateConfirmation || ""} onChange={(e) => set("botSailorTemplateConfirmation", e.target.value)} placeholder="e.g. booking_confirmation" />
+                </Field>
+                <Field label="Follow-up Template ID" hint="Template for post-visit follow-ups">
+                  <input style={inputStyle} value={form.botSailorTemplateFollowup || ""} onChange={(e) => set("botSailorTemplateFollowup", e.target.value)} placeholder="e.g. followup_message" />
+                </Field>
+                <Field label="Cancellation Template ID" hint="Template for cancellation win-backs">
+                  <input style={inputStyle} value={form.botSailorTemplateCancellation || ""} onChange={(e) => set("botSailorTemplateCancellation", e.target.value)} placeholder="e.g. cancellation_winback" />
+                </Field>
+                <Field label="Birthday Template ID" hint="Template for birthday greetings">
+                  <input style={inputStyle} value={form.botSailorTemplateBirthday || ""} onChange={(e) => set("botSailorTemplateBirthday", e.target.value)} placeholder="e.g. birthday_greeting" />
+                </Field>
+              </div>
             </>
           ) : form.provider === "zaptick" ? (
             <>
-              <Field label="Zaptick API Key" hint="Zaptick.io → Dashboard → Settings → API Key">
+              <Field label="Zaptick API Key" hint="Get your API key after connecting via the embedded form below">
                 <input style={inputStyle} type="password" value={form.zaptickApiKey} onChange={(e) => set("zaptickApiKey", e.target.value)} placeholder="your-zaptick-api-key" />
               </Field>
-              <Field label="WhatsApp Phone Number" hint="Your connected WhatsApp business number (international format)">
-                <input style={inputStyle} value={form.zaptickPhoneNumber} onChange={(e) => set("zaptickPhoneNumber", e.target.value)} placeholder="e.g. 923001234567" />
-              </Field>
+              <div style={{ fontSize: 12, color: "#6b7280", background: "#dbeafe", padding: "12px 16px", borderRadius: 10, border: "1px solid #93c5fd", marginBottom: 12 }}>
+                📱 <strong>Setup Process:</strong> Use the embedded form below to connect your WhatsApp. After connecting, copy your API key from the Zaptick dashboard and paste it above.
+              </div>
+              
+              {/* Embedded Zaptick Connection Form */}
+              <div style={{ gridColumn: "1 / -1", border: "2px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+                <div style={{ background: "linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)", padding: "14px 18px", display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Smartphone size={18} style={{ color: "#fff" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Connect Your WhatsApp</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.9)" }}>Scan QR code to link your existing WhatsApp number</div>
+                  </div>
+                </div>
+                <div style={{ padding: "20px", background: "#fafafa", minHeight: 400, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <iframe
+                    src="https://app.zaptick.io/embed/connect"
+                    style={{ 
+                      width: "100%", 
+                      height: "450px", 
+                      border: "none", 
+                      borderRadius: 8,
+                      background: "#fff",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+                    }}
+                    title="Zaptick WhatsApp Connection"
+                    allow="camera"
+                  />
+                  <div style={{ display: "flex", gap: 12, padding: "12px 16px", background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 4 }}>Step 1: Scan QR Code</div>
+                      <div style={{ fontSize: 11, color: "#6b7280" }}>Open WhatsApp on your phone → Settings → Linked Devices → Scan the QR code above</div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 4 }}>Step 2: Get API Key</div>
+                      <div style={{ fontSize: 11, color: "#6b7280" }}>After connecting, go to Zaptick dashboard → API Keys → Copy your key and paste it in the field above</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ fontSize: 12, color: "#6b7280", background: "#f9fafb", padding: "12px 16px", borderRadius: 10, border: "1px solid #e5e7eb", gridColumn: "1 / -1" }}>
+                💡 <strong>How it works:</strong> Zaptick uses WhatsApp Web protocol (like WhatsApp Web on your browser). You connect your existing WhatsApp number (personal or business) by scanning a QR code. No need to create a new WhatsApp account! Your phone must stay connected to the internet.
+              </div>
             </>
           ) : null}
           <Field label="Your WhatsApp Number" hint="International format — e.g. 923001234567 (for owner alerts)">

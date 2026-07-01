@@ -4,14 +4,16 @@ import { applyWhatsAppRandomDelay, checkWhatsAppSafety, recordWhatsAppSafetySend
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { provider, apiKey, botSailorApiToken, botSailorPhoneNumberId, phone, text, messageIntent, recipientOptedIn, safety } = body as {
+  const { provider, apiKey, botSailorApiToken, botSailorPhoneNumberId, zaptickApiKey, phone, text, messageIntent, messageType, recipientOptedIn, safety } = body as {
     provider?: WhatsAppProvider;
     apiKey?: string;
     botSailorApiToken?: string;
     botSailorPhoneNumberId?: string;
+    zaptickApiKey?: string;
     phone: string;
     text: string;
     messageIntent?: WhatsAppMessageIntent;
+    messageType?: "reminder" | "confirmation" | "followup" | "cancellation" | "birthday" | "manual";
     recipientOptedIn?: boolean;
     safety?: WhatsAppSafetyConfig;
   };
@@ -31,7 +33,12 @@ export async function POST(request: NextRequest) {
     }
 
     const delayMs = await applyWhatsAppRandomDelay(safetyConfig);
-    const result = await sendWhatsAppMessage({ provider, apiKey, botSailorApiToken, botSailorPhoneNumberId }, phone, text);
+    const result = await sendWhatsAppMessage(
+      { provider, apiKey, botSailorApiToken, botSailorPhoneNumberId, zaptickApiKey }, 
+      phone, 
+      text,
+      messageType ? { messageType } : undefined
+    );
     if (result.ok) recordWhatsAppSafetySend({ phone, config: safetyConfig });
     return Response.json({ ...result, safetyDelayMs: delayMs }, { status: result.status >= 500 ? 500 : 200 });
   } catch (err) {

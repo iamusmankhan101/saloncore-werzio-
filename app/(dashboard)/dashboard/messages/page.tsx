@@ -400,15 +400,14 @@ export default function MessagesPage() {
   }, []);
 
   const ws = settingsStore.wasender as {
-    provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; zaptickPhoneNumber?: string; ownerPhone: string;
+    provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; ownerPhone: string;
     autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean;
     autoCancellation: boolean; autoLowStock: boolean;
   };
   const waTpl = settingsStore.whatsapp as { reminder: string; confirmation: string; followup: string };
   const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey;
   const isConfigured = !!activeCredential
-    && (ws.provider !== "botsailor" || !!ws.botSailorPhoneNumberId)
-    && (ws.provider !== "zaptick" || !!ws.zaptickPhoneNumber);
+    && (ws.provider !== "botsailor" || !!ws.botSailorPhoneNumberId);
   const [testingConn, setTestingConn] = useState(false);
   const [connStatus, setConnStatus] = useState<{ ok: boolean; message?: string; status?: string } | null>(null);
   // Use the real API result when available; null = still checking, true/false = known
@@ -512,7 +511,14 @@ export default function MessagesPage() {
       const res = await fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...ws, provider, phone: normalizedPhone, text, messageIntent: msgType === "followup" ? "marketing" : "utility" }),
+        body: JSON.stringify({ 
+          ...ws, 
+          provider, 
+          phone: normalizedPhone, 
+          text, 
+          messageType: msgType,
+          messageIntent: msgType === "followup" ? "marketing" : "utility" 
+        }),
       });
       const data = await res.json() as { ok: boolean; status: number; error?: string; errorReason?: string };
       const success = data.ok;

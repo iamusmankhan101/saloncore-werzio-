@@ -203,10 +203,11 @@ async function callSendApi(
   }
 
   const providerConfig = settingsStore.wasender as {
-    provider?: "wasender" | "botsailor";
+    provider?: "wasender" | "botsailor" | "zaptick";
     apiKey: string;
     botSailorApiToken?: string;
     botSailorPhoneNumberId?: string;
+    zaptickApiKey?: string;
   };
   const messageIntent =
     logMeta.type === "lowstock" ? "internal"
@@ -218,7 +219,13 @@ async function callSendApi(
     const res = await fetch("/api/whatsapp/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...providerConfig, phone, text, messageIntent }),
+      body: JSON.stringify({ 
+        ...providerConfig, 
+        phone, 
+        text, 
+        messageIntent,
+        messageType: logMeta.type 
+      }),
     });
     const data = await res.json() as { ok?: boolean; errorReason?: string };
     ok = data.ok === true;

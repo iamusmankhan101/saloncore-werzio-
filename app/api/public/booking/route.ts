@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
           const confirmText = fillTemplate(confirmationTpl, vars);
           const normalizedPhone = normalizePhone(phone);
           console.log(`[public/booking] Sending confirmation to ${normalizedPhone}`);
-          const confirmResult = await sendWhatsAppMessage(providerConfig, normalizedPhone, confirmText);
+          const confirmResult = await sendWhatsAppMessage(providerConfig, normalizedPhone, confirmText, { messageType: "confirmation" });
           if (!confirmResult.ok) {
             console.warn("[public/booking] WhatsApp confirmation failed:", confirmResult.status, confirmResult.errorReason);
           } else {
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
             "📅 New Online Booking!\n👤 Name: {{name}}\n💇 Service: {{service}}\n📅 Date: {{date}}\n⏰ Time: {{time}}\n💰 Total: PKR {{amount}}\n\nBooked via {{salon_name}} online booking page.";
           const groupText = fillTemplate(groupTpl, vars);
           console.log(`[public/booking] Sending group alert to ${bookingGroupJid}`);
-          const groupResult = await sendWhatsAppMessage(providerConfig, bookingGroupJid, groupText);
+          const groupResult = await sendWhatsAppMessage(providerConfig, bookingGroupJid, groupText, { messageType: "manual" });
           if (!groupResult.ok) {
             console.warn("[public/booking] WhatsApp group alert failed:", groupResult.status, groupResult.errorReason);
           } else {

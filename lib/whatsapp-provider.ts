@@ -5,8 +5,12 @@ export interface WhatsAppProviderConfig {
   apiKey?: string;
   botSailorApiToken?: string;
   botSailorPhoneNumberId?: string;
+  botSailorTemplateReminder?: string;
+  botSailorTemplateConfirmation?: string;
+  botSailorTemplateFollowup?: string;
+  botSailorTemplateCancellation?: string;
+  botSailorTemplateBirthday?: string;
   zaptickApiKey?: string;
-  zaptickPhoneNumber?: string;
 }
 
 export interface WhatsAppSendResult {
@@ -26,19 +30,20 @@ export async function sendWhatsAppMessage(
   config: WhatsAppProviderConfig,
   phone: string,
   text: string,
+  options?: { messageType?: "reminder" | "confirmation" | "followup" | "cancellation" | "birthday" | "manual" },
 ): Promise<WhatsAppSendResult> {
   const provider = config.provider ?? "wasender";
 
   // ─── Zaptick Provider ───────────────────────────────────────────────────────
   if (provider === "zaptick") {
     const apiKey = config.zaptickApiKey || process.env.ZAPTICK_API_KEY || "";
-    const phoneNumber = config.zaptickPhoneNumber || process.env.ZAPTICK_PHONE_NUMBER || "";
     
-    if (!apiKey || !phoneNumber) {
-      return { ok: false, status: 500, errorReason: "Zaptick API key and phone number are required." };
+    if (!apiKey) {
+      return { ok: false, status: 500, errorReason: "Zaptick API key is required." };
     }
 
-    // Zaptick supports both individual and group messages
+    // Zaptick uses WhatsApp Web multi-device protocol - supports both individual and group messages
+    // Works with existing personal/business WhatsApp numbers (QR code connection)
     const normalizedPhone = phone.replace(/\D/g, "");
     const recipientNumber = phone.endsWith("@g.us") ? phone : normalizedPhone;
 
@@ -50,7 +55,6 @@ export async function sendWhatsAppMessage(
           "Authorization": `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          phone_number: phoneNumber,
           recipient: recipientNumber,
           message: text,
         }),
@@ -90,12 +94,35 @@ export async function sendWhatsAppMessage(
       return { ok: false, status: 400, errorReason: "BotSailor Cloud API does not support WhatsApp group recipients." };
     }
 
-    const body = new URLSearchParams({
+    // Get template ID based on message type
+    const messageType = options?.messageType;
+    let templateId = "";
+    if (messageType === "reminder") templateId = config.botSailorTemplateReminder || "";
+    else if (messageType === "confirmation") templateId = config.botSailorTemplateConfirmation || "";
+    else if (messageType === "followup") templateId = config.botSailorTemplateFollowup || "";
+    else if (messageType === "cancellation") templateId = config.botSailorTemplateCancellation || "";
+    else if (messageType === "birthday") templateId = config.botSailorTemplateBirthday || "";
+
+    // Build request body
+    const bodyParams: Record<string, string> = {
       apiToken,
       phone_number_id: phoneNumberId,
       phone_number: phone.replace(/\D/g, ""),
-      message: text,
-    });
+    };
+
+    // If template ID is provided, use template-based message; otherwise send as regular message
+    if (templateId) {
+      bodyParams.template_name = templateId;
+      bodyParams.language_code = "en"; // or make this configurable
+      // For template messages, Meta requires variables in a specific format
+      // If your templates have variables, you'd need to parse the text and extract them
+      // For now, we'll send the message as-is
+    } else {
+      // Fallback to regular message if no template ID
+      bodyParams.message = text;
+    }
+
+    const body = new URLSearchParams(bodyParams);
     const response = await fetch("https://botsailor.com/api/v1/whatsapp/send", {
       method: "POST",
       headers: { "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded" },
