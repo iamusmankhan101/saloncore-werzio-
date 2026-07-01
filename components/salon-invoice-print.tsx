@@ -131,7 +131,7 @@ export default function SalonInvoicePrint({
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
                 <Printer size={14} /> Print / Save PDF
               </button>
-              <button onClick={onClose}
+              <button type="button" onClick={onClose} aria-label="Close invoice"
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 9, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", cursor: "pointer" }}>
                 <X size={16} color="#fff" />
               </button>
@@ -275,7 +275,7 @@ export default function SalonInvoicePrint({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 10, color: "#aaa" }}>Powered by</span>
-                  <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 32, width: "auto" }} />
+                  <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 48, width: "auto" }} />
                 </div>
               </div>
 

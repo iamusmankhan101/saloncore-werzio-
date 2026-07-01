@@ -581,7 +581,7 @@ function InfoLine({ icon, label }: { icon: React.ReactNode; label: string }) {
 }
 
 // ── Add Client Modal ──────────────────────────────────────────────────────────
-function AddClientModal({ onClose, onAdd, locations }: { onClose: () => void; onAdd: (c: Client) => void; locations: SalonLocation[] }) {
+function AddClientModal({ onClose, onAdd, locations, allowLocationSelection }: { onClose: () => void; onAdd: (c: Client) => void; locations: SalonLocation[]; allowLocationSelection: boolean }) {
   const [done, setDone] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", notes: "", locationId: getDefaultLocationId() });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -593,7 +593,7 @@ function AddClientModal({ onClose, onAdd, locations }: { onClose: () => void; on
       id: "c_" + Date.now(),
       name: form.name,
       phone: form.phone,
-      locationId: form.locationId,
+      locationId: allowLocationSelection ? form.locationId : getDefaultLocationId(),
       email: form.email || undefined,
       gender: "female",
       dob: form.dob || undefined,
@@ -641,19 +641,21 @@ function AddClientModal({ onClose, onAdd, locations }: { onClose: () => void; on
                 style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
             </div>
           ))}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${allowLocationSelection ? 3 : 2}, minmax(0, 1fr))`, gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Source</label>
               <select value={form.source} onChange={(e) => set("source", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
                 {["whatsapp", "walk-in", "web", "manual"].map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Location</label>
-              <select value={form.locationId} onChange={(e) => set("locationId", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
-                {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
-              </select>
-            </div>
+            {allowLocationSelection && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Location</label>
+                <select value={form.locationId} onChange={(e) => set("locationId", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+                  {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+                </select>
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tag</label>
               <select value={form.tag} onChange={(e) => set("tag", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
@@ -1250,6 +1252,7 @@ export default function ClientsPage() {
         <AddClientModal
           onClose={() => setShowAdd(false)}
           locations={locations}
+          allowLocationSelection={plan.multiLocation}
           onAdd={(newC) => {
             setClients((prevClients) => {
               const updated = [newC, ...prevClients];
@@ -1549,9 +1552,10 @@ export default function ClientsPage() {
         <div className="table-scroll-inner">
         <div className="client-table-inner" style={{ background: "#fff" }}>
         <div style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 1.1fr 1fr 1fr 1.1fr 90px 110px 130px", padding: "12px 20px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd", alignItems: "center" }}>
-          <div onClick={toggleSelectAll} style={{ cursor: "pointer", display: "flex", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center" }}>
             <input
               type="checkbox"
+              aria-label="Select all visible clients"
               checked={allFilteredSelected}
               ref={el => { if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected; }}
               onChange={toggleSelectAll}
@@ -1571,7 +1575,6 @@ export default function ClientsPage() {
           return (
             <div
               key={client.id}
-              role="link"
               tabIndex={0}
               aria-label={`Open ${client.name}'s profile`}
               onClick={() => router.push(`/dashboard/clients/${encodeURIComponent(client.id)}`)}
@@ -1585,10 +1588,12 @@ export default function ClientsPage() {
               className="hover-bg-row"
             >
               {/* Checkbox */}
-              <div onClick={(e) => { e.stopPropagation(); toggleOne(client.id); }} style={{ display: "flex", alignItems: "center" }}>
+              <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center" }}>
                 <input
                   type="checkbox"
+                  aria-label={`Select ${client.name}`}
                   checked={isChecked}
+                  onClick={(e) => e.stopPropagation()}
                   onChange={() => toggleOne(client.id)}
                   style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#7C3AED" }}
                 />
@@ -1616,14 +1621,25 @@ export default function ClientsPage() {
               <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{fmt(client.totalSpend)}</div>
               <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                 <button
-                  onClick={() => router.push(`/dashboard/clients/${encodeURIComponent(client.id)}`)}
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    router.push(`/dashboard/clients/${encodeURIComponent(client.id)}`);
+                  }}
                   style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "1px solid #e3e0eb", background: "#fff", fontSize: 11, fontWeight: 700, color: "#6b6b8a", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}
                   className="hover-bg-light"
                 >
                   <ExternalLink size={11} /> View
                 </button>
                 <button
-                  onClick={() => setDeleteTarget(client)}
+                  type="button"
+                  aria-label={`Delete ${client.name}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setDeleteTarget(client);
+                  }}
                   title="Delete client"
                   style={{ display: "flex", alignItems: "center", padding: "6px 8px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer", transition: "all 0.15s" }}
                 >

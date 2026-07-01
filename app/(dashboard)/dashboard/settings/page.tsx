@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Store, Clock, Bell, Palette, Shield, Smartphone, ChevronRight, Check, Sparkles, Banknote, PrinterIcon } from "lucide-react";
 import { settingsStore, saveSettings } from "@/lib/settings-store";
@@ -243,18 +243,67 @@ function Security() {
 function WhatsAppSection() {
   const [form, setForm] = useState({ ...settingsStore.whatsapp });
   const [saved, setSaved] = useState(false);
+  const ws = settingsStore.wasender;
+  const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey;
+  const isConfigured = Boolean(activeCredential)
+    && (ws.provider !== "botsailor" || Boolean(ws.botSailorPhoneNumberId));
+  const [connectionState, setConnectionState] = useState<"checking" | "connected" | "disconnected" | "not-configured">(
+    isConfigured ? "checking" : "not-configured",
+  );
+
+  useEffect(() => {
+    if (!isConfigured) {
+      setConnectionState("not-configured");
+      return;
+    }
+
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      provider: ws.provider || "wasender",
+      apiKey: ws.apiKey,
+      botSailorApiToken: ws.botSailorApiToken || "",
+      botSailorPhoneNumberId: ws.botSailorPhoneNumberId || "",
+      force: "1",
+    });
+    fetch(`/api/whatsapp/status?${params}`, { signal: controller.signal })
+      .then((response) => response.json())
+      .then((data: { connected?: boolean }) => setConnectionState(data.connected ? "connected" : "disconnected"))
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setConnectionState("disconnected");
+        }
+      });
+    return () => controller.abort();
+  }, [isConfigured, ws.apiKey, ws.botSailorApiToken, ws.botSailorPhoneNumberId, ws.provider]);
+
   const save = () => { Object.assign(settingsStore.whatsapp, form); saveSettings(); setSaved(true); setTimeout(() => setSaved(false), 3000); };
+  const connected = connectionState === "connected";
+  const checking = connectionState === "checking";
+  const statusTitle = checking
+    ? "Checking WhatsApp…"
+    : connected
+      ? "WhatsApp Connected"
+      : connectionState === "not-configured"
+        ? "WhatsApp Not Configured"
+        : "WhatsApp Disconnected";
+  const statusDescription = checking
+    ? "Verifying your provider connection"
+    : connected
+      ? `${ws.provider === "botsailor" ? "BotSailor" : "WaSender"} connection is active`
+      : connectionState === "not-configured"
+        ? "Add provider credentials in Account settings"
+        : "The configured provider could not be reached";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {saved && <SavedBanner />}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", background: form.connected ? "#ecfdf5" : "#fef2f2", borderRadius: 12, border: `1px solid ${form.connected ? "#bbf7d0" : "#fecaca"}` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", background: connected ? "#ecfdf5" : checking ? "#fffbeb" : "#fef2f2", borderRadius: 12, border: `1px solid ${connected ? "#bbf7d0" : checking ? "#fde68a" : "#fecaca"}` }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: form.connected ? "#059669" : "#dc2626" }}>{form.connected ? "WhatsApp Connected" : "WhatsApp Disconnected"}</div>
-          <div style={{ fontSize: 12, color: "#9898b0", marginTop: 2 }}>{form.connected ? "+92 300-1234567 · Business API active" : "Connect your WhatsApp Business account"}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: connected ? "#059669" : checking ? "#b45309" : "#dc2626" }}>{statusTitle}</div>
+          <div style={{ fontSize: 12, color: "#9898b0", marginTop: 2 }}>{statusDescription}</div>
         </div>
-        <button onClick={() => setForm((f: any) => ({ ...f, connected: !f.connected }))} style={{ padding: "7px 16px", borderRadius: 8, border: `1px solid ${form.connected ? "#dc2626" : "#059669"}`, background: "#fff", fontSize: 12, fontWeight: 600, color: form.connected ? "#dc2626" : "#059669", cursor: "pointer" }}>
-          {form.connected ? "Disconnect" : "Connect"}
-        </button>
+        <a href="/dashboard/account" style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid #7C3AED", background: "#fff", fontSize: 12, fontWeight: 600, color: "#7C3AED", cursor: "pointer", textDecoration: "none" }}>
+          {isConfigured ? "Manage" : "Configure"}
+        </a>
       </div>
       <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.08em" }}>Message Templates</div>
       {([

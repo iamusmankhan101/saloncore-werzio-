@@ -57,7 +57,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
                 <Printer size={14} /> Print / Save PDF
               </button>
-              <button onClick={onClose}
+              <button type="button" onClick={onClose} aria-label="Close invoice"
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 9, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", cursor: "pointer" }}>
                 <X size={16} color="#fff" />
               </button>
@@ -73,7 +73,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                 {/* Left: Salon Central branding */}
                 <div>
                   <img src="/salon-central-logo.png" alt="Salon Central"
-                    style={{ height: 100, width: "auto", display: "block", maxWidth: 300, marginBottom: 12 }} />
+                    style={{ height: 130, width: "auto", display: "block", maxWidth: 380, marginBottom: 14 }} />
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
                     <div>Salon Management Software</div>
                     <div>iamusmankhan101@gmail.com</div>
@@ -181,7 +181,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                 <div style={{ fontSize: 12, color: "#555" }}>
                   Thank you for choosing <strong style={{ color: "#111" }}>Salon Central</strong> — powering your salon's success.
                 </div>
-                <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 28, width: "auto" }} />
+                <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 42, width: "auto" }} />
               </div>
 
             </div>

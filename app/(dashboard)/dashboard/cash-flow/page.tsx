@@ -287,8 +287,16 @@ export default function CashFlowPage() {
   }
 
   function handleDelete(id: string) {
-    deleteExpense(id);
-    setExpenses(prev => prev.filter(e => e.id !== id));
+    try {
+      deleteExpense(id);
+      setExpenses(getExpenses());
+      if (editId === id) {
+        setShowForm(false);
+        setEditId(null);
+      }
+    } catch {
+      setFormError("The expense could not be deleted. Please try again.");
+    }
   }
 
   function expenseKey(expense: Pick<Expense, "date" | "category" | "description" | "amount" | "paymentMethod">) {
@@ -947,12 +955,12 @@ export default function CashFlowPage() {
                     {exp.paymentMethod && <div style={{ fontSize: 11, color: payColor ?? "#9898b0", marginTop: 2, fontWeight: 600 }}>{PAYMENT_LABELS[exp.paymentMethod] ?? exp.paymentMethod}</div>}
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: "#ef4444" }}>{fmt(exp.amount)}</div>
-                  <button onClick={() => openEdit(exp)} style={{ background: "none", border: "none", cursor: "pointer", color: "#c8c8d8", padding: 4, display: "flex", alignItems: "center", transition: "color 0.15s" }}
+                  <button type="button" aria-label={`Edit expense: ${exp.description}`} title="Edit expense" onClick={() => openEdit(exp)} style={{ background: "none", border: "none", cursor: "pointer", color: "#c8c8d8", padding: 4, display: "flex", alignItems: "center", transition: "color 0.15s" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "var(--accent)")}
                     onMouseLeave={e => (e.currentTarget.style.color = "#c8c8d8")}>
                     <Pencil size={14} />
                   </button>
-                  <button onClick={() => handleDelete(exp.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#c8c8d8", padding: 4, display: "flex", alignItems: "center", transition: "color 0.15s" }}
+                  <button type="button" aria-label={`Delete expense: ${exp.description}`} title="Delete expense" onClick={() => handleDelete(exp.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#c8c8d8", padding: 4, display: "flex", alignItems: "center", transition: "color 0.15s" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "#ef4444")}
                     onMouseLeave={e => (e.currentTarget.style.color = "#c8c8d8")}>
                     <Trash2 size={15} />

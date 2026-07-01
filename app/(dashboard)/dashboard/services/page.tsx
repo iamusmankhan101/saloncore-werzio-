@@ -30,7 +30,15 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
   const [done, setDone] = useState(false);
 
-  const canSubmit = form.name && form.price && Number(form.price) > 0 && form.durationMin;
+  const price = Number(form.price);
+  const durationMin = Number(form.durationMin);
+  const canSubmit = Boolean(
+    form.name.trim()
+    && Number.isFinite(price)
+    && price > 0
+    && Number.isFinite(durationMin)
+    && durationMin > 0,
+  );
 
   const toggleStaff = (id: string) => {
     const cur = [...form.assignedStaffIds];
@@ -41,10 +49,10 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
     if (!canSubmit) return;
     onSave({
       id:               serviceToEdit?.id ?? "sv" + Date.now(),
-      name:             form.name,
+      name:             form.name.trim(),
       category:         form.category as ServiceCategory,
-      durationMin:      Number(form.durationMin),
-      price:            Number(form.price),
+      durationMin,
+      price,
       assignedStaffIds: form.assignedStaffIds,
       isActive:         serviceToEdit?.isActive ?? true,
     });
@@ -67,9 +75,15 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
       <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 460, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>{isEditing ? "Edit Service" : "Add Service"}</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#6b6b8a" /></button>
+          <button type="button" onClick={onClose} aria-label="Close service form" style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#6b6b8a" /></button>
         </div>
-        <div style={{ padding: "22px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleSave();
+          }}
+          style={{ padding: "22px 24px", display: "flex", flexDirection: "column", gap: 16 }}
+        >
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Service Name</label>
             <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Hydrafacial Premium"
@@ -115,12 +129,12 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-            <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
-            <button onClick={handleSave} disabled={!canSubmit} style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit ? "#fff" : "#b0b0c8", cursor: canSubmit ? "pointer" : "not-allowed" }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
+            <button type="submit" disabled={!canSubmit} style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit ? "#fff" : "#b0b0c8", cursor: canSubmit ? "pointer" : "not-allowed" }}>
               {isEditing ? "Save Changes" : "Add Service"}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
@@ -162,12 +176,14 @@ export default function ServicesPage() {
   }, []);
 
   const handleSaveService = (savedService: Service) => {
-    const exists = services.some(s => s.id === savedService.id);
-    const updated = exists
-      ? services.map(s => s.id === savedService.id ? savedService : s)
-      : [...services, savedService];
-    setServices(updated);
-    saveServices(updated);
+    setServices((current) => {
+      const exists = current.some((service) => service.id === savedService.id);
+      const updated = exists
+        ? current.map((service) => service.id === savedService.id ? savedService : service)
+        : [...current, savedService];
+      saveServices(updated);
+      return updated;
+    });
   };
 
   const toggleServiceStatus = (id: string) => {
@@ -295,18 +311,18 @@ export default function ServicesPage() {
                     <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e", marginTop: 12, letterSpacing: "-0.01em" }}>{sv.name}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button onClick={() => setEditingService(sv)}
+                    <button type="button" onClick={() => setEditingService(sv)} aria-label={`Edit ${sv.name}`}
                       style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #EDE9FE", background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
                       className="hover-bg-light">
                       <Pencil size={14} color="#7C3AED" />
                     </button>
-                    <button onClick={() => setDeleteTarget(sv)}
+                    <button type="button" onClick={() => setDeleteTarget(sv)} aria-label={`Delete ${sv.name}`}
                       style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}>
                       <Trash2 size={14} color="#dc2626" />
                     </button>
-                    <div onClick={() => toggleServiceStatus(sv.id)} style={{ width: 40, height: 20, borderRadius: 10, background: sv.isActive ? "#059669" : "#e0e0ec", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
+                    <button type="button" onClick={() => toggleServiceStatus(sv.id)} aria-label={`${sv.isActive ? "Deactivate" : "Activate"} ${sv.name}`} aria-pressed={sv.isActive} style={{ width: 40, height: 20, padding: 0, border: "none", borderRadius: 10, background: sv.isActive ? "#059669" : "#e0e0ec", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
                       <div style={{ position: "absolute", top: 2, left: sv.isActive ? 22 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
-                    </div>
+                    </button>
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, borderTop: "1px solid #f8f8fc", borderBottom: "1px solid #f8f8fc", padding: "14px 0" }}>

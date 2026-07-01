@@ -201,6 +201,8 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button
+              type="button"
+              aria-label="Close navigation"
               className="mobile-close-btn"
               onClick={onClose}
               style={{
