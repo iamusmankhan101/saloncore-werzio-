@@ -146,10 +146,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Authentication failed.";
 
-    if (message === "EMAIL_NOT_VERIFIED") {
-      return Response.json({ ok: false, error: "EMAIL_NOT_VERIFIED" }, { status: 403 });
-    }
-
     if (message === "Invalid email or password.") {
       return Response.json({ ok: false, error: message }, { status: 401 });
     }

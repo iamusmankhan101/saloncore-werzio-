@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       salonName: salonName || ownerName,
       phone: phone || "",
       role: isAdmin ? "admin" : "owner",
-      emailVerified: isAdmin,
+      emailVerified: true,
     });
 
     return Response.json({

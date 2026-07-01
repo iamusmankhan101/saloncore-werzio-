@@ -47,8 +47,6 @@ export default function SignInPage() {
             if (data.retryAfter) {
               setTimeout(() => { setRateLocked(false); setError(""); }, data.retryAfter * 1000);
             }
-          } else if (data.error === "EMAIL_NOT_VERIFIED") {
-            setError("Please verify your email before signing in. Check your inbox for the verification link.");
           } else {
             setError(data.error || "Unable to sign in.");
           }
