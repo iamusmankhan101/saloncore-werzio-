@@ -199,6 +199,7 @@ function OnlineBookingInner() {
 
     // Fire the dashboard popup notification (cross-tab via localStorage, same-tab via event)
     const alertPayload = {
+      bookingId: appt.id,
       clientName: name,
       serviceNames: selectedServices.map((s) => s.name),
       date: selectedDate,

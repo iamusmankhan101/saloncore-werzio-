@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff, MapPin, Plus } from "lucide-react";
 import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
@@ -301,12 +301,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [toasts, setToasts] = useState<Array<WaLogEntry & { toastId: number }>>([]);
   const [bookingAlerts, setBookingAlerts] = useState<Array<{
     alertId: number;
+    bookingId?: string;
     clientName: string;
     serviceNames: string[];
     date: string;
     startTime: string;
     totalAmount: number;
   }>>([]);
+  const seenBookingAlertIds = useRef(new Set<string>());
   const [lowStockCount,     setLowStockCount]     = useState(0);
   const [outStockCount,     setOutStockCount]     = useState(0);
   const [unpaidInvoice, setUnpaidInvoice] = useState<{ number: string; amount: number; status: string; dueDate: string } | null>(null);
@@ -489,10 +491,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!isReady) return;
 
-    function showBookingAlert(detail: { clientName: string; serviceNames: string[]; date: string; startTime: string; totalAmount: number }) {
+    type BookingAlert = {
+      bookingId?: string;
+      clientName: string;
+      serviceNames: string[];
+      date: string;
+      startTime: string;
+      totalAmount: number;
+      ts?: number;
+    };
+
+    function showBookingAlert(detail: BookingAlert) {
+      const dedupeId = detail.bookingId
+        || `${detail.clientName}|${detail.date}|${detail.startTime}|${detail.ts ?? ""}`;
+      if (seenBookingAlertIds.current.has(dedupeId)) return;
+      seenBookingAlertIds.current.add(dedupeId);
       playChime();
       const alertId = Date.now();
-      setBookingAlerts((prev) => [...prev, { ...detail, alertId }]);
+      // A new booking replaces an older visible popup. Each popup now represents
+      // exactly the booking event that triggered it.
+      setBookingAlerts([{ ...detail, alertId }]);
     }
 
     // BroadcastChannel — propagates to ALL open tabs in the same browser instantly
@@ -501,7 +519,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       try { showBookingAlert(e.data); } catch { /* ignore */ }
     };
 
-    function broadcast(detail: { clientName: string; serviceNames: string[]; date: string; startTime: string; totalAmount: number }) {
+    function broadcast(detail: BookingAlert) {
       showBookingAlert(detail);
       channel.postMessage(detail); // notify every other open tab
     }
@@ -514,7 +532,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Cross-tab fallback: localStorage storage event (same browser, different tab)
     function onStorage(e: StorageEvent) {
       if (e.key !== "werzio_new_booking_notify" || !e.newValue) return;
-      try { broadcast(JSON.parse(e.newValue)); } catch { /* ignore */ }
+      // Every dashboard tab receives this event independently. Do not rebroadcast
+      // it or each tab will multiply the same popup through BroadcastChannel.
+      try { showBookingAlert(JSON.parse(e.newValue)); } catch { /* ignore */ }
     }
 
     window.addEventListener("werzio_new_booking_alert", onNewBooking);
@@ -539,7 +559,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           return;
         }
         if (latest.id !== lastSeenId) {
-          // New booking detected — find all we haven't seen yet
           const lastSeenIndex = data.appointments.findIndex((a) => a.id === lastSeenId);
           
           // If the last seen ID is not in the list anymore (e.g. deleted), just update the baseline
@@ -548,19 +567,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return;
           }
 
-          const newOnes = data.appointments.slice(0, lastSeenIndex);
           lastSeenId = latest.id;
-
-          // Broadcast in chronological order (oldest of the new ones first)
-          for (const appt of [...newOnes].reverse()) {
-            broadcast({
-              clientName:   appt.clientName,
-              serviceNames: appt.serviceNames ?? [],
-              date:         appt.date,
-              startTime:    appt.startTime,
-              totalAmount:  appt.totalAmount ?? 0,
-            });
-          }
+          // Only surface the booking that just arrived. Older unseen records
+          // must not be replayed as a stack of popups.
+          showBookingAlert({
+            bookingId:   latest.id,
+            clientName:  latest.clientName,
+            serviceNames: latest.serviceNames ?? [],
+            date:        latest.date,
+            startTime:   latest.startTime,
+            totalAmount: latest.totalAmount ?? 0,
+          });
         }
       } catch { /* network error — try again next tick */ }
     }
@@ -820,6 +837,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
                 <button
                   type="button"
+                  aria-label={`Dismiss booking notification for ${alert.clientName}`}
                   onClick={() => setBookingAlerts((prev) => prev.filter((a) => a.alertId !== alert.alertId))}
                   style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
                 >
