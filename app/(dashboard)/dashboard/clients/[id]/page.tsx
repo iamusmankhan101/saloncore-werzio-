@@ -261,11 +261,6 @@ export default function ClientProfilePage() {
                 <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "#6b6b8a" }}><Heart size={13} />via {client.source}</span>
                 <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "#6b6b8a" }}><Clock size={13} />Member since {fmtDate(client.createdAt)}</span>
               </div>
-              {client.notes && (
-                <div style={{ marginTop: 14, padding: "10px 14px", background: "rgba(255,255,255,0.7)", borderRadius: 10, fontSize: 13, color: "#6b6b8a", fontStyle: "italic", border: "1px solid #e8e0ff" }}>
-                  {client.notes}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -549,6 +544,21 @@ export default function ClientProfilePage() {
               )}
             </SectionCard>
 
+            {/* Client notes */}
+            <SectionCard title="Notes">
+              <div style={{ padding: "16px 20px", minHeight: 56 }}>
+                {client.notes ? (
+                  <div style={{ padding: "12px 14px", borderRadius: 10, background: "#faf8ff", border: "1px solid #ede9fe", color: "#5f5875", fontSize: 13, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+                    {client.notes}
+                  </div>
+                ) : (
+                  <div style={{ color: "#b0b0c8", fontSize: 13 }}>
+                    No notes added for this client.
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+
             {/* Edit form */}
             {editing ? (
               <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #7C3AED44", overflow: "hidden" }}>
@@ -608,11 +618,6 @@ export default function ClientProfilePage() {
                   <InfoRow icon={<Heart size={14} color="#9898b0" />} label="Source">{client.source}</InfoRow>
                   <InfoRow icon={<Clock size={14} color="#9898b0" />} label="Member Since">{fmtDate(client.createdAt)}</InfoRow>
                   {client.gender && <InfoRow icon={<Users size={14} color="#9898b0" />} label="Gender">{client.gender}</InfoRow>}
-                  {client.notes && (
-                    <div style={{ marginTop: 4, padding: "10px 14px", background: "#f9f9fb", borderRadius: 10, fontSize: 13, color: "#6b6b8a", fontStyle: "italic", border: "1px solid #f0f0f8" }}>
-                      {client.notes}
-                    </div>
-                  )}
                 </div>
               </div>
             )}

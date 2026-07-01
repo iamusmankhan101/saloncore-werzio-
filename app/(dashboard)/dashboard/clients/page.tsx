@@ -137,6 +137,7 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
     dob: client.dob ?? "",
     source: client.source,
     tag: client.tags[0] ?? "",
+    notes: client.notes ?? "",
     locationId: clientLocationId(client),
   });
   const [saved, setSaved] = useState(false);
@@ -158,6 +159,7 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
   const displayEmail = saved ? editForm.email : client.email;
   const displayDob = saved ? editForm.dob : client.dob;
   const displaySource = saved ? editForm.source : client.source;
+  const displayNotes = saved ? editForm.notes : client.notes;
   const displayLocationId = saved ? editForm.locationId : clientLocationId(client);
 
   return (
@@ -415,8 +417,18 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
                     </select>
                   </div>
                 </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.06em" }}>Notes</label>
+                  <textarea
+                    value={editForm.notes}
+                    onChange={(e) => setE("notes", e.target.value)}
+                    rows={3}
+                    placeholder="Preferences, allergies, or other client notes…"
+                    style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", resize: "vertical", fontFamily: "inherit" }}
+                  />
+                </div>
                 <div style={{ display: "flex", gap: 8, paddingTop: 4 }}>
-                  <button onClick={() => { setEditing(false); setEditForm({ name: client.name, phone: client.phone, email: client.email ?? "", dob: client.dob ?? "", source: client.source, tag: client.tags[0] ?? "", locationId: clientLocationId(client) }); }}
+                  <button onClick={() => { setEditing(false); setEditForm({ name: client.name, phone: client.phone, email: client.email ?? "", dob: client.dob ?? "", source: client.source, tag: client.tags[0] ?? "", notes: client.notes ?? "", locationId: clientLocationId(client) }); }}
                     style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>
                     Cancel
                   </button>
@@ -430,6 +442,7 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
                       source: editForm.source as any,
                       locationId: editForm.locationId,
                       tags: editForm.tag ? [editForm.tag] : [],
+                      notes: editForm.notes.trim() || undefined,
                     };
                     onUpdate?.(updatedC);
                     setSaved(true);
@@ -450,6 +463,11 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
                 <InfoLine icon={<Heart size={13} color="#9898b0" />} label={`Source: ${displaySource}`} />
                 <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`Location: ${locationName(displayLocationId)}`} />
                 <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`Last visit: ${fmtDate(liveLastVisit ?? client.lastVisitDate)}`} />
+                {displayNotes && (
+                  <div style={{ marginTop: 4, padding: "9px 11px", borderRadius: 8, background: "#f9f9fb", color: "#6b6b8a", fontSize: 12, lineHeight: 1.55 }}>
+                    {displayNotes}
+                  </div>
+                )}
               </div>
             </PanelSection>
           )}
