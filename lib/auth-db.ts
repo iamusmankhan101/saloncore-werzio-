@@ -33,7 +33,9 @@ export { hashPassword };
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
-export async function ensureAuthTables(): Promise<void> {
+let authTablesReady: Promise<void> | null = null;
+
+async function ensureAuthTablesUncached(): Promise<void> {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS users (
       id                TEXT PRIMARY KEY,
@@ -64,6 +66,14 @@ export async function ensureAuthTables(): Promise<void> {
   await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)
   `).catch(() => {});
+}
+
+export async function ensureAuthTables(): Promise<void> {
+  authTablesReady ||= ensureAuthTablesUncached().catch((error) => {
+    authTablesReady = null;
+    throw error;
+  });
+  return authTablesReady;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -223,6 +233,15 @@ export async function upsertStaffUser(input: {
   const created = await getUserById(id);
   if (!created) throw new Error("Failed to create staff login.");
   return withoutPassword(created);
+}
+
+export async function getStaffUsersForOwner(salonOwnerId: string): Promise<AuthUser[]> {
+  await ensureAuthTables();
+  const res = await db.execute({
+    sql: "SELECT * FROM users WHERE salon_owner_id = ? AND staff_id IS NOT NULL ORDER BY owner_name COLLATE NOCASE ASC",
+    args: [salonOwnerId],
+  });
+  return res.rows.map((row) => withoutPassword(rowToUser(row)));
 }
 
 export async function getUserById(id: string): Promise<User | null> {

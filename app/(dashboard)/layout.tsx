@@ -335,7 +335,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const key = pathname === "/dashboard"
           ? "dashboard"
           : pathname.replace("/dashboard/", "").split("/")[0];
-        if (!(user.permissions || []).includes(key)) {
+        const permissions = user.permissions || [];
+        if (!permissions.includes("*") && !permissions.includes(key)) {
           router.replace("/dashboard");
           return;
         }

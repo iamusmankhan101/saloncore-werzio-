@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Banknote, Check, ChevronLeft, ChevronRight, Clock, ImageIcon, LogOut, Save, Shield, Smartphone, Store, Trash2, User, Wand2 } from "lucide-react";
+import { Banknote, Check, ChevronLeft, ChevronRight, Clock, ImageIcon, KeyRound, LogOut, MapPin, Save, Shield, Smartphone, Store, Trash2, User, UserCog, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
+import { AuthUser, getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
+import { getStoredStaff } from "@/lib/storage";
+import type { Staff } from "@/lib/types";
+import { getDefaultLocationId, getSalonLocations, type SalonLocation } from "@/lib/locations";
 
-type SectionId = "profile" | "salon" | "hours" | "security" | "whatsapp" | "decidr" | "tryon";
+type SectionId = "profile" | "salon" | "hours" | "roles" | "security" | "whatsapp" | "decidr" | "tryon";
 
 interface SalonSettings {
   name: string;
@@ -33,6 +36,7 @@ const BASE_SECTIONS: { id: SectionId; label: string; icon: React.ElementType }[]
   { id: "profile",  label: "My Profile",     icon: User },
   { id: "salon",    label: "Salon Settings",  icon: Store },
   { id: "hours",    label: "Business Hours",  icon: Clock },
+  { id: "roles",    label: "Roles & Permissions", icon: UserCog },
   { id: "security", label: "Security",        icon: Shield },
   { id: "whatsapp", label: "WhatsApp",        icon: Smartphone },
 ];
@@ -1276,10 +1280,293 @@ function VirtualTryOnSection() {
   );
 }
 
+type AccessRole = "staff" | "manager";
+
+interface RoleDraft {
+  email: string;
+  password: string;
+  role: AccessRole;
+  locationId: string;
+  permissions: string[];
+}
+
+const DEFAULT_STAFF_PERMISSIONS = ["dashboard", "calendar", "appointments", "clients", "pos", "invoices"];
+const PERMISSION_OPTIONS = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "calendar", label: "Calendar" },
+  { key: "appointments", label: "Appointments" },
+  { key: "clients", label: "Clients" },
+  { key: "pos", label: "POS" },
+  { key: "invoices", label: "Invoices" },
+  { key: "loyalty", label: "Loyalty" },
+  { key: "revenue", label: "Revenue" },
+  { key: "cash-flow", label: "Cash Flow" },
+  { key: "inventory", label: "Inventory" },
+  { key: "services", label: "Services" },
+  { key: "staff", label: "Staff" },
+  { key: "messages", label: "WhatsApp" },
+  { key: "try-on", label: "Virtual Try-On" },
+];
+
+function RolesPermissionsSection() {
+  const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [locations, setLocations] = useState<SalonLocation[]>([]);
+  const [loginUsers, setLoginUsers] = useState<AuthUser[]>([]);
+  const [drafts, setDrafts] = useState<Record<string, RoleDraft>>({});
+  const [savingId, setSavingId] = useState("");
+  const [savedId, setSavedId] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const staff = getStoredStaff();
+    const branchList = getSalonLocations();
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 4500);
+    setStaffList(staff);
+    setLocations(branchList);
+
+    fetch("/api/auth/staff", { signal: controller.signal })
+      .then((response) => response.json())
+      .then((data: { ok?: boolean; users?: AuthUser[] }) => {
+        const users = data.ok && Array.isArray(data.users) ? data.users : [];
+        setLoginUsers(users);
+        setDrafts(buildDrafts(staff, users, branchList));
+      })
+      .catch(() => {
+        setDrafts(buildDrafts(staff, [], branchList));
+        setError("Existing staff login records are taking too long to load. You can still create or update access from here.");
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+      });
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, []);
+
+  function buildDrafts(staff: Staff[], users: AuthUser[], branchList: SalonLocation[]) {
+    const fallbackLocation = branchList[0]?.id || getDefaultLocationId();
+    return staff.reduce<Record<string, RoleDraft>>((acc, member) => {
+      const login = users.find((user) => user.staffId === member.id);
+      const isManager = login?.role === "manager" || login?.permissions?.includes("*");
+      acc[member.id] = {
+        email: login?.email || member.email || "",
+        password: "",
+        role: isManager ? "manager" : "staff",
+        locationId: login?.locationId || fallbackLocation,
+        permissions: isManager ? DEFAULT_STAFF_PERMISSIONS : (login?.permissions?.length ? login.permissions.filter((p) => p !== "*") : DEFAULT_STAFF_PERMISSIONS),
+      };
+      return acc;
+    }, {});
+  }
+
+  function updateDraft(staffId: string, patch: Partial<RoleDraft>) {
+    setDrafts((current) => ({
+      ...current,
+      [staffId]: { ...current[staffId], ...patch },
+    }));
+  }
+
+  function togglePermission(staffId: string, permission: string) {
+    const draft = drafts[staffId];
+    if (!draft || permission === "dashboard") return;
+    const hasPermission = draft.permissions.includes(permission);
+    const next = hasPermission
+      ? draft.permissions.filter((item) => item !== permission)
+      : [...draft.permissions, permission];
+    updateDraft(staffId, { permissions: Array.from(new Set(["dashboard", ...next])) });
+  }
+
+  async function saveAccess(member: Staff) {
+    const draft = drafts[member.id];
+    if (!draft || !draft.email.trim()) {
+      setError("Staff login email is required.");
+      return;
+    }
+    const existing = loginUsers.find((user) => user.staffId === member.id);
+    if (!existing && draft.password.length < 8) {
+      setError("New staff login password must be at least 8 characters.");
+      return;
+    }
+
+    setSavingId(member.id);
+    setSavedId("");
+    setError("");
+    try {
+      const response = await fetch("/api/auth/staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          staffId: member.id,
+          name: member.name,
+          email: draft.email,
+          phone: member.phone || "",
+          password: draft.password || undefined,
+          role: draft.role,
+          locationId: draft.locationId,
+          permissions: draft.permissions,
+        }),
+      });
+      const result = await response.json() as { ok?: boolean; user?: AuthUser; error?: string };
+      if (!response.ok || !result.ok || !result.user) throw new Error(result.error || "Unable to save staff access.");
+
+      setLoginUsers((current) => {
+        const others = current.filter((user) => user.staffId !== member.id);
+        return [...others, result.user!];
+      });
+      updateDraft(member.id, { password: "" });
+      setSavedId(member.id);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save staff access.");
+    } finally {
+      setSavingId("");
+    }
+  }
+
+  const chipStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    padding: "6px 10px",
+    background: "#f5f3ff",
+    color: "#6d28d9",
+    fontSize: 11,
+    fontWeight: 850,
+  };
+
+  return (
+    <section>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 18, marginBottom: 24 }}>
+        <div>
+          <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Roles & Permissions</h2>
+          <p style={{ margin: 0, color: "#8d89a2", fontSize: 13, lineHeight: 1.6 }}>
+            Create staff logins, choose manager/admin-style access, and control which dashboard pages each staff member can open.
+          </p>
+        </div>
+        <span style={chipStyle}><KeyRound size={13} /> Login access</span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginBottom: 22 }}>
+        <div style={{ border: "1px solid #ece9f5", borderRadius: 16, padding: 16, background: "#fbfaff" }}>
+          <div style={{ width: 34, height: 34, borderRadius: 11, background: "#ede9fe", color: "#7c3aed", display: "grid", placeItems: "center", marginBottom: 10 }}><Shield size={17} /></div>
+          <div style={{ fontWeight: 900, color: "#242238", marginBottom: 4 }}>Owner/Admin</div>
+          <div style={{ color: "#8d89a2", fontSize: 12, lineHeight: 1.55 }}>Salon owner account keeps full access from the main sign-in profile.</div>
+        </div>
+        <div style={{ border: "1px solid #ece9f5", borderRadius: 16, padding: 16, background: "#fff" }}>
+          <div style={{ width: 34, height: 34, borderRadius: 11, background: "#ecfeff", color: "#0891b2", display: "grid", placeItems: "center", marginBottom: 10 }}><UserCog size={17} /></div>
+          <div style={{ fontWeight: 900, color: "#242238", marginBottom: 4 }}>Manager</div>
+          <div style={{ color: "#8d89a2", fontSize: 12, lineHeight: 1.55 }}>Gives full dashboard access for a trusted branch/admin user.</div>
+        </div>
+        <div style={{ border: "1px solid #ece9f5", borderRadius: 16, padding: 16, background: "#fff" }}>
+          <div style={{ width: 34, height: 34, borderRadius: 11, background: "#f0fdf4", color: "#16a34a", display: "grid", placeItems: "center", marginBottom: 10 }}><MapPin size={17} /></div>
+          <div style={{ fontWeight: 900, color: "#242238", marginBottom: 4 }}>Staff</div>
+          <div style={{ color: "#8d89a2", fontSize: 12, lineHeight: 1.55 }}>Limited to assigned branch data and only the selected pages.</div>
+        </div>
+      </div>
+
+      {error && <div style={{ marginBottom: 16, padding: "11px 13px", borderRadius: 12, background: "#fef2f2", color: "#b91c1c", fontSize: 12, fontWeight: 700 }}>{error}</div>}
+
+      {staffList.length === 0 ? (
+        <div style={{ border: "1px dashed #d9d4e8", borderRadius: 18, padding: 28, textAlign: "center", color: "#8d89a2" }}>
+          Add staff members first, then return here to create their login access.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 16 }}>
+          {staffList.map((member) => {
+            const draft = drafts[member.id];
+            if (!draft) return null;
+            const existing = loginUsers.find((user) => user.staffId === member.id);
+            const isManager = draft.role === "manager";
+            return (
+              <div key={member.id} style={{ border: "1px solid #ece9f5", borderRadius: 18, padding: 18, background: "#fff", boxShadow: "0 8px 22px rgba(40,24,80,.04)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: "50%", background: member.color || "#7c3aed", color: "#fff", display: "grid", placeItems: "center", fontWeight: 900 }}>
+                    {member.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 900, color: "#202033", fontSize: 15 }}>{member.name}</div>
+                    <div style={{ color: "#9691a8", fontSize: 12, textTransform: "capitalize" }}>{member.role.replace(/-/g, " ")} · {existing ? "Login active" : "No login yet"}</div>
+                  </div>
+                  {savedId === member.id && <SavedBanner text="Access saved." />}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, alignItems: "end", marginBottom: 16 }}>
+                  <Field label="Login Email">
+                    <input style={inputStyle} type="email" value={draft.email} onChange={(e) => updateDraft(member.id, { email: e.target.value })} placeholder="staff@salon.com" />
+                  </Field>
+                  <Field label={existing ? "New Password" : "Password"} hint={existing ? "Leave blank to keep current." : "Minimum 8 characters."}>
+                    <input style={inputStyle} type="password" value={draft.password} onChange={(e) => updateDraft(member.id, { password: e.target.value })} placeholder={existing ? "Optional" : "Required"} />
+                  </Field>
+                  <Field label="Access Role">
+                    <select style={inputStyle} value={draft.role} onChange={(e) => updateDraft(member.id, { role: e.target.value as AccessRole })}>
+                      <option value="staff">Staff — custom access</option>
+                      <option value="manager">Manager/Admin — full access</option>
+                    </select>
+                  </Field>
+                  <Field label="Assigned Location">
+                    <select style={inputStyle} value={draft.locationId} onChange={(e) => updateDraft(member.id, { locationId: e.target.value })}>
+                      {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+                    </select>
+                  </Field>
+                </div>
+
+                <div style={{ border: "1px solid #f0eef7", borderRadius: 14, padding: 14, background: isManager ? "#fafafa" : "#fcfbff" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+                    <div style={{ color: "#29263d", fontSize: 12, fontWeight: 900, letterSpacing: ".04em", textTransform: "uppercase" }}>Page permissions</div>
+                    {isManager && <span style={{ color: "#059669", fontSize: 12, fontWeight: 800 }}>Full access enabled</span>}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 8, opacity: isManager ? 0.45 : 1 }}>
+                    {PERMISSION_OPTIONS.map((permission) => {
+                      const checked = isManager || draft.permissions.includes(permission.key);
+                      const locked = isManager || permission.key === "dashboard";
+                      return (
+                        <button
+                          key={permission.key}
+                          type="button"
+                          disabled={locked}
+                          onClick={() => togglePermission(member.id, permission.key)}
+                          style={{
+                            border: checked ? "1px solid rgba(124,58,237,.32)" : "1px solid #ebe8f3",
+                            background: checked ? "#f5f3ff" : "#fff",
+                            color: checked ? "#6d28d9" : "#77728a",
+                            borderRadius: 11,
+                            padding: "9px 10px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontSize: 12,
+                            fontWeight: 800,
+                            cursor: locked ? "default" : "pointer",
+                            textAlign: "left",
+                          }}
+                        >
+                          <span style={{ width: 16, height: 16, borderRadius: 5, background: checked ? "#7c3aed" : "#f2f0f7", color: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                            {checked && <Check size={11} strokeWidth={3} />}
+                          </span>
+                          {permission.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <SaveButton label={savingId === member.id ? "Saving..." : "Save Access"} disabled={savingId === member.id} onClick={() => saveAccess(member)} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SectionContent({ active }: { active: SectionId }) {
   if (active === "profile")  return <ProfileSection />;
   if (active === "salon")    return <SalonProfile />;
   if (active === "hours")    return <BusinessHours />;
+  if (active === "roles")    return <RolesPermissionsSection />;
   if (active === "security") return <Security />;
   if (active === "decidr")   return <DecidrLoyaltySection />;
   if (active === "tryon")    return <VirtualTryOnSection />;
@@ -1374,11 +1661,11 @@ export default function AccountPage() {
               const Icon = section.icon;
               const iconBgs: Record<string, string> = {
                 profile: "#EDE9FE", salon: "#e0f2fe", hours: "#fef9c3",
-                security: "#fef2f2", whatsapp: "#dcfce7", decidr: "#ecfdf5", tryon: "#fdf4ff",
+                roles: "#f5f3ff", security: "#fef2f2", whatsapp: "#dcfce7", decidr: "#ecfdf5", tryon: "#fdf4ff",
               };
               const iconColors: Record<string, string> = {
                 profile: "#7C3AED", salon: "#0284c7", hours: "#ca8a04",
-                security: "#dc2626", whatsapp: "#16a34a", decidr: "#059669", tryon: "#a21caf",
+                roles: "#6d28d9", security: "#dc2626", whatsapp: "#16a34a", decidr: "#059669", tryon: "#a21caf",
               };
               return (
                 <button
