@@ -121,7 +121,7 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 480, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 70px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 480, maxHeight: "92vh", overflowY: "auto", overflowX: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,0.22)" }}>
 
         {/* Header */}
         <div style={{ background: `linear-gradient(135deg, ${cfg.color}18, ${cfg.color}08)`, padding: "20px 24px 18px", borderBottom: `2px solid ${cfg.color}22`, position: "relative" }}>
