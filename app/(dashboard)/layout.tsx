@@ -414,7 +414,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .then((r) => r.json())
           .then((data: { ok: boolean; invoices?: Invoice[] }) => {
             if (!data.ok || !data.invoices) return;
-            const unpaid = data.invoices.filter((inv) => inv.status !== "paid");
+            // Only surface the banner once the invoice is actually due (or overdue) —
+            // not the moment it's issued, which can be weeks before the due date.
+            const today = new Date().toISOString().slice(0, 10);
+            const unpaid = data.invoices.filter((inv) => inv.status !== "paid" && inv.dueDate <= today);
             if (unpaid.length > 0) {
               const oldest = unpaid[unpaid.length - 1]; // oldest = last in desc-sorted list
               setUnpaidInvoice({ number: oldest.number, amount: oldest.total, status: oldest.status, dueDate: oldest.dueDate });
