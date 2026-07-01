@@ -263,9 +263,24 @@ export default function SignUpPage() {
                   })}
                 </div>
 
-                <a href={CONTACT_SALES_URL} target="_blank" rel="noopener noreferrer" className={styles.primaryButton}>
-                  Contact Sales on WhatsApp <ArrowRight size={14} />
-                </a>
+                <button
+                  type="button"
+                  onClick={() => setStep("details")}
+                  className={styles.primaryButton}
+                >
+                  Continue to Registration <ArrowRight size={14} />
+                </button>
+
+                <div style={{ marginTop: 14, textAlign: "center" }}>
+                  <a 
+                    href={CONTACT_SALES_URL} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ fontSize: 12, color: "#7C3AED", fontWeight: 600, textDecoration: "none" }}
+                  >
+                    Need help choosing? Contact Sales →
+                  </a>
+                </div>
 
                 {/* Admin toggle */}
                 <div style={{ marginTop: 14 }}>
