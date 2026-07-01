@@ -97,7 +97,7 @@ export default function DashboardPage() {
       setAppointments(getStoredAppointments());
       setClients(getStoredClients());
       setStaffList(getStoredStaff());
-      setPosInvoices(getSalonInvoices());
+      setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && !inv.appointmentId));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
