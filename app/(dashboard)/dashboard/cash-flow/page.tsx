@@ -487,6 +487,75 @@ export default function CashFlowPage() {
     try {
       const XLSX = await import("xlsx");
       const workbook = XLSX.utils.book_new();
+
+      // ── Daily cash-flow sheet ──────────────────────────────────────────────
+      // Columns: Date | Card | Cash | Old Account | New Account | Total Income | Expense
+      //   Card        = card payments
+      //   Cash        = cash payments
+      //   Old Account = bank transfer
+      //   New Account = JazzCash + EasyPaisa + Raast
+
+      type DayBucket = { card: number; cash: number; bank: number; newAccount: number; expense: number };
+      const dayMap: Record<string, DayBucket> = {};
+
+      // Initialise every date in the selected range with zeros
+      const rangeDates = getDaysInRange(rangeStart || filterEnd, filterEnd);
+      rangeDates.forEach(d => { dayMap[d] = { card: 0, cash: 0, bank: 0, newAccount: 0, expense: 0 }; });
+
+      // All paid invoices (appointments + POS — both carry paymentMethod)
+      const allPaidInvoices = getSalonInvoices().filter(
+        inv => inv.status === "paid" && inv.date >= (rangeStart || filterEnd) && inv.date <= filterEnd,
+      );
+      allPaidInvoices.forEach(inv => {
+        if (!dayMap[inv.date]) dayMap[inv.date] = { card: 0, cash: 0, bank: 0, newAccount: 0, expense: 0 };
+        const pm = inv.paymentMethod ?? "";
+        if      (pm === "card")                                   dayMap[inv.date].card       += inv.total;
+        else if (pm === "cash")                                   dayMap[inv.date].cash       += inv.total;
+        else if (pm === "bank")                                   dayMap[inv.date].bank       += inv.total;
+        else if (pm === "jazzcash" || pm === "easypaisa" || pm === "raast")
+                                                                  dayMap[inv.date].newAccount += inv.total;
+        else                                                      dayMap[inv.date].cash       += inv.total; // untracked → cash
+      });
+
+      // Manual imported income → cash column
+      manualIncome
+        .filter(e => e.date >= (rangeStart || filterEnd) && e.date <= filterEnd)
+        .forEach(e => {
+          if (!dayMap[e.date]) dayMap[e.date] = { card: 0, cash: 0, bank: 0, newAccount: 0, expense: 0 };
+          dayMap[e.date].cash += e.amount;
+        });
+
+      // Expenses aggregated per day
+      periodExpenses.forEach(e => {
+        if (!dayMap[e.date]) dayMap[e.date] = { card: 0, cash: 0, bank: 0, newAccount: 0, expense: 0 };
+        dayMap[e.date].expense += e.amount;
+      });
+
+      // Build sorted rows (oldest → newest)
+      const cashFlowRows = Object.keys(dayMap)
+        .sort()
+        .map(date => {
+          const b = dayMap[date];
+          const totalIncome = b.card + b.cash + b.bank + b.newAccount;
+          return {
+            Date:           date,
+            Card:           b.card       || 0,
+            Cash:           b.cash       || 0,
+            "Old Account":  b.bank       || 0,
+            "New Account":  b.newAccount || 0,
+            "Total Income": totalIncome  || 0,
+            Expense:        b.expense    || 0,
+          };
+        });
+
+      const cashFlowSheet = XLSX.utils.json_to_sheet(cashFlowRows, {
+        header: ["Date", "Card", "Cash", "Old Account", "New Account", "Total Income", "Expense"],
+      });
+      cashFlowSheet["!cols"] = [
+        { wch: 13 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 15 }, { wch: 12 },
+      ];
+
+      // ── Summary sheet ──────────────────────────────────────────────────────
       const summaryRows = [
         ["Cash Flow Report"],
         ["Period", rangeStart === filterEnd ? rangeStart : `${rangeStart} to ${filterEnd}`],
@@ -495,50 +564,19 @@ export default function CashFlowPage() {
         ["Net Cash Flow (PKR)", netCashFlow],
         ["Exported At", new Date().toISOString()],
       ];
-      const incomeRows = periodIncomeRows.map(row => ({
-        Date: row.date,
-        Client: row.client,
-        Description: row.description,
-        Source: row.source === "pos" ? "POS Sale" : row.source === "manual" ? "Imported Income" : "Appointment",
-        "Payment Method": PAYMENT_LABELS[row.paymentMethod] ?? row.paymentMethod,
-        "Amount (PKR)": row.amount,
-      }));
+
+      // ── Detailed expense rows ──────────────────────────────────────────────
       const expenseRows = periodExpenses.map(expense => ({
         Date: expense.date,
-        Category: EXPENSE_CATEGORIES.find(category => category.key === expense.category)?.label ?? expense.category,
+        Category: EXPENSE_CATEGORIES.find(c => c.key === expense.category)?.label ?? expense.category,
         Description: expense.description,
         "Amount (PKR)": expense.amount,
         "Payment Method": PAYMENT_LABELS[expense.paymentMethod] ?? expense.paymentMethod,
         Notes: expense.notes ?? "",
       }));
-      const cashFlowRows = [
-        ...periodIncomeRows.map(row => ({
-          Date: row.date,
-          Category: row.client,
-          "Service Description": row.description,
-          "Income Intake Amount": row.amount,
-          "Expense Amount": 0,
-        })),
-        ...periodExpenses.map(expense => ({
-          Date: expense.date,
-          Category: EXPENSE_CATEGORIES.find(category => category.key === expense.category)?.label ?? expense.category,
-          "Service Description": expense.description,
-          "Income Intake Amount": 0,
-          "Expense Amount": expense.amount,
-        })),
-      ].sort((a, b) => a.Date.localeCompare(b.Date));
-      const cashFlowSheet = XLSX.utils.json_to_sheet(cashFlowRows, {
-        header: ["Date", "Category", "Service Description", "Income Intake Amount", "Expense Amount", "Closing"],
-      });
-      cashFlowRows.forEach((_, index) => {
-        const row = index + 2;
-        cashFlowSheet[`F${row}`] = { t: "n", f: `D${row}-E${row}` };
-      });
-      cashFlowSheet["!cols"] = [{ wch: 13 }, { wch: 24 }, { wch: 36 }, { wch: 22 }, { wch: 18 }, { wch: 16 }];
 
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryRows), "Summary");
       XLSX.utils.book_append_sheet(workbook, cashFlowSheet, "Cash Flow");
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(incomeRows), "Income");
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryRows), "Summary");
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(expenseRows), "Expenses");
       XLSX.writeFile(workbook, `salon-central-cash-flow-${rangeStart || "report"}-${filterEnd || "report"}.xlsx`);
       setFileMessage({ type: "success", text: "Excel report exported successfully." });
