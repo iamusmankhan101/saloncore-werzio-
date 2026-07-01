@@ -11,7 +11,6 @@ import {
   type PaymentRequest,
   type PaymentStatus,
 } from "@/lib/payment-requests";
-import { getInvoices, markInvoicePaid } from "@/lib/invoices";
 
 import { fmtCurrency as fmt } from "@/lib/format";
 
@@ -53,12 +52,7 @@ function RequestCard({ req, onUpdate }: { req: PaymentRequest; onUpdate: () => v
         body: JSON.stringify({ userId: req.userId, planId: req.planId }),
       }).catch((e) => console.warn("[billing/update-plan] failed:", e));
       
-      // Mark the current month's invoice as paid in localStorage
-      const now = new Date();
-      const invId = `${req.userId}_${now.getFullYear()}_${now.getMonth() + 1}`;
-      const inv = getInvoices().find((i) => i.id === invId);
-      if (inv) markInvoicePaid(invId);
-      // Unsuspend in Turso + send "account restored" email (server-side)
+      // Mark the current cycle's invoice paid + unsuspend in Turso + send "account restored" email (server-side)
       fetch("/api/billing/unsuspend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

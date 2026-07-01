@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { addPaymentRequest, setActivePlan, getPaymentRequests, type PaymentMethod } from "@/lib/payment-requests";
-import { syncInvoices, type Invoice, type InvoiceStatus } from "@/lib/invoices";
+import type { Invoice, InvoiceStatus } from "@/lib/invoices";
 import InvoiceViewer from "@/components/invoice-viewer";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
@@ -205,21 +205,10 @@ export default function BillingPage() {
         if (data.ok) {
           const planId = data.planId as PlanId;
           setActivePlanId(planId);
-          
+
           // Also update localStorage for backward compatibility
           if (planId !== "free") {
             setActivePlan(planId);
-          }
-          
-          const plan = PLAN_CONFIGS[planId];
-
-          if (plan.price > 0) {
-            const synced = syncInvoices(
-              { id: user.id, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
-              { id: plan.id, name: plan.label, price: plan.price },
-              user.createdAt,
-            );
-            setInvoices(synced.filter(inv => inv.userId === user.id));
           }
         }
       })
@@ -228,6 +217,16 @@ export default function BillingPage() {
         // Fallback to localStorage
         setActivePlanId(getCurrentPlanId());
       });
+
+    // Fetch authoritative invoice history from the billing database — this is
+    // the same table the admin-approval flow marks paid, so it always
+    // reflects real payment status instead of a locally-recomputed guess.
+    fetch(`/api/billing/invoices?userId=${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) setInvoices(data.invoices);
+      })
+      .catch(err => console.error("[billing] Failed to fetch invoices:", err));
 
     setHasPending(getPaymentRequests().some(r => r.userId === user.id && r.status === "pending"));
   }, [submitted]);

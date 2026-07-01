@@ -12,7 +12,7 @@ import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
 import { syncFromDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
 import { getStoredInventory } from "@/lib/storage";
-import { syncInvoices } from "@/lib/invoices";
+import type { Invoice } from "@/lib/invoices";
 import { PLAN_CONFIGS, getCurrentPlanId, type PlanId } from "@/lib/plan-limits";
 import { setActivePlan } from "@/lib/payment-requests";
 import { addSalonLocation, getActiveLocationFilter, getSalonLocations, setActiveLocationFilter, type SalonLocation } from "@/lib/locations";
@@ -406,21 +406,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT));
       runWhatsAppScheduler();
 
-      // After DB sync, read plan from localStorage and check for unpaid invoices
+      // After DB sync, check for unpaid invoices from the authoritative billing DB
       const planId = getCurrentPlanId() as PlanId;
       const plan = PLAN_CONFIGS[planId];
       if (plan && plan.price > 0) {
-        const invoices = syncInvoices(
-          { id: dataOwnerId, ownerName: user.ownerName, salonName: user.salonName, email: user.email, phone: user.phone },
-          { id: plan.id, name: plan.label, price: plan.price },
-          user.createdAt,
-        );
-        const unpaid = invoices.filter((inv) => inv.userId === dataOwnerId && inv.status !== "paid");
-        if (unpaid.length > 0) {
-          const oldest = unpaid[unpaid.length - 1]; // oldest = last in desc-sorted list
-          setUnpaidInvoice({ number: oldest.number, amount: oldest.total, status: oldest.status, dueDate: oldest.dueDate });
-          setInvoiceBadgeDismissed(false);
-        }
+        fetch(`/api/billing/invoices?userId=${encodeURIComponent(dataOwnerId)}`)
+          .then((r) => r.json())
+          .then((data: { ok: boolean; invoices?: Invoice[] }) => {
+            if (!data.ok || !data.invoices) return;
+            const unpaid = data.invoices.filter((inv) => inv.status !== "paid");
+            if (unpaid.length > 0) {
+              const oldest = unpaid[unpaid.length - 1]; // oldest = last in desc-sorted list
+              setUnpaidInvoice({ number: oldest.number, amount: oldest.total, status: oldest.status, dueDate: oldest.dueDate });
+              setInvoiceBadgeDismissed(false);
+            }
+          })
+          .catch(() => { /* fail open */ });
       }
     });
     checkInvoiceNotifications();
