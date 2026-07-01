@@ -79,15 +79,15 @@ export async function POST(req: NextRequest) {
       </div>
     </div>
     <div style="background:#f8f8fc;padding:16px 36px;border-top:1px solid #ebebf0;text-align:center;color:#b0b0c8;font-size:11px">
-      Salon Central · Automated billing notification · <a href="https://werzio.com" style="color:#7C3AED;text-decoration:none">werzio.com</a>
+      Salon Central · Automated billing notification · <a href="https://saloncentral.xyz" style="color:#7C3AED;text-decoration:none">saloncentral.xyz</a>
     </div>
   </div>
 </body>
 </html>`;
 
       await resend.emails.send({
-        from: "Salon Central Billing <noreply@werzio.com>",
-        replyTo: "support@werzio.com",
+        from: "Salon Central Billing <noreply@saloncentral.xyz>",
+        replyTo: "support@saloncentral.xyz",
         to: [user.email],
         subject: `✅ Your Salon Central account is restored — Payment confirmed`,
         html,

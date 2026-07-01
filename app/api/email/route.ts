@@ -83,8 +83,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: "Salon Central Billing <noreply@werzio.com>",
-      replyTo: "support@werzio.com",
+      from: "Salon Central Billing <noreply@saloncentral.xyz>",
+      replyTo: "support@saloncentral.xyz",
       to: [to],
       subject,
       html,

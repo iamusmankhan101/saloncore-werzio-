@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     <!-- Footer -->
     <div style="background:#f8f8fc;padding:16px 36px;border-top:1px solid #ebebf0;text-align:center;color:#b0b0c8;font-size:11px;line-height:1.6">
       Salon Central · Salon Management Platform<br>
-      You're receiving this because you signed up at werzio.com
+      You're receiving this because you signed up at saloncentral.xyz
     </div>
   </div>
 </body>
@@ -119,8 +119,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: "Salon Central <noreply@werzio.com>",
-      replyTo: "support@werzio.com",
+      from: "Salon Central <noreply@saloncentral.xyz>",
+      replyTo: "support@saloncentral.xyz",
       to: [email],
       subject: "Verify your Salon Central account ✓",
       html,
