@@ -549,7 +549,13 @@ export default function CashFlowPage() {
 
   // PDF Export
   function exportPDF() {
+    if (period === "custom" && (!customStart || !customEnd || customStart > customEnd)) {
+      alert("Please select a valid start and end date for the custom range before downloading.");
+      return;
+    }
+
     const now = new Date();
+    const periodLabel = period === "custom" ? `${rangeStart} → ${filterEnd}` : cfg.label;
     const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -597,7 +603,7 @@ export default function CashFlowPage() {
       <div style="font-size:12px;color:#a0a0b8;margin-top:6px">Salon Management Platform</div>
     </div>
     <div class="report-meta">
-      <div class="report-title">Cash Flow Report — ${period === "custom" ? "Custom Range" : cfg.label}</div>
+      <div class="report-title">Cash Flow Report — ${periodLabel}</div>
       <div class="report-sub">${rangeStart} to ${filterEnd}</div>
       <div class="report-gen">Generated ${now.toLocaleDateString("en-PK", { weekday: "long", year: "numeric", month: "long", day: "numeric" })} · ${now.toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" })}</div>
     </div>
@@ -647,7 +653,7 @@ export default function CashFlowPage() {
   ${categoryBreakdown.length > 0 ? `
   <div class="section">
     <div class="section-title">Expenses by Category</div>
-    <div class="section-sub">Breakdown for ${cfg.label}</div>
+    <div class="section-sub">Breakdown for ${periodLabel}</div>
     <table>
       <thead><tr><th>Category</th><th style="text-align:right">Amount</th><th style="text-align:right">% of Total</th></tr></thead>
       <tbody>
@@ -692,11 +698,19 @@ export default function CashFlowPage() {
 </div>
 </body>
 </html>`;
-    const win = window.open("", "_blank", "width=920,height=750");
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    win.onload = () => { win.focus(); win.print(); };
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (!win) {
+      URL.revokeObjectURL(url);
+      alert("Pop-up was blocked. Please allow pop-ups for this site to download the PDF.");
+      return;
+    }
+    win.addEventListener("load", () => {
+      win.focus();
+      win.print();
+      URL.revokeObjectURL(url);
+    });
   }
 
   // Input style shorthand
