@@ -1386,6 +1386,9 @@ const PERMISSION_OPTIONS = [
   { key: "try-on", label: "Virtual Try-On" },
 ];
 
+// Routes that are always owner-only (not available for staff/manager assignment)
+const OWNER_ONLY_ROUTES = ["account", "billing", "admin", "migrate", "settings"];
+
 function RolesPermissionsSection() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [locations, setLocations] = useState<SalonLocation[]>([]);

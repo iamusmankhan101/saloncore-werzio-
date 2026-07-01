@@ -90,6 +90,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const initials = (user?.ownerName || salonName || "W")
     .split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
   const isStaffUser = user?.role === "staff";
+  
   const canAccess = (href: string) => {
     if (!isStaffUser) return true;
     if (user.permissions?.includes("*")) return true;

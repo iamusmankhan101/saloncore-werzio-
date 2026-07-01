@@ -253,6 +253,70 @@ export function userKey(base: string): string {
 }
 
 /**
+ * Check if the current user has permission to access a specific feature/page.
+ * Returns true for owner/admin/manager roles, or if staff has the specific permission.
+ * 
+ * @param permission - The permission key to check (e.g., "calendar", "appointments", "inventory")
+ * @returns boolean indicating if user has access
+ */
+export function hasPermission(permission: string): boolean {
+  if (!canUseStorage()) return false;
+  
+  const user = getCurrentUser();
+  if (!user) return false;
+  
+  // Owner-only routes
+  const ownerOnlyRoutes = ["admin", "billing", "migrate"];
+  if (ownerOnlyRoutes.includes(permission)) {
+    return user.role === "owner" || user.role === "admin";
+  }
+  
+  // Account and settings are accessible to owner and manager
+  if (permission === "account" || permission === "settings") {
+    return user.role === "owner" || user.role === "admin" || user.role === "manager";
+  }
+  
+  // Owner, admin, and manager always have full access to other routes
+  if (user.role === "owner" || user.role === "admin" || user.role === "manager") {
+    return true;
+  }
+  
+  // Check if staff has wildcard permission
+  if (user.permissions?.includes("*")) {
+    return true;
+  }
+  
+  // Check if staff has the specific permission
+  return user.permissions?.includes(permission) ?? false;
+}
+
+/**
+ * Get all permissions for the current user.
+ * Returns all page permissions for owner/admin/manager, or specific permissions for staff.
+ */
+export function getUserPermissions(): string[] {
+  const user = getCurrentUser();
+  if (!user) return [];
+  
+  // Owner, admin, and manager get all permissions
+  if (user.role === "owner" || user.role === "admin" || user.role === "manager") {
+    return ["*"]; // Wildcard means all permissions
+  }
+  
+  return user.permissions || [];
+}
+
+/**
+ * Check if the current user is staff with limited permissions.
+ * Used for conditional UI rendering.
+ */
+export function isLimitedStaff(): boolean {
+  const user = getCurrentUser();
+  if (!user) return false;
+  return user.role === "staff" && !user.permissions?.includes("*");
+}
+
+/**
  * Returns the user if the email exists in storage but is NOT yet verified.
  * Returns null if the email doesn't exist, or if it exists and IS already verified.
  * Used by the sign-up page to resend verification instead of showing a hard error.

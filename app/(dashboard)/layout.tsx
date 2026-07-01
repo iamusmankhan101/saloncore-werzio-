@@ -335,8 +335,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const key = pathname === "/dashboard"
           ? "dashboard"
           : pathname.replace("/dashboard/", "").split("/")[0];
+        
+        // Check owner-only routes
+        const ownerOnlyRoutes = ["account", "billing", "admin", "migrate", "settings"];
+        if (ownerOnlyRoutes.includes(key)) {
+          router.replace("/dashboard");
+          return;
+        }
+        
         const permissions = user.permissions || [];
         if (!permissions.includes("*") && !permissions.includes(key)) {
+          router.replace("/dashboard");
+          return;
+        }
+      }
+      
+      // Manager can access most pages, but not owner-only pages
+      if (user.role === "manager") {
+        const key = pathname === "/dashboard"
+          ? "dashboard"
+          : pathname.replace("/dashboard/", "").split("/")[0];
+        const ownerOnlyRoutes = ["admin", "billing", "migrate"];
+        if (ownerOnlyRoutes.includes(key)) {
           router.replace("/dashboard");
           return;
         }
