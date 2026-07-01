@@ -335,7 +335,59 @@ export default function RevenuePage() {
 
     const now = new Date();
     const isYearDrill = !!selectedMonth;
-    const tableRows  = isYearDrill ? (drillRows ?? []) : dailyRows.slice(0, 60);
+
+    // For 1y or long custom (>62 days) we aggregate monthly; otherwise daily
+    const customDayCount = period === "custom"
+      ? getDaysInRange(customStart, customEnd).length : 0;
+    const useMonthlyTable = !isYearDrill && (period === "1y" || (period === "custom" && customDayCount > 62));
+
+    // Build PDF table rows independent of the UI's capped dailyRows
+    let tableRows: { date: string; dow: string; count: number; revenue: number }[];
+    if (isYearDrill) {
+      tableRows = drillRows ?? [];
+    } else if (useMonthlyTable) {
+      // Monthly aggregation over the full selected range
+      const monthlyMap: Record<string, { count: number; revenue: number }> = {};
+      const cur = new Date(rangeStart + "T12:00:00"); cur.setDate(1);
+      const endD = new Date(filterEnd + "T12:00:00");
+      while (cur <= endD) {
+        const key = toDateStr(cur).substring(0, 7);
+        monthlyMap[key] = { count: 0, revenue: 0 };
+        cur.setMonth(cur.getMonth() + 1);
+      }
+      currentAppts.forEach(a => {
+        const key = a.date.substring(0, 7);
+        if (key in monthlyMap) { monthlyMap[key].count++; monthlyMap[key].revenue += a.totalAmount; }
+      });
+      currentPos.forEach(inv => {
+        const key = inv.date.substring(0, 7);
+        if (key in monthlyMap) { monthlyMap[key].count++; monthlyMap[key].revenue += inv.total; }
+      });
+      tableRows = Object.keys(monthlyMap).sort().reverse().map(key => ({
+        date: key,
+        dow: new Date(key + "-01T12:00:00").toLocaleDateString("en-PK", { month: "long", year: "numeric" }),
+        count: monthlyMap[key].count,
+        revenue: monthlyMap[key].revenue,
+      }));
+    } else {
+      // Full daily rows for the period — no cap
+      const days = getDaysInRange(rangeStart, filterEnd);
+      const byDay: Record<string, { count: number; revenue: number }> = {};
+      days.forEach(d => { byDay[d] = { count: 0, revenue: 0 }; });
+      currentAppts.forEach(a => {
+        if (a.date in byDay) { byDay[a.date].count++; byDay[a.date].revenue += a.totalAmount; }
+      });
+      currentPos.forEach(inv => {
+        if (inv.date in byDay) { byDay[inv.date].count++; byDay[inv.date].revenue += inv.total; }
+      });
+      tableRows = days.map(date => ({
+        date,
+        dow: new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" }),
+        count: byDay[date].count,
+        revenue: byDay[date].revenue,
+      })).reverse();
+    }
+
     const pdfTotal   = isYearDrill ? drillTotal   : totalRevenue;
     const pdfCount   = isYearDrill ? drillCount   : totalCount;
     const pdfAvg     = isYearDrill ? drillAvg     : avgTicket;
@@ -437,7 +489,7 @@ export default function RevenuePage() {
   ${!isYearDrill ? `
   <div class="section">
     <div class="section-title">Revenue Trend</div>
-    <div class="section-sub">${period === "1y" ? "Monthly" : "Daily"} breakdown · ${pdfRange}</div>
+    <div class="section-sub">${useMonthlyTable ? "Monthly" : "Daily"} breakdown · ${pdfRange}</div>
     <div class="chart-area">
       ${chartData.map(d => {
         const h = maxChart > 0 ? Math.max(2, Math.round((d.value / maxChart) * 100)) : 2;
@@ -475,8 +527,8 @@ export default function RevenuePage() {
   </div>` : ""}` : ""}
 
   <div class="section">
-    <div class="section-title">${isYearDrill ? selectedMonthLabel + " — Daily Breakdown" : (period === "1y" ? "Monthly Breakdown" : "Daily Breakdown")}</div>
-    <div class="section-sub">${tableRows.length < (isYearDrill ? (drillRows?.length ?? 0) : dailyRows.length) ? "Most recent rows shown" : "Complete breakdown"}</div>
+    <div class="section-title">${isYearDrill ? selectedMonthLabel + " — Daily Breakdown" : (useMonthlyTable ? "Monthly Breakdown" : "Daily Breakdown")}</div>
+    <div class="section-sub">Complete breakdown · ${pdfRange}</div>
     <table>
       <thead>
         <tr>
