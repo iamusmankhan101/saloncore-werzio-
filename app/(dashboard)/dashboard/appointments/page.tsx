@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
+import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
 import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2 } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert } from "@/lib/whatsapp-scheduler";
@@ -714,6 +715,7 @@ export default function AppointmentsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [invoicedApptIds, setInvoicedApptIds] = useState<Set<string>>(new Set());
 
   const plan         = getCurrentPlan();
   const monthCount   = thisMonthCount(appointments);
@@ -724,6 +726,9 @@ export default function AppointmentsPage() {
     setClients(getStoredClients());
     setStaffList(getStoredStaff());
     setServices(getStoredServices());
+    setInvoicedApptIds(new Set(
+      getSalonInvoices().filter((inv) => inv.appointmentId).map((inv) => inv.appointmentId as string)
+    ));
   }, []);
 
   const filtered = useMemo(() => {
@@ -744,7 +749,9 @@ export default function AppointmentsPage() {
       });
   }, [appointments, search, statusFilter, staffFilter, dateFilter]);
 
-  const totalRevenue = filtered.reduce((s, a) => s + a.totalAmount, 0);
+  const totalRevenue = filtered
+    .filter((a) => a.status !== "cancelled" && a.status !== "no-show")
+    .reduce((s, a) => s + a.totalAmount, 0);
   const activeFilters = [statusFilter !== "all", staffFilter !== "all", !!dateFilter].filter(Boolean).length;
 
   const allChecked = filtered.length > 0 && filtered.every(a => checkedIds.has(a.id));
@@ -1157,9 +1164,9 @@ export default function AppointmentsPage() {
                   </span>
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{fmt(appt.totalAmount)}</div>
-                {/* Checkout button — visible for arrived / in-progress / completed */}
+                {/* Checkout button — visible for arrived / in-progress / completed, until it's actually been invoiced */}
                 <div onClick={(e) => e.stopPropagation()}>
-                  {["arrived", "in-progress", "completed"].includes(appt.status) ? (
+                  {["arrived", "in-progress", "completed"].includes(appt.status) && !invoicedApptIds.has(appt.id) ? (
                     <a
                       href={`/dashboard/pos?appointmentId=${appt.id}`}
                       style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "var(--accent-gradient)", color: "#fff", fontSize: 11, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap", boxShadow: "0 3px 8px var(--accent-glow)" }}
