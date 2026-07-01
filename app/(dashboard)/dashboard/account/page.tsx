@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Banknote, Check, ChevronLeft, ChevronRight, Clock, ImageIcon, KeyRound, LogOut, MapPin, Save, Shield, Smartphone, Store, Trash2, User, UserCog, Wand2 } from "lucide-react";
+import { Banknote, Check, ChevronLeft, ChevronRight, Clock, ImageIcon, KeyRound, LogOut, MapPin, Save, Shield, Smartphone, Store, Trash2, User, UserCog, Wand2, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AuthUser, getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
@@ -899,14 +899,11 @@ function WhatsAppSection() {
             </>
           ) : form.provider === "zaptick" ? (
             <>
-              <Field label="Zaptick API Key" hint="Get your API key after connecting via the embedded form below">
+              <Field label="Zaptick API Key" hint="Get your API key after connecting via Zaptick dashboard">
                 <input style={inputStyle} type="password" value={form.zaptickApiKey} onChange={(e) => set("zaptickApiKey", e.target.value)} placeholder="your-zaptick-api-key" />
               </Field>
-              <div style={{ fontSize: 12, color: "#6b7280", background: "#dbeafe", padding: "12px 16px", borderRadius: 10, border: "1px solid #93c5fd", marginBottom: 12 }}>
-                📱 <strong>Setup Process:</strong> Use the embedded form below to connect your WhatsApp. After connecting, copy your API key from the Zaptick dashboard and paste it above.
-              </div>
               
-              {/* Embedded Zaptick Connection Form */}
+              {/* Zaptick Connection Guide */}
               <div style={{ gridColumn: "1 / -1", border: "2px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
                 <div style={{ background: "linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)", padding: "14px 18px", display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -914,31 +911,84 @@ function WhatsAppSection() {
                   </div>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Connect Your WhatsApp</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.9)" }}>Scan QR code to link your existing WhatsApp number</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.9)" }}>Quick 3-step setup using Zaptick dashboard</div>
                   </div>
                 </div>
-                <div style={{ padding: "20px", background: "#fafafa", minHeight: 400, display: "flex", flexDirection: "column", gap: 12 }}>
-                  <iframe
-                    src="https://app.zaptick.io/embed/connect"
-                    style={{ 
-                      width: "100%", 
-                      height: "450px", 
-                      border: "none", 
-                      borderRadius: 8,
-                      background: "#fff",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
-                    }}
-                    title="Zaptick WhatsApp Connection"
-                    allow="camera"
-                  />
-                  <div style={{ display: "flex", gap: 12, padding: "12px 16px", background: "#fff", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 4 }}>Step 1: Scan QR Code</div>
-                      <div style={{ fontSize: 11, color: "#6b7280" }}>Open WhatsApp on your phone → Settings → Linked Devices → Scan the QR code above</div>
+                <div style={{ padding: "20px", background: "#fafafa", display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* Step-by-step guide */}
+                  <div style={{ display: "grid", gap: 14 }}>
+                    {/* Step 1 */}
+                    <div style={{ display: "flex", gap: 14, padding: "16px", background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #06b6d4, #0891b2)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, flexShrink: 0 }}>1</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#1f2937", marginBottom: 4 }}>Open Zaptick Dashboard</div>
+                        <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 10, lineHeight: 1.5 }}>
+                          Click the button below to open Zaptick in a new tab. Create an account if you don't have one (takes 1 minute).
+                        </div>
+                        <a 
+                          href="https://app.zaptick.io/connect" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 8, background: "linear-gradient(135deg, #06b6d4, #0891b2)", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", boxShadow: "0 2px 6px rgba(6,182,212,0.3)" }}
+                        >
+                          <Smartphone size={14} />
+                          Open Zaptick Dashboard →
+                        </a>
+                      </div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 4 }}>Step 2: Get API Key</div>
-                      <div style={{ fontSize: 11, color: "#6b7280" }}>After connecting, go to Zaptick dashboard → API Keys → Copy your key and paste it in the field above</div>
+                    
+                    {/* Step 2 */}
+                    <div style={{ display: "flex", gap: 14, padding: "16px", background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #0891b2, #0e7490)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, flexShrink: 0 }}>2</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#1f2937", marginBottom: 4 }}>Connect Your WhatsApp</div>
+                        <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8, lineHeight: 1.5 }}>
+                          In the Zaptick dashboard, you'll see a QR code. Scan it with WhatsApp on your phone:
+                        </div>
+                        <div style={{ fontSize: 11, color: "#4b5563", background: "#f9fafb", padding: "10px 12px", borderRadius: 6, border: "1px solid #e5e7eb" }}>
+                          📱 <strong>Android:</strong> WhatsApp → Menu (⋮) → Linked Devices → Link a Device<br/>
+                          📱 <strong>iPhone:</strong> WhatsApp → Settings → Linked Devices → Link a Device
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Step 3 */}
+                    <div style={{ display: "flex", gap: 14, padding: "16px", background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #059669, #047857)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, flexShrink: 0 }}>3</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#1f2937", marginBottom: 4 }}>Copy API Key & Save</div>
+                        <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8, lineHeight: 1.5 }}>
+                          After connecting, Zaptick will show your API key. Copy it and paste it in the field above, then click "Save Changes" at the bottom of this page.
+                        </div>
+                        <div style={{ fontSize: 11, color: "#059669", fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                          <Check size={14} />
+                          You're all set! Start sending automated WhatsApp messages
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Visual connection indicator */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, padding: "16px", background: "#fff", borderRadius: 10, border: "1px dashed #cbd5e1" }}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: "#f0fdfa", border: "2px solid #99f6e4", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px" }}>
+                        <Smartphone size={24} style={{ color: "#14b8a6" }} />
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#14b8a6" }}>Your Phone</div>
+                    </div>
+                    <div style={{ fontSize: 20, color: "#cbd5e1" }}>→</div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: "#eff6ff", border: "2px solid #bfdbfe", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px" }}>
+                        <Zap size={24} style={{ color: "#3b82f6" }} />
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6" }}>Zaptick</div>
+                    </div>
+                    <div style={{ fontSize: 20, color: "#cbd5e1" }}>→</div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: "#f5f3ff", border: "2px solid #ddd6fe", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px" }}>
+                        <Store size={24} style={{ color: "#7c3aed" }} />
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed" }}>Werzio</div>
                     </div>
                   </div>
                 </div>
