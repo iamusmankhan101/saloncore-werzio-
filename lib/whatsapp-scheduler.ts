@@ -2,6 +2,7 @@ import { getCurrentUser } from "./auth";
 import { settingsStore } from "./settings-store";
 import { getStoredAppointments, getStoredClients, getStoredInventory } from "./storage";
 import { locationUserKey } from "./locations";
+import { getWhatsAppRandomDelayMs, type WhatsAppSafetyConfig } from "./whatsapp-safety";
 
 /**
  * Normalize a phone number to international format required by WhatsApp API.
@@ -151,12 +152,13 @@ export async function sendGroupBookingAlert(appt: {
   await callSendApi(ws.bookingGroupJid, text, { type: "manual", clientName: "Group" });
 }
 
-/** Call when a new appointment is booked — sends confirmation on the next scheduler tick. */
+/** Call when a new appointment is booked — sends confirmation after a short natural delay (1-2 min), not instantly. */
 export function enqueueWhatsAppConfirmation(apptId: string) {
   if (typeof window === "undefined") return;
   const q = getQueue(CONFIRM_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
-    setQueue(CONFIRM_QUEUE_KEY, [...q, { id: apptId, retries: 0 }]);
+    const delayMs = 60_000 + Math.random() * 60_000; // 1-2 minutes
+    setQueue(CONFIRM_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs }]);
   }
 }
 
@@ -192,23 +194,30 @@ async function callSendApi(
   text: string,
   logMeta: { type: WaMsgType; clientName: string },
 ): Promise<boolean> {
-  const selectedProvider = (settingsStore.wasender as { provider?: string }).provider ?? "wasender";
-  // WaSender's free plan is rate limited; BotSailor does not use this throttle.
-  if (selectedProvider === "wasender") {
-    const wait = SEND_RATE_LIMIT_MS - (Date.now() - lastSentAt);
-    if (lastSentAt > 0 && wait > 0) {
-      await new Promise<void>((resolve) => setTimeout(resolve, wait));
-    }
-    lastSentAt = Date.now();
-  }
-
-  const providerConfig = settingsStore.wasender as {
+  const providerConfig = settingsStore.wasender as WhatsAppSafetyConfig & {
     provider?: "wasender" | "botsailor" | "zaptick";
     apiKey: string;
     botSailorApiToken?: string;
     botSailorPhoneNumberId?: string;
     zaptickApiKey?: string;
   };
+  const selectedProvider = providerConfig.provider ?? "wasender";
+
+  // Natural, randomized pacing between consecutive sends (configurable in
+  // Account → WhatsApp Safety) so bulk queues don't fire in a bot-like burst.
+  // This runs client-side via setTimeout — never inside the API route — so it
+  // can never block a serverless request into a platform timeout.
+  // WaSender's free plan additionally hard-limits to 1 message/minute.
+  if (lastSentAt > 0) {
+    const targetGapMs = Math.max(
+      getWhatsAppRandomDelayMs(providerConfig),
+      selectedProvider === "wasender" ? SEND_RATE_LIMIT_MS : 0,
+    );
+    const wait = targetGapMs - (Date.now() - lastSentAt);
+    if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
+  }
+  lastSentAt = Date.now();
+
   const messageIntent =
     logMeta.type === "lowstock" ? "internal"
     : ["followup", "cancellation", "birthday"].includes(logMeta.type) ? "marketing"

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { generateSalonInvoicePdf } from "@/lib/salon-invoice-pdf";
 import type { WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
-import { applyWhatsAppRandomDelay, checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
+import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
 
 interface RequestBody {
   invoice: SalonInvoice;
@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const delayMs = await applyWhatsAppRandomDelay(body.providerConfig);
+    // Pacing between messages is handled by the caller — a blocking sleep here
+    // would risk exceeding the serverless function's execution timeout.
     const pdf = await generateSalonInvoicePdf(body.invoice, body.salon);
     const pdfArrayBuffer = Uint8Array.from(pdf).buffer;
     const fileName = `${body.invoice.number}.pdf`;
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       const ok = sendResponse.ok && (sendData.status === "1" || sendData.status === 1 || sendData.status === true);
       if (!ok) throw new Error(sendData.message || "BotSailor invoice send failed.");
       recordWhatsAppSafetySend({ phone: body.phone, config: body.providerConfig });
-      return Response.json({ ok: true, provider, safetyDelayMs: delayMs });
+      return Response.json({ ok: true, provider });
     }
 
     const apiKey = body.providerConfig.apiKey || process.env.WASENDER_API_KEY || "";
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
     const sendData = await sendResponse.json().catch(() => ({})) as { success?: boolean; message?: string; error?: string };
     if (!sendResponse.ok || sendData.success !== true) throw new Error(sendData.message || sendData.error || "WaSender invoice send failed.");
     recordWhatsAppSafetySend({ phone: body.phone, config: body.providerConfig });
-    return Response.json({ ok: true, provider, safetyDelayMs: delayMs });
+    return Response.json({ ok: true, provider });
   } catch (error) {
     console.error("[whatsapp/send-invoice]", error);
     return Response.json({ ok: false, error: error instanceof Error ? error.message : "Invoice send failed." }, { status: 502 });

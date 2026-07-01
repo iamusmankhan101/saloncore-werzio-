@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { sendWhatsAppMessage, type WhatsAppProvider } from "@/lib/whatsapp-provider";
-import { applyWhatsAppRandomDelay, checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppMessageIntent, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
+import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppMessageIntent, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -32,15 +32,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const delayMs = await applyWhatsAppRandomDelay(safetyConfig);
+    // Note: random pacing between messages is applied by the caller (the bulk
+    // scheduler / campaign queues) between successive sends, not here — sleeping
+    // inside this request would block the serverless function for minutes and
+    // risk hitting the platform's execution timeout.
     const result = await sendWhatsAppMessage(
-      { provider, apiKey, botSailorApiToken, botSailorPhoneNumberId, zaptickApiKey }, 
-      phone, 
+      { provider, apiKey, botSailorApiToken, botSailorPhoneNumberId, zaptickApiKey },
+      phone,
       text,
       messageType ? { messageType } : undefined
     );
     if (result.ok) recordWhatsAppSafetySend({ phone, config: safetyConfig });
-    return Response.json({ ...result, safetyDelayMs: delayMs }, { status: result.status >= 500 ? 500 : 200 });
+    return Response.json(result, { status: result.status >= 500 ? 500 : 200 });
   } catch (err) {
     console.error("WhatsApp provider error:", err);
     return Response.json({ ok: false, error: String(err) }, { status: 500 });
