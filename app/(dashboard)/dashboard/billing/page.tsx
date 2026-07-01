@@ -295,7 +295,7 @@ export default function BillingPage() {
       {/* ── Payment modal (bottom-sheet on mobile) ── */}
       {showModal && upgradePlan && (
         <div onClick={() => setShowModal(null)} className="modal-overlay" style={{ zIndex: 100 }}>
-          <div onClick={e => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 22, width: 490, boxShadow: "0 28px 80px rgba(0,0,0,0.25)", overflow: "hidden", maxHeight: "94vh", overflowY: "auto" }}>
+          <div onClick={e => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 22, width: 490, boxShadow: "0 28px 80px rgba(0,0,0,0.25)", overflowX: "hidden", maxHeight: "94vh", overflowY: "auto" }}>
 
             {/* Modal header */}
             <div style={{ background: upgradePlan.gradient, padding: "22px 26px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
