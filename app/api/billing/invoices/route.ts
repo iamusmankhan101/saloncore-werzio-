@@ -6,7 +6,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { ensureBillingTables, getBillingUser } from "@/lib/billing-db";
+import { ensureBillingTables, getBillingUser, getOrCreate30DayInvoice } from "@/lib/billing-db";
 import type { Invoice, InvoiceStatus } from "@/lib/invoices";
 
 export async function GET(req: NextRequest) {
@@ -21,6 +21,14 @@ export async function GET(req: NextRequest) {
     const user = await getBillingUser(userId);
     if (!user) {
       return Response.json({ ok: true, invoices: [] });
+    }
+
+    // Invoice generation normally happens via the daily cron, but that may not
+    // have run yet for this user's billing period. Create it on demand here
+    // too (idempotent) so the billing page never shows a blank invoice list.
+    // Skip free-plan users — they have no billing cycle to invoice.
+    if (user.planPrice > 0) {
+      await getOrCreate30DayInvoice(user);
     }
 
     const res = await db.execute({
