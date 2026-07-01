@@ -532,10 +532,10 @@ export default function POSPage() {
       )}
 
       {/* ══ 3-PANEL BODY ══ */}
-      <div className="pos-panels" style={{ flex: 1, display: "grid", gridTemplateColumns: "280px 1fr 340px", overflow: "hidden", gap: 12, padding: "12px 16px 12px" }}>
+      <div className="pos-panels" style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "280px 1fr 340px", overflow: "hidden", gap: 12, padding: "12px 16px 12px" }}>
 
         {/* ══════════════════════ PANEL 1: CUSTOMER ══════════════════════ */}
-        <div className={`pos-surface pos-customer-panel ${posTab !== "customer" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div className={`pos-surface pos-customer-panel ${posTab !== "customer" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
           {/* Panel header */}
           <div className="pos-panel-heading" style={{ padding: "14px 16px", borderBottom: "1px solid #f4f4fc", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -548,7 +548,7 @@ export default function POSPage() {
             )}
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
 
             {!selectedClient ? (
               <>
@@ -718,7 +718,7 @@ export default function POSPage() {
         </div>
 
         {/* ══════════════════════ PANEL 2: CATALOG ══════════════════════ */}
-        <div className={`pos-surface pos-catalog-panel ${posTab !== "catalog" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div className={`pos-surface pos-catalog-panel ${posTab !== "catalog" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
           {/* Catalog header */}
           <div className="pos-catalog-heading" style={{ padding: "12px 16px", borderBottom: "1px solid #f4f4fc", flexShrink: 0 }}>
@@ -794,7 +794,7 @@ export default function POSPage() {
           </div>
 
           {/* Grid */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 16px" }}>
             {cappedCatalog.length === 0 ? (
               <div style={{ padding: "80px 24px", textAlign: "center" }}>
                 <div style={{ width: 60, height: 60, borderRadius: 18, background: "#f4f4fc", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
@@ -885,7 +885,7 @@ export default function POSPage() {
         </div>
 
         {/* ══════════════════════ PANEL 3: CART ══════════════════════ */}
-        <div className={`pos-surface pos-cart-panel ${posTab !== "cart" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div className={`pos-surface pos-cart-panel ${posTab !== "cart" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
           {/* Cart header */}
           <div className="pos-panel-heading" style={{ padding: "14px 16px", borderBottom: "1px solid #f4f4fc", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -909,7 +909,7 @@ export default function POSPage() {
           </div>
 
           {/* Cart items */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
             {cart.length === 0 ? (
               <div className="pos-cart-empty" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 16px", textAlign: "center" }}>
                 <div className="pos-cart-empty-icon" style={{ width: 64, height: 64, borderRadius: 18, background: "#f4f4fc", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
@@ -972,7 +972,7 @@ export default function POSPage() {
 
           {/* ── Cart footer ── */}
           {cart.length > 0 && (
-            <div style={{ borderTop: "1px solid #f4f4fc", padding: "14px 14px 14px", flexShrink: 0 }}>
+            <div style={{ borderTop: "1px solid #f4f4fc", padding: "14px 14px 14px", flexShrink: 0, maxHeight: "100%", overflowY: "auto" }}>
 
               {/* Summary */}
               <div style={{ marginBottom: 10 }}>
