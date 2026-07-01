@@ -27,12 +27,15 @@ export type StaffRole =
 
 export type ServiceCategory = "hair" | "skin" | "nails" | "bridal" | "other";
 
+export type StaffCategory = "hair" | "aesthetic";
+
 export interface Staff {
   id: string;
   name: string;
   phone: string;
   photo?: string;
   role: StaffRole;
+  category?: StaffCategory;
   specialties: string[];
   color: string;
   isActive: boolean;

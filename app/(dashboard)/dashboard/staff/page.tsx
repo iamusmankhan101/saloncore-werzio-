@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments } from "@/lib/storage";
-import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
+import type { Staff, Service, StaffRole, StaffCategory, Appointment } from "@/lib/types";
 import { X, Plus, Check, ChevronRight, Trash2, UserCog } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import PageTitle from "@/components/page-title";
@@ -15,6 +15,11 @@ const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   "junior-stylist":{ color: "#d97706", bg: "#fffbeb" },
   receptionist:    { color: "#db2777", bg: "#fdf2f8" },
   trainee:         { color: "#6b7280", bg: "#f9fafb" },
+};
+
+const CATEGORY_COLORS: Record<string, { color: string; bg: string }> = {
+  hair:      { color: "#0369a1", bg: "#e0f2fe" },
+  aesthetic: { color: "#be185d", bg: "#fdf2f8" },
 };
 
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -33,6 +38,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
     phone: staff?.phone ?? "",
     email: staff?.email ?? "",
     role: staff?.role ?? "",
+    category: staff?.category ?? "",
   });
 
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() => {
@@ -70,6 +76,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
       phone: form.phone,
       email: form.email,
       role: form.role as StaffRole,
+      category: (form.category || undefined) as StaffCategory | undefined,
       specialties: specialtiesArray,
       color,
       isActive: staff?.isActive ?? true,
@@ -122,6 +129,15 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
             <select value={form.role} onChange={(e) => set("role", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
               <option value="">Select a role…</option>
               {Object.keys(ROLE_COLORS).map((r) => <option key={r} value={r}>{r.replace(/-/g, " ")}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Category</label>
+            <select value={form.category} onChange={(e) => set("category", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+              <option value="">Select a category…</option>
+              <option value="hair">Hair</option>
+              <option value="aesthetic">Aesthetic</option>
             </select>
           </div>
 
@@ -313,9 +329,19 @@ export default function StaffPage() {
                   </div>
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", letterSpacing: "-0.01em" }}>{s.name}</div>
-                    <span style={{ display: "inline-block", fontSize: 10, fontWeight: 800, color: role.color, background: role.bg, padding: "2px 8px", borderRadius: 20, textTransform: "capitalize", marginTop: 4 }}>
-                      {s.role.replace(/-/g, " ")}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                      <span style={{ display: "inline-block", fontSize: 10, fontWeight: 800, color: role.color, background: role.bg, padding: "2px 8px", borderRadius: 20, textTransform: "capitalize" }}>
+                        {s.role.replace(/-/g, " ")}
+                      </span>
+                      {s.category && (() => {
+                        const cat = CATEGORY_COLORS[s.category] ?? { color: "#6b7280", bg: "#f9fafb" };
+                        return (
+                          <span style={{ display: "inline-block", fontSize: 10, fontWeight: 800, color: cat.color, background: cat.bg, padding: "2px 8px", borderRadius: 20, textTransform: "capitalize" }}>
+                            {s.category}
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
