@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
 import type { Service, Staff } from "@/lib/types";
-import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2 } from "lucide-react";
+import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon } from "lucide-react";
 import PageTitle from "@/components/page-title";
 
 const CATEGORY_LABELS: Record<string, { label: string; bg: string; color: string }> = {
@@ -12,20 +12,27 @@ const CATEGORY_LABELS: Record<string, { label: string; bg: string; color: string
   nails:  { label: "Nails",     bg: "#ecfdf5", color: "#059669" },
   bridal: { label: "Bridal",    bg: "#fdf2f8", color: "#db2777" },
   piercing: { label: "Ear Piercing", bg: "#fff7ed", color: "#c2410c" },
+  package: { label: "Deals & Packages", bg: "#fef9c3", color: "#a16207" },
 };
 
-const PRESET_CATEGORIES = ["hair", "skin", "nails", "bridal", "piercing"];
+const PRESET_CATEGORIES = ["hair", "skin", "nails", "bridal", "piercing", "package"];
 const catLabel = (cat: string) => CATEGORY_LABELS[cat]?.label ?? (cat.charAt(0).toUpperCase() + cat.slice(1));
 
 import { fmtCurrency as fmt } from "@/lib/format";
 
 // ── Add/Edit Service Modal ────────────────────────────────────────────────────
-function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
-  onClose: () => void; onSave: (s: Service) => void; staffList: Staff[]; serviceToEdit?: Service;
+function AddEditServiceModal({ onClose, onSave, staffList, servicesList, serviceToEdit }: {
+  onClose: () => void; onSave: (s: Service) => void; staffList: Staff[]; servicesList: Service[]; serviceToEdit?: Service;
 }) {
   const isEditing = !!serviceToEdit;
-  const editedCategoryIsCustom = !!serviceToEdit && !PRESET_CATEGORIES.includes(serviceToEdit.category);
+  const isEditingPackage = !!serviceToEdit?.packageServiceIds?.length;
+  const editedCategoryIsCustom = !!serviceToEdit && !isEditingPackage && !PRESET_CATEGORIES.includes(serviceToEdit.category);
+  // Services this package can bundle — excludes other packages (no nesting) and itself.
+  const selectableServices = servicesList.filter((s) => !s.packageServiceIds?.length && s.id !== serviceToEdit?.id);
+
   const [form, setForm] = useState({
+    isPackage:         isEditingPackage,
+    packageServiceIds: serviceToEdit?.packageServiceIds ?? [] as string[],
     name:             serviceToEdit?.name ?? "",
     category:         editedCategoryIsCustom ? "custom" : (serviceToEdit?.category ?? "hair"),
     customCategory:   editedCategoryIsCustom ? serviceToEdit!.category : "",
@@ -50,8 +57,22 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
       : (Number.isFinite(price) && price > 0))
     && Number.isFinite(durationMin)
     && durationMin > 0
-    && (form.category !== "custom" || form.customCategory.trim()),
+    && (form.isPackage ? form.packageServiceIds.length >= 2 : (form.category !== "custom" || form.customCategory.trim())),
   );
+
+  const includedServices = selectableServices.filter((s) => form.packageServiceIds.includes(s.id));
+  const includedTotal    = includedServices.reduce((s, sv) => s + sv.price, 0);
+  const includedDuration = includedServices.reduce((s, sv) => s + sv.durationMin, 0);
+
+  const togglePackageService = (id: string) => {
+    const cur = form.packageServiceIds.includes(id)
+      ? form.packageServiceIds.filter((x: string) => x !== id)
+      : [...form.packageServiceIds, id];
+    set("packageServiceIds", cur);
+    // Suggest a duration = sum of included services' durations; still editable after.
+    const sumDuration = selectableServices.filter((s) => cur.includes(s.id)).reduce((s, sv) => s + sv.durationMin, 0);
+    if (sumDuration > 0) set("durationMin", String(sumDuration));
+  };
 
   const toggleStaff = (id: string) => {
     const cur = [...form.assignedStaffIds];
@@ -63,12 +84,13 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
     onSave({
       id:               serviceToEdit?.id ?? "sv" + Date.now(),
       name:             form.name.trim(),
-      category:         form.category === "custom" ? form.customCategory.trim() : form.category,
+      category:         form.isPackage ? "package" : (form.category === "custom" ? form.customCategory.trim() : form.category),
       durationMin,
       price:            form.variablePrice ? rangeMin : price,
       variablePrice:    form.variablePrice,
       priceRangeMin:    form.variablePrice ? rangeMin : undefined,
       priceRangeMax:    form.variablePrice ? rangeMax : undefined,
+      packageServiceIds: form.isPackage ? form.packageServiceIds : undefined,
       assignedStaffIds: form.assignedStaffIds,
       isActive:         serviceToEdit?.isActive ?? true,
     });
@@ -100,41 +122,96 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
           }}
           style={{ padding: "22px 24px", display: "flex", flexDirection: "column", gap: 16 }}
         >
+          <div style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 12, padding: 4 }}>
+            {([["single", "Single Service"], ["package", "Deal / Package"]] as const).map(([val, label]) => {
+              const active = (val === "package") === form.isPackage;
+              return (
+                <button key={val} type="button" onClick={() => set("isPackage", val === "package")}
+                  style={{
+                    flex: 1, padding: "9px 0", borderRadius: 9, border: "none",
+                    background: active ? "var(--accent-gradient)" : "transparent",
+                    color: active ? "#fff" : "#6b6b8a", fontSize: 13, fontWeight: 750, cursor: "pointer",
+                    boxShadow: active ? "0 4px 10px var(--accent-glow)" : "none", transition: "all 0.18s ease",
+                  }}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Service Name</label>
-            <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Hydrafacial Premium"
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              {form.isPackage ? "Deal / Package Name" : "Service Name"}
+            </label>
+            <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={form.isPackage ? "e.g. Bridal Glow Combo" : "e.g. Hydrafacial Premium"}
               style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Category</label>
-              <select value={form.category} onChange={(e) => set("category", e.target.value)}
-                style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
-                <option value="hair">Hair Care</option>
-                <option value="skin">Skin Care</option>
-                <option value="nails">Nails</option>
-                <option value="bridal">Bridal</option>
-                <option value="piercing">Ear Piercing</option>
-                <option value="custom">Custom…</option>
-              </select>
-            </div>
+
+          {form.isPackage ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Duration (Minutes)</label>
               <input type="number" value={form.durationMin} onChange={(e) => set("durationMin", e.target.value)} placeholder="e.g. 60"
                 style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
             </div>
-          </div>
-          {form.category === "custom" && (
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Category</label>
+                <select value={form.category} onChange={(e) => set("category", e.target.value)}
+                  style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+                  <option value="hair">Hair Care</option>
+                  <option value="skin">Skin Care</option>
+                  <option value="nails">Nails</option>
+                  <option value="bridal">Bridal</option>
+                  <option value="piercing">Ear Piercing</option>
+                  <option value="custom">Custom…</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Duration (Minutes)</label>
+                <input type="number" value={form.durationMin} onChange={(e) => set("durationMin", e.target.value)} placeholder="e.g. 60"
+                  style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+              </div>
+            </div>
+          )}
+          {!form.isPackage && form.category === "custom" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Custom Category Name</label>
               <input type="text" value={form.customCategory} onChange={(e) => set("customCategory", e.target.value)} placeholder="e.g. Massage"
                 style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
             </div>
           )}
+
+          {form.isPackage && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Included Services (select 2 or more)
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 160, overflowY: "auto", border: "1px solid #e8e8f0", borderRadius: 8, padding: 8 }}>
+                {selectableServices.map((sv) => {
+                  const checked = form.packageServiceIds.includes(sv.id);
+                  return (
+                    <div key={sv.id} onClick={() => togglePackageService(sv.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 6, cursor: "pointer", background: checked ? "#fef9c3" : "transparent" }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 4, border: "1px solid #a16207", display: "flex", alignItems: "center", justifyContent: "center", background: checked ? "#a16207" : "#fff", flexShrink: 0 }}>
+                        {checked && <Check size={11} color="#fff" strokeWidth={3} />}
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: "#1a1a2e", flex: 1 }}>{sv.name}</span>
+                      <span style={{ fontSize: 11, color: "#9898b0" }}>{fmt(sv.price)} · {sv.durationMin}m</span>
+                    </div>
+                  );
+                })}
+                {selectableServices.length === 0 && <div style={{ fontSize: 12, color: "#9898b0", padding: "6px 8px" }}>Add some individual services first</div>}
+              </div>
+              {includedServices.length > 0 && (
+                <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>
+                  Booked separately: <strong style={{ color: "#1a1a2e" }}>{fmt(includedTotal)}</strong> for {includedDuration} min
+                </div>
+              )}
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {!form.variablePrice && (
               <>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Price (PKR)</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{form.isPackage ? "Deal Price (PKR)" : "Price (PKR)"}</label>
                 <input type="number" value={form.price} onChange={(e) => set("price", e.target.value)} placeholder="e.g. 3500"
                   style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
               </>
@@ -263,6 +340,7 @@ export default function ServicesPage() {
           onClose={() => { setShowAdd(false); setEditingService(null); }}
           onSave={handleSaveService}
           staffList={staff}
+          servicesList={services}
           serviceToEdit={editingService ?? undefined}
         />
       )}
@@ -353,12 +431,21 @@ export default function ServicesPage() {
           {filteredServices.map((sv) => {
             const badge    = CATEGORY_LABELS[sv.category] || { label: catLabel(sv.category), bg: "#f3f4f6", color: "#4b5563" };
             const assigned = staff.filter((st) => sv.assignedStaffIds.includes(st.id));
+            const includedNames = sv.packageServiceIds
+              ?.map((id) => services.find((s) => s.id === id)?.name)
+              .filter((n): n is string => Boolean(n));
             return (
               <div key={sv.id} style={{ background: "#fff", padding: "24px", display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                   <div>
-                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", background: badge.bg, color: badge.color, padding: "3px 10px", borderRadius: 20, letterSpacing: "0.05em" }}>{badge.label}</span>
+                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", background: badge.bg, color: badge.color, padding: "3px 10px", borderRadius: 20, letterSpacing: "0.05em", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      {includedNames && <PackageIcon size={10} />}
+                      {badge.label}
+                    </span>
                     <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e", marginTop: 12, letterSpacing: "-0.01em" }}>{sv.name}</div>
+                    {includedNames && includedNames.length > 0 && (
+                      <div style={{ fontSize: 11, color: "#9898b0", marginTop: 4 }}>Includes: {includedNames.join(", ")}</div>
+                    )}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <button type="button" onClick={() => setEditingService(sv)} aria-label={`Edit ${sv.name}`}

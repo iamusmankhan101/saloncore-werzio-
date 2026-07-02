@@ -52,6 +52,8 @@ export interface Service {
   variablePrice?: boolean;
   priceRangeMin?: number;
   priceRangeMax?: number;
+  /** When present (2+ ids), this Service is a Deal/Package bundling these other service ids under one price. */
+  packageServiceIds?: string[];
   assignedStaffIds: string[];
   isActive: boolean;
 }
