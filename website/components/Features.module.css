@@ -12,14 +12,88 @@
   margin-bottom: 56px;
 }
 
-/* ── BENTO GRID ─────────────────────── */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-auto-rows: minmax(300px, auto);
-  gap: 18px;
+/* ── CAROUSEL ───────────────────────── */
+.carouselWrap {
+  position: relative;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.carouselWrap::before,
+.carouselWrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 20px;
+  width: 48px;
+  z-index: 2;
+  pointer-events: none;
+}
+.carouselWrap::before { left: 0; background: linear-gradient(90deg, #f8f7ff, transparent); }
+.carouselWrap::after  { right: 0; background: linear-gradient(270deg, #f8f7ff, transparent); }
+
+.carousel {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  padding: 4px 4px 16px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.carousel::-webkit-scrollbar { display: none; }
+
+.carouselNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.navBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid #ede9fe;
+  color: #7c3aed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .2s, color .2s, border-color .2s, transform .15s;
+  flex-shrink: 0;
+}
+.navBtn:hover:not(:disabled) {
+  background: #7c3aed;
+  color: #fff;
+  border-color: #7c3aed;
+  transform: translateY(-2px);
+}
+.navBtn:disabled { opacity: .35; cursor: not-allowed; }
+
+.dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: none;
+  border-radius: 99px;
+  background: #ddd6fe;
+  cursor: pointer;
+  transition: all .25s;
+}
+.dot:hover { background: #c4b5fd; }
+.dotActive {
+  width: 22px;
+  background: #7c3aed;
 }
 
 /* ── CARD ───────────────────────────── */
@@ -33,6 +107,9 @@
   flex-direction: column;
   transition: transform .25s, box-shadow .25s, border-color .25s;
   position: relative;
+  flex: 0 0 340px;
+  width: 340px;
+  scroll-snap-align: start;
 }
 
 .cardGlow {
@@ -52,6 +129,7 @@
 /* top text area */
 .cardTop {
   padding: 24px 22px 16px;
+  min-height: 210px;
 }
 
 .iconBox {
@@ -629,9 +707,8 @@
 }
 
 .invGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 28px;
+  display: flex;
+  flex-direction: column;
 }
 
 .invRow {
@@ -641,7 +718,7 @@
   padding: 5px 0;
   border-bottom: 1px solid #f3f4f6;
 }
-.invRow:nth-last-child(-n+2) { border-bottom: none; }
+.invRow:last-child { border-bottom: none; }
 
 .invName {
   font-size: 0.62rem;
@@ -680,6 +757,33 @@
   color: #111;
   width: 20px;
   text-align: right;
+}
+
+/* ════════════════════════════════════
+   POS PREVIEW
+════════════════════════════════════ */
+.posPayRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.posPayChip {
+  flex: 1;
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.posPayChipActive {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
 }
 
 /* ════════════════════════════════════
@@ -929,22 +1033,19 @@
 
 /* ── RESPONSIVE ─────────────────────── */
 @media (max-width: 700px) {
-  .grid {
-    grid-template-columns: 1fr;
-    grid-auto-rows: minmax(280px, auto);
-  }
   .card {
-    grid-column: auto !important;
-    grid-row: auto !important;
+    flex-basis: 82vw;
+    width: 82vw;
   }
-  .invGrid { grid-template-columns: 1fr; }
-  .invRow { border-bottom: 1px solid #f3f4f6 !important; }
-  .invRow:last-child { border-bottom: none !important; }
-  .invStats { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .cardTop { min-height: 0; }
+  .invStats { gap: 6px; }
   .invStatVal { font-size: 0.9rem; }
+  .carouselWrap::before,
+  .carouselWrap::after { width: 24px; }
+  .navBtn { width: 36px; height: 36px; }
   .section { padding: 64px 4%; }
 }
 
 @media (max-width: 400px) {
-  .grid { grid-auto-rows: minmax(260px, auto); }
+  .card { flex-basis: 86vw; width: 86vw; }
 }
