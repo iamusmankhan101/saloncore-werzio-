@@ -120,6 +120,7 @@ input, textarea, select { font-family: inherit; }
   height: 64px !important;
   width: auto !important;
   flex-shrink: 0 !important;
+  filter: brightness(0) invert(1) !important;
 }
 
 .sidebar-live-badge {
