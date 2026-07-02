@@ -972,7 +972,7 @@ export default function POSPage() {
                 const c = entry.type === "service" ? "#7C3AED" : "#d97706";
                 return (
                   <div key={entry.cartId}
-                    style={{ borderRadius: 12, border: "1.5px solid #eaeaf4", background: "#fafafe", overflow: "hidden" }}>
+                    style={{ borderRadius: 12, border: "1.5px solid #eaeaf4", background: "#fafafe", overflow: "hidden", flexShrink: 0 }}>
                     {/* Color bar */}
                     <div style={{ height: 3, background: c }} />
                     <div style={{ padding: "14px 12px 16px" }}>
