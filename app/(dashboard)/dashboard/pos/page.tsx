@@ -17,6 +17,7 @@ import {
 } from "@/lib/storage";
 import {
   createSalonInvoice, calcTotals,
+  localDateKey,
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
@@ -339,7 +340,7 @@ export default function POSPage() {
     if (cart.length === 0 || completing) return;
     setCompleting(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDateKey();
       const staffMember = staff.find(s => s.id === selectedStaffId);
       const invoice = createSalonInvoice({
         appointmentId: checkoutAppointmentId || undefined,

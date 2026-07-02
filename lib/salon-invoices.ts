@@ -47,9 +47,37 @@ export interface SalonInvoice {
 const BASE_KEY     = "werzio_salon_invoices";
 const BASE_COUNTER = "werzio_salon_invoice_counter";
 
+export function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function getSalonInvoices(): SalonInvoice[] {
   if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(locationUserKey(BASE_KEY)) || "[]"); } catch { return []; }
+  try {
+    const key = locationUserKey(BASE_KEY);
+    const parsed = JSON.parse(localStorage.getItem(key) || "[]") as SalonInvoice[];
+    let migrated = false;
+    const invoices = parsed.map((invoice) => {
+      if (invoice.source !== "pos" || !invoice.createdAt) return invoice;
+      const createdAt = new Date(invoice.createdAt);
+      if (Number.isNaN(createdAt.getTime())) return invoice;
+      const utcDate = invoice.createdAt.slice(0, 10);
+      const localDate = localDateKey(createdAt);
+      if (invoice.date !== utcDate || invoice.date === localDate) return invoice;
+      migrated = true;
+      return { ...invoice, date: localDate };
+    });
+    if (migrated) {
+      localStorage.setItem(key, JSON.stringify(invoices));
+      saveToDB("salon_invoices", invoices);
+    }
+    return invoices;
+  } catch {
+    return [];
+  }
 }
 
 export function saveSalonInvoices(list: SalonInvoice[]): void {

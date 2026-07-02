@@ -136,9 +136,10 @@ export default function DashboardPage() {
   const yAxisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0]
     .map((value) => value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(Math.round(value)));
   const topClients = [...clients].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
+  const todayCompletedAppts = todayAppts.filter((appointment) => appointment.status === "completed");
   const todayPosInvoices = posInvoices.filter((invoice) => invoice.date === today);
-  const todayTotal = todayAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPosInvoices.reduce((s, invoice) => s + invoice.total, 0);
-  const todayTransactionCount = todayAppts.length + todayPosInvoices.length;
+  const todayTotal = todayCompletedAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPosInvoices.reduce((s, invoice) => s + invoice.total, 0);
+  const todayTransactionCount = todayCompletedAppts.length + todayPosInvoices.length;
   const avgTicket = todayTransactionCount > 0 ? todayTotal / todayTransactionCount : 0;
   const activeStaffCount = staffList.length;
 
