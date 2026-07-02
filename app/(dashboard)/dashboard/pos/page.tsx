@@ -981,14 +981,18 @@ export default function POSPage() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: "#1d1d2f", lineHeight: 1.3 }}>{entry.name}</div>
                           {entry.variablePrice ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-                              <span style={{ fontSize: 11, color: "#b0b0c8" }}>PKR</span>
-                              <input type="number" value={entry.unitPrice || ""} onChange={(e) => updateUnitPrice(entry.cartId, Number(e.target.value) || 0)}
-                                placeholder="Enter price" aria-label={`Price for ${entry.name}`}
-                                style={{ width: 84, fontSize: 12, padding: "3px 6px", borderRadius: 6, border: entry.unitPrice > 0 ? "1px solid #e0dff0" : "1px solid #f59e0b", outline: "none" }} />
-                              <span style={{ fontSize: 11, color: "#b0b0c8" }}>each</span>
+                            <div style={{ marginTop: 4 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                <span style={{ fontSize: 11, color: "#b0b0c8" }}>PKR</span>
+                                <input type="number" value={entry.unitPrice || ""} onChange={(e) => updateUnitPrice(entry.cartId, Number(e.target.value) || 0)}
+                                  placeholder="Enter price" aria-label={`Price for ${entry.name}`}
+                                  style={{ width: 84, fontSize: 12, padding: "3px 6px", borderRadius: 6, border: entry.unitPrice > 0 ? "1px solid #e0dff0" : "1px solid #f59e0b", outline: "none" }} />
+                                <span style={{ fontSize: 11, color: "#b0b0c8" }}>each</span>
+                              </div>
                               {entry.priceRangeMin && entry.priceRangeMax && (
-                                <span style={{ fontSize: 10, color: "#c8c8d8" }}>(Range: {pkr(entry.priceRangeMin)}–{pkr(entry.priceRangeMax)})</span>
+                                <div style={{ fontSize: 10, color: "#c8c8d8", marginTop: 3, whiteSpace: "nowrap" }}>
+                                  Range: {pkr(entry.priceRangeMin)} – {pkr(entry.priceRangeMax)}
+                                </div>
                               )}
                             </div>
                           ) : (
