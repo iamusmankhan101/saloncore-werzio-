@@ -47,6 +47,10 @@ function fmtTime(t: string) {
   return `${hourValue % 12 || 12}:${String(minuteValue).padStart(2, "0")} ${period}`;
 }
 
+function fmtShortDate(date: string) {
+  return new Date(`${date}T12:00:00`).toLocaleDateString("en-PK", { day: "numeric", month: "short" });
+}
+
 function getDaysArray(count: number): string[] {
   const arr: string[] = [];
   for (let i = count - 1; i >= 0; i--) {
@@ -269,17 +273,23 @@ export default function RevenuePage() {
       .sort((a, b) => b.amount - a.amount);
   }, [rangeStart, filterEnd]);
 
-  // A single-day custom range should drive the Daily Report. For multi-day
-  // periods the card remains today's operational snapshot.
-  const reportDate = period === "custom" && customStart === customEnd ? customStart : today;
+  // Custom selections drive a combined report for their entire date range.
+  // Preset periods keep this card as today's operational snapshot.
+  const customReportRange = period === "custom" && customStart <= customEnd;
+  const reportStart = customReportRange ? customStart : today;
+  const reportEnd = customReportRange ? customEnd : today;
+  const reportHasMultipleDays = reportStart !== reportEnd;
   const reportAppts = useMemo(() =>
-    appointments.filter(a => a.status === "completed" && a.date === reportDate)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    [appointments, reportDate]);
+    appointments
+      .filter(a => a.status === "completed" && a.date >= reportStart && a.date <= reportEnd)
+      .sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`)),
+    [appointments, reportStart, reportEnd]);
 
   const reportPos = useMemo(() =>
-    posInvoices.filter(inv => inv.date === reportDate),
-    [posInvoices, reportDate]);
+    posInvoices
+      .filter(inv => inv.date >= reportStart && inv.date <= reportEnd)
+      .sort((a, b) => `${a.date}T${a.createdAt}`.localeCompare(`${b.date}T${b.createdAt}`)),
+    [posInvoices, reportStart, reportEnd]);
 
   const reportRevenue = reportAppts.reduce((s, a) => s + a.totalAmount, 0) + reportPos.reduce((s, inv) => s + inv.total, 0);
   const reportCount   = reportAppts.length + reportPos.length;
@@ -779,7 +789,7 @@ export default function RevenuePage() {
             <div>
               <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e" }}>Daily Report</div>
               <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 2 }}>
-                {reportDate} · {reportDate === today ? "Today’s activity" : "Selected day activity"}
+                {reportHasMultipleDays ? `${reportStart} → ${reportEnd} · Combined range activity` : `${reportStart} · ${reportStart === today ? "Today’s activity" : "Selected day activity"}`}
               </div>
             </div>
           </div>
@@ -806,7 +816,7 @@ export default function RevenuePage() {
           <>
             {/* Column headers */}
             <div style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "9px 24px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-              {["TIME", "CLIENT", "SERVICE / ITEM", "STAFF", "PAYMENT", "AMOUNT"].map(h => (
+              {[reportHasMultipleDays ? "DATE / TIME" : "TIME", "CLIENT", "SERVICE / ITEM", "STAFF", "PAYMENT", "AMOUNT"].map(h => (
                 <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
               ))}
             </div>
@@ -814,7 +824,7 @@ export default function RevenuePage() {
             {/* Appointment rows */}
             {reportAppts.length === 0 && reportPos.length === 0 ? (
               <div style={{ padding: "32px 24px", textAlign: "center", fontSize: 13, color: "#c0c0d0" }}>
-                No transactions found for {reportDate}
+                No transactions found for {reportHasMultipleDays ? `${reportStart} to ${reportEnd}` : reportStart}
               </div>
             ) : (
               <>
@@ -822,7 +832,7 @@ export default function RevenuePage() {
                   <div key={a.id} style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", borderBottom: "1px solid #f8f8fc", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b6b8a" }}>
                       <Clock size={12} color="#c0c0d0" />
-                      {fmtTime(a.startTime)}
+                      {reportHasMultipleDays ? `${fmtShortDate(a.date)} · ` : ""}{fmtTime(a.startTime)}
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{a.clientName}</div>
                     <div style={{ fontSize: 12, color: "#6b6b8a" }}>{a.serviceNames.join(", ") || "—"}</div>
@@ -838,7 +848,8 @@ export default function RevenuePage() {
                   <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", borderBottom: "1px solid #f8f8fc", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b6b8a" }}>
                       <Clock size={12} color="#c0c0d0" />
-                      {inv.createdAt ? new Date(inv.createdAt).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                      {reportHasMultipleDays ? `${fmtShortDate(inv.date)} · ` : ""}
+                      {inv.createdAt ? new Date(inv.createdAt).toLocaleTimeString("en-PK", { hour: "numeric", minute: "2-digit", hour12: true }) : "—"}
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{inv.clientName || "Walk-in"}</div>
                     <div style={{ fontSize: 12, color: "#6b6b8a" }}>{inv.items.map(it => it.description).join(", ") || "POS Sale"}</div>
