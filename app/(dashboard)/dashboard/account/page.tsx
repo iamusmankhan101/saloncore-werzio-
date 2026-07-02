@@ -1756,7 +1756,11 @@ export default function AccountPage() {
         { id: "tryon"  as SectionId, label: "Virtual Try-On", icon: Wand2    },
       ]
     : BASE_SECTIONS;
-  const [active, setActive]               = useState<SectionId>("profile");
+  const [active, setActive] = useState<SectionId>(() => {
+    if (typeof window === "undefined") return "profile";
+    const requested = new URLSearchParams(window.location.search).get("section") as SectionId | null;
+    return requested && BASE_SECTIONS.some((section) => section.id === requested) ? requested : "profile";
+  });
   const [mobileScreen, setMobileScreen]   = useState<"menu" | SectionId>("menu");
 
   const initials = (currentUser?.ownerName || "?")
