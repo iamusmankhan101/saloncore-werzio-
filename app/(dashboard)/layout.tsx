@@ -565,7 +565,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     window.addEventListener("werzio_new_booking_alert", onNewBooking);
     window.addEventListener("storage", onStorage);
 
-    // Poll for new online bookings every 30 s — catches bookings from external devices
+    // Poll for new online bookings every 5 s — catches bookings from external devices
     const user = getCurrentUser();
     let lastSeenId: string | null = null;
 
@@ -593,22 +593,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }
 
           lastSeenId = latest.id;
-          // Only surface the booking that just arrived. Older unseen records
-          // must not be replayed as a stack of popups.
-          showBookingAlert({
-            bookingId:   latest.id,
-            clientName:  latest.clientName,
-            serviceNames: latest.serviceNames ?? [],
-            date:        latest.date,
-            startTime:   latest.startTime,
-            totalAmount: latest.totalAmount ?? 0,
-          });
+          // This table also receives staff-created appointments (walk-in/manual/whatsapp) —
+          // only pop the alert for bookings made through the online booking page.
+          if (latest.source === "web") {
+            // Only surface the booking that just arrived. Older unseen records
+            // must not be replayed as a stack of popups.
+            showBookingAlert({
+              bookingId:   latest.id,
+              clientName:  latest.clientName,
+              serviceNames: latest.serviceNames ?? [],
+              date:        latest.date,
+              startTime:   latest.startTime,
+              totalAmount: latest.totalAmount ?? 0,
+            });
+          }
         }
       } catch { /* network error — try again next tick */ }
     }
 
     pollNewBookings(); // run immediately to set baseline
-    const pollInterval = window.setInterval(pollNewBookings, 30_000);
+    const pollInterval = window.setInterval(pollNewBookings, 5_000);
 
     return () => {
       window.removeEventListener("werzio_new_booking_alert", onNewBooking);
