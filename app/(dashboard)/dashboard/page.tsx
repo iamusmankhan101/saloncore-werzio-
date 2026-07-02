@@ -105,7 +105,10 @@ export default function DashboardPage() {
       setAppointments(getStoredAppointments());
       setClients(getStoredClients());
       setStaffList(getStoredStaff());
-      setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && !inv.appointmentId));
+      // Revenue is recognized when an invoice is generated. Appointment-linked
+      // invoices are excluded because the completed appointment already carries
+      // the same revenue and would otherwise be counted twice.
+      setPosInvoices(getSalonInvoices().filter(inv => !inv.appointmentId));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);

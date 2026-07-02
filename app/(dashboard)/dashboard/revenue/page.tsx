@@ -82,8 +82,10 @@ export default function RevenuePage() {
   useEffect(() => {
     setToday(toDateStr(new Date()));
     setAppointments(getStoredAppointments());
-    // POS invoices that are paid and not linked to an appointment (avoid double-counting)
-    setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && !inv.appointmentId));
+    // Count generated standalone invoices as revenue, including unpaid invoices.
+    // Appointment-linked invoices stay excluded because their completed
+    // appointment is already included and counting both would duplicate revenue.
+    setPosInvoices(getSalonInvoices().filter(inv => !inv.appointmentId));
   }, []);
 
   // Reset drill-down when period changes
