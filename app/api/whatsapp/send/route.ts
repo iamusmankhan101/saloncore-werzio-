@@ -1,8 +1,15 @@
 import { NextRequest } from "next/server";
 import { sendWhatsAppMessage, type WhatsAppProvider } from "@/lib/whatsapp-provider";
 import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppMessageIntent, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
+import { resolveActor } from "@/lib/api-auth";
 
 export async function POST(request: NextRequest) {
+  // Without this check, an unauthenticated caller who omits apiKey/botSailorApiToken
+  // would ride on this platform's own env-configured WhatsApp credentials to send
+  // arbitrary messages to any phone number.
+  const actor = await resolveActor(request);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+
   const body = await request.json();
   const { provider, apiKey, botSailorApiToken, botSailorPhoneNumberId, zaptickApiKey, phone, text, messageIntent, messageType, recipientOptedIn, safety } = body as {
     provider?: WhatsAppProvider;

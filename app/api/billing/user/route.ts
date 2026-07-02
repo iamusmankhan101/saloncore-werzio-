@@ -1,21 +1,18 @@
 /**
  * GET /api/billing/user
- * Returns the current user's billing information from the database
+ * Returns the authenticated caller's own billing information from the database.
  */
 
 import { NextRequest } from "next/server";
 import { getBillingUser } from "@/lib/billing-db";
+import { resolveActor } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
-  // Get user ID from query params
-  const userId = req.nextUrl.searchParams.get("userId");
-  
-  if (!userId) {
-    return Response.json({ ok: false, error: "Missing userId parameter." }, { status: 400 });
-  }
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   try {
-    const billingUser = await getBillingUser(userId);
+    const billingUser = await getBillingUser(actor.userId);
     
     if (!billingUser) {
       // User not found in billing DB - they're on free plan

@@ -1,12 +1,14 @@
 /**
  * POST /api/billing/update-plan
- * Updates a user's plan in the database
+ * Admin-only: updates a target user's plan in the database (e.g. when
+ * approving a payment request from the admin dashboard).
  */
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { ensureBillingTables } from "@/lib/billing-db";
 import { PLAN_CONFIGS } from "@/lib/plan-limits";
+import { requireAdmin } from "@/lib/api-auth";
 
 function getPlanPrice(planId: string): number {
   if (planId === "basic") return PLAN_CONFIGS.pro.price;
@@ -19,6 +21,10 @@ function getPlanName(planId: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await requireAdmin(req))) {
+    return Response.json({ ok: false, error: "Unauthorized" }, { status: 403 });
+  }
+
   let body: {
     userId: string;
     planId: string;

@@ -1,18 +1,23 @@
 /**
- * Generic CRUD API for all resources
- * GET    /api/data/[resource]?userId=xxx          - List all
- * POST   /api/data/[resource]                     - Create
- * PUT    /api/data/[resource]                     - Update
- * DELETE /api/data/[resource]?id=xxx&userId=xxx   - Delete
+ * Generic CRUD API for all resources — scoped to the authenticated caller's
+ * own data (userId is resolved from the session, never trusted from the
+ * client) and with column names validated before being interpolated into
+ * SQL (Turso/libSQL has no parameterized-identifier support).
+ *
+ * GET    /api/data/[resource]          - List all (caller's own records)
+ * POST   /api/data/[resource]          - Create
+ * PUT    /api/data/[resource]          - Update
+ * DELETE /api/data/[resource]?id=xxx   - Delete
  */
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { ensureAllTables } from "@/lib/db-schema";
+import { resolveActor } from "@/lib/api-auth";
 
 const VALID_RESOURCES = [
   "appointments",
-  "clients", 
+  "clients",
   "staff",
   "services",
   "products",
@@ -22,6 +27,14 @@ const VALID_RESOURCES = [
   "user_plans",
 ];
 
+// Column identifiers must be plain snake/camel-case names — never trust
+// request-body keys directly in a SQL string without this check.
+const SAFE_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+function sanitizeColumns(keys: string[]): string[] | null {
+  return keys.every((k) => SAFE_IDENTIFIER.test(k)) ? keys : null;
+}
+
 // ─── GET - List all records ───────────────────────────────────────────────────
 
 export async function GET(
@@ -29,23 +42,20 @@ export async function GET(
   { params }: { params: Promise<{ resource: string }> }
 ) {
   const { resource } = await params;
-  
+
   if (!VALID_RESOURCES.includes(resource)) {
     return Response.json({ ok: false, error: "Invalid resource" }, { status: 400 });
   }
 
-  const userId = req.nextUrl.searchParams.get("userId");
-  
-  if (!userId) {
-    return Response.json({ ok: false, error: "Missing userId" }, { status: 400 });
-  }
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   try {
     await ensureAllTables();
-    
+
     const result = await db.execute({
       sql: `SELECT * FROM ${resource} WHERE user_id = ? ORDER BY created_at DESC`,
-      args: [userId],
+      args: [actor.userId],
     });
 
     return Response.json({ ok: true, data: result.rows });
@@ -62,10 +72,13 @@ export async function POST(
   { params }: { params: Promise<{ resource: string }> }
 ) {
   const { resource } = await params;
-  
+
   if (!VALID_RESOURCES.includes(resource)) {
     return Response.json({ ok: false, error: "Invalid resource" }, { status: 400 });
   }
+
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   let body: any;
   try {
@@ -74,12 +87,11 @@ export async function POST(
     return Response.json({ ok: false, error: "Invalid request body" }, { status: 400 });
   }
 
-  if (!body.user_id) {
-    return Response.json({ ok: false, error: "Missing user_id" }, { status: 400 });
-  }
-
   try {
     await ensureAllTables();
+
+    // Always write under the caller's own id — never a client-supplied one.
+    body.user_id = actor.userId;
 
     // Generate ID if not provided
     if (!body.id) {
@@ -92,7 +104,10 @@ export async function POST(
     }
 
     // Build INSERT query
-    const columns = Object.keys(body);
+    const columns = sanitizeColumns(Object.keys(body));
+    if (!columns) {
+      return Response.json({ ok: false, error: "Invalid field name" }, { status: 400 });
+    }
     const placeholders = columns.map(() => "?").join(", ");
     const values = columns.map(col => body[col]);
 
@@ -104,9 +119,9 @@ export async function POST(
     return Response.json({ ok: true, data: body });
   } catch (err: any) {
     console.error(`[api/data/${resource}] POST error:`, err);
-    return Response.json({ 
-      ok: false, 
-      error: err.message || "Failed to create record" 
+    return Response.json({
+      ok: false,
+      error: err.message || "Failed to create record"
     }, { status: 500 });
   }
 }
@@ -118,10 +133,13 @@ export async function PUT(
   { params }: { params: Promise<{ resource: string }> }
 ) {
   const { resource } = await params;
-  
+
   if (!VALID_RESOURCES.includes(resource)) {
     return Response.json({ ok: false, error: "Invalid resource" }, { status: 400 });
   }
+
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   let body: any;
   try {
@@ -130,17 +148,21 @@ export async function PUT(
     return Response.json({ ok: false, error: "Invalid request body" }, { status: 400 });
   }
 
-  if (!body.id || !body.user_id) {
-    return Response.json({ ok: false, error: "Missing id or user_id" }, { status: 400 });
+  if (!body.id) {
+    return Response.json({ ok: false, error: "Missing id" }, { status: 400 });
   }
 
   try {
     await ensureAllTables();
 
-    // Build UPDATE query
-    const { id, user_id, created_at, ...updates } = body;
-    const setClause = Object.keys(updates).map(col => `${col} = ?`).join(", ");
-    const values = [...Object.values(updates), id, user_id];
+    // Build UPDATE query — scoped to the caller's own records only.
+    const { id, user_id: _ignoredUserId, created_at, ...updates } = body;
+    const columns = sanitizeColumns(Object.keys(updates));
+    if (!columns) {
+      return Response.json({ ok: false, error: "Invalid field name" }, { status: 400 });
+    }
+    const setClause = columns.map(col => `${col} = ?`).join(", ");
+    const values = [...columns.map(col => updates[col]), id, actor.userId];
 
     await db.execute({
       sql: `UPDATE ${resource} SET ${setClause} WHERE id = ? AND user_id = ?`,
@@ -150,9 +172,9 @@ export async function PUT(
     return Response.json({ ok: true, data: body });
   } catch (err: any) {
     console.error(`[api/data/${resource}] PUT error:`, err);
-    return Response.json({ 
-      ok: false, 
-      error: err.message || "Failed to update record" 
+    return Response.json({
+      ok: false,
+      error: err.message || "Failed to update record"
     }, { status: 500 });
   }
 }
@@ -164,16 +186,17 @@ export async function DELETE(
   { params }: { params: Promise<{ resource: string }> }
 ) {
   const { resource } = await params;
-  
+
   if (!VALID_RESOURCES.includes(resource)) {
     return Response.json({ ok: false, error: "Invalid resource" }, { status: 400 });
   }
 
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+
   const id = req.nextUrl.searchParams.get("id");
-  const userId = req.nextUrl.searchParams.get("userId");
-  
-  if (!id || !userId) {
-    return Response.json({ ok: false, error: "Missing id or userId" }, { status: 400 });
+  if (!id) {
+    return Response.json({ ok: false, error: "Missing id" }, { status: 400 });
   }
 
   try {
@@ -181,7 +204,7 @@ export async function DELETE(
 
     await db.execute({
       sql: `DELETE FROM ${resource} WHERE id = ? AND user_id = ?`,
-      args: [id, userId],
+      args: [id, actor.userId],
     });
 
     return Response.json({ ok: true });

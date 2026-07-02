@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getUserById, hashPassword } from "@/lib/auth-db";
 import { verifySessionToken, COOKIE_NAME } from "@/lib/session";
 import { pbkdf2Sync, timingSafeEqual } from "crypto";
+import { rateLimit, rateLimitClear } from "@/lib/rate-limit";
 
 function verifyPassword(plain: string, stored: string): boolean {
   if (stored.startsWith("pbkdf2:")) {
@@ -26,6 +27,15 @@ export async function POST(req: NextRequest) {
   const userId = verifySessionToken(token);
   if (!userId) {
     return Response.json({ ok: false, error: "Invalid or expired session." }, { status: 401 });
+  }
+
+  // Slow down repeated wrong-password guesses against a valid session.
+  const limit = rateLimit("change-password", userId, { maxAttempts: 8, windowMs: 15 * 60 * 1000, blockMs: 30 * 60 * 1000 });
+  if (limit.blocked) {
+    return Response.json(
+      { ok: false, error: "Too many attempts. Please try again later.", retryAfter: limit.retryAfter },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfter ?? 0) } },
+    );
   }
 
   let body: { currentPassword: string; newPassword: string };
@@ -58,6 +68,7 @@ export async function POST(req: NextRequest) {
       args: [hashPassword(newPassword), userId],
     });
 
+    rateLimitClear("change-password", userId);
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[auth/change-password] Error:", err);

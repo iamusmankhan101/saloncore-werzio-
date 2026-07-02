@@ -1,14 +1,16 @@
 /**
  * /api/settings
  *
- * GET  ?userId=xxx       — fetch salon settings object from Turso
- * POST { userId, data }  — upsert settings (full object)
+ * GET  — fetch the authenticated caller's salon settings object from Turso
+ * POST { data }  — upsert settings (full object) for the authenticated caller
  *
- * Stored in salon_data table under key "{userId}_settings".
+ * Stored in salon_data table under key "{userId}_settings", where userId is
+ * always resolved from the caller's own session (never a client-supplied id).
  */
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { resolveActor } from "@/lib/api-auth";
 
 async function ensureTable() {
   await db.execute(`
@@ -21,14 +23,14 @@ async function ensureTable() {
 }
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) return Response.json({ ok: false, error: "Missing userId" }, { status: 400 });
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   try {
     await ensureTable();
     const result = await db.execute({
       sql: "SELECT data FROM salon_data WHERE entity = ?",
-      args: [`${userId}_settings`],
+      args: [`${actor.userId}_settings`],
     });
     if (result.rows.length === 0) return Response.json({ ok: true, data: null });
     return Response.json({ ok: true, data: JSON.parse(result.rows[0].data as string) });
@@ -39,21 +41,24 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { userId: string; data: object };
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+
+  let body: { data: object };
   try {
     body = await req.json();
   } catch {
     return Response.json({ ok: false, error: "Invalid body" }, { status: 400 });
   }
 
-  const { userId, data } = body;
-  if (!userId || !data) return Response.json({ ok: false, error: "Missing fields" }, { status: 400 });
+  const { data } = body;
+  if (!data) return Response.json({ ok: false, error: "Missing fields" }, { status: 400 });
 
   try {
     await ensureTable();
     await db.execute({
       sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
-      args: [`${userId}_settings`, JSON.stringify(data), new Date().toISOString()],
+      args: [`${actor.userId}_settings`, JSON.stringify(data), new Date().toISOString()],
     });
     return Response.json({ ok: true });
   } catch (err) {

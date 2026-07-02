@@ -10,7 +10,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const COOKIE_NAME  = "werzio_session";
-const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-only-insecure-secret-change-before-deploy";
+const SESSION_SECRET_ENV = process.env.SESSION_SECRET;
+// Only used outside production (or if SESSION_SECRET is unset locally). In
+// production, a missing SESSION_SECRET must fail closed — falling back to a
+// value visible in source would let anyone forge a session for any user ID.
+const SESSION_SECRET = SESSION_SECRET_ENV ?? "dev-only-insecure-secret-change-before-deploy";
+const SECRET_MISCONFIGURED_IN_PROD = process.env.NODE_ENV === "production" && !SESSION_SECRET_ENV;
 
 const DASHBOARD = /^\/dashboard(\/|$)/;
 const AUTH_PAGES = new Set(["/sign-in", "/sign-up"]);
@@ -27,6 +32,8 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 async function verifySessionToken(token: string): Promise<string | null> {
+  // Fail closed: never verify a session against the known-public dev secret in production.
+  if (SECRET_MISCONFIGURED_IN_PROD) return null;
   try {
     const dot = token.lastIndexOf(".");
     if (dot === -1) return null;

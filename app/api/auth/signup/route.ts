@@ -4,12 +4,33 @@
  */
 
 import { NextRequest } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { createUser } from "@/lib/auth-db";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 // Set ADMIN_ACCESS_CODE in .env.local — never hard-code secrets in source.
 const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE ?? "";
 
+// Timing-safe compare that also fails closed when ADMIN_ACCESS_CODE is unset —
+// a plain `adminCode === ADMIN_ACCESS_CODE` would let anyone submit adminCode: ""
+// and match an empty/misconfigured env var, self-granting the admin role.
+function validAdminCode(code: string | undefined): boolean {
+  if (!ADMIN_ACCESS_CODE || !code) return false;
+  const a = Buffer.from(code);
+  const b = Buffer.from(ADMIN_ACCESS_CODE);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
 export async function POST(req: NextRequest) {
+  const limit = rateLimit("signup", clientIp(req), { maxAttempts: 8, windowMs: 15 * 60 * 1000, blockMs: 30 * 60 * 1000 });
+  if (limit.blocked) {
+    return Response.json(
+      { ok: false, error: "Too many signup attempts. Please try again later.", retryAfter: limit.retryAfter },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfter ?? 0) } },
+    );
+  }
+
   let body: {
     email: string;
     password: string;
@@ -36,11 +57,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Check admin code if provided
-  if (adminCode && adminCode !== ADMIN_ACCESS_CODE) {
+  if (adminCode && !validAdminCode(adminCode)) {
     return Response.json({ ok: false, error: "Invalid admin access code." }, { status: 400 });
   }
 
-  const isAdmin = adminCode === ADMIN_ACCESS_CODE;
+  const isAdmin = validAdminCode(adminCode);
 
   try {
     const user = await createUser({

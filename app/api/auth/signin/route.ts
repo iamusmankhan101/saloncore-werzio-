@@ -7,74 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateCredentials } from "@/lib/auth-db";
 import { createSessionToken, COOKIE_NAME, cookieOptions, tokenId } from "@/lib/session";
 import { createDbSession } from "@/lib/auth-db";
+import { clientIp, rateLimit, rateLimitClear } from "@/lib/rate-limit";
 
-// ─── In-memory rate limiter ───────────────────────────────────────────────────
-// Keyed by IP address. Resets on server restart.
-// For multi-instance deployments replace with Redis / Upstash.
-
-interface RateEntry {
-  attempts: number;
-  windowStart: number;
-  blockedUntil?: number;
-}
-
-const store = new Map<string, RateEntry>();
-
-const WINDOW_MS   = 15 * 60 * 1000;  // 15-minute sliding window
-const MAX_ATTEMPTS = 10;              // max attempts before lockout
-const BLOCK_MS    = 30 * 60 * 1000;  // 30-minute lockout
-
-function clientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown"
-  );
-}
-
-function rateCheck(key: string): { blocked: boolean; retryAfter?: number } {
-  const now = Date.now();
-  const e = store.get(key);
-
-  if (!e) {
-    store.set(key, { attempts: 1, windowStart: now });
-    return { blocked: false };
-  }
-
-  // Still in active lockout?
-  if (e.blockedUntil && now < e.blockedUntil) {
-    return { blocked: true, retryAfter: Math.ceil((e.blockedUntil - now) / 1000) };
-  }
-
-  // Window expired — reset
-  if (now - e.windowStart > WINDOW_MS) {
-    store.set(key, { attempts: 1, windowStart: now });
-    return { blocked: false };
-  }
-
-  e.attempts++;
-
-  if (e.attempts > MAX_ATTEMPTS) {
-    e.blockedUntil = now + BLOCK_MS;
-    return { blocked: true, retryAfter: Math.ceil(BLOCK_MS / 1000) };
-  }
-
-  return { blocked: false };
-}
-
-function rateClear(key: string) {
-  store.delete(key);
-}
-
-// Periodically prune stale entries so the Map doesn't grow forever
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, e] of store) {
-    const expired = now - e.windowStart > WINDOW_MS * 2;
-    const unblocked = !e.blockedUntil || now > e.blockedUntil;
-    if (expired && unblocked) store.delete(k);
-  }
-}, 10 * 60 * 1000);
+const BLOCK_MS = 30 * 60 * 1000; // 30-minute lockout
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 
@@ -82,7 +17,7 @@ export async function POST(req: NextRequest) {
   const ip = clientIp(req);
 
   // Check rate limit before doing any work
-  const limit = rateCheck(ip);
+  const limit = rateLimit("signin", ip, { maxAttempts: 10, blockMs: BLOCK_MS });
   if (limit.blocked) {
     const minutes = Math.ceil((limit.retryAfter ?? BLOCK_MS / 1000) / 60);
     return Response.json(
@@ -115,7 +50,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Success — clear the rate-limit counter for this IP
-    rateClear(ip);
+    rateLimitClear("signin", ip);
 
     const res = NextResponse.json({
       ok: true,

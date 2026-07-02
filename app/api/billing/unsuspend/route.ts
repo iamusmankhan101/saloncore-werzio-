@@ -1,6 +1,6 @@
 /**
  * POST /api/billing/unsuspend
- * Called by the admin page when approving a payment request.
+ * Admin-only: called by the admin page when approving a payment request.
  * Marks the current month's invoice as paid and lifts the suspension.
  * Sends a "account restored" confirmation email.
  */
@@ -14,6 +14,7 @@ import {
   markInvoicePaidDB,
   unsuspendUser,
 } from "@/lib/billing-db";
+import { requireAdmin } from "@/lib/api-auth";
 
 function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
 function fmtDate(d: string) {
@@ -23,6 +24,10 @@ function fmtDate(d: string) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await requireAdmin(req))) {
+    return Response.json({ ok: false, error: "Unauthorized" }, { status: 403 });
+  }
+
   let body: { userId: string; planId?: string };
   try {
     body = await req.json();

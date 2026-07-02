@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { resolveActor } from "@/lib/api-auth";
 
 interface WaSenderGroup {
   jid?: unknown;
@@ -10,6 +11,9 @@ interface WaSenderGroup {
 }
 
 export async function POST(request: NextRequest) {
+  const actor = await resolveActor(request);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+
   const body = await request.json().catch(() => ({})) as { apiKey?: string; inviteLink?: string };
   const apiKey = body.apiKey || process.env.WASENDER_API_KEY || "";
 

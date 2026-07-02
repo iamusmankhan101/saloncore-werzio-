@@ -3,6 +3,7 @@ import type { SalonInvoice } from "@/lib/salon-invoices";
 import { generateSalonInvoicePdf } from "@/lib/salon-invoice-pdf";
 import type { WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
+import { resolveActor } from "@/lib/api-auth";
 
 interface RequestBody {
   invoice: SalonInvoice;
@@ -16,6 +17,9 @@ function cleanPhone(phone: string) {
 }
 
 export async function POST(request: NextRequest) {
+  const actor = await resolveActor(request);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+
   const body = await request.json().catch(() => null) as RequestBody | null;
   if (!body?.invoice || !body.phone || !body.providerConfig) {
     return Response.json({ ok: false, error: "Invoice, phone, and provider configuration are required." }, { status: 400 });

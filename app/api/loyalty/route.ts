@@ -1,16 +1,16 @@
 /**
  * /api/loyalty
  *
- * GET  ?userId=xxx       — fetch loyalty transaction history for a user
- * POST { userId, data }  — upsert full history array
+ * GET  — fetch loyalty transaction history for the authenticated caller
+ * POST { data }  — upsert full history array
  *
- * Stored in salon_data table under key "{userId}_loyalty_history".
+ * Stored in salon_data table under key "{userId}_loyalty_history", where
+ * userId is always resolved from the caller's own session.
  */
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { COOKIE_NAME, verifySessionToken } from "@/lib/session";
-import { getUserById } from "@/lib/auth-db";
+import { resolveActor } from "@/lib/api-auth";
 
 async function ensureTable() {
   await db.execute(`
@@ -23,18 +23,12 @@ async function ensureTable() {
 }
 
 export async function GET(req: NextRequest) {
-  let userId = req.nextUrl.searchParams.get("userId");
-  let locationId = req.nextUrl.searchParams.get("locationId") || "main";
-  if (!userId) return Response.json({ ok: false, error: "Missing userId" }, { status: 400 });
+  const requestedLocationId = req.nextUrl.searchParams.get("locationId") || "main";
+  const actor = await resolveActor(req, requestedLocationId);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const { userId, locationId } = actor;
 
   try {
-    const token = req.cookies.get(COOKIE_NAME)?.value;
-    const actorId = token ? verifySessionToken(token) : null;
-    const actor = actorId ? await getUserById(actorId) : null;
-    if (actor?.role === "staff") {
-      userId = actor.salonOwnerId || actor.id;
-      locationId = actor.locationId || "main";
-    }
     await ensureTable();
     const result = await db.execute({
       sql: "SELECT data FROM salon_data WHERE entity = ?",
@@ -49,7 +43,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { userId: string; locationId?: string; data: unknown[] };
+  let body: { locationId?: string; data: unknown[] };
   try {
     body = await req.json();
   } catch {
@@ -57,17 +51,13 @@ export async function POST(req: NextRequest) {
   }
 
   const { data } = body;
-  let { userId, locationId = "main" } = body;
-  if (!userId || !Array.isArray(data)) return Response.json({ ok: false, error: "Missing fields" }, { status: 400 });
+  if (!Array.isArray(data)) return Response.json({ ok: false, error: "Missing fields" }, { status: 400 });
+
+  const actor = await resolveActor(req, body.locationId || "main");
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const { userId, locationId } = actor;
 
   try {
-    const token = req.cookies.get(COOKIE_NAME)?.value;
-    const actorId = token ? verifySessionToken(token) : null;
-    const actor = actorId ? await getUserById(actorId) : null;
-    if (actor?.role === "staff") {
-      userId = actor.salonOwnerId || actor.id;
-      locationId = actor.locationId || "main";
-    }
     await ensureTable();
     await db.execute({
       sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",

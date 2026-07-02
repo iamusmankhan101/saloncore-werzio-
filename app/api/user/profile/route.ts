@@ -1,23 +1,24 @@
 /**
  * PATCH /api/user/profile
- * Updates owner_name, salon_name, and/or phone in billing_users (Turso).
+ * Updates owner_name, salon_name, and/or phone in billing_users (Turso) for
+ * the authenticated caller's own account.
  * Called from the Account → My Profile section when the user saves changes.
  */
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { ensureBillingTables } from "@/lib/billing-db";
+import { resolveActor } from "@/lib/api-auth";
 
 export async function PATCH(req: NextRequest) {
-  let body: { userId: string; ownerName?: string; salonName?: string; phone?: string };
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+
+  let body: { ownerName?: string; salonName?: string; phone?: string };
   try {
     body = await req.json();
   } catch {
     return Response.json({ ok: false, error: "Invalid request body." }, { status: 400 });
-  }
-
-  if (!body.userId) {
-    return Response.json({ ok: false, error: "Missing userId." }, { status: 400 });
   }
 
   try {
@@ -32,13 +33,13 @@ export async function PATCH(req: NextRequest) {
 
     if (fields.length === 0) return Response.json({ ok: true }); // nothing to update
 
-    args.push(body.userId);
+    args.push(actor.userId);
     await db.execute({
       sql: `UPDATE billing_users SET ${fields.join(", ")} WHERE id = ?`,
       args,
     });
 
-    console.log(`[user/profile] ✓ Updated profile for userId=${body.userId}`);
+    console.log(`[user/profile] ✓ Updated profile for userId=${actor.userId}`);
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[user/profile] DB error:", err);

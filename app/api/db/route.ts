@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { COOKIE_NAME, verifySessionToken } from "@/lib/session";
-import { getUserById } from "@/lib/auth-db";
+import { resolveActor } from "@/lib/api-auth";
 
 const ALLOWED = new Set(["clients", "appointments", "staff", "services", "inventory", "salon_invoices"]);
 
@@ -18,31 +17,24 @@ async function ensureTable() {
 /**
  * GET /api/db?entity=clients&userId=user_123
  *
- * Returns the stored JSON array for the entity. When userId is supplied the
- * lookup key is "{userId}_{entity}", otherwise falls back to bare "{entity}"
- * (legacy / unauthenticated path).
+ * Returns the stored JSON array for the entity, scoped to the authenticated
+ * caller's own salon data (userId/locationId are resolved from the session,
+ * not trusted from the query string).
  */
 export async function GET(req: NextRequest) {
   const entity = req.nextUrl.searchParams.get("entity");
-  let userId = req.nextUrl.searchParams.get("userId");
-  let locationId = req.nextUrl.searchParams.get("locationId") || "main";
+  const requestedLocationId = req.nextUrl.searchParams.get("locationId") || "main";
 
   if (!entity || !ALLOWED.has(entity)) {
     return Response.json({ error: "Invalid entity" }, { status: 400 });
   }
 
   try {
-    const token = req.cookies.get(COOKIE_NAME)?.value;
-    const actorId = token ? verifySessionToken(token) : null;
-    const actor = actorId ? await getUserById(actorId) : null;
-    if (actor?.role === "staff") {
-      userId = actor.salonOwnerId || actor.id;
-      locationId = actor.locationId || "main";
-    }
+    const actor = await resolveActor(req, requestedLocationId);
+    if (!actor) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, locationId } = actor;
     await ensureTable();
-    const key = userId
-      ? locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`
-      : entity;
+    const key = locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`;
     const result = await db.execute({
       sql: "SELECT data FROM salon_data WHERE entity = ?",
       args: [key],
@@ -57,13 +49,13 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/db
- * Body: { entity: string, data: unknown[], userId?: string }
+ * Body: { entity: string, data: unknown[], locationId?: string }
  *
- * Upserts the JSON array. When userId is supplied the storage key is
- * "{userId}_{entity}" so each salon owner has isolated data.
+ * Upserts the JSON array under a key scoped to the authenticated caller's
+ * own userId/locationId (resolved server-side from the session).
  */
 export async function POST(req: NextRequest) {
-  let body: { entity: string; data: unknown[]; userId?: string; locationId?: string };
+  let body: { entity: string; data: unknown[]; locationId?: string };
   try {
     body = await req.json();
   } catch {
@@ -71,23 +63,17 @@ export async function POST(req: NextRequest) {
   }
 
   const { entity, data } = body;
-  let { userId, locationId = "main" } = body;
+  const requestedLocationId = body.locationId || "main";
   if (!entity || !ALLOWED.has(entity)) {
     return Response.json({ error: "Invalid entity" }, { status: 400 });
   }
 
   try {
-    const token = req.cookies.get(COOKIE_NAME)?.value;
-    const actorId = token ? verifySessionToken(token) : null;
-    const actor = actorId ? await getUserById(actorId) : null;
-    if (actor?.role === "staff") {
-      userId = actor.salonOwnerId || actor.id;
-      locationId = actor.locationId || "main";
-    }
+    const actor = await resolveActor(req, requestedLocationId);
+    if (!actor) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { userId, locationId } = actor;
     await ensureTable();
-    const key = userId
-      ? locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`
-      : entity;
+    const key = locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`;
     await db.execute({
       sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
       args: [key, JSON.stringify(data), new Date().toISOString()],

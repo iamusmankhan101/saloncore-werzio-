@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { checkWhatsAppProvider, type WhatsAppProvider } from "@/lib/whatsapp-provider";
+import { resolveActor } from "@/lib/api-auth";
 
 // Server-side cache — one real check per 15 minutes maximum.
 // Free WaSender plan = 1 req/min total (includes message sends).
@@ -8,6 +9,9 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 const cache = new Map<string, { connected: boolean; status: string; message: string; ts: number }>();
 
 export async function GET(request: NextRequest) {
+  const actor = await resolveActor(request);
+  if (!actor) return Response.json({ ok: false, connected: false, error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(request.url);
   const apiKey = searchParams.get("apiKey") || process.env.WASENDER_API_KEY;
   const provider = (searchParams.get("provider") || "wasender") as WhatsAppProvider;
