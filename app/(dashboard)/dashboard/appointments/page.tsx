@@ -312,7 +312,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   const [form, setForm] = useState({ clientId: "", staffId: "", serviceIds: [] as string[], date: "", startTime: "", notes: "" });
   const [done, setDone] = useState(false);
   const [newClient, setNewClient] = useState(false);
-  const [newClientForm, setNewClientForm] = useState({ name: "", phone: "", email: "" });
+  const [newClientForm, setNewClientForm] = useState({ name: "", phone: "", email: "", dob: "" });
   const [newClientSaved, setNewClientSaved] = useState(false);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -345,6 +345,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
         name: newClientForm.name,
         phone: newClientForm.phone,
         email: newClientForm.email || undefined,
+        dob: newClientForm.dob || undefined,
         gender: "female",
         tags: ["New"],
         source: "walk-in",
@@ -461,6 +462,11 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
                       style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #e8e8f0", fontSize: 13, outline: "none", background: "#fff" }} />
                     <input value={newClientForm.email} onChange={(e) => setNC("email", e.target.value)} placeholder="Email (optional)"
                       style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #e8e8f0", fontSize: 13, outline: "none", background: "#fff" }} />
+                    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 10, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Date of Birth
+                      <input type="date" value={newClientForm.dob} onChange={(e) => setNC("dob", e.target.value)}
+                        style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #e8e8f0", fontSize: 13, outline: "none", background: "#fff", color: "#1a1a2e" }} />
+                    </label>
                     <button
                       type="button"
                       onClick={() => canSaveNewClient && setNewClientSaved(true)}

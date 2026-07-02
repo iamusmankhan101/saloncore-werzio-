@@ -162,6 +162,7 @@ export default function POSPage() {
   const [showNewForm,     setShowNewForm]       = useState(false);
   const [newName,         setNewName]           = useState("");
   const [newPhone,        setNewPhone]          = useState("");
+  const [newDob,          setNewDob]            = useState("");
   const [selectedStaffId, setSelectedStaffId]  = useState("");
   const [saleNotes,       setSaleNotes]         = useState("");
 
@@ -312,6 +313,7 @@ export default function POSPage() {
     const c: Client = {
       id: "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
       name: newName.trim(), phone: newPhone.trim(),
+      dob: newDob || undefined,
       locationId: getDefaultLocationId(),
       tags: [], source: "walk-in",
       createdAt: new Date().toISOString().slice(0, 10),
@@ -322,7 +324,7 @@ export default function POSPage() {
     saveClients(updated);
     setSelectedClient(c);
     setShowNewForm(false);
-    setNewName(""); setNewPhone("");
+    setNewName(""); setNewPhone(""); setNewDob("");
   }
 
   // Reset redeemed points when client changes
@@ -631,6 +633,11 @@ export default function POSPage() {
                       style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 8, border: "1.5px solid #e8e8f4", fontSize: 12, outline: "none", background: "#fff", boxSizing: "border-box" }} />
                     <input value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="Phone (for WhatsApp)"
                       style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 8, border: "1.5px solid #e8e8f4", fontSize: 12, outline: "none", background: "#fff", boxSizing: "border-box" }} />
+                    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 10, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Date of Birth
+                      <input type="date" value={newDob} onChange={e => setNewDob(e.target.value)}
+                        style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 8, border: "1.5px solid #e8e8f4", fontSize: 12, outline: "none", background: "#fff", boxSizing: "border-box", color: "#1d1d2f" }} />
+                    </label>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button type="button" onClick={() => setShowNewForm(false)}
                         style={{ flex: 1, height: 34, borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", fontSize: 12, color: "#9999b0", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
