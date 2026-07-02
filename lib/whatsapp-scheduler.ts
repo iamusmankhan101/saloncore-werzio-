@@ -445,10 +445,17 @@ async function runSchedulerInternal(): Promise<void> {
     return client?.phone ? normalizePhone(client.phone) : "";
   }
 
+  // Confirmations should always land in the client's chat before any reminder does —
+  // skip reminders for appointments still waiting on a queued confirmation (it sends
+  // after a deliberate 1-2 min delay, see enqueueWhatsAppConfirmation) so a same-day
+  // booking's reminder can't win the race and arrive first.
+  const pendingConfirmIds = new Set(getQueue(CONFIRM_QUEUE_KEY).map((item) => item.id));
+
   // 1. Appointment reminders — send X hours before appointment (only during salon hours)
   if (openNow && ws.autoReminder && waTpl.reminder) {
     for (const appt of appointments) {
       if (appt.status === "cancelled" || appt.status === "no-show" || appt.status === "completed") continue;
+      if (ws.autoConfirmation && pendingConfirmIds.has(appt.id)) continue;
       const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
       const hoursUntil = (apptTime.getTime() - now.getTime()) / 3_600_000;
       const sentKey = `reminder_${appt.id}`;
