@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X, Printer, CheckCircle } from "lucide-react";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
+import SalonCentralWordmark from "@/components/salon-central-wordmark";
 import { fmtCurrency as fmt } from "@/lib/format";
 
 function fmtDate(d: string): string {
@@ -275,7 +276,7 @@ export default function SalonInvoicePrint({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 10, color: "#aaa" }}>Powered by</span>
-                  <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 48, width: "auto" }} />
+                  <SalonCentralWordmark compact />
                 </div>
               </div>
 

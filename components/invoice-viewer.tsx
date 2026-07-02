@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Printer } from "lucide-react";
+import SalonCentralWordmark from "@/components/salon-central-wordmark";
 import type { Invoice } from "@/lib/invoices";
 
 function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
@@ -72,8 +73,9 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 48 }}>
                 {/* Left: Salon Central branding */}
                 <div>
-                  <img src="/salon-central-logo.png" alt="Salon Central"
-                    style={{ height: 130, width: "auto", display: "block", maxWidth: 380, marginBottom: 14 }} />
+                  <div style={{ marginBottom: 18 }}>
+                    <SalonCentralWordmark />
+                  </div>
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
                     <div>Salon Management Software</div>
                     <div>iamusmankhan101@gmail.com</div>
@@ -181,7 +183,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                 <div style={{ fontSize: 12, color: "#555" }}>
                   Thank you for choosing <strong style={{ color: "#111" }}>Salon Central</strong> — powering your salon's success.
                 </div>
-                <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 42, width: "auto" }} />
+                <SalonCentralWordmark compact />
               </div>
 
             </div>
