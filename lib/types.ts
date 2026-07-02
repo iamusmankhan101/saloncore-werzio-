@@ -31,6 +31,8 @@ export type ServiceCategory = "hair" | "skin" | "nails" | "bridal" | "piercing" 
 // Services also accept arbitrary custom category names entered by the user.
 export type ServiceCategoryValue = ServiceCategory | (string & {});
 
+export type StaffPayType = "commission" | "salary";
+
 export interface Staff {
   id: string;
   name: string;
@@ -41,6 +43,12 @@ export interface Staff {
   color: string;
   isActive: boolean;
   email?: string;
+  /** How this staff member is paid. Defaults to "commission" when unset. */
+  payType?: StaffPayType;
+  /** Commission percentage of revenue generated (e.g. 30 for 30%). Used when payType is "commission". */
+  commissionRate?: number;
+  /** Fixed pay-period amount (PKR). Used when payType is "salary". */
+  baseSalary?: number;
 }
 
 export interface Service {

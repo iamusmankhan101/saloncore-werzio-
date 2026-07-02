@@ -7,7 +7,7 @@ import {
   LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare,
   UserCog, BarChart3, Package, Globe, Sparkles, CreditCard, Scissors,
   CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart,
-  X, Gift, Banknote, ChevronRight, ChevronDown, MapPin, Check,
+  X, Gift, Banknote, ChevronRight, ChevronDown, MapPin, Check, Wallet,
 } from "lucide-react";
 import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
 import { SETTINGS_CHANGED_EVENT, settingsStore, reloadSettings } from "@/lib/settings-store";
@@ -43,6 +43,7 @@ const NAV_GROUPS: {
       { href: "/dashboard/inventory",  icon: Package,   label: "Inventory" },
       { href: "/dashboard/services",   icon: Scissors,  label: "Services"  },
       { href: "/dashboard/staff",      icon: UserCog,   label: "Staff"     },
+      { href: "/dashboard/payouts",    icon: Wallet,    label: "Payouts"   },
     ],
   },
   {

@@ -34,6 +34,9 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
     name: staff?.name ?? "",
     phone: staff?.phone ?? "",
     role: staff?.role ?? "",
+    payType: staff?.payType ?? "commission",
+    commissionRate: staff?.commissionRate ? String(staff.commissionRate) : "",
+    baseSalary: staff?.baseSalary ? String(staff.baseSalary) : "",
   });
 
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() => {
@@ -74,6 +77,9 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
       specialties: specialtiesArray,
       color,
       isActive: staff?.isActive ?? true,
+      payType: form.payType as "commission" | "salary",
+      commissionRate: form.payType === "commission" && form.commissionRate ? Number(form.commissionRate) : undefined,
+      baseSalary: form.payType === "salary" && form.baseSalary ? Number(form.baseSalary) : undefined,
     };
 
     onSave(savedStaff, selectedServiceIds);
@@ -119,6 +125,39 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
               {Object.keys(ROLE_COLORS).map((r) => <option key={r} value={r}>{r.replace(/-/g, " ")}</option>)}
             </select>
           </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Pay Type</label>
+            <div style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 10, padding: 4 }}>
+              {([["commission", "Commission"], ["salary", "Fixed Salary"]] as const).map(([val, label]) => {
+                const active = form.payType === val;
+                return (
+                  <button key={val} type="button" onClick={() => set("payType", val)}
+                    style={{
+                      flex: 1, padding: "8px 0", borderRadius: 8, border: "none",
+                      background: active ? "#7C3AED" : "transparent",
+                      color: active ? "#fff" : "#6b6b8a", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {form.payType === "commission" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Commission Rate (%)</label>
+              <input type="number" min="0" max="100" value={form.commissionRate} onChange={(e) => set("commissionRate", e.target.value)} placeholder="e.g. 30"
+                style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Base Salary (PKR / pay period)</label>
+              <input type="number" min="0" value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value)} placeholder="e.g. 30000"
+                style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+            </div>
+          )}
 
           <div style={{ padding: "10px 12px", borderRadius: 10, background: "#f5f3ff", color: "#6d28d9", fontSize: 12, lineHeight: 1.55, fontWeight: 650 }}>
             Staff login, password, and page permissions are managed separately in <strong>Account → Roles & Permissions</strong>.
