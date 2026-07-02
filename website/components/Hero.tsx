@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import styles from "./Hero.module.css";
-import CalendarMockup from "./CalendarMockup";
 import DemoModal from "./DemoModal";
 
 export default function Hero() {
@@ -75,7 +75,14 @@ export default function Hero() {
         </div>
 
         <div ref={frameRef} className={styles.frame}>
-          <CalendarMockup />
+          <Image
+            src="/calendar-hero.png"
+            alt="Salon Central calendar dashboard"
+            width={2846}
+            height={1616}
+            className={styles.frameImage}
+            priority
+          />
         </div>
       </div>
 

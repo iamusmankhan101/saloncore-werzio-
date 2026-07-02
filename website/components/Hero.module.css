@@ -209,6 +209,12 @@
   opacity: 1;
 }
 
+.frameImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 /* ── RESPONSIVE ──────────────────────── */
 @media (max-width: 900px) {
   .pillLL, .pillLR { display: none; }
