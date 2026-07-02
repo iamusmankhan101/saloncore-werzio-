@@ -956,7 +956,7 @@ export default function POSPage() {
           </div>
 
           {/* Cart items */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 12 }}>
             {cart.length === 0 ? (
               <div className="pos-cart-empty" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 16px", textAlign: "center" }}>
                 <div className="pos-cart-empty-icon" style={{ width: 64, height: 64, borderRadius: 18, background: "#f4f4fc", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
@@ -975,9 +975,9 @@ export default function POSPage() {
                     style={{ borderRadius: 12, border: "1.5px solid #eaeaf4", background: "#fafafe", overflow: "hidden" }}>
                     {/* Color bar */}
                     <div style={{ height: 3, background: c }} />
-                    <div style={{ padding: "10px 12px" }}>
+                    <div style={{ padding: "14px 12px 16px" }}>
                       {/* Name row */}
-                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6, marginBottom: 8 }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6, marginBottom: 14 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: "#1d1d2f", lineHeight: 1.3 }}>{entry.name}</div>
                           {entry.variablePrice ? (
