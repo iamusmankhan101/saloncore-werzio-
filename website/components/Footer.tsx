@@ -2,9 +2,8 @@ import Image from "next/image";
 import styles from "./Footer.module.css";
 
 const links = {
-  Product:   ["Features", "Pricing", "How It Works", "Roadmap"],
-  Resources: ["Documentation", "Blog", "Support", "Updates"],
-  Company:   ["About", "Careers", "Contact", "Privacy Policy"],
+  Product: ["Features", "Pricing", "How It Works", "Roadmap"],
+  Company: ["About", "Careers", "Contact", "Privacy Policy"],
 };
 
 export default function Footer() {
