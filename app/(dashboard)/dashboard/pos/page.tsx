@@ -40,6 +40,7 @@ interface CatalogItem {
   stock?: number;
   unit?: string;
   barcode?: string;
+  variablePrice?: boolean;
 }
 
 interface CartEntry {
@@ -50,6 +51,7 @@ interface CartEntry {
   qty: number;
   unitPrice: number;
   total: number;
+  variablePrice?: boolean;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -198,7 +200,7 @@ export default function POSPage() {
     const q = catalogSearch.toLowerCase();
     const svc: CatalogItem[] = (catalogTab !== "products" ? services : [])
       .filter(s => !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q))
-      .map(s => ({ id: s.id, type: "service", name: s.name, price: s.price, category: s.category }));
+      .map(s => ({ id: s.id, type: "service", name: s.name, price: s.price, category: s.category, variablePrice: s.variablePrice }));
     const prod: CatalogItem[] = (catalogTab !== "services" ? inventory : [])
       .filter(i => (i.retailPrice ?? 0) > 0)
       .filter(i => !q || i.name.toLowerCase().includes(q) || i.brand.toLowerCase().includes(q))
@@ -231,13 +233,14 @@ export default function POSPage() {
 
   const { subtotal, taxAmount, total } = calcTotals(cartLineItems, totalDiscountAmount);
   const totalQty = cart.reduce((s, e) => s + e.qty, 0);
+  const hasUnpricedVariable = cart.some(e => e.variablePrice && e.unitPrice <= 0);
 
   // ── Cart ops ──────────────────────────────────────────────────────────────
   const addToCart = useCallback((item: CatalogItem) => {
     setCart(prev => {
       const hit = prev.find(e => e.itemId === item.id);
       if (hit) return prev.map(e => e.itemId === item.id ? { ...e, qty: e.qty + 1, total: (e.qty + 1) * e.unitPrice } : e);
-      return [...prev, { cartId: crypto.randomUUID(), itemId: item.id, type: item.type, name: item.name, qty: 1, unitPrice: item.price, total: item.price }];
+      return [...prev, { cartId: crypto.randomUUID(), itemId: item.id, type: item.type, name: item.name, qty: 1, unitPrice: item.price, total: item.price, variablePrice: item.variablePrice }];
     });
   }, []);
 
@@ -306,6 +309,10 @@ export default function POSPage() {
       if (nextQty < 1) return prev.filter(e => e.cartId !== cartId);
       return prev.map(e => e.cartId === cartId ? { ...e, qty: nextQty, total: nextQty * e.unitPrice } : e);
     });
+  }
+
+  function updateUnitPrice(cartId: string, price: number) {
+    setCart(prev => prev.map(e => e.cartId === cartId ? { ...e, unitPrice: price, total: price * e.qty } : e));
   }
 
   // ── Quick-add client ──────────────────────────────────────────────────────
@@ -956,7 +963,17 @@ export default function POSPage() {
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6, marginBottom: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: "#1d1d2f", lineHeight: 1.3 }}>{entry.name}</div>
-                          <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 2 }}>{pkr(entry.unitPrice)} each</div>
+                          {entry.variablePrice ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                              <span style={{ fontSize: 11, color: "#b0b0c8" }}>PKR</span>
+                              <input type="number" value={entry.unitPrice || ""} onChange={(e) => updateUnitPrice(entry.cartId, Number(e.target.value) || 0)}
+                                placeholder="Enter price" aria-label={`Price for ${entry.name}`}
+                                style={{ width: 84, fontSize: 12, padding: "3px 6px", borderRadius: 6, border: entry.unitPrice > 0 ? "1px solid #e0dff0" : "1px solid #f59e0b", outline: "none" }} />
+                              <span style={{ fontSize: 11, color: "#b0b0c8" }}>each</span>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 2 }}>{pkr(entry.unitPrice)} each</div>
+                          )}
                         </div>
                         <button type="button" onClick={() => setCart(prev => prev.filter(e => e.cartId !== entry.cartId))}
                           style={{ border: "none", background: "#f8f4ff", borderRadius: 6, cursor: "pointer", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -1119,15 +1136,20 @@ export default function POSPage() {
                 {isCredit ? "Pay Later — Credit Sale" : "Pay Later / Credit"}
               </button>
 
+              {hasUnpricedVariable && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, color: "#d97706" }}>
+                  <AlertCircle size={13} /> Enter a price for the variable-priced item(s) before checkout
+                </div>
+              )}
               {/* Complete button */}
-              <button type="button" onClick={completeSale} disabled={completing}
+              <button type="button" onClick={completeSale} disabled={completing || hasUnpricedVariable}
                 style={{
                   width: "100%", padding: "14px 0", borderRadius: 13, border: "none",
-                  background: completing ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
-                  color: completing ? "#aaaabc" : "#fff",
-                  fontSize: 15, fontWeight: 900, cursor: completing ? "not-allowed" : "pointer",
+                  background: (completing || hasUnpricedVariable) ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
+                  color: (completing || hasUnpricedVariable) ? "#aaaabc" : "#fff",
+                  fontSize: 15, fontWeight: 900, cursor: (completing || hasUnpricedVariable) ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-                  boxShadow: completing ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
+                  boxShadow: (completing || hasUnpricedVariable) ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
                   letterSpacing: "-0.01em", transition: "all 0.15s",
                 }}
                 onMouseEnter={e => { if (!completing) e.currentTarget.style.transform = "translateY(-1px)"; }}

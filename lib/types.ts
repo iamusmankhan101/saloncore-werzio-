@@ -49,6 +49,7 @@ export interface Service {
   category: ServiceCategoryValue;
   durationMin: number;
   price: number;
+  variablePrice?: boolean;
   assignedStaffIds: string[];
   isActive: boolean;
 }

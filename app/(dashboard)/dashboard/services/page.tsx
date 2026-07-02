@@ -31,17 +31,17 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
     customCategory:   editedCategoryIsCustom ? serviceToEdit!.category : "",
     durationMin:      serviceToEdit ? String(serviceToEdit.durationMin) : "60",
     price:            serviceToEdit ? String(serviceToEdit.price) : "",
+    variablePrice:    serviceToEdit?.variablePrice ?? false,
     assignedStaffIds: serviceToEdit?.assignedStaffIds ?? [] as string[],
   });
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
   const [done, setDone] = useState(false);
 
-  const price = Number(form.price);
+  const price = Number(form.price) || 0;
   const durationMin = Number(form.durationMin);
   const canSubmit = Boolean(
     form.name.trim()
-    && Number.isFinite(price)
-    && price > 0
+    && (form.variablePrice || (Number.isFinite(price) && price > 0))
     && Number.isFinite(durationMin)
     && durationMin > 0
     && (form.category !== "custom" || form.customCategory.trim()),
@@ -60,6 +60,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
       category:         form.category === "custom" ? form.customCategory.trim() : form.category,
       durationMin,
       price,
+      variablePrice:    form.variablePrice,
       assignedStaffIds: form.assignedStaffIds,
       isActive:         serviceToEdit?.isActive ?? true,
     });
@@ -123,9 +124,17 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Price (PKR)</label>
-            <input type="number" value={form.price} onChange={(e) => set("price", e.target.value)} placeholder="e.g. 3500"
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              {form.variablePrice ? "Starting Price (Optional)" : "Price (PKR)"}
+            </label>
+            <input type="number" value={form.price} onChange={(e) => set("price", e.target.value)}
+              placeholder={form.variablePrice ? "e.g. 3500 (leave blank if unknown)" : "e.g. 3500"}
               style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginTop: 2 }}>
+              <input type="checkbox" checked={form.variablePrice} onChange={(e) => set("variablePrice", e.target.checked)}
+                style={{ width: 14, height: 14, accentColor: "#7C3AED", cursor: "pointer" }} />
+              <span style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>Price is not fixed (varies per client, charge decided at checkout)</span>
+            </label>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Assign Stylists</label>
@@ -346,7 +355,9 @@ export default function ServicesPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, borderTop: "1px solid #f8f8fc", borderBottom: "1px solid #f8f8fc", padding: "14px 0" }}>
                   <div>
                     <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Price</div>
-                    <div style={{ fontSize: 16, fontWeight: 900, color: "var(--accent)", marginTop: 4 }}>{fmt(sv.price)}</div>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: "var(--accent)", marginTop: 4 }}>
+                      {sv.variablePrice ? (sv.price > 0 ? `From ${fmt(sv.price)}` : "Varies") : fmt(sv.price)}
+                    </div>
                   </div>
                   <div>
                     <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Duration</div>
