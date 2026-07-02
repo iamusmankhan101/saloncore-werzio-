@@ -605,7 +605,8 @@ export default function CashFlowPage() {
     body{font-family:'Montserrat',sans-serif;background:#fff;color:#1a1a2e;font-size:13px}
     .page{max-width:820px;margin:0 auto;padding:40px 48px}
     .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid #f0f0f8}
-    .logo-img{height:42px;width:auto;display:block;object-fit:contain}
+    .logo-img{position:relative;overflow:hidden;width:104px;height:51px}
+    .logo-img img{position:absolute;width:117.52%;height:241.61%;max-width:none;left:-9.14%;top:-66%}
     .report-meta{text-align:right}
     .report-title{font-size:16px;font-weight:800;color:#7C3AED}
     .report-sub{font-size:12px;color:#6b6b8a;margin-top:4px}
@@ -637,7 +638,7 @@ export default function CashFlowPage() {
 <div class="page">
   <div class="header">
     <div>
-      <img src="/salon-central-logo.png" alt="Salon Central" class="logo-img"/>
+      <div class="logo-img"><img src="${window.location.origin}/salon-central-logo.png" alt="Salon Central"/></div>
       <div style="font-size:12px;color:#a0a0b8;margin-top:6px">Salon Management Platform</div>
     </div>
     <div class="report-meta">
