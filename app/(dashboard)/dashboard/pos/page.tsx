@@ -442,7 +442,7 @@ export default function POSPage() {
     }
   }
 
-  const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string };
+  const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string; logo?: string };
   const selectedPayMethod = PAY_METHODS.find(p => p.value === payMethod)!;
 
   const posPlan       = getCurrentPlan();

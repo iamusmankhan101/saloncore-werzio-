@@ -6,7 +6,7 @@ import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppSafetyConfi
 
 interface RequestBody {
   invoice: SalonInvoice;
-  salon: { name: string; phone?: string; email?: string; address?: string };
+  salon: { name: string; phone?: string; email?: string; address?: string; logo?: string };
   phone: string;
   providerConfig: WhatsAppProviderConfig & WhatsAppSafetyConfig;
 }
