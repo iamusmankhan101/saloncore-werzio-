@@ -5,6 +5,13 @@ import {
   CalendarDays, Package, Users, Check, Wallet, Megaphone, Gift, Banknote,
 } from "lucide-react";
 
+/* ── helpers ───────────────────────────────────────────────── */
+function hexToRgba(hex: string, alpha: number) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 /* ── mini UI previews ─────────────────────────────────────── */
 
 function AppointmentPreview() {
@@ -126,30 +133,48 @@ function BillingPreview() {
 
 function InventoryPreview() {
   const items = [
-    {name:"Loreal Hair Color",  stock:3,  max:20, warn:true},
-    {name:"Wella Developer",    stock:12, max:20},
-    {name:"OPI Nail Polish",    stock:48, max:60},
-    {name:"Skin Serum SPF50",   stock:5,  max:30, warn:true},
+    {name:"Loreal Hair Color",   stock:3,  max:20, warn:true},
+    {name:"Argan Oil Treatment", stock:22, max:40},
+    {name:"Wella Developer",     stock:12, max:20},
+    {name:"Ceramic Flat Iron",   stock:9,  max:15},
+    {name:"OPI Nail Polish",     stock:48, max:60},
+    {name:"Skin Serum SPF50",    stock:5,  max:30, warn:true},
   ];
   return (
     <div className={styles.prev}>
-      {items.map(it=>(
-        <div key={it.name} className={styles.invRow}>
-          <div className={styles.invName}>{it.name}</div>
-          <div className={styles.invRight}>
-            <div className={styles.invBar}>
-              <div className={styles.invFill}
-                style={{
-                  width:`${(it.stock/it.max)*100}%`,
-                  background: it.warn ? "#ef4444" : "#7c3aed",
-                }} />
-            </div>
-            <span className={styles.invCount} style={{color:it.warn?"#ef4444":undefined}}>
-              {it.warn ? `⚠ ${it.stock}` : it.stock}
-            </span>
-          </div>
+      <div className={styles.invStats}>
+        <div className={styles.invStat}>
+          <div className={styles.invStatVal}>68</div>
+          <div className={styles.invStatLabel}>Products Tracked</div>
         </div>
-      ))}
+        <div className={styles.invStat}>
+          <div className={styles.invStatVal} style={{ color: "#ef4444" }}>2</div>
+          <div className={styles.invStatLabel}>Low Stock Alerts</div>
+        </div>
+        <div className={styles.invStat}>
+          <div className={styles.invStatVal} style={{ color: "#059669" }}>5</div>
+          <div className={styles.invStatLabel}>Suppliers</div>
+        </div>
+      </div>
+      <div className={styles.invGrid}>
+        {items.map(it=>(
+          <div key={it.name} className={styles.invRow}>
+            <div className={styles.invName}>{it.name}</div>
+            <div className={styles.invRight}>
+              <div className={styles.invBar}>
+                <div className={styles.invFill}
+                  style={{
+                    width:`${(it.stock/it.max)*100}%`,
+                    background: it.warn ? "#ef4444" : "#d97706",
+                  }} />
+              </div>
+              <span className={styles.invCount} style={{color:it.warn?"#ef4444":undefined}}>
+                {it.warn ? `⚠ ${it.stock}` : it.stock}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -323,8 +348,11 @@ export default function Features() {
                 opacity: 0,
                 transform: "translateY(36px)",
                 transition: `opacity 0.55s ease ${i * 0.07}s, transform 0.55s cubic-bezier(0.16,1,0.3,1) ${i * 0.07}s`,
+                ["--accent" as string]: f.color,
+                ["--accent-shadow" as string]: hexToRgba(f.color, 0.18),
               }}
             >
+              <div className={styles.cardGlow} style={{ background: `linear-gradient(135deg, ${hexToRgba(f.color, 0.07)} 0%, transparent 60%)` }} />
               <div className={styles.cardTop}>
                 <div className={styles.iconBox} style={{ background: f.color + "18", color: f.color }}>
                   <Icon size={20} />
