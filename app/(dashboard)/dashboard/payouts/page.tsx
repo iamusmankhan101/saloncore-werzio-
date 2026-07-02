@@ -38,13 +38,15 @@ function ProcessPayoutModal({ staff, appointments, payouts, onClose, onSave }: {
   staff: Staff; appointments: Appointment[]; payouts: Payout[]; onClose: () => void;
   onSave: (p: Omit<Payout, "id" | "createdAt">) => void;
 }) {
-  const payType = staff.payType ?? "commission";
   const lastEnd = lastPayoutEnd(staff.id, payouts);
   const defaultStart = lastEnd ? addDays(lastEnd, 1) : startOfMonth();
 
   const [form, setForm] = useState({
     periodStart: defaultStart,
     periodEnd: todayStr(),
+    payType: staff.payType ?? "commission",
+    commissionRate: staff.commissionRate ? String(staff.commissionRate) : "",
+    salaryAmount: staff.baseSalary ? String(staff.baseSalary) : "",
     adjustment: "",
     adjustmentNote: "",
     paymentMethod: "cash",
@@ -58,9 +60,10 @@ function ProcessPayoutModal({ staff, appointments, payouts, onClose, onSave }: {
     () => revenueInPeriod(staff.id, appointments, form.periodStart, form.periodEnd),
     [staff.id, appointments, form.periodStart, form.periodEnd],
   );
-  const baseAmount = payType === "commission"
-    ? Math.round(revenue * (staff.commissionRate ?? 0) / 100)
-    : (staff.baseSalary ?? 0);
+  const rate = Number(form.commissionRate) || 0;
+  const baseAmount = form.payType === "commission"
+    ? Math.round(revenue * rate / 100)
+    : (Number(form.salaryAmount) || 0);
   const adjustment = Number(form.adjustment) || 0;
   const total = baseAmount + adjustment;
 
@@ -73,9 +76,9 @@ function ProcessPayoutModal({ staff, appointments, payouts, onClose, onSave }: {
       staffName: staff.name,
       periodStart: form.periodStart,
       periodEnd: form.periodEnd,
-      payType,
+      payType: form.payType as "commission" | "salary",
       revenueGenerated: revenue,
-      commissionRate: payType === "commission" ? (staff.commissionRate ?? 0) : undefined,
+      commissionRate: form.payType === "commission" ? rate : undefined,
       baseAmount,
       adjustment,
       adjustmentNote: form.adjustmentNote.trim() || undefined,
@@ -107,7 +110,7 @@ function ProcessPayoutModal({ staff, appointments, payouts, onClose, onSave }: {
         <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>Process Payout</div>
-            <div style={{ fontSize: 12, color: "#9898b0", marginTop: 2 }}>{staff.name} · {payType === "commission" ? `${staff.commissionRate ?? 0}% commission` : "Fixed salary"}</div>
+            <div style={{ fontSize: 12, color: "#9898b0", marginTop: 2 }}>{staff.name}</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#6b6b8a" /></button>
         </div>
@@ -123,22 +126,50 @@ function ProcessPayoutModal({ staff, appointments, payouts, onClose, onSave }: {
             </div>
           </div>
 
-          <div style={{ padding: "12px 14px", borderRadius: 10, background: "#f9f9fb", border: "1px solid #f0f0f8", display: "flex", flexDirection: "column", gap: 6 }}>
-            {payType === "commission" ? (
-              <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={label}>Pay Type for This Payout</label>
+            <div style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 10, padding: 4 }}>
+              {([["commission", "Commission"], ["salary", "Fixed Salary"]] as const).map(([val, lbl]) => {
+                const active = form.payType === val;
+                return (
+                  <button key={val} type="button" onClick={() => set("payType", val)}
+                    style={{
+                      flex: 1, padding: "8px 0", borderRadius: 8, border: "none",
+                      background: active ? "#7C3AED" : "transparent",
+                      color: active ? "#fff" : "#6b6b8a", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}>
+                    {lbl}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 11, color: "#b0b0c8" }}>
+              Defaults to {staff.name}&rsquo;s saved pay type — changing it here only affects this payout.
+            </div>
+          </div>
+
+          {form.payType === "commission" ? (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={label}>Commission Rate (%)</label>
+                <input type="number" min="0" max="100" style={inp} value={form.commissionRate} onChange={(e) => set("commissionRate", e.target.value)} placeholder="e.g. 30" />
+              </div>
+              <div style={{ padding: "12px 14px", borderRadius: 10, background: "#f9f9fb", border: "1px solid #f0f0f8", display: "flex", flexDirection: "column", gap: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b6b8a" }}>
                   <span>Revenue generated in period</span><span style={{ fontWeight: 700, color: "#1a1a2e" }}>{fmt(revenue)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b6b8a" }}>
-                  <span>Commission ({staff.commissionRate ?? 0}%)</span><span style={{ fontWeight: 700, color: "#1a1a2e" }}>{fmt(baseAmount)}</span>
+                  <span>Commission ({rate}%)</span><span style={{ fontWeight: 700, color: "#1a1a2e" }}>{fmt(baseAmount)}</span>
                 </div>
-              </>
-            ) : (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b6b8a" }}>
-                <span>Fixed salary</span><span style={{ fontWeight: 700, color: "#1a1a2e" }}>{fmt(baseAmount)}</span>
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={label}>Salary Amount (PKR)</label>
+              <input type="number" min="0" style={inp} value={form.salaryAmount} onChange={(e) => set("salaryAmount", e.target.value)} placeholder="e.g. 30000" />
+            </div>
+          )}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
