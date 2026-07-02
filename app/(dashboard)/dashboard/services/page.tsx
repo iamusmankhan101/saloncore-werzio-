@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
-import type { Service, Staff, ServiceCategory } from "@/lib/types";
+import type { Service, Staff } from "@/lib/types";
 import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2 } from "lucide-react";
 import PageTitle from "@/components/page-title";
 
@@ -11,7 +11,11 @@ const CATEGORY_LABELS: Record<string, { label: string; bg: string; color: string
   skin:   { label: "Skin Care", bg: "#e0f2fe", color: "#0369a1" },
   nails:  { label: "Nails",     bg: "#ecfdf5", color: "#059669" },
   bridal: { label: "Bridal",    bg: "#fdf2f8", color: "#db2777" },
+  piercing: { label: "Ear Piercing", bg: "#fff7ed", color: "#c2410c" },
 };
+
+const PRESET_CATEGORIES = ["hair", "skin", "nails", "bridal", "piercing"];
+const catLabel = (cat: string) => CATEGORY_LABELS[cat]?.label ?? (cat.charAt(0).toUpperCase() + cat.slice(1));
 
 import { fmtCurrency as fmt } from "@/lib/format";
 
@@ -20,9 +24,11 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
   onClose: () => void; onSave: (s: Service) => void; staffList: Staff[]; serviceToEdit?: Service;
 }) {
   const isEditing = !!serviceToEdit;
+  const editedCategoryIsCustom = !!serviceToEdit && !PRESET_CATEGORIES.includes(serviceToEdit.category);
   const [form, setForm] = useState({
     name:             serviceToEdit?.name ?? "",
-    category:         serviceToEdit?.category ?? "hair",
+    category:         editedCategoryIsCustom ? "custom" : (serviceToEdit?.category ?? "hair"),
+    customCategory:   editedCategoryIsCustom ? serviceToEdit!.category : "",
     durationMin:      serviceToEdit ? String(serviceToEdit.durationMin) : "60",
     price:            serviceToEdit ? String(serviceToEdit.price) : "",
     assignedStaffIds: serviceToEdit?.assignedStaffIds ?? [] as string[],
@@ -37,7 +43,8 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
     && Number.isFinite(price)
     && price > 0
     && Number.isFinite(durationMin)
-    && durationMin > 0,
+    && durationMin > 0
+    && (form.category !== "custom" || form.customCategory.trim()),
   );
 
   const toggleStaff = (id: string) => {
@@ -50,7 +57,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
     onSave({
       id:               serviceToEdit?.id ?? "sv" + Date.now(),
       name:             form.name.trim(),
-      category:         form.category as ServiceCategory,
+      category:         form.category === "custom" ? form.customCategory.trim() : form.category,
       durationMin,
       price,
       assignedStaffIds: form.assignedStaffIds,
@@ -98,6 +105,8 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
                 <option value="skin">Skin Care</option>
                 <option value="nails">Nails</option>
                 <option value="bridal">Bridal</option>
+                <option value="piercing">Ear Piercing</option>
+                <option value="custom">Custom…</option>
               </select>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -106,6 +115,13 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
                 style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
             </div>
           </div>
+          {form.category === "custom" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Custom Category Name</label>
+              <input type="text" value={form.customCategory} onChange={(e) => set("customCategory", e.target.value)} placeholder="e.g. Massage"
+                style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Price (PKR)</label>
             <input type="number" value={form.price} onChange={(e) => set("price", e.target.value)} placeholder="e.g. 3500"
@@ -200,6 +216,8 @@ export default function ServicesPage() {
   };
 
   const filteredServices = filter === "all" ? services : services.filter(s => s.category === filter);
+  const customCategories = Array.from(new Set(services.map(s => s.category))).filter(c => !PRESET_CATEGORIES.includes(c));
+  const tabCategories = ["all", ...PRESET_CATEGORIES, ...customCategories];
 
   const totalCount  = services.length;
   const maxPrice    = services.reduce((m, s) => s.price > m ? s.price : m, 0);
@@ -269,7 +287,7 @@ export default function ServicesPage() {
 
       {/* Category filter */}
       <div className="filter-tabs" style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 12, padding: 4, alignSelf: "flex-start", marginBottom: 4 }}>
-        {["all", "hair", "skin", "nails", "bridal"].map((cat) => {
+        {tabCategories.map((cat) => {
           const active = filter === cat;
           return (
             <button key={cat} onClick={() => setFilter(cat)}
@@ -285,7 +303,7 @@ export default function ServicesPage() {
                 boxShadow: active ? "0 4px 10px var(--accent-glow)" : "none",
                 transition: "all 0.18s ease"
               }}>
-              {cat === "all" ? "All Services" : CATEGORY_LABELS[cat]?.label}
+              {cat === "all" ? "All Services" : catLabel(cat)}
             </button>
           );
         })}
@@ -301,7 +319,7 @@ export default function ServicesPage() {
       ) : (
         <div className="cards-grid-auto">
           {filteredServices.map((sv) => {
-            const badge    = CATEGORY_LABELS[sv.category] || { label: sv.category, bg: "#f3f4f6", color: "#4b5563" };
+            const badge    = CATEGORY_LABELS[sv.category] || { label: catLabel(sv.category), bg: "#f3f4f6", color: "#4b5563" };
             const assigned = staff.filter((st) => sv.assignedStaffIds.includes(st.id));
             return (
               <div key={sv.id} style={{ background: "#fff", padding: "24px", display: "flex", flexDirection: "column", gap: 16 }}>

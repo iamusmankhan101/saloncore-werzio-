@@ -68,6 +68,7 @@ const CATEGORY_COLORS: Record<string, { fg: string; bg: string }> = {
   skin:    { fg: "#0284c7", bg: "#f0f9ff" },
   nails:   { fg: "#ec4899", bg: "#fdf2f8" },
   bridal:  { fg: "#d97706", bg: "#fffbeb" },
+  piercing: { fg: "#c2410c", bg: "#fff7ed" },
   product: { fg: "#d97706", bg: "#fffbeb" },
   other:   { fg: "#6b7280", bg: "#f9fafb" },
 };

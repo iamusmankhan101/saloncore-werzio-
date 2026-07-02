@@ -27,7 +27,9 @@ export type StaffRole =
   | "hair"
   | "aesthetic";
 
-export type ServiceCategory = "hair" | "skin" | "nails" | "bridal" | "other";
+export type ServiceCategory = "hair" | "skin" | "nails" | "bridal" | "piercing" | "other";
+// Services also accept arbitrary custom category names entered by the user.
+export type ServiceCategoryValue = ServiceCategory | (string & {});
 
 export interface Staff {
   id: string;
@@ -44,7 +46,7 @@ export interface Staff {
 export interface Service {
   id: string;
   name: string;
-  category: ServiceCategory;
+  category: ServiceCategoryValue;
   durationMin: number;
   price: number;
   assignedStaffIds: string[];
