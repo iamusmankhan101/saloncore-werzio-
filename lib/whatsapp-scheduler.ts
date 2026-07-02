@@ -434,6 +434,7 @@ async function runSchedulerInternal(): Promise<void> {
   const clients = getStoredClients();
   const salonName = settingsStore.salon.name as string;
   const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   // Reminders, follow-ups, cancellations, birthdays, and low-stock alerts only
   // fire during salon opening hours so clients aren't messaged at midnight.
@@ -451,10 +452,12 @@ async function runSchedulerInternal(): Promise<void> {
   // booking's reminder can't win the race and arrive first.
   const pendingConfirmIds = new Set(getQueue(CONFIRM_QUEUE_KEY).map((item) => item.id));
 
-  // 1. Appointment reminders — send X hours before appointment (only during salon hours)
+  // 1. Appointment reminders — send X hours before appointment (only during salon hours).
+  // Same-day bookings never get a reminder — reminders only make sense for a future day.
   if (openNow && ws.autoReminder && waTpl.reminder) {
     for (const appt of appointments) {
       if (appt.status === "cancelled" || appt.status === "no-show" || appt.status === "completed") continue;
+      if (appt.date === todayKey) continue;
       if (ws.autoConfirmation && pendingConfirmIds.has(appt.id)) continue;
       const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
       const hoursUntil = (apptTime.getTime() - now.getTime()) / 3_600_000;
