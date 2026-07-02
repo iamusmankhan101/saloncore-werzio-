@@ -204,7 +204,10 @@ export default function POSPage() {
     const q = catalogSearch.toLowerCase();
     const svc: CatalogItem[] = (catalogTab !== "products" ? services : [])
       .filter(s => !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q))
-      .map(s => ({ id: s.id, type: "service", name: s.name, price: s.price, category: s.category, variablePrice: s.variablePrice }));
+      .map(s => ({
+        id: s.id, type: "service", name: s.name, price: s.price, category: s.category,
+        variablePrice: s.variablePrice, priceRangeMin: s.priceRangeMin, priceRangeMax: s.priceRangeMax,
+      }));
     const prod: CatalogItem[] = (catalogTab !== "services" ? inventory : [])
       .filter(i => (i.retailPrice ?? 0) > 0 || i.variablePrice)
       .filter(i => !q || i.name.toLowerCase().includes(q) || i.brand.toLowerCase().includes(q))

@@ -32,16 +32,22 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
     durationMin:      serviceToEdit ? String(serviceToEdit.durationMin) : "60",
     price:            serviceToEdit ? String(serviceToEdit.price) : "",
     variablePrice:    serviceToEdit?.variablePrice ?? false,
+    priceRangeMin:    serviceToEdit?.priceRangeMin ? String(serviceToEdit.priceRangeMin) : "",
+    priceRangeMax:    serviceToEdit?.priceRangeMax ? String(serviceToEdit.priceRangeMax) : "",
     assignedStaffIds: serviceToEdit?.assignedStaffIds ?? [] as string[],
   });
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
   const [done, setDone] = useState(false);
 
   const price = Number(form.price) || 0;
+  const rangeMin = Number(form.priceRangeMin) || 0;
+  const rangeMax = Number(form.priceRangeMax) || 0;
   const durationMin = Number(form.durationMin);
   const canSubmit = Boolean(
     form.name.trim()
-    && (form.variablePrice || (Number.isFinite(price) && price > 0))
+    && (form.variablePrice
+      ? (form.priceRangeMin && form.priceRangeMax && rangeMin > 0 && rangeMax >= rangeMin)
+      : (Number.isFinite(price) && price > 0))
     && Number.isFinite(durationMin)
     && durationMin > 0
     && (form.category !== "custom" || form.customCategory.trim()),
@@ -59,8 +65,10 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
       name:             form.name.trim(),
       category:         form.category === "custom" ? form.customCategory.trim() : form.category,
       durationMin,
-      price,
+      price:            form.variablePrice ? rangeMin : price,
       variablePrice:    form.variablePrice,
+      priceRangeMin:    form.variablePrice ? rangeMin : undefined,
+      priceRangeMax:    form.variablePrice ? rangeMax : undefined,
       assignedStaffIds: form.assignedStaffIds,
       isActive:         serviceToEdit?.isActive ?? true,
     });
@@ -124,18 +132,33 @@ function AddEditServiceModal({ onClose, onSave, staffList, serviceToEdit }: {
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              {form.variablePrice ? "Starting Price (Optional)" : "Price (PKR)"}
-            </label>
-            <input type="number" value={form.price} onChange={(e) => set("price", e.target.value)}
-              placeholder={form.variablePrice ? "e.g. 3500 (leave blank if unknown)" : "e.g. 3500"}
-              style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+            {!form.variablePrice && (
+              <>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Price (PKR)</label>
+                <input type="number" value={form.price} onChange={(e) => set("price", e.target.value)} placeholder="e.g. 3500"
+                  style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+              </>
+            )}
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginTop: 2 }}>
               <input type="checkbox" checked={form.variablePrice} onChange={(e) => set("variablePrice", e.target.checked)}
                 style={{ width: 14, height: 14, accentColor: "#7C3AED", cursor: "pointer" }} />
               <span style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>Price is not fixed (varies per client, charge decided at checkout)</span>
             </label>
           </div>
+          {form.variablePrice && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Min Price (PKR)</label>
+                <input type="number" value={form.priceRangeMin} onChange={(e) => set("priceRangeMin", e.target.value)} placeholder="e.g. 3500"
+                  style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Max Price (PKR)</label>
+                <input type="number" value={form.priceRangeMax} onChange={(e) => set("priceRangeMax", e.target.value)} placeholder="e.g. 6000"
+                  style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+              </div>
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Assign Stylists</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 140, overflowY: "auto", border: "1px solid #e8e8f0", borderRadius: 8, padding: 8 }}>
@@ -356,7 +379,9 @@ export default function ServicesPage() {
                   <div>
                     <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Price</div>
                     <div style={{ fontSize: 16, fontWeight: 900, color: "var(--accent)", marginTop: 4 }}>
-                      {sv.variablePrice ? (sv.price > 0 ? `From ${fmt(sv.price)}` : "Varies") : fmt(sv.price)}
+                      {sv.variablePrice
+                        ? (sv.priceRangeMin && sv.priceRangeMax ? `${fmt(sv.priceRangeMin)} - ${fmt(sv.priceRangeMax)}` : "Varies")
+                        : fmt(sv.price)}
                     </div>
                   </div>
                   <div>

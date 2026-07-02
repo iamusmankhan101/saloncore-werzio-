@@ -50,6 +50,8 @@ export interface Service {
   durationMin: number;
   price: number;
   variablePrice?: boolean;
+  priceRangeMin?: number;
+  priceRangeMax?: number;
   assignedStaffIds: string[];
   isActive: boolean;
 }
