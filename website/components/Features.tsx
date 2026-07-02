@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./Features.module.css";
 import {
   CalendarDays, Package, Users, Check, Wallet, Megaphone, Gift, Banknote,
-  UserCog, ShoppingCart, Wand2, ChevronLeft, ChevronRight,
+  UserCog, ShoppingCart, Wand2, ChevronLeft, ChevronRight, Coins, Scissors,
 } from "lucide-react";
 
 /* ── helpers ───────────────────────────────────────────────── */
@@ -205,6 +205,56 @@ function StaffPreview() {
   );
 }
 
+function PayrollPreview() {
+  const payouts = [
+    { name: "Ayesha Khan", role: "Senior Stylist", amount: "₨18,200", status: "pending" as const },
+    { name: "Bilal Ahmed", role: "Barber",          amount: "₨9,600",  status: "paid" as const },
+    { name: "Sana Malik",  role: "Nail Artist",     amount: "₨5,800",  status: "paid" as const },
+  ];
+  return (
+    <div className={styles.prev}>
+      {payouts.map((p) => (
+        <div key={p.name} className={styles.payoutRow}>
+          <div>
+            <div className={styles.payoutName}>{p.name}</div>
+            <div className={styles.payoutRole}>{p.role}</div>
+          </div>
+          <div className={styles.payoutRight}>
+            <span className={styles.payoutAmount}>{p.amount}</span>
+            <span className={`${styles.payoutBadge} ${p.status === "paid" ? styles.payoutBadgePaid : styles.payoutBadgePending}`}>
+              {p.status === "paid" ? "Paid" : "Pending"}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ServiceMenuPreview() {
+  const services = [
+    { name: "Haircut & Style", price: "₨2,500",        tag: null },
+    { name: "Hair Color",      price: "₨4,000–7,000",  tag: "Variable" },
+    { name: "Bridal Combo",    price: "₨15,000",        tag: "Deal" },
+    { name: "Manicure",        price: "₨1,200",        tag: null },
+  ];
+  return (
+    <div className={styles.prev}>
+      {services.map((s) => (
+        <div key={s.name} className={styles.svcRow}>
+          <div className={styles.svcInfo}>
+            <span className={styles.svcName}>{s.name}</span>
+            {s.tag && (
+              <span className={`${styles.svcTag} ${s.tag === "Deal" ? styles.svcTagDeal : styles.svcTagVariable}`}>{s.tag}</span>
+            )}
+          </div>
+          <span className={styles.svcPrice}>{s.price}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function POSPreview() {
   const items = [
     { name: "Balayage Color",      price: "₨6,500" },
@@ -329,6 +379,14 @@ const features = [
     preview: <AppointmentPreview />,
   },
   {
+    icon: Scissors,
+    color: "#4f46e5",
+    title: "Service Management",
+    desc: "Build your service menu — fixed or variable pricing, custom categories, and bundled deals.",
+    bullets: ["Fixed or variable/range pricing", "Custom service categories", "Deals & multi-service packages", "Per-service staff assignment"],
+    preview: <ServiceMenuPreview />,
+  },
+  {
     icon: ShoppingCart,
     color: "#2563eb",
     title: "Point of Sale",
@@ -364,9 +422,17 @@ const features = [
     icon: UserCog,
     color: "#0284c7",
     title: "Staff Management",
-    desc: "Roles, service assignments, and performance — with commission and payout tracking built in.",
-    bullets: ["Role-based staff profiles", "Commission & payout tracking", "Revenue per stylist"],
+    desc: "Roles, service assignments, and performance tracking for every team member.",
+    bullets: ["Role-based staff profiles", "Per-service staff assignment", "Revenue per stylist"],
     preview: <StaffPreview />,
+  },
+  {
+    icon: Coins,
+    color: "#ea580c",
+    title: "Payroll Management",
+    desc: "Pay commission or fixed salary, with amounts calculated for you and a full payout history.",
+    bullets: ["Commission % or fixed salary per staff", "Auto-calculated payout amounts", "Pending & paid payout history", "One-click mark as paid"],
+    preview: <PayrollPreview />,
   },
   {
     icon: Gift,
@@ -455,13 +521,25 @@ export default function Features() {
     scroller.scrollTo({ left: target.offsetLeft - scroller.offsetLeft, behavior: "smooth" });
   }
 
+  // Prev/Next move relative to the current scroll position (not to a specific
+  // card's absolute offset) — near the end of the carousel, several trailing
+  // cards can share the same clamped max scrollLeft, which made goTo(index-1)
+  // resolve to the exact same position and made "Previous" look stuck.
+  function step(direction: 1 | -1) {
+    const scroller = scrollerRef.current;
+    const first = cardRefs.current[0];
+    if (!scroller || !first) return;
+    const gap = 20;
+    scroller.scrollBy({ left: direction * (first.offsetWidth + gap), behavior: "smooth" });
+  }
+
   return (
     <section className={styles.section} id="features">
       <div className={`${styles.header} text-center`}>
         <div className="section-label" data-animate data-delay="0">✦ Everything You Need</div>
         <h2 className="section-title" data-animate data-delay="0.1">Powerful Features Built<br />for Pakistan&apos;s Salons</h2>
         <p className="section-sub" data-animate data-delay="0.2">
-          Ten modules. One dashboard. Everything from booking to cash flow — all connected.
+          Twelve modules. One dashboard. Everything from booking to cash flow — all connected.
         </p>
       </div>
 
@@ -508,7 +586,7 @@ export default function Features() {
       </div>
 
       <div className={styles.carouselNav}>
-        <button type="button" className={styles.navBtn} onClick={() => goTo(activeIndex - 1)} disabled={activeIndex === 0} aria-label="Previous feature">
+        <button type="button" className={styles.navBtn} onClick={() => step(-1)} disabled={activeIndex === 0} aria-label="Previous feature">
           <ChevronLeft size={18} />
         </button>
         <div className={styles.dots}>
@@ -522,7 +600,7 @@ export default function Features() {
             />
           ))}
         </div>
-        <button type="button" className={styles.navBtn} onClick={() => goTo(activeIndex + 1)} disabled={activeIndex === features.length - 1} aria-label="Next feature">
+        <button type="button" className={styles.navBtn} onClick={() => step(1)} disabled={activeIndex === features.length - 1} aria-label="Next feature">
           <ChevronRight size={18} />
         </button>
       </div>

@@ -760,6 +760,90 @@
 }
 
 /* ════════════════════════════════════
+   PAYROLL PREVIEW
+════════════════════════════════════ */
+.payoutRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+  gap: 8px;
+}
+.payoutRow:last-child { border-bottom: none; }
+
+.payoutName { font-size: 0.68rem; font-weight: 700; color: #111; }
+.payoutRole { font-size: 0.58rem; color: #9ca3af; margin-top: 1px; }
+
+.payoutRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.payoutAmount { font-size: 0.68rem; font-weight: 800; color: #111; }
+
+.payoutBadge {
+  font-size: 0.54rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+.payoutBadgePaid    { background: #d1fae5; color: #059669; }
+.payoutBadgePending { background: #fef3c7; color: #d97706; }
+
+/* ════════════════════════════════════
+   SERVICE MENU PREVIEW
+════════════════════════════════════ */
+.svcRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+  gap: 8px;
+}
+.svcRow:last-child { border-bottom: none; }
+
+.svcInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.svcName {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.svcTag {
+  font-size: 0.5rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  flex-shrink: 0;
+}
+.svcTagVariable { background: #dbeafe; color: #2563eb; }
+.svcTagDeal      { background: #fef9c3; color: #a16207; }
+
+.svcPrice {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #111;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ════════════════════════════════════
    POS PREVIEW
 ════════════════════════════════════ */
 .posPayRow {
