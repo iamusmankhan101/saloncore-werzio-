@@ -413,25 +413,26 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             <Link href="/dashboard/billing" className="sb-upgrade" style={{ display: "block", textDecoration: "none", marginBottom: 8, transition: "opacity 0.15s" }}>
               <div style={{
                 borderRadius: 13,
-                background: "linear-gradient(135deg,rgba(91,33,182,0.22),rgba(147,51,234,0.12))",
-                border: "1px solid rgba(124,58,237,0.22)",
+                background: "linear-gradient(135deg,#5B21B6,#7C3AED)",
+                border: "1px solid rgba(196,181,253,0.35)",
+                boxShadow: "0 4px 20px rgba(124,58,237,0.35)",
                 padding: "12px 13px",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <div style={{
                     width: 28, height: 28, borderRadius: 8,
-                    background: "rgba(124,58,237,0.22)",
+                    background: "rgba(255,255,255,0.18)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     flexShrink: 0,
                   }}>
-                    <Sparkles size={13} color="#c4b5fd" />
+                    <Sparkles size={13} color="#fff" />
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#c4b5fd", flex: 1 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", flex: 1 }}>
                     {planBadge.badge === "FREE" ? "Upgrade to Pro" : "Upgrade to Premium"}
                   </span>
-                  <ChevronRight size={13} color="#7C3AED" style={{ flexShrink: 0 }} />
+                  <ChevronRight size={13} color="#fff" style={{ flexShrink: 0 }} />
                 </div>
-                <p style={{ fontSize: 11, color: "#3e3e62", lineHeight: 1.55, margin: 0 }}>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.82)", lineHeight: 1.55, margin: 0 }}>
                   {planBadge.badge === "FREE"
                     ? "Unlimited appointments, staff & clients"
                     : "WhatsApp automation & Virtual Try-On"}
