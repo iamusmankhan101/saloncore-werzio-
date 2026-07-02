@@ -40,6 +40,13 @@ const METHOD_LABELS: Record<string, string> = {
 
 function toDateStr(d: Date) { return d.toLocaleDateString("en-CA"); }
 
+function fmtTime(t: string) {
+  const [hourValue, minuteValue] = t.split(":").map(Number);
+  if (!Number.isFinite(hourValue) || !Number.isFinite(minuteValue)) return t;
+  const period = hourValue < 12 ? "AM" : "PM";
+  return `${hourValue % 12 || 12}:${String(minuteValue).padStart(2, "0")} ${period}`;
+}
+
 function getDaysArray(count: number): string[] {
   const arr: string[] = [];
   for (let i = count - 1; i >= 0; i--) {
@@ -262,30 +269,32 @@ export default function RevenuePage() {
       .sort((a, b) => b.amount - a.amount);
   }, [rangeStart, filterEnd]);
 
-  // ── Today's data for Daily Report ────────────────────────────────────────
-  const todayAppts = useMemo(() =>
-    appointments.filter(a => a.status === "completed" && a.date === today)
+  // A single-day custom range should drive the Daily Report. For multi-day
+  // periods the card remains today's operational snapshot.
+  const reportDate = period === "custom" && customStart === customEnd ? customStart : today;
+  const reportAppts = useMemo(() =>
+    appointments.filter(a => a.status === "completed" && a.date === reportDate)
       .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    [appointments, today]);
+    [appointments, reportDate]);
 
-  const todayPos = useMemo(() =>
-    posInvoices.filter(inv => inv.date === today),
-    [posInvoices, today]);
+  const reportPos = useMemo(() =>
+    posInvoices.filter(inv => inv.date === reportDate),
+    [posInvoices, reportDate]);
 
-  const todayRevenue = todayAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPos.reduce((s, inv) => s + inv.total, 0);
-  const todayCount   = todayAppts.length + todayPos.length;
-  const todayAvg     = todayCount ? todayRevenue / todayCount : 0;
+  const reportRevenue = reportAppts.reduce((s, a) => s + a.totalAmount, 0) + reportPos.reduce((s, inv) => s + inv.total, 0);
+  const reportCount   = reportAppts.length + reportPos.length;
+  const reportAvg     = reportCount ? reportRevenue / reportCount : 0;
 
-  const todayMethodBreakdown = useMemo(() => {
+  const reportMethodBreakdown = useMemo(() => {
     const totals: Record<string, number> = {};
-    todayPos.forEach(inv => {
+    reportPos.forEach(inv => {
       if (!inv.paymentMethod) return;
       totals[inv.paymentMethod] = (totals[inv.paymentMethod] ?? 0) + inv.total;
     });
     return Object.entries(totals)
       .map(([method, amount]) => ({ method, amount }))
       .sort((a, b) => b.amount - a.amount);
-  }, [todayPos]);
+  }, [reportPos]);
 
   const topServices = useMemo(() => {
     const map: Record<string, { name: string; count: number; revenue: number }> = {};
@@ -769,21 +778,23 @@ export default function RevenuePage() {
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e" }}>Daily Report</div>
-              <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 2 }}>{today} · Today&apos;s activity</div>
+              <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 2 }}>
+                {reportDate} · {reportDate === today ? "Today’s activity" : "Selected day activity"}
+              </div>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.06em", textTransform: "uppercase" }}>Revenue</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#7C3AED" }}>{fmt(todayRevenue)}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#7C3AED" }}>{fmt(reportRevenue)}</div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.06em", textTransform: "uppercase" }}>Appts</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#3b82f6" }}>{todayCount}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#3b82f6" }}>{reportCount}</div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#a0a0b8", letterSpacing: "0.06em", textTransform: "uppercase" }}>Avg Ticket</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#059669" }}>{todayCount ? fmt(todayAvg) : "—"}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#059669" }}>{reportCount ? fmt(reportAvg) : "—"}</div>
             </div>
             <div style={{ color: "#c0c0d0" }}>
               {dailyReportOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -801,17 +812,17 @@ export default function RevenuePage() {
             </div>
 
             {/* Appointment rows */}
-            {todayAppts.length === 0 && todayPos.length === 0 ? (
+            {reportAppts.length === 0 && reportPos.length === 0 ? (
               <div style={{ padding: "32px 24px", textAlign: "center", fontSize: 13, color: "#c0c0d0" }}>
-                No completed transactions today yet
+                No transactions found for {reportDate}
               </div>
             ) : (
               <>
-                {todayAppts.map((a) => (
+                {reportAppts.map((a) => (
                   <div key={a.id} style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", borderBottom: "1px solid #f8f8fc", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b6b8a" }}>
                       <Clock size={12} color="#c0c0d0" />
-                      {a.startTime}
+                      {fmtTime(a.startTime)}
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{a.clientName}</div>
                     <div style={{ fontSize: 12, color: "#6b6b8a" }}>{a.serviceNames.join(", ") || "—"}</div>
@@ -823,7 +834,7 @@ export default function RevenuePage() {
                   </div>
                 ))}
 
-                {todayPos.map((inv) => (
+                {reportPos.map((inv) => (
                   <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", borderBottom: "1px solid #f8f8fc", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b6b8a" }}>
                       <Clock size={12} color="#c0c0d0" />
@@ -849,18 +860,18 @@ export default function RevenuePage() {
                 {/* Footer totals */}
                 <div style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", background: "#fafafa", borderTop: "1px solid #f0f0f8", alignItems: "center" }}>
                   <div />
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Total · {todayCount} transactions</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>Total · {reportCount} transactions</div>
                   <div />
                   <div />
                   {/* Payment method pills */}
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {todayMethodBreakdown.map(m => (
+                    {reportMethodBreakdown.map(m => (
                       <span key={m.method} style={{ fontSize: 10, background: `${METHOD_COLORS[m.method] ?? "#888"}18`, color: METHOD_COLORS[m.method] ?? "#888", padding: "2px 7px", borderRadius: 20, fontWeight: 700 }}>
                         {METHOD_LABELS[m.method] ?? m.method} {fmt(m.amount)}
                       </span>
                     ))}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#7C3AED" }}>{fmt(todayRevenue)}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#7C3AED" }}>{fmt(reportRevenue)}</div>
                 </div>
               </>
             )}
