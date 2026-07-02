@@ -34,6 +34,14 @@ const fmtV = (n: number) => {
     : fmt(n);
 };
 
+function priceLabel(item: InventoryItem): string | undefined {
+  if (item.variablePrice && item.priceRangeMin && item.priceRangeMax) {
+    const currency = settingsStore.salon.currency || "PKR";
+    return `${currency} ${Math.round(item.priceRangeMin).toLocaleString("en-PK")} - ${Math.round(item.priceRangeMax).toLocaleString("en-PK")}`;
+  }
+  return item.retailPrice ? fmt(item.retailPrice) : undefined;
+}
+
 function stockStatus(item: InventoryItem): "out" | "low" | "ok" {
   if (item.currentStock === 0)              return "out";
   if (item.currentStock <= item.minStock)   return "low";
@@ -68,12 +76,14 @@ type ItemForm = {
   unit: InventoryUnit; currentStock: string; minStock: string;
   costPrice: string; retailPrice: string; supplier: string; notes: string;
   barcode: string;
+  variablePrice: boolean; priceRangeMin: string; priceRangeMax: string;
 };
 
 const EMPTY_FORM: ItemForm = {
   name: "", brand: "", category: "", unit: "pcs",
   currentStock: "", minStock: "", costPrice: "",
   retailPrice: "", barcode: "", supplier: "", notes: "",
+  variablePrice: false, priceRangeMin: "", priceRangeMax: "",
 };
 
 function itemToForm(item: InventoryItem): ItemForm {
@@ -83,6 +93,9 @@ function itemToForm(item: InventoryItem): ItemForm {
     currentStock: String(item.currentStock), minStock: String(item.minStock),
     costPrice: String(item.costPrice), retailPrice: item.retailPrice ? String(item.retailPrice) : "",
     barcode: item.barcode ?? "", supplier: item.supplier ?? "", notes: item.notes ?? "",
+    variablePrice: item.variablePrice ?? false,
+    priceRangeMin: item.priceRangeMin ? String(item.priceRangeMin) : "",
+    priceRangeMax: item.priceRangeMax ? String(item.priceRangeMax) : "",
   };
 }
 
@@ -95,7 +108,12 @@ function formToItem(form: ItemForm, existing?: InventoryItem): InventoryItem {
     currentStock: Number(form.currentStock),
     minStock: Number(form.minStock),
     costPrice: Number(form.costPrice),
-    retailPrice: form.retailPrice ? Number(form.retailPrice) : undefined,
+    retailPrice: form.variablePrice
+      ? (form.priceRangeMin ? Number(form.priceRangeMin) : undefined)
+      : (form.retailPrice ? Number(form.retailPrice) : undefined),
+    variablePrice: form.variablePrice,
+    priceRangeMin: form.variablePrice && form.priceRangeMin ? Number(form.priceRangeMin) : undefined,
+    priceRangeMax: form.variablePrice && form.priceRangeMax ? Number(form.priceRangeMax) : undefined,
     barcode: form.barcode.trim() || undefined,
     supplier: form.supplier || undefined,
     notes: form.notes || undefined,
@@ -103,7 +121,7 @@ function formToItem(form: ItemForm, existing?: InventoryItem): InventoryItem {
   };
 }
 
-function ItemFormFields({ form, set }: { form: ItemForm; set: (k: keyof ItemForm, v: string) => void }) {
+function ItemFormFields({ form, set }: { form: ItemForm; set: (k: keyof ItemForm, v: string | boolean) => void }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -129,8 +147,21 @@ function ItemFormFields({ form, set }: { form: ItemForm; set: (k: keyof ItemForm
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Field label="Cost Price (PKR) *"><input type="number" min="0" value={form.costPrice} onChange={(e) => set("costPrice", e.target.value)} placeholder="0" style={INP} /></Field>
-        <Field label="Retail Price (PKR)"><input type="number" min="0" value={form.retailPrice} onChange={(e) => set("retailPrice", e.target.value)} placeholder="0" style={INP} /></Field>
+        {!form.variablePrice && (
+          <Field label="Retail Price (PKR)"><input type="number" min="0" value={form.retailPrice} onChange={(e) => set("retailPrice", e.target.value)} placeholder="0" style={INP} /></Field>
+        )}
       </div>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+        <input type="checkbox" checked={form.variablePrice} onChange={(e) => set("variablePrice", e.target.checked)}
+          style={{ width: 14, height: 14, accentColor: "#7C3AED", cursor: "pointer" }} />
+        <span style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>Price is not fixed (varies per unit/batch)</span>
+      </label>
+      {form.variablePrice && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Field label="Min Price (PKR) *"><input type="number" min="0" value={form.priceRangeMin} onChange={(e) => set("priceRangeMin", e.target.value)} placeholder="e.g. 500" style={INP} /></Field>
+          <Field label="Max Price (PKR) *"><input type="number" min="0" value={form.priceRangeMax} onChange={(e) => set("priceRangeMax", e.target.value)} placeholder="e.g. 1500" style={INP} /></Field>
+        </div>
+      )}
       <Field label="Product Barcode / SKU">
         <input value={form.barcode} onChange={(e) => set("barcode", e.target.value.trim())} placeholder="Scan or enter barcode" style={INP} inputMode="numeric" />
       </Field>
@@ -140,12 +171,19 @@ function ItemFormFields({ form, set }: { form: ItemForm; set: (k: keyof ItemForm
   );
 }
 
+function priceFieldsValid(form: ItemForm): boolean {
+  if (!form.variablePrice) return true;
+  const min = Number(form.priceRangeMin);
+  const max = Number(form.priceRangeMax);
+  return Boolean(form.priceRangeMin && form.priceRangeMax && min > 0 && max >= min);
+}
+
 // ── Add Modal ─────────────────────────────────────────────────────────────────
 function AddModal({ onClose, onAdd }: { onClose: () => void; onAdd: (item: InventoryItem) => void }) {
   const [form, setForm] = useState<ItemForm>(EMPTY_FORM);
   const [done, setDone] = useState(false);
-  const set = useCallback((k: keyof ItemForm, v: string) => setForm((f) => ({ ...f, [k]: v })), []);
-  const canSubmit = form.name && form.brand && form.category && form.currentStock && form.minStock && form.costPrice;
+  const set = useCallback((k: keyof ItemForm, v: string | boolean) => setForm((f) => ({ ...f, [k]: v })), []);
+  const canSubmit = form.name && form.brand && form.category && form.currentStock && form.minStock && form.costPrice && priceFieldsValid(form);
 
   if (done) return (
     <Overlay onClose={onClose}>
@@ -178,8 +216,8 @@ function AddModal({ onClose, onAdd }: { onClose: () => void; onAdd: (item: Inven
 function EditModal({ item, onClose, onSave }: { item: InventoryItem; onClose: () => void; onSave: (updated: InventoryItem) => void }) {
   const [form, setForm] = useState<ItemForm>(() => itemToForm(item));
   const [saved, setSaved] = useState(false);
-  const set = useCallback((k: keyof ItemForm, v: string) => setForm((f) => ({ ...f, [k]: v })), []);
-  const canSubmit = form.name && form.brand && form.category && form.currentStock && form.minStock && form.costPrice;
+  const set = useCallback((k: keyof ItemForm, v: string | boolean) => setForm((f) => ({ ...f, [k]: v })), []);
+  const canSubmit = form.name && form.brand && form.category && form.currentStock && form.minStock && form.costPrice && priceFieldsValid(form);
 
   if (saved) return (
     <Overlay onClose={onClose}>
@@ -444,7 +482,7 @@ function ItemRow({ item, isLast, onEdit, onDelete }: {
       {/* Cost / retail */}
       <div>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{fmt(item.costPrice)}</div>
-        {item.retailPrice && <div style={{ fontSize: 10, color: "#9898b0" }}>Retail: {fmt(item.retailPrice)}</div>}
+        {priceLabel(item) && <div style={{ fontSize: 10, color: "#9898b0" }}>Retail: {priceLabel(item)}</div>}
       </div>
 
       {/* Status badge */}
@@ -765,7 +803,7 @@ export default function InventoryPage() {
                       <div className="mobile-list-sub">
                         {item.brand} · {item.currentStock} {item.unit}{isLow ? " ⚠️" : ""}
                         {isRetail
-                          ? ` · ${fmt(item.retailPrice!)}${margin !== null ? ` (${margin}%)` : ""}`
+                          ? ` · ${priceLabel(item)}${margin !== null ? ` (${margin}%)` : ""}`
                           : " · Not listed"}
                       </div>
                     </div>
@@ -927,7 +965,7 @@ export default function InventoryPage() {
                           </div>
                           <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{item.costPrice ? fmt(item.costPrice) : "—"}</div>
                           <div style={{ fontSize: 13, fontWeight: 800, color: isRetail ? "var(--accent)" : "#c8c8d8" }}>
-                            {isRetail ? fmt(item.retailPrice!) : <span style={{ fontSize: 11, color: "#c8c8d8", fontWeight: 600 }}>Not set</span>}
+                            {isRetail ? priceLabel(item) : <span style={{ fontSize: 11, color: "#c8c8d8", fontWeight: 600 }}>Not set</span>}
                           </div>
                           <div style={{ fontSize: 13, fontWeight: 750, color: margin !== null && margin > 0 ? "#059669" : "#c8c8d8" }}>
                             {margin !== null ? `${margin}%` : "—"}

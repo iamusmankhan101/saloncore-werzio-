@@ -41,6 +41,8 @@ interface CatalogItem {
   unit?: string;
   barcode?: string;
   variablePrice?: boolean;
+  priceRangeMin?: number;
+  priceRangeMax?: number;
 }
 
 interface CartEntry {
@@ -52,6 +54,8 @@ interface CartEntry {
   unitPrice: number;
   total: number;
   variablePrice?: boolean;
+  priceRangeMin?: number;
+  priceRangeMax?: number;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -202,9 +206,13 @@ export default function POSPage() {
       .filter(s => !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q))
       .map(s => ({ id: s.id, type: "service", name: s.name, price: s.price, category: s.category, variablePrice: s.variablePrice }));
     const prod: CatalogItem[] = (catalogTab !== "services" ? inventory : [])
-      .filter(i => (i.retailPrice ?? 0) > 0)
+      .filter(i => (i.retailPrice ?? 0) > 0 || i.variablePrice)
       .filter(i => !q || i.name.toLowerCase().includes(q) || i.brand.toLowerCase().includes(q))
-      .map(i => ({ id: i.id, type: "product", name: `${i.brand ? i.brand + " " : ""}${i.name}`, price: i.retailPrice!, category: i.category, stock: i.currentStock, unit: i.unit, barcode: i.barcode }));
+      .map(i => ({
+        id: i.id, type: "product", name: `${i.brand ? i.brand + " " : ""}${i.name}`, price: i.retailPrice ?? 0,
+        category: i.category, stock: i.currentStock, unit: i.unit, barcode: i.barcode,
+        variablePrice: i.variablePrice, priceRangeMin: i.priceRangeMin, priceRangeMax: i.priceRangeMax,
+      }));
     return [...svc, ...prod];
   }, [services, inventory, catalogTab, catalogSearch]);
 
@@ -240,7 +248,11 @@ export default function POSPage() {
     setCart(prev => {
       const hit = prev.find(e => e.itemId === item.id);
       if (hit) return prev.map(e => e.itemId === item.id ? { ...e, qty: e.qty + 1, total: (e.qty + 1) * e.unitPrice } : e);
-      return [...prev, { cartId: crypto.randomUUID(), itemId: item.id, type: item.type, name: item.name, qty: 1, unitPrice: item.price, total: item.price, variablePrice: item.variablePrice }];
+      return [...prev, {
+        cartId: crypto.randomUUID(), itemId: item.id, type: item.type, name: item.name, qty: 1,
+        unitPrice: item.price, total: item.price, variablePrice: item.variablePrice,
+        priceRangeMin: item.priceRangeMin, priceRangeMax: item.priceRangeMax,
+      }];
     });
   }, []);
 
@@ -880,7 +892,9 @@ export default function POSPage() {
 
                         {/* Price */}
                         <div style={{ fontSize: 15, fontWeight: 900, color: fg, marginBottom: 5 }}>
-                          {pkr(item.price)}
+                          {item.variablePrice
+                            ? (item.priceRangeMin && item.priceRangeMax ? `${pkr(item.priceRangeMin)}–${pkr(item.priceRangeMax)}` : "Varies")
+                            : pkr(item.price)}
                         </div>
 
                         {/* Badges */}
@@ -970,6 +984,9 @@ export default function POSPage() {
                                 placeholder="Enter price" aria-label={`Price for ${entry.name}`}
                                 style={{ width: 84, fontSize: 12, padding: "3px 6px", borderRadius: 6, border: entry.unitPrice > 0 ? "1px solid #e0dff0" : "1px solid #f59e0b", outline: "none" }} />
                               <span style={{ fontSize: 11, color: "#b0b0c8" }}>each</span>
+                              {entry.priceRangeMin && entry.priceRangeMax && (
+                                <span style={{ fontSize: 10, color: "#c8c8d8" }}>(Range: {pkr(entry.priceRangeMin)}–{pkr(entry.priceRangeMax)})</span>
+                              )}
                             </div>
                           ) : (
                             <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 2 }}>{pkr(entry.unitPrice)} each</div>
