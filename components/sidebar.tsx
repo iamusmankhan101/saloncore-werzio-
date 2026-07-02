@@ -435,7 +435,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.82)", lineHeight: 1.55, margin: 0 }}>
                   {planBadge.badge === "FREE"
                     ? "Unlimited appointments, staff & clients"
-                    : "WhatsApp automation & Virtual Try-On"}
+                    : "Multi-location branches & Virtual Try-On"}
                 </p>
               </div>
             </Link>
