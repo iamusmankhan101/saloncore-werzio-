@@ -81,7 +81,26 @@ const CONFIRM_QUEUE_KEY = "werzio_wa_confirm_queue";
 const FOLLOWUP_QUEUE_KEY = "werzio_wa_followup_queue";
 const CANCEL_QUEUE_KEY  = "werzio_wa_cancel_queue";
 const BIRTHDAY_QUEUE_KEY = "werzio_wa_birthday_queue";
-const BIRTHDAY_SPREAD_WINDOW_MS = 4 * 60 * 60 * 1000;
+// Birthday messages carry a discount, so all of today's birthdays should never land
+// in the same 4-hour block — spread across a random 6-8 hour window, chosen once
+// per day (cached) so every client that day shares the same spread, not a fresh
+// window recalculated on every scheduler tick.
+const BIRTHDAY_SPREAD_MIN_MS = 6 * 60 * 60 * 1000;
+const BIRTHDAY_SPREAD_MAX_MS = 8 * 60 * 60 * 1000;
+const BIRTHDAY_SPREAD_CACHE_KEY = "werzio_wa_birthday_spread_window";
+
+function getTodaysBirthdaySpreadWindowMs(): number {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const cacheKey = locationUserKey(BIRTHDAY_SPREAD_CACHE_KEY);
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || "null") as { date: string; windowMs: number } | null;
+    if (cached && cached.date === todayKey) return cached.windowMs;
+  } catch { /* recompute below */ }
+
+  const windowMs = Math.round(BIRTHDAY_SPREAD_MIN_MS + Math.random() * (BIRTHDAY_SPREAD_MAX_MS - BIRTHDAY_SPREAD_MIN_MS));
+  localStorage.setItem(cacheKey, JSON.stringify({ date: todayKey, windowMs }));
+  return windowMs;
+}
 
 function getSentLog(): Record<string, number> {
   try { return JSON.parse(localStorage.getItem(locationUserKey(SENT_KEY)) || "{}"); } catch { return {}; }
@@ -254,6 +273,10 @@ export function enqueueWhatsAppCancellation(apptId: string) {
   if (typeof window === "undefined") return;
   const delayMinutes = (settingsStore.wasender as { cancellationDelayMinutes?: number }).cancellationDelayMinutes ?? 1440;
   const delayMs = delayMinutes * 60 * 1000;
+  // On top of the configured base delay (24h by default), add a random 10-30 min
+  // jitter so this win-back offer never lands at exactly the same clock-round
+  // interval after every cancellation.
+  const jitterMs = (10 + Math.random() * 20) * 60_000;
   const q = getQueue(CANCEL_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
     // Snapshot phone + name now so the message can fire even if the appointment record is deleted
@@ -261,7 +284,7 @@ export function enqueueWhatsAppCancellation(apptId: string) {
     const clients = getStoredClients();
     const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
     const phone = client?.phone ? normalizePhone(client.phone) : "";
-    setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs, phone, clientName: appt?.clientName }]);
+    setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs, phone, clientName: appt?.clientName }]);
   }
 }
 
@@ -361,7 +384,7 @@ const BIRTHDAY_SENT_KEY = "werzio_wa_birthday_sent";
 
 function birthdaySpreadDelay(index: number, total: number): number {
   const safeTotal = Math.max(1, total);
-  const slotMs = BIRTHDAY_SPREAD_WINDOW_MS / safeTotal;
+  const slotMs = getTodaysBirthdaySpreadWindowMs() / safeTotal;
   return Math.floor(index * slotMs + Math.random() * slotMs);
 }
 
