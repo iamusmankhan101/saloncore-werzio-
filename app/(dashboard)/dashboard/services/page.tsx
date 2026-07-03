@@ -35,6 +35,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
     packageServiceIds: serviceToEdit?.packageServiceIds ?? [] as string[],
     customServices:    serviceToEdit?.customServices ?? [] as { name: string; price?: number; durationMin?: number }[],
     name:             serviceToEdit?.name ?? "",
+    description:      serviceToEdit?.description ?? "",
     category:         editedCategoryIsCustom ? "custom" : (serviceToEdit?.category ?? "hair"),
     customCategory:   editedCategoryIsCustom ? serviceToEdit!.category : "",
     durationMin:      serviceToEdit ? String(serviceToEdit.durationMin) : "60",
@@ -115,6 +116,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
     onSave({
       id:               serviceToEdit?.id ?? "sv" + Date.now(),
       name:             form.name.trim(),
+      description:      form.description.trim() || undefined,
       category:         form.isPackage ? "package" : (form.category === "custom" ? form.customCategory.trim() : form.category),
       durationMin,
       price:            form.variablePrice ? rangeMin : price,
@@ -176,6 +178,14 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
             </label>
             <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={form.isPackage ? "e.g. Bridal Glow Combo" : "e.g. Hydrafacial Premium"}
               style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Description <span style={{ textTransform: "none", fontWeight: 500, color: "#c0c0d0" }}>(optional)</span>
+            </label>
+            <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={2}
+              placeholder={form.isPackage ? "What's included, ideal for, or any details clients should know…" : "Short description clients will see, e.g. what it treats or includes"}
+              style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", resize: "vertical", fontFamily: "inherit" }} />
           </div>
 
           {form.isPackage ? (
@@ -514,6 +524,9 @@ export default function ServicesPage() {
                       {badge.label}
                     </span>
                     <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e", marginTop: 12, letterSpacing: "-0.01em" }}>{sv.name}</div>
+                    {sv.description && (
+                      <div style={{ fontSize: 12, color: "#6b6b8a", marginTop: 4, lineHeight: 1.4 }}>{sv.description}</div>
+                    )}
                     {includedNames && includedNames.length > 0 && (
                       <div style={{ fontSize: 11, color: "#9898b0", marginTop: 4 }}>Includes: {includedNames.join(", ")}</div>
                     )}

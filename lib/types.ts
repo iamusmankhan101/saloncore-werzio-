@@ -54,6 +54,7 @@ export interface Staff {
 export interface Service {
   id: string;
   name: string;
+  description?: string;
   category: ServiceCategoryValue;
   durationMin: number;
   price: number;
