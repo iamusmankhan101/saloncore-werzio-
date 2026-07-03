@@ -62,19 +62,19 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
       : (Number.isFinite(price) && price > 0))
     && Number.isFinite(durationMin)
     && durationMin > 0
-    && (form.isPackage ? (form.packageServiceIds.length + form.customServices.length) >= 2 : (form.category !== "custom" || form.customCategory.trim())),
+    && (form.isPackage ? form.packageServiceIds.length >= 2 : (form.category !== "custom" || form.customCategory.trim())),
   );
 
   const includedServices = selectableServices.filter((s) => form.packageServiceIds.includes(s.id));
-  const includedTotal    = includedServices.reduce((s, sv) => s + sv.price, 0) + form.customServices.reduce((s, cs) => s + (cs.price ?? 0), 0);
-  const includedDuration = includedServices.reduce((s, sv) => s + sv.durationMin, 0) + form.customServices.reduce((s, cs) => s + (cs.durationMin ?? 0), 0);
+  const includedTotal    = includedServices.reduce((s, sv) => s + sv.price, 0);
+  const includedDuration = includedServices.reduce((s, sv) => s + sv.durationMin, 0);
 
-  // Suggest a deal price/duration = sum of included services' + custom services' price/duration;
-  // both remain editable afterward, same as the pre-existing duration suggestion.
-  const recalcPackageTotals = (ids: string[], customs: typeof form.customServices) => {
+  // Suggest a deal price/duration = sum of the included services' price/duration;
+  // both remain editable afterward.
+  const recalcPackageTotals = (ids: string[]) => {
     const included = selectableServices.filter((s) => ids.includes(s.id));
-    const sumDuration = included.reduce((s, sv) => s + sv.durationMin, 0) + customs.reduce((s, cs) => s + (cs.durationMin ?? 0), 0);
-    const sumPrice    = included.reduce((s, sv) => s + sv.price, 0)       + customs.reduce((s, cs) => s + (cs.price ?? 0), 0);
+    const sumDuration = included.reduce((s, sv) => s + sv.durationMin, 0);
+    const sumPrice    = included.reduce((s, sv) => s + sv.price, 0);
     if (sumDuration > 0) set("durationMin", String(sumDuration));
     set("price", sumPrice > 0 ? String(sumPrice) : "");
   };
@@ -84,7 +84,15 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
       ? form.packageServiceIds.filter((x: string) => x !== id)
       : [...form.packageServiceIds, id];
     set("packageServiceIds", cur);
-    recalcPackageTotals(cur, form.customServices);
+    recalcPackageTotals(cur);
+  };
+
+  // Suggest a single service's price/duration = sum of its added components; still editable after.
+  const recalcComponentTotals = (customs: typeof form.customServices) => {
+    const sumDuration = customs.reduce((s, cs) => s + (cs.durationMin ?? 0), 0);
+    const sumPrice    = customs.reduce((s, cs) => s + (cs.price ?? 0), 0);
+    if (sumDuration > 0) set("durationMin", String(sumDuration));
+    set("price", sumPrice > 0 ? String(sumPrice) : "");
   };
 
   const addCustomService = () => {
@@ -96,14 +104,14 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
     };
     const cur = [...form.customServices, entry];
     set("customServices", cur);
-    recalcPackageTotals(form.packageServiceIds, cur);
+    recalcComponentTotals(cur);
     setCustomName(""); setCustomPrice(""); setCustomDuration("");
   };
 
   const removeCustomService = (idx: number) => {
     const cur = form.customServices.filter((_, i) => i !== idx);
     set("customServices", cur);
-    recalcPackageTotals(form.packageServiceIds, cur);
+    recalcComponentTotals(cur);
   };
 
   const toggleStaff = (id: string) => {
@@ -124,7 +132,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
       priceRangeMin:    form.variablePrice ? rangeMin : undefined,
       priceRangeMax:    form.variablePrice ? rangeMax : undefined,
       packageServiceIds: form.isPackage ? form.packageServiceIds : undefined,
-      customServices:   form.isPackage ? form.customServices : undefined,
+      customServices:   !form.isPackage && form.customServices.length > 0 ? form.customServices : undefined,
       assignedStaffIds: form.assignedStaffIds,
       isActive:         serviceToEdit?.isActive ?? true,
     });
@@ -226,7 +234,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
           {form.isPackage && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Included Services (2 or more, existing or custom)
+                Included Services (select 2 or more)
               </label>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 160, overflowY: "auto", border: "1px solid #e8e8f0", borderRadius: 8, padding: 8 }}>
                 {selectableServices.map((sv) => {
@@ -244,43 +252,46 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
                 {selectableServices.length === 0 && <div style={{ fontSize: 12, color: "#9898b0", padding: "6px 8px" }}>Add some individual services first</div>}
               </div>
 
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 4 }}>
-                Custom Services (not in your service list)
+              {includedServices.length > 0 && (
+                <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>
+                  Booked separately: <strong style={{ color: "#1a1a2e" }}>{fmt(includedTotal)}</strong> for {includedDuration} min
+                </div>
+              )}
+            </div>
+          )}
+          {!form.isPackage && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Components <span style={{ textTransform: "none", fontWeight: 500, color: "#c0c0d0" }}>(optional — add 1 or more to auto-calculate price &amp; duration)</span>
               </label>
               {form.customServices.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {form.customServices.map((cs, idx) => (
-                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 6, background: "#fef9c3" }}>
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 6, background: "#F5F3FF" }}>
                       <span style={{ fontSize: 13, fontWeight: 500, color: "#1a1a2e", flex: 1 }}>{cs.name}</span>
                       <span style={{ fontSize: 11, color: "#9898b0" }}>
                         {cs.price ? fmt(cs.price) : "—"} {cs.durationMin ? `· ${cs.durationMin}m` : ""}
                       </span>
                       <button type="button" onClick={() => removeCustomService(idx)} aria-label={`Remove ${cs.name}`}
                         style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 2 }}>
-                        <X size={13} color="#a16207" />
+                        <X size={13} color="#7C3AED" />
                       </button>
                     </div>
                   ))}
                 </div>
               )}
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Service name"
+                <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Component name"
                   style={{ flex: "2 1 120px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
                 <input type="number" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} placeholder="Price"
                   style={{ flex: "1 1 60px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
                 <input type="number" value={customDuration} onChange={(e) => setCustomDuration(e.target.value)} placeholder="Mins"
                   style={{ flex: "1 1 60px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
                 <button type="button" onClick={addCustomService} disabled={!customName.trim()}
-                  style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 8, border: "none", background: customName.trim() ? "#a16207" : "#e8e8f0", color: customName.trim() ? "#fff" : "#b0b0c8", fontSize: 12, fontWeight: 700, cursor: customName.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 4 }}>
+                  style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 8, border: "none", background: customName.trim() ? "#7C3AED" : "#e8e8f0", color: customName.trim() ? "#fff" : "#b0b0c8", fontSize: 12, fontWeight: 700, cursor: customName.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 4 }}>
                   <Plus size={13} /> Add
                 </button>
               </div>
-
-              {(includedServices.length > 0 || form.customServices.length > 0) && (
-                <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>
-                  Booked separately: <strong style={{ color: "#1a1a2e" }}>{fmt(includedTotal)}</strong> for {includedDuration} min
-                </div>
-              )}
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -508,13 +519,11 @@ export default function ServicesPage() {
             const assigned = staff.filter((st) => sv.assignedStaffIds.includes(st.id));
             const isPkg = sv.category === "package";
             const includedNames = isPkg
-              ? [
-                  ...(sv.packageServiceIds
-                    ?.map((id) => services.find((s) => s.id === id)?.name)
-                    .filter((n): n is string => Boolean(n)) ?? []),
-                  ...(sv.customServices?.map((cs) => cs.name) ?? []),
-                ]
+              ? (sv.packageServiceIds
+                  ?.map((id) => services.find((s) => s.id === id)?.name)
+                  .filter((n): n is string => Boolean(n)) ?? [])
               : undefined;
+            const componentNames = !isPkg ? sv.customServices?.map((cs) => cs.name) : undefined;
             return (
               <div key={sv.id} style={{ background: "#fff", padding: "24px", display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
@@ -529,6 +538,9 @@ export default function ServicesPage() {
                     )}
                     {includedNames && includedNames.length > 0 && (
                       <div style={{ fontSize: 11, color: "#9898b0", marginTop: 4 }}>Includes: {includedNames.join(", ")}</div>
+                    )}
+                    {componentNames && componentNames.length > 0 && (
+                      <div style={{ fontSize: 11, color: "#9898b0", marginTop: 4 }}>Made of: {componentNames.join(", ")}</div>
                     )}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
