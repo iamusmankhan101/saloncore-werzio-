@@ -1,10 +1,29 @@
 import Image from "next/image";
+import Link from "next/link";
 import styles from "./Footer.module.css";
 
-const links = {
-  Product: ["Features", "Pricing", "How It Works", "Roadmap"],
-  Company: ["About", "Careers", "Contact", "Privacy Policy"],
-};
+const SIGNUP_URL = "https://app.werzio.com/sign-up";
+const CONTACT_SALES_URL = "https://wa.me/923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
+
+const linkCols: { heading: string; items: { label: string; href: string; external?: boolean }[] }[] = [
+  {
+    heading: "Product",
+    items: [
+      { label: "Features",     href: "/#features" },
+      { label: "Pricing",      href: "/#pricing" },
+      { label: "How It Works", href: "/#how" },
+      { label: "Testimonials", href: "/#testimonials" },
+    ],
+  },
+  {
+    heading: "Company",
+    items: [
+      { label: "Why Salon Central", href: "/#why" },
+      { label: "Contact Sales",     href: CONTACT_SALES_URL, external: true },
+      { label: "Get Started",       href: SIGNUP_URL, external: true },
+    ],
+  },
+];
 
 export default function Footer() {
   return (
@@ -30,13 +49,17 @@ export default function Footer() {
 
         {/* ── Link cols ── */}
         <div className={styles.cols}>
-          {Object.entries(links).map(([heading, items]) => (
+          {linkCols.map(({ heading, items }) => (
             <div key={heading} className={styles.col}>
               <h4 className={styles.colHead}>{heading}</h4>
               <ul className={styles.colList}>
                 {items.map((item) => (
-                  <li key={item}>
-                    <a href="#" className={styles.colLink}>{item}</a>
+                  <li key={item.label}>
+                    {item.external ? (
+                      <a href={item.href} target="_blank" rel="noopener noreferrer" className={styles.colLink}>{item.label}</a>
+                    ) : (
+                      <Link href={item.href} className={styles.colLink}>{item.label}</Link>
+                    )}
                   </li>
                 ))}
               </ul>
