@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments } from "@/lib/storage";
 import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
-import { X, Plus, Check, ChevronRight, Trash2, UserCog } from "lucide-react";
+import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import PageTitle from "@/components/page-title";
 
@@ -219,6 +219,7 @@ function DeleteConfirmModal({ name, onConfirm, onCancel }: { name: string; onCon
 export default function StaffPage() {
   const router = useRouter();
   const [showAdd, setShowAdd]       = useState(false);
+  const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [staffList, setStaffList]   = useState<Staff[]>([]);
   const [servicesList, setServicesList] = useState<Service[]>([]);
   const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
@@ -270,10 +271,11 @@ export default function StaffPage() {
   return (
     <div className="dash-page dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
 
-      {showAdd && (
+      {(showAdd || editingStaff) && (
         <StaffFormModal
           servicesList={servicesList}
-          onClose={() => setShowAdd(false)}
+          staff={editingStaff ?? undefined}
+          onClose={() => { setShowAdd(false); setEditingStaff(null); }}
           onSave={handleSaveStaff}
         />
       )}
@@ -368,7 +370,16 @@ export default function StaffPage() {
                     {s.isActive ? "Active" : "Inactive"}
                   </span>
                   <button
+                    onClick={(e) => { e.stopPropagation(); setEditingStaff(s); }}
+                    aria-label={`Edit ${s.name}`}
+                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #EDE9FE", background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                    className="hover-bg-light"
+                  >
+                    <Pencil size={13} color="#7C3AED" />
+                  </button>
+                  <button
                     onClick={(e) => { e.stopPropagation(); setDeleteTarget(s); }}
+                    aria-label={`Delete ${s.name}`}
                     style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
                   >
                     <Trash2 size={13} color="#dc2626" />
