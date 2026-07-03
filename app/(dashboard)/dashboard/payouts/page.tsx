@@ -10,7 +10,7 @@ import {
   CheckCircle2, Banknote, FileDown,
 } from "lucide-react";
 import PageTitle from "@/components/page-title";
-import { exportPayoutSlipPdf } from "@/lib/export-pdf";
+import PayoutSlipPrint from "@/components/payout-slip-print";
 import { settingsStore } from "@/lib/settings-store";
 
 const PAY_METHOD_OPTIONS = ["cash", "bank", "jazzcash", "easypaisa", "card", "other"];
@@ -283,6 +283,7 @@ export default function PayoutsPage() {
   const [processingFor, setProcessingFor] = useState<Staff | null>(null);
   const [markPaidTarget, setMarkPaidTarget] = useState<Payout | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Payout | null>(null);
+  const [viewingSlipFor, setViewingSlipFor] = useState<Payout | null>(null);
   const [historyFilter, setHistoryFilter] = useState<"all" | PayoutStatus>("all");
 
   useEffect(() => {
@@ -349,6 +350,17 @@ export default function PayoutsPage() {
       )}
       {deleteTarget && (
         <DeleteConfirmModal onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
+      )}
+      {viewingSlipFor && (
+        <PayoutSlipPrint
+          payout={viewingSlipFor}
+          staffPhone={staffList.find((s) => s.id === viewingSlipFor.staffId)?.phone}
+          salonName={settingsStore.salon.name as string}
+          salonPhone={settingsStore.salon.phone as string}
+          salonEmail={settingsStore.salon.email as string}
+          salonAddress={settingsStore.salon.address as string}
+          onClose={() => setViewingSlipFor(null)}
+        />
       )}
 
       {/* Header */}
@@ -478,7 +490,7 @@ export default function PayoutsPage() {
                             <CheckCircle2 size={13} color="#059669" />
                           </button>
                         )}
-                        <button onClick={() => exportPayoutSlipPdf(p, staffList.find((s) => s.id === p.staffId), settingsStore.salon.name as string)} title="Download Salary Slip"
+                        <button onClick={() => setViewingSlipFor(p)} title="View Salary Slip"
                           style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #EDE9FE", background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                           <FileDown size={13} color="#7C3AED" />
                         </button>
