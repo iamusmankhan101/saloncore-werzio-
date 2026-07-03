@@ -184,13 +184,6 @@ export default function PayoutSlipPrint({
                 </div>
               </div>
 
-              {/* ── PAYMENT STATUS ── */}
-              {isPaid && payout.paymentMethod && (
-                <div style={{ marginBottom: 32 }}>
-                  <div style={{ fontSize: 12, color: "#059669", fontWeight: 700 }}>✓ Paid via {METHOD_LABELS[payout.paymentMethod] ?? payout.paymentMethod}{payout.paidDate ? ` on ${fmtDate(payout.paidDate)}` : ""}</div>
-                </div>
-              )}
-
               {/* ── NOTES ── */}
               {payout.notes && (
                 <div style={{ marginBottom: 32 }}>
