@@ -442,11 +442,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [isReady]);
 
   // WhatsApp scheduler — first run is triggered by syncFromDB.then() above
-  // so existing clients are already in localStorage when it first fires
+  // so existing clients are already in localStorage when it first fires.
+  // Polls on a jittered ~45-90s cadence (self-rescheduling setTimeout) instead of a
+  // fixed setInterval — an exact, unchanging tick period is itself a detectable bot
+  // pattern, so the gap is randomized every time just like the message pacing is.
   useEffect(() => {
     if (!isReady) return;
-    const interval = window.setInterval(() => runWhatsAppScheduler(), 60_000);
-    return () => window.clearInterval(interval);
+    let timeoutId: number;
+    const scheduleNext = () => {
+      const jitterMs = 45_000 + Math.random() * 45_000; // 45-90s
+      timeoutId = window.setTimeout(() => {
+        runWhatsAppScheduler();
+        scheduleNext();
+      }, jitterMs);
+    };
+    scheduleNext();
+    return () => window.clearTimeout(timeoutId);
   }, [isReady]);
 
   // WhatsApp connection status check

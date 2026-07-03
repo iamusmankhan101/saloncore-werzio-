@@ -131,6 +131,14 @@ export function checkWhatsAppSafety(input: WhatsAppSafetyCheckInput) {
   const state = getState(config);
   const isGroup = recipient.endsWith("@g.us");
 
+  // The daily send cap always applies, even when the optional Safety toggle below
+  // is off — it backs the WhatsApp number warm-up ramp (see getTodaysWarmupCap in
+  // whatsapp-scheduler.ts): volume must never jump from a handful of messages one
+  // day to hundreds the next, regardless of settings.
+  if (!isGroup && state.totalSent >= config.dailySendLimit) {
+    return { ok: false, status: 429, error: `Daily WhatsApp send limit reached (${config.dailySendLimit}).` };
+  }
+
   if (!config.safetyEnabled) return { ok: true };
   if (config.emergencyPause) {
     return { ok: false, status: 423, error: "WhatsApp sending is paused from Account → WhatsApp Safety." };
@@ -140,9 +148,6 @@ export function checkWhatsAppSafety(input: WhatsAppSafetyCheckInput) {
   }
   if (intent === "marketing" && config.blockMarketingWithoutOptIn && input.recipientOptedIn === false) {
     return { ok: false, status: 403, error: "Marketing WhatsApp send blocked because this client has not opted in." };
-  }
-  if (!isGroup && state.totalSent >= config.dailySendLimit) {
-    return { ok: false, status: 429, error: `Daily WhatsApp safety limit reached (${config.dailySendLimit}).` };
   }
   if (!isGroup && (state.byRecipient[recipient] ?? 0) >= config.perRecipientDailyLimit) {
     return { ok: false, status: 429, error: `Daily WhatsApp limit reached for this recipient (${config.perRecipientDailyLimit}).` };
@@ -160,10 +165,11 @@ export function checkWhatsAppSafety(input: WhatsAppSafetyCheckInput) {
 
 export function recordWhatsAppSafetySend(input: { phone: string; config?: WhatsAppSafetyConfig }) {
   const config = getWhatsAppSafetyConfig(input.config);
-  if (!config.safetyEnabled) return;
   const recipient = normalizeRecipient(input.phone);
   if (recipient.endsWith("@g.us")) return;
   const state = getState(config);
+  // Always recorded (not gated behind the optional Safety toggle) — the daily total
+  // backs the mandatory warm-up cap check in checkWhatsAppSafety above.
   state.totalSent += 1;
   state.byRecipient[recipient] = (state.byRecipient[recipient] ?? 0) + 1;
   state.lastSentAt[recipient] = Date.now();

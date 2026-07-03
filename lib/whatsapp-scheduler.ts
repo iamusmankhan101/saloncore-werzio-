@@ -106,15 +106,79 @@ function nextRetryDelayMs(): number {
   return RETRY_MIN_DELAY_MS + Math.random() * (RETRY_MAX_DELAY_MS - RETRY_MIN_DELAY_MS);
 }
 const SEND_RATE_LIMIT_MS = 60_000;       // WaSender free plan: 1 message per minute
-// Absolute floor between any two automated sends, independent of the optional WhatsApp
-// Safety toggle and of provider — without this, disabling Safety (or using BotSailor/
-// Zaptick, which have no built-in rate limit) let two different automated queues
-// (e.g. a follow-up and a cancellation due in the same scheduler tick) fire with zero
-// gap, so they land in the log at literally the same second.
-const MIN_NATURAL_GAP_MS = 8_000;
+
+// Mandatory floor between any two automated sends, independent of the optional
+// WhatsApp Safety toggle and of provider — without this, disabling Safety (or using
+// BotSailor/Zaptick, which have no built-in rate limit) let two different automated
+// queues (e.g. a follow-up and a cancellation due in the same scheduler tick) fire
+// back-to-back with no gap at all.
+//
+// Base pacing is a random 3-7 minutes between every message. On top of that, every
+// 10th/50th/100th message gets a longer break before the next one — only the largest
+// matching tier applies (e.g. message #100 gets the 60-90 min break, not all three).
+function randBetween(minMs: number, maxMs: number): number {
+  return minMs + Math.random() * (maxMs - minMs);
+}
+function minNaturalGapMs(sentSoFar: number): number {
+  if (sentSoFar > 0 && sentSoFar % 100 === 0) return randBetween(60 * 60_000, 90 * 60_000);
+  if (sentSoFar > 0 && sentSoFar % 50  === 0) return randBetween(30 * 60_000, 45 * 60_000);
+  if (sentSoFar > 0 && sentSoFar % 10  === 0) return randBetween(10 * 60_000, 20 * 60_000);
+  return randBetween(3 * 60_000, 7 * 60_000);
+}
 
 let lastSentAt = 0;
+let sentCount = 0;
 let schedulerRunning = false;
+
+// ── Number warm-up ramp ──────────────────────────────────────────────────────
+// Unofficial WhatsApp warm-up schedule: a brand-new number's daily send volume
+// should climb gradually as it builds a sending history, never jumping from e.g.
+// 20 messages one day to 1,000 the next (which is what gets numbers flagged/banned).
+// The cap is a random number within that week's range, picked once per calendar
+// day and cached so it doesn't change mid-day.
+const WARMUP_START_KEY = "werzio_wa_warmup_start"; // first day this salon ever sent a WhatsApp message
+const WARMUP_CAP_KEY   = "werzio_wa_warmup_cap";   // { date, cap } — today's chosen ceiling
+
+function getWarmupStartDate(): string {
+  const key = locationUserKey(WARMUP_START_KEY);
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+  const today = new Date().toISOString().slice(0, 10);
+  localStorage.setItem(key, today);
+  return today;
+}
+
+/** 1-indexed day count since the warm-up start date (start date itself = day 1). */
+function daysSinceWarmupStart(startDate: string): number {
+  const [sy, sm, sd] = startDate.split("-").map(Number);
+  const start = new Date(sy, sm - 1, sd);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.floor((today.getTime() - start.getTime()) / 86_400_000) + 1;
+}
+
+function warmupTierRange(dayNum: number): [number, number] {
+  if (dayNum <= 7)  return [30, 40];    // Week 1
+  if (dayNum <= 14) return [40, 80];    // Week 2
+  if (dayNum <= 21) return [80, 180];   // Week 3
+  return [180, 300];                    // After a month
+}
+
+/** Today's warm-up daily send ceiling — random within the current week's tier, cached per calendar day. */
+function getTodaysWarmupCap(): number {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const cacheKey = locationUserKey(WARMUP_CAP_KEY);
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || "null") as { date: string; cap: number } | null;
+    if (cached && cached.date === todayKey) return cached.cap;
+  } catch { /* recompute below */ }
+
+  const dayNum = daysSinceWarmupStart(getWarmupStartDate());
+  const [min, max] = warmupTierRange(dayNum);
+  const cap = Math.round(min + Math.random() * (max - min));
+  localStorage.setItem(cacheKey, JSON.stringify({ date: todayKey, cap }));
+  return cap;
+}
 
 // sendAfter: unix ms timestamp — scheduler skips item until Date.now() >= sendAfter
 // phone: stored at enqueue time so the message can still send even if the appointment is later deleted
@@ -215,21 +279,29 @@ async function callSendApi(
   };
   const selectedProvider = providerConfig.provider ?? "wasender";
 
-  // Natural, randomized pacing between consecutive sends (configurable in
-  // Account → WhatsApp Safety) so bulk queues don't fire in a bot-like burst.
-  // This runs client-side via setTimeout — never inside the API route — so it
-  // can never block a serverless request into a platform timeout.
-  // WaSender's free plan additionally hard-limits to 1 message/minute.
+  // Natural, randomized pacing between consecutive sends so bulk queues don't fire
+  // in a bot-like burst: a random 3-7 minutes between every message, with longer
+  // escalating breaks every 10th/50th/100th message (see minNaturalGapMs). This
+  // floor always applies regardless of the optional WhatsApp Safety toggle or
+  // provider — the Safety setting and WaSender's rate limit can only make the gap
+  // longer, never shorter. This runs client-side via setTimeout — never inside the
+  // API route — so it can never block a serverless request into a platform timeout.
   if (lastSentAt > 0) {
     const targetGapMs = Math.max(
       getWhatsAppRandomDelayMs(providerConfig),
       selectedProvider === "wasender" ? SEND_RATE_LIMIT_MS : 0,
-      MIN_NATURAL_GAP_MS,
+      minNaturalGapMs(sentCount),
     );
     const wait = targetGapMs - (Date.now() - lastSentAt);
     if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
   }
   lastSentAt = Date.now();
+  sentCount += 1;
+
+  // Warm-up ramp: never let today's effective daily limit exceed the number's
+  // warm-up ceiling, even if the salon's own Safety setting allows more.
+  const warmupCap = getTodaysWarmupCap();
+  const effectiveDailyLimit = Math.min(providerConfig.dailySendLimit ?? warmupCap, warmupCap);
 
   const messageIntent =
     logMeta.type === "lowstock" ? "internal"
@@ -241,12 +313,13 @@ async function callSendApi(
     const res = await fetch("/api/whatsapp/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        ...providerConfig, 
-        phone, 
-        text, 
+      body: JSON.stringify({
+        ...providerConfig,
+        dailySendLimit: effectiveDailyLimit,
+        phone,
+        text,
         messageIntent,
-        messageType: logMeta.type 
+        messageType: logMeta.type
       }),
     });
     const data = await res.json() as { ok?: boolean; errorReason?: string };
