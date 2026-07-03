@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users, Package } from "lucide-react";
+import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users, Package, Gift, Coins } from "lucide-react";
 import styles from "./Navbar.module.css";
 import DemoModal from "./DemoModal";
 
@@ -16,6 +16,8 @@ const featureLinks = [
   { label: "Staff Management",      desc: "Roles, services & performance stats",  href: "/features/staff-management",     Icon: UserCog },
   { label: "Client Management",     desc: "Profiles, formulas & visit history",   href: "/features/client-management",    Icon: Users },
   { label: "Inventory Management",  desc: "Stock levels, alerts & retail pricing", href: "/features/inventory-management",  Icon: Package },
+  { label: "Loyalty Points",        desc: "Points, rewards & membership tiers",   href: "/features/loyalty-points",       Icon: Gift },
+  { label: "Payroll Management",    desc: "Commission, salary & payout tracking", href: "/features/payroll-management",   Icon: Coins },
 ];
 
 const links = [
@@ -87,7 +89,7 @@ export default function Navbar() {
                     <strong className={styles.featuredTitle}>Everything your salon needs, in one place</strong>
                     <p className={styles.featuredBody}>Appointments, POS, inventory, staff, clients &amp; reports — no integrations needed.</p>
                     <div className={styles.featuredStats}>
-                      <div><strong>9</strong><span>Features</span></div>
+                      <div><strong>11</strong><span>Features</span></div>
                       
                     </div>
                     <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.featuredCta}>
