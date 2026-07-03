@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -13,6 +15,7 @@ import {
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import DemoModal from "./DemoModal";
 import styles from "./SchedulingFeaturePage.module.css";
 
 const scheduleBlocks = [
@@ -206,6 +209,7 @@ function PhoneBookingPanel() {
 
 
 export default function SchedulingFeaturePage() {
+  const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
       <Navbar />
@@ -222,9 +226,9 @@ export default function SchedulingFeaturePage() {
                 Salon Central keeps bookings, client details, stylist assignments, WhatsApp reminders, online booking, and checkout handoff in one dashboard built for Pakistan&apos;s beauty industry.
               </p>
               <div className={styles.heroActions}>
-                <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
+                <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
                   Get started <ArrowRight size={17} />
-                </a>
+                </button>
                 <Link href="/#features" className={styles.secondaryCta}>
                   Explore features
                 </Link>
@@ -260,9 +264,9 @@ export default function SchedulingFeaturePage() {
             <h2>Find out if Salon Central is right for your salon</h2>
           </div>
           <div className={styles.ctaActions}>
-            <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
+            <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
               Get started <ArrowRight size={17} />
-            </a>
+            </button>
             <Link href="/#pricing" className={styles.secondaryDark}>View pricing</Link>
           </div>
         </section>
@@ -291,6 +295,7 @@ export default function SchedulingFeaturePage() {
         </section>
       </main>
       <Footer />
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
   );
 }

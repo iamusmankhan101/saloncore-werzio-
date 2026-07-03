@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -5,6 +7,7 @@ import {
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import DemoModal from "./DemoModal";
 import styles from "./SchedulingFeaturePage.module.css";
 
 /* ─── hero loyalty card ──────────────────────────────────── */
@@ -161,6 +164,7 @@ const rows = [
 
 /* ─── page ───────────────────────────────────────────────── */
 export default function LoyaltyFeaturePage() {
+  const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
       <Navbar />
@@ -177,9 +181,9 @@ export default function LoyaltyFeaturePage() {
                 Salon Central awards points automatically on every sale, ranks clients through Bronze-to-Platinum tiers, and lets them redeem points for discounts — with a digital card they can add straight to their phone&apos;s wallet.
               </p>
               <div className={styles.heroActions}>
-                <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
+                <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
                   Get started <ArrowRight size={17} />
-                </a>
+                </button>
                 <Link href="/#pricing" className={styles.secondaryCta}>View pricing</Link>
               </div>
             </div>
@@ -213,9 +217,9 @@ export default function LoyaltyFeaturePage() {
             <h2>Start rewarding your clients today</h2>
           </div>
           <div className={styles.ctaActions}>
-            <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
+            <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
               Get started <ArrowRight size={17} />
-            </a>
+            </button>
             <Link href="/#pricing" className={styles.secondaryDark}>View pricing</Link>
           </div>
         </section>
@@ -244,6 +248,7 @@ export default function LoyaltyFeaturePage() {
         </section>
       </main>
       <Footer />
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
   );
 }

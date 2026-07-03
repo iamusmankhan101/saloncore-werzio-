@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -6,6 +8,7 @@ import {
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import DemoModal from "./DemoModal";
 import styles from "./SchedulingFeaturePage.module.css";
 
 /* ─── hero client card ───────────────────────────────────── */
@@ -414,6 +417,7 @@ const rows = [
 
 /* ─── page ───────────────────────────────────────────────── */
 export default function ClientFeaturePage() {
+  const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
       <Navbar />
@@ -430,9 +434,9 @@ export default function ClientFeaturePage() {
                 Salon Central builds a rich profile for every client — visit history, lifetime spend, hair formulas, allergy alerts, skin type, and tags — so your team delivers a personalised experience every single time.
               </p>
               <div className={styles.heroActions}>
-                <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
+                <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
                   Get started <ArrowRight size={17} />
-                </a>
+                </button>
                 <Link href="/#pricing" className={styles.secondaryCta}>View pricing</Link>
               </div>
             </div>
@@ -466,9 +470,9 @@ export default function ClientFeaturePage() {
             <h2>Build client relationships that bring people back</h2>
           </div>
           <div className={styles.ctaActions}>
-            <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
+            <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
               Get started <ArrowRight size={17} />
-            </a>
+            </button>
             <Link href="/#pricing" className={styles.secondaryDark}>View pricing</Link>
           </div>
         </section>
@@ -512,6 +516,7 @@ export default function ClientFeaturePage() {
         </section>
       </main>
       <Footer />
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
   );
 }

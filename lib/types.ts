@@ -62,6 +62,8 @@ export interface Service {
   priceRangeMax?: number;
   /** When present (2+ ids), this Service is a Deal/Package bundling these other service ids under one price. */
   packageServiceIds?: string[];
+  /** Ad-hoc services bundled into this Deal/Package that aren't part of the master service list. */
+  customServices?: { name: string; price?: number; durationMin?: number }[];
   assignedStaffIds: string[];
   isActive: boolean;
 }

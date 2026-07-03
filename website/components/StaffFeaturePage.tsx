@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -6,6 +8,7 @@ import {
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import DemoModal from "./DemoModal";
 import styles from "./SchedulingFeaturePage.module.css";
 
 /* ─── hero staff card ────────────────────────────────────── */
@@ -229,6 +232,7 @@ const rows = [
 
 /* ─── page ───────────────────────────────────────────────── */
 export default function StaffFeaturePage() {
+  const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
       <Navbar />
@@ -245,9 +249,9 @@ export default function StaffFeaturePage() {
                 Salon Central gives every team member a profile with their role, specialties, assigned services, and live performance stats — so your salon runs with clarity from the moment the doors open.
               </p>
               <div className={styles.heroActions}>
-                <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
+                <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
                   Get started <ArrowRight size={17} />
-                </a>
+                </button>
                 <Link href="/#pricing" className={styles.secondaryCta}>View pricing</Link>
               </div>
             </div>
@@ -281,9 +285,9 @@ export default function StaffFeaturePage() {
             <h2>Build your team in Salon Central today</h2>
           </div>
           <div className={styles.ctaActions}>
-            <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
+            <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
               Get started <ArrowRight size={17} />
-            </a>
+            </button>
             <Link href="/#pricing" className={styles.secondaryDark}>View pricing</Link>
           </div>
         </section>
@@ -312,6 +316,7 @@ export default function StaffFeaturePage() {
         </section>
       </main>
       <Footer />
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
   );
 }

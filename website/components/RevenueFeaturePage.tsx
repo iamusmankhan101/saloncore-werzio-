@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -13,6 +15,7 @@ import {
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import DemoModal from "./DemoModal";
 import styles from "./SchedulingFeaturePage.module.css";
 
 /* ─── hero revenue card ──────────────────────────────────── */
@@ -315,6 +318,7 @@ const rows = [
 
 /* ─── page ───────────────────────────────────────────────── */
 export default function RevenueFeaturePage() {
+  const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
       <Navbar />
@@ -333,9 +337,9 @@ export default function RevenueFeaturePage() {
                 Salon Central gives you a live revenue dashboard with period-over-period comparisons, payment method breakdowns, top service rankings, daily tables, and one-click PDF export — no spreadsheet needed.
               </p>
               <div className={styles.heroActions}>
-                <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
+                <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
                   Get started <ArrowRight size={17} />
-                </a>
+                </button>
                 <Link href="/#pricing" className={styles.secondaryCta}>
                   View pricing
                 </Link>
@@ -373,9 +377,9 @@ export default function RevenueFeaturePage() {
             <h2>Know your numbers without opening a spreadsheet</h2>
           </div>
           <div className={styles.ctaActions}>
-            <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.primaryCta}>
+            <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
               Get started <ArrowRight size={17} />
-            </a>
+            </button>
             <Link href="/#pricing" className={styles.secondaryDark}>View pricing</Link>
           </div>
         </section>
@@ -406,6 +410,7 @@ export default function RevenueFeaturePage() {
 
       </main>
       <Footer />
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
   );
 }
