@@ -100,6 +100,12 @@ function alreadySent(key: string): boolean {
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 60_000;           // wait 1 minute before retrying a failed send
 const SEND_RATE_LIMIT_MS = 60_000;       // WaSender free plan: 1 message per minute
+// Absolute floor between any two automated sends, independent of the optional WhatsApp
+// Safety toggle and of provider — without this, disabling Safety (or using BotSailor/
+// Zaptick, which have no built-in rate limit) let two different automated queues
+// (e.g. a follow-up and a cancellation due in the same scheduler tick) fire with zero
+// gap, so they land in the log at literally the same second.
+const MIN_NATURAL_GAP_MS = 8_000;
 
 let lastSentAt = 0;
 let schedulerRunning = false;

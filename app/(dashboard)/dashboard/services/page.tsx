@@ -68,15 +68,22 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
   const includedTotal    = includedServices.reduce((s, sv) => s + sv.price, 0) + form.customServices.reduce((s, cs) => s + (cs.price ?? 0), 0);
   const includedDuration = includedServices.reduce((s, sv) => s + sv.durationMin, 0) + form.customServices.reduce((s, cs) => s + (cs.durationMin ?? 0), 0);
 
+  // Suggest a deal price/duration = sum of included services' + custom services' price/duration;
+  // both remain editable afterward, same as the pre-existing duration suggestion.
+  const recalcPackageTotals = (ids: string[], customs: typeof form.customServices) => {
+    const included = selectableServices.filter((s) => ids.includes(s.id));
+    const sumDuration = included.reduce((s, sv) => s + sv.durationMin, 0) + customs.reduce((s, cs) => s + (cs.durationMin ?? 0), 0);
+    const sumPrice    = included.reduce((s, sv) => s + sv.price, 0)       + customs.reduce((s, cs) => s + (cs.price ?? 0), 0);
+    if (sumDuration > 0) set("durationMin", String(sumDuration));
+    set("price", sumPrice > 0 ? String(sumPrice) : "");
+  };
+
   const togglePackageService = (id: string) => {
     const cur = form.packageServiceIds.includes(id)
       ? form.packageServiceIds.filter((x: string) => x !== id)
       : [...form.packageServiceIds, id];
     set("packageServiceIds", cur);
-    // Suggest a duration = sum of included services' durations; still editable after.
-    const sumDuration = selectableServices.filter((s) => cur.includes(s.id)).reduce((s, sv) => s + sv.durationMin, 0)
-      + form.customServices.reduce((s, cs) => s + (cs.durationMin ?? 0), 0);
-    if (sumDuration > 0) set("durationMin", String(sumDuration));
+    recalcPackageTotals(cur, form.customServices);
   };
 
   const addCustomService = () => {
@@ -88,14 +95,14 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
     };
     const cur = [...form.customServices, entry];
     set("customServices", cur);
-    const sumDuration = selectableServices.filter((s) => form.packageServiceIds.includes(s.id)).reduce((s, sv) => s + sv.durationMin, 0)
-      + cur.reduce((s, cs) => s + (cs.durationMin ?? 0), 0);
-    if (sumDuration > 0) set("durationMin", String(sumDuration));
+    recalcPackageTotals(form.packageServiceIds, cur);
     setCustomName(""); setCustomPrice(""); setCustomDuration("");
   };
 
   const removeCustomService = (idx: number) => {
-    set("customServices", form.customServices.filter((_, i) => i !== idx));
+    const cur = form.customServices.filter((_, i) => i !== idx);
+    set("customServices", cur);
+    recalcPackageTotals(form.packageServiceIds, cur);
   };
 
   const toggleStaff = (id: string) => {
@@ -135,7 +142,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 460, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 460, maxHeight: "90vh", overflowY: "auto", overflowX: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>{isEditing ? "Edit Service" : "Add Service"}</div>
           <button type="button" onClick={onClose} aria-label="Close service form" style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#6b6b8a" /></button>
@@ -246,15 +253,15 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
                   ))}
                 </div>
               )}
-              <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Service name"
-                  style={{ flex: 2, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
+                  style={{ flex: "2 1 120px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
                 <input type="number" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} placeholder="Price"
-                  style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
+                  style={{ flex: "1 1 60px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
                 <input type="number" value={customDuration} onChange={(e) => setCustomDuration(e.target.value)} placeholder="Mins"
-                  style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
+                  style={{ flex: "1 1 60px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
                 <button type="button" onClick={addCustomService} disabled={!customName.trim()}
-                  style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: customName.trim() ? "#a16207" : "#e8e8f0", color: customName.trim() ? "#fff" : "#b0b0c8", fontSize: 12, fontWeight: 700, cursor: customName.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 4 }}>
+                  style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 8, border: "none", background: customName.trim() ? "#a16207" : "#e8e8f0", color: customName.trim() ? "#fff" : "#b0b0c8", fontSize: 12, fontWeight: 700, cursor: customName.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 4 }}>
                   <Plus size={13} /> Add
                 </button>
               </div>
