@@ -7,19 +7,16 @@ const steps = [
     n: "01",
     title: "Simple And Fast Setup",
     desc: "Create your salon profile, add your services and staff — fully live in under 3 minutes.",
-    preview: true,
   },
   {
     n: "02",
     title: "Connect WhatsApp & Go Live",
     desc: "Link your WhatsApp Business number and your booking bot activates instantly — no code needed.",
-    preview: false,
   },
   {
     n: "03",
     title: "Grow Your Salon on Autopilot",
     desc: "Automated reminders cut no-shows by 45%. Re-engagement messages bring back lapsed clients.",
-    preview: false,
   },
 ];
 
@@ -93,6 +90,14 @@ export default function HowItWorks() {
                   <div className={styles.listItem} style={{ width: "70%" }} />
                   <div className={styles.listItem} style={{ width: "85%" }} />
                   <div className={styles.badge}>Confirmed</div>
+                  <div className={styles.mockupChart}>
+                    <div className={styles.mockupChartLabel}>This Week</div>
+                    <div className={styles.mockupBars}>
+                      {[40, 65, 50, 80, 60, 90, 70].map((h, i) => (
+                        <div key={i} className={styles.mockupBar} style={{ height: `${h}%` }} />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -105,7 +110,7 @@ export default function HowItWorks() {
             <div
               key={s.n}
               ref={(el) => { cardRefs.current[i] = el; }}
-              className={`${styles.stepCard} ${s.preview ? styles.stepCardActive : ""}`}
+              className={`${styles.stepCard} ${i === 0 ? styles.stepCardActive : ""}`}
               style={{
                 opacity: 0,
                 transform: "translateY(40px)",
@@ -118,7 +123,8 @@ export default function HowItWorks() {
               <div className={styles.stepRight}>
                 <h3 className={styles.stepTitle}>{s.title}</h3>
                 <p className={styles.stepDesc}>{s.desc}</p>
-                {s.preview && (
+
+                {i === 0 && (
                   <div className={styles.formPreview}>
                     <div className={styles.formRow}>
                       <div className={styles.formBox}>
@@ -130,6 +136,21 @@ export default function HowItWorks() {
                         <div className={styles.formInput} />
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {i === 1 && (
+                  <div className={styles.miniChipRow}>
+                    <span className={styles.miniChipDone}>
+                      <span className={styles.miniChipDot} /> WhatsApp Connected
+                    </span>
+                  </div>
+                )}
+
+                {i === 2 && (
+                  <div className={styles.miniChipRow}>
+                    <span className={styles.miniStatChip}><strong>−45%</strong>&nbsp;No-Shows</span>
+                    <span className={styles.miniStatChip}><strong>+28%</strong>&nbsp;Repeat Visits</span>
                   </div>
                 )}
               </div>

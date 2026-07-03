@@ -178,6 +178,31 @@
   font-weight: 600;
 }
 
+.mockupChart {
+  margin-top: 18px;
+}
+
+.mockupChartLabel {
+  font-size: 0.6rem;
+  color: #999;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.mockupBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 42px;
+}
+
+.mockupBar {
+  flex: 1;
+  min-height: 4px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, #818cf8, #6366f1);
+}
+
 /* ── Right steps ── */
 .steps {
   display: flex;
@@ -187,26 +212,48 @@
 
 .stepCard {
   background: #f7f7f9;
+  border: 1.5px solid transparent;
   border-radius: 18px;
   padding: 22px 22px;
   display: flex;
   gap: 16px;
   align-items: flex-start;
+  position: relative;
+  transition: transform .25s, box-shadow .25s, border-color .25s, background .25s;
+}
+
+.stepCard:hover {
+  transform: translateX(4px);
+  border-color: rgba(99,102,241,.28);
+  box-shadow: 0 12px 30px rgba(99,102,241,.10);
 }
 
 .stepCardActive {
-  background: #f0f0f8;
+  background: #f5f4ff;
+  border-color: rgba(99,102,241,.18);
   box-shadow: 0 4px 20px rgba(99,102,241,0.08);
 }
 
 .stepLeft {
   flex-shrink: 0;
+  position: relative;
+}
+
+.stepCard:not(:last-child) .stepLeft::after {
+  content: '';
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 42px;
+  background: linear-gradient(180deg, rgba(99,102,241,.4), rgba(99,102,241,0));
 }
 
 .numCircle {
   width: 44px; height: 44px;
   border-radius: 50%;
-  background: #5b6af0;
+  background: linear-gradient(135deg, #6366f1, #818cf8);
   color: #fff;
   font-size: 0.78rem;
   font-weight: 800;
@@ -214,6 +261,9 @@
   align-items: center;
   justify-content: center;
   letter-spacing: 0.02em;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 6px 16px rgba(99,102,241,.35);
 }
 
 .stepRight {
@@ -264,6 +314,53 @@
   background: #f5f5f8;
   border-radius: 7px;
   border: 1px solid #e8e8ec;
+}
+
+/* mini preview chips inside steps 2 & 3 */
+.miniChipRow {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.miniChipDone {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #047857;
+}
+
+.miniChipDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16,185,129,.18);
+  flex-shrink: 0;
+}
+
+.miniStatChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: #fff;
+  border: 1px solid #ececf0;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  color: #333;
+}
+
+.miniStatChip strong {
+  color: #4c1d95;
+  font-weight: 800;
+  margin-right: 2px;
 }
 
 /* ── Responsive ── */
