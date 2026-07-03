@@ -1,5 +1,6 @@
 import type { Client, Appointment, Staff } from "./types";
 import { getTier, TIER_META, pointsToRupees, nextTierThreshold, type LoyaltySettings } from "./loyalty";
+import type { Payout } from "./payouts";
 
 function fmtCur(n: number) {
   return "Rs. " + n.toLocaleString("en-PK", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -773,4 +774,148 @@ export function exportStaffPdf(
   </div>`;
 
   openPrint(html, `${staff.name} — Staff Profile`);
+}
+
+// ── PAYOUT / SALARY SLIP PDF ────────────────────────────────────────────────────
+
+const PAY_METHOD_LABELS: Record<string, string> = {
+  cash: "Cash", bank: "Bank Transfer", jazzcash: "JazzCash", easypaisa: "Easypaisa", card: "Card", other: "Other",
+};
+
+export function exportPayoutSlipPdf(
+  payout: Payout,
+  staff: Staff | undefined,
+  salonName: string,
+) {
+  const [roleColor, roleBg] = staff ? (ROLE_COLORS[staff.role] ?? ["#5b21b6", "#ede9fe"]) : ["#5b21b6", "#ede9fe"];
+  const isPaid = payout.status === "paid";
+
+  const rows = [
+    payout.payType === "commission"
+      ? { label: `Revenue Generated (${fmtDate(payout.periodStart)} – ${fmtDate(payout.periodEnd)})`, value: fmtCur(payout.revenueGenerated) }
+      : null,
+    payout.payType === "commission"
+      ? { label: `Commission (${payout.commissionRate ?? 0}%)`, value: fmtCur(payout.baseAmount) }
+      : { label: "Base Salary", value: fmtCur(payout.baseAmount) },
+    payout.adjustment !== 0
+      ? { label: payout.adjustmentNote ? `Adjustment — ${payout.adjustmentNote}` : "Adjustment", value: `${payout.adjustment > 0 ? "+" : ""}${fmtCur(payout.adjustment)}` }
+      : null,
+  ].filter((r): r is { label: string; value: string } => r !== null);
+
+  const rowsHtml = rows.map(r => `
+    <tr>
+      <td style="font-weight:600">${r.label}</td>
+      <td class="r">${r.value}</td>
+    </tr>`).join("");
+
+  const html = `
+  <div class="page">
+    <div class="header">
+      <div class="header-pattern"></div>
+      <div class="header-circles"></div>
+      <div class="header-inner">
+        <div class="header-left">
+          <div class="avatar-wrap">
+            <div class="avatar">${payout.staffName.charAt(0).toUpperCase()}</div>
+            <div class="avatar-ring"></div>
+          </div>
+          <div class="header-info">
+            <div class="header-name">${payout.staffName}</div>
+            <div class="header-badges">
+              ${staff ? `<span class="badge" style="background:${roleBg};color:${roleColor};border-color:${roleColor}40">${staff.role.replace(/-/g, " ")}</span>` : ""}
+              <span class="badge ${isPaid ? "badge-success" : "badge-gold"}">${isPaid ? "● Paid" : "● Pending"}</span>
+            </div>
+            <div class="header-meta">
+              ${staff?.phone ? `📞 ${staff.phone}<br>` : ""}
+              🗓 ${fmtDate(payout.periodStart)} – ${fmtDate(payout.periodEnd)}
+            </div>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="salon-name">${salonName}</div>
+          <div class="report-type">Salary Slip</div>
+          <div class="report-date">Generated: ${fmtDateLong()}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI STRIP -->
+    <div class="kpi-strip" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi-item">
+        <div class="kpi-icon">💰</div>
+        <div class="kpi-val" style="color:#6d28d9">${fmtCur(payout.totalAmount)}</div>
+        <div class="kpi-lbl">Total Payout</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-icon">${payout.payType === "commission" ? "📊" : "🏦"}</div>
+        <div class="kpi-val" style="color:#0284c7;font-size:16px;text-transform:capitalize">${payout.payType}</div>
+        <div class="kpi-lbl">Pay Type</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-icon">${isPaid ? "✅" : "⏳"}</div>
+        <div class="kpi-val" style="color:${isPaid ? "#059669" : "#d97706"};font-size:16px">${isPaid ? "Paid" : "Pending"}</div>
+        <div class="kpi-lbl">${isPaid && payout.paidDate ? fmtDate(payout.paidDate) : "Awaiting payment"}</div>
+      </div>
+    </div>
+
+    <div class="body">
+
+      <!-- PAYOUT BREAKDOWN -->
+      <div class="section-head">
+        <div class="section-icon">🧾</div>
+        <div class="section-title">Payout Breakdown</div>
+        <div class="section-line"></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th class="r">Amount</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;margin-top:12px;border-radius:14px;background:#faf9ff;border:1px solid #ede9fe">
+        <span style="font-size:13px;font-weight:800;color:#6d28d9;text-transform:uppercase;letter-spacing:0.06em">Total Payout</span>
+        <span style="font-size:22px;font-weight:900;color:#6d28d9">${fmtCur(payout.totalAmount)}</span>
+      </div>
+
+      <!-- PAYMENT DETAILS -->
+      <div class="section-head">
+        <div class="section-icon">💳</div>
+        <div class="section-title">Payment Details</div>
+        <div class="section-line"></div>
+      </div>
+      <div class="info-grid">
+        <div class="info-item"><div class="info-label">Status</div><div class="info-value" style="color:${isPaid ? "#059669" : "#d97706"}">${isPaid ? "● Paid" : "● Pending"}</div></div>
+        <div class="info-item"><div class="info-label">Payment Method</div><div class="info-value">${payout.paymentMethod ? (PAY_METHOD_LABELS[payout.paymentMethod] ?? payout.paymentMethod) : "—"}</div></div>
+        <div class="info-item"><div class="info-label">Paid Date</div><div class="info-value">${payout.paidDate ? fmtDate(payout.paidDate) : "—"}</div></div>
+        <div class="info-item"><div class="info-label">Pay Period</div><div class="info-value">${fmtDate(payout.periodStart)} – ${fmtDate(payout.periodEnd)}</div></div>
+      </div>
+
+      <!-- NOTES -->
+      ${payout.notes ? `
+      <div class="section-head">
+        <div class="section-icon">📝</div>
+        <div class="section-title">Notes</div>
+        <div class="section-line"></div>
+      </div>
+      <div class="notes-box">"${payout.notes}"</div>` : ""}
+
+      <!-- FOOTER -->
+      <div class="footer">
+        <div class="footer-brand">
+          <div class="footer-logo">W</div>
+          <div>
+            <div class="footer-salon">${salonName}</div>
+            <div class="footer-powered">Powered by Salon Central</div>
+          </div>
+        </div>
+        <div class="footer-right">
+          Salary Slip &nbsp;·&nbsp; ${fmtDateLong()}<br>
+          <span style="color:#e9d5ff">Confidential — for internal use only</span>
+        </div>
+      </div>
+
+    </div>
+  </div>`;
+
+  openPrint(html, `${payout.staffName} — Salary Slip (${fmtDate(payout.periodStart)} to ${fmtDate(payout.periodEnd)})`);
 }

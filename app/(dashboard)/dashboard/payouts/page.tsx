@@ -7,9 +7,11 @@ import type { Staff, Appointment } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
   Wallet, X, Trash2, Clock, TrendingUp, Users as UsersIcon,
-  CheckCircle2, Banknote,
+  CheckCircle2, Banknote, FileDown,
 } from "lucide-react";
 import PageTitle from "@/components/page-title";
+import { exportPayoutSlipPdf } from "@/lib/export-pdf";
+import { settingsStore } from "@/lib/settings-store";
 
 const PAY_METHOD_OPTIONS = ["cash", "bank", "jazzcash", "easypaisa", "card", "other"];
 
@@ -476,6 +478,10 @@ export default function PayoutsPage() {
                             <CheckCircle2 size={13} color="#059669" />
                           </button>
                         )}
+                        <button onClick={() => exportPayoutSlipPdf(p, staffList.find((s) => s.id === p.staffId), settingsStore.salon.name as string)} title="Download Salary Slip"
+                          style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #EDE9FE", background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                          <FileDown size={13} color="#7C3AED" />
+                        </button>
                         <button onClick={() => setDeleteTarget(p)} title="Delete"
                           style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                           <Trash2 size={13} color="#dc2626" />
