@@ -97,8 +97,14 @@ function alreadySent(key: string): boolean {
   return !!getSentLog()[key];
 }
 
-const MAX_RETRIES = 5;
-const RETRY_DELAY_MS = 60_000;           // wait 1 minute before retrying a failed send
+// Initial attempt + exactly one retry — repeatedly hammering a bad number or a down
+// provider is riskier than just giving up sooner, so we no longer retry more than once.
+const MAX_RETRIES = 2;
+const RETRY_MIN_DELAY_MS = 30 * 60_000;
+const RETRY_MAX_DELAY_MS = 60 * 60_000;
+function nextRetryDelayMs(): number {
+  return RETRY_MIN_DELAY_MS + Math.random() * (RETRY_MAX_DELAY_MS - RETRY_MIN_DELAY_MS);
+}
 const SEND_RATE_LIMIT_MS = 60_000;       // WaSender free plan: 1 message per minute
 // Absolute floor between any two automated sends, independent of the optional WhatsApp
 // Safety toggle and of provider — without this, disabling Safety (or using BotSailor/
@@ -218,6 +224,7 @@ async function callSendApi(
     const targetGapMs = Math.max(
       getWhatsAppRandomDelayMs(providerConfig),
       selectedProvider === "wasender" ? SEND_RATE_LIMIT_MS : 0,
+      MIN_NATURAL_GAP_MS,
     );
     const wait = targetGapMs - (Date.now() - lastSentAt);
     if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
@@ -381,7 +388,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
       sent[sentKey] = todayKey;
       localStorage.setItem(locationUserKey(BIRTHDAY_SENT_KEY), JSON.stringify(sent));
     } else if (item.retries < MAX_RETRIES - 1) {
-      remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + RETRY_DELAY_MS });
+      remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
     }
   }
   setQueue(BIRTHDAY_QUEUE_KEY, remaining);
@@ -477,7 +484,7 @@ async function runSchedulerInternal(): Promise<void> {
     }
   }
 
-  // 2. Booking confirmations — drain the confirm queue (up to MAX_RETRIES attempts, 1-min apart)
+  // 2. Booking confirmations — drain the confirm queue (one retry after 30-60 min on failure)
   if (ws.autoConfirmation && waTpl.confirmation) {
     const queue = getQueue(CONFIRM_QUEUE_KEY);
     const remaining: QueueItem[] = [];
@@ -506,13 +513,13 @@ async function runSchedulerInternal(): Promise<void> {
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
-        remaining.push({ id: item.id, retries: item.retries + 1, sendAfter: Date.now() + RETRY_DELAY_MS });
+        remaining.push({ id: item.id, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
       }
     }
     setQueue(CONFIRM_QUEUE_KEY, remaining);
   }
 
-  // 3. Follow-up messages — sendAfter controls initial delay; retry with 1-min gap on failure.
+  // 3. Follow-up messages — sendAfter controls initial delay; retries once after a 30-60 min delay on failure.
   if (ws.autoFollowup && waTpl.followup) {
     const queue = getQueue(FOLLOWUP_QUEUE_KEY);
     const remaining: QueueItem[] = [];
@@ -535,13 +542,13 @@ async function runSchedulerInternal(): Promise<void> {
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
-        remaining.push({ id: item.id, retries: item.retries + 1, sendAfter: Date.now() + RETRY_DELAY_MS });
+        remaining.push({ id: item.id, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
       }
     }
     setQueue(FOLLOWUP_QUEUE_KEY, remaining);
   }
 
-  // 4. Cancellation win-back — retry with 1-min gap on failure.
+  // 4. Cancellation win-back — retries once after a 30-60 min delay on failure.
   const cancelTpl = (settingsStore.whatsapp as { cancellation: string }).cancellation;
   if (ws.autoCancellation && cancelTpl) {
     const queue = getQueue(CANCEL_QUEUE_KEY);
@@ -565,7 +572,7 @@ async function runSchedulerInternal(): Promise<void> {
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
-        remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + RETRY_DELAY_MS });
+        remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
       }
     }
     setQueue(CANCEL_QUEUE_KEY, remaining);
