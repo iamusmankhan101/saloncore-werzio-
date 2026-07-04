@@ -309,15 +309,19 @@ async function callSendApi(
   // provider — the Safety setting and WaSender's rate limit can only make the gap
   // longer, never shorter. This runs client-side via setTimeout — never inside the
   // API route — so it can never block a serverless request into a platform timeout.
-  if (lastSentAt > 0) {
-    const targetGapMs = Math.max(
-      getWhatsAppRandomDelayMs(providerConfig),
-      selectedProvider === "wasender" ? SEND_RATE_LIMIT_MS : 0,
-      minNaturalGapMs(sentCount),
-    );
-    const wait = targetGapMs - (Date.now() - lastSentAt);
-    if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
-  }
+  // Note: this always runs, even for the very first send of a fresh page load —
+  // e.g. right after WhatsApp gets reconfigured with a backlog of messages queued
+  // up while it was disconnected. Skipping the wait for "no previous send this
+  // session" would let that whole backlog's first message fire instantly before
+  // pacing kicks in for the rest, defeating the point of the queue never blasting.
+  const targetGapMs = Math.max(
+    getWhatsAppRandomDelayMs(providerConfig),
+    selectedProvider === "wasender" ? SEND_RATE_LIMIT_MS : 0,
+    minNaturalGapMs(sentCount),
+  );
+  const elapsedSinceLast = lastSentAt > 0 ? Date.now() - lastSentAt : 0;
+  const wait = targetGapMs - elapsedSinceLast;
+  if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
   lastSentAt = Date.now();
   sentCount += 1;
 
