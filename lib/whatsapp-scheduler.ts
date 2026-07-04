@@ -247,12 +247,12 @@ export async function sendGroupBookingAlert(appt: {
   await callSendApi(ws.bookingGroupJid, text, { type: "manual", clientName: "Group" });
 }
 
-/** Call when a new appointment is booked — sends confirmation after a short natural delay (1-2 min), not instantly. */
+/** Call when a new appointment is booked — sends confirmation after a random 0-5 min delay, not instantly, so every booking's confirmation doesn't land at the same moment. */
 export function enqueueWhatsAppConfirmation(apptId: string) {
   if (typeof window === "undefined") return;
   const q = getQueue(CONFIRM_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
-    const delayMs = 60_000 + Math.random() * 60_000; // 1-2 minutes
+    const delayMs = Math.random() * 5 * 60_000; // 0-5 minutes
     setQueue(CONFIRM_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs }]);
   }
 }
@@ -288,6 +288,45 @@ export function enqueueWhatsAppCancellation(apptId: string) {
   }
 }
 
+type ProviderConfig = WhatsAppSafetyConfig & {
+  provider?: string;
+  apiKey?: string;
+  botSailorApiToken?: string;
+  botSailorPhoneNumberId?: string;
+  zaptickApiKey?: string;
+};
+
+// Natural, randomized pacing applied before *every* logged outcome — a successful
+// send, a failed send, or an instant validation failure (missing phone, appointment
+// not found, etc.) — not just real network attempts. A validation failure never
+// touches the network, but if it skipped this gate it could still log at the exact
+// same timestamp as a real send processed earlier in the same tick (e.g. two
+// different message types landing in the log at the same minute), which looks
+// exactly like an unpaced burst even though only one real message went out.
+//
+// Base pacing is a random 3-7 minutes between every logged item, with longer
+// escalating breaks every 10th/50th/100th one (see minNaturalGapMs). This floor
+// always applies regardless of the optional WhatsApp Safety toggle or provider —
+// the Safety setting and WaSender's rate limit can only make the gap longer, never
+// shorter. Also always runs for the very first item of a fresh page load — e.g.
+// right after WhatsApp gets reconfigured with a backlog queued up while it was
+// disconnected — so that backlog's first item doesn't fire instantly before pacing
+// kicks in for the rest. Runs client-side via setTimeout — never inside the API
+// route — so it can never block a serverless request into a platform timeout.
+async function applyPacingGate(providerConfig: ProviderConfig): Promise<void> {
+  const selectedProvider = providerConfig.provider ?? "wasender";
+  const targetGapMs = Math.max(
+    getWhatsAppRandomDelayMs(providerConfig),
+    selectedProvider === "wasender" ? SEND_RATE_LIMIT_MS : 0,
+    minNaturalGapMs(sentCount),
+  );
+  const elapsedSinceLast = lastSentAt > 0 ? Date.now() - lastSentAt : 0;
+  const wait = targetGapMs - elapsedSinceLast;
+  if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
+  lastSentAt = Date.now();
+  sentCount += 1;
+}
+
 async function callSendApi(
   phone: string,
   text: string,
@@ -300,30 +339,8 @@ async function callSendApi(
     botSailorPhoneNumberId?: string;
     zaptickApiKey?: string;
   };
-  const selectedProvider = providerConfig.provider ?? "wasender";
 
-  // Natural, randomized pacing between consecutive sends so bulk queues don't fire
-  // in a bot-like burst: a random 3-7 minutes between every message, with longer
-  // escalating breaks every 10th/50th/100th message (see minNaturalGapMs). This
-  // floor always applies regardless of the optional WhatsApp Safety toggle or
-  // provider — the Safety setting and WaSender's rate limit can only make the gap
-  // longer, never shorter. This runs client-side via setTimeout — never inside the
-  // API route — so it can never block a serverless request into a platform timeout.
-  // Note: this always runs, even for the very first send of a fresh page load —
-  // e.g. right after WhatsApp gets reconfigured with a backlog of messages queued
-  // up while it was disconnected. Skipping the wait for "no previous send this
-  // session" would let that whole backlog's first message fire instantly before
-  // pacing kicks in for the rest, defeating the point of the queue never blasting.
-  const targetGapMs = Math.max(
-    getWhatsAppRandomDelayMs(providerConfig),
-    selectedProvider === "wasender" ? SEND_RATE_LIMIT_MS : 0,
-    minNaturalGapMs(sentCount),
-  );
-  const elapsedSinceLast = lastSentAt > 0 ? Date.now() - lastSentAt : 0;
-  const wait = targetGapMs - elapsedSinceLast;
-  if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
-  lastSentAt = Date.now();
-  sentCount += 1;
+  await applyPacingGate(providerConfig);
 
   // Warm-up ramp: never let today's effective daily limit exceed the number's
   // warm-up ceiling, even if the salon's own Safety setting allows more.
@@ -465,6 +482,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
     const sentKey = `${item.id}_${year}`;
     if (sent[sentKey]) continue;
     if (!phone) {
+      await applyPacingGate(ws);
       appendLog({ type: "birthday", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
       continue;
     }
@@ -561,7 +579,7 @@ async function runSchedulerInternal(): Promise<void> {
 
   // Confirmations should always land in the client's chat before any reminder does —
   // skip reminders for appointments still waiting on a queued confirmation (it sends
-  // after a deliberate 1-2 min delay, see enqueueWhatsAppConfirmation) so a same-day
+  // after a deliberate 0-5 min delay, see enqueueWhatsAppConfirmation) so a same-day
   // booking's reminder can't win the race and arrive first.
   const pendingConfirmIds = new Set(getQueue(CONFIRM_QUEUE_KEY).map((item) => item.id));
 
@@ -594,10 +612,12 @@ async function runSchedulerInternal(): Promise<void> {
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
       if (!appt) {
+        await applyPacingGate(ws);
         appendLog({ type: "confirmation", clientName: item.clientName ?? "Unknown client", phone: item.phone ?? "", status: "failed", templateId: "direct", error: "Appointment was not found when the confirmation was processed." });
         continue;
       }
       if (!phone) {
+        await applyPacingGate(ws);
         appendLog({ type: "confirmation", clientName: appt.clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
@@ -605,6 +625,7 @@ async function runSchedulerInternal(): Promise<void> {
       if (alreadySent(sentKey)) continue;
       const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
       if (apptTime < now) {
+        await applyPacingGate(ws);
         appendLog({ type: "confirmation", clientName: appt.clientName, phone, status: "failed", templateId: "direct", error: "Appointment time had already passed before confirmation could be sent." });
         continue;
       }
@@ -628,10 +649,12 @@ async function runSchedulerInternal(): Promise<void> {
       const appt = appointments.find((a) => a.id === item.id);
       const phone = appt ? clientPhone(appt.clientId) : "";
       if (!appt) {
+        await applyPacingGate(ws);
         appendLog({ type: "followup", clientName: item.clientName ?? "Unknown client", phone: item.phone ?? "", status: "failed", templateId: "direct", error: "Appointment was not found when the follow-up was processed." });
         continue;
       }
       if (!phone) {
+        await applyPacingGate(ws);
         appendLog({ type: "followup", clientName: appt.clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
@@ -661,6 +684,7 @@ async function runSchedulerInternal(): Promise<void> {
       const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
       const clientName = appt?.clientName ?? item.clientName ?? "there";
       if (!phone) {
+        await applyPacingGate(ws);
         appendLog({ type: "cancellation", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
