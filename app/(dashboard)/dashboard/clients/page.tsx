@@ -471,6 +471,29 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
             </PanelSection>
           )}
 
+          {/* WhatsApp marketing opt-in — governs birthday offers & cancellation win-backs only; booking confirmations and reminders always send regardless. */}
+          <PanelSection title="WhatsApp Marketing">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>
+                  {client.whatsappOptedOut ? "Opted out of marketing messages" : "Receives marketing messages"}
+                </div>
+                <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>
+                  Birthday offers and cancellation win-backs only. Booking confirmations and reminders are unaffected.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onUpdate?.({ ...client, whatsappOptedOut: !client.whatsappOptedOut })}
+                aria-label={client.whatsappOptedOut ? "Opt client back into marketing messages" : "Opt client out of marketing messages"}
+                aria-pressed={!client.whatsappOptedOut}
+                style={{ width: 40, height: 22, padding: 0, border: "none", borderRadius: 11, background: client.whatsappOptedOut ? "#e0e0ec" : "#059669", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}
+              >
+                <div style={{ position: "absolute", top: 2, left: client.whatsappOptedOut ? 2 : 20, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+              </button>
+            </div>
+          </PanelSection>
+
           {/* Beauty Profile */}
           {profile && (
             <PanelSection title="Beauty Profile">

@@ -622,6 +622,37 @@ export default function ClientProfilePage() {
               </div>
             )}
 
+            {/* WhatsApp marketing opt-in — governs birthday offers & cancellation win-backs only; booking confirmations and reminders always send regardless. */}
+            <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e8e8f0", overflow: "hidden" }}>
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid #f0f0f8" }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e" }}>WhatsApp Marketing</div>
+              </div>
+              <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e" }}>
+                    {client.whatsappOptedOut ? "Opted out of marketing messages" : "Receives marketing messages"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>
+                    Birthday offers and cancellation win-backs only. Booking confirmations and reminders are unaffected.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated: Client = { ...client, whatsappOptedOut: !client.whatsappOptedOut };
+                    const all = getStoredClients();
+                    saveClients(all.map((c) => (c.id === updated.id ? updated : c)));
+                    setClient(updated);
+                  }}
+                  aria-label={client.whatsappOptedOut ? "Opt client back into marketing messages" : "Opt client out of marketing messages"}
+                  aria-pressed={!client.whatsappOptedOut}
+                  style={{ width: 40, height: 22, padding: 0, border: "none", borderRadius: 11, background: client.whatsappOptedOut ? "#e0e0ec" : "#059669", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}
+                >
+                  <div style={{ position: "absolute", top: 2, left: client.whatsappOptedOut ? 2 : 20, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                </button>
+              </div>
+            </div>
+
             {/* Beauty Profile */}
             {profile && (
               <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e8e8f0", overflow: "hidden" }}>

@@ -89,6 +89,8 @@ export interface Client {
   notes?: string;
   loyaltyPoints?: number;
   loyaltyPointsEarned?: number;
+  /** Client has opted out of marketing WhatsApp messages (birthday offers, cancellation win-back). Transactional messages (confirmations, reminders) are unaffected. */
+  whatsappOptedOut?: boolean;
 }
 
 export type LoyaltyTxType = "earn" | "redeem" | "adjust";

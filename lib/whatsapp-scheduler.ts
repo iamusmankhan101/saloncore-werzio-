@@ -378,10 +378,26 @@ async function callSendApi(
   const warmupCap = getTodaysWarmupCap();
   const effectiveDailyLimit = Math.min(providerConfig.dailySendLimit ?? warmupCap, warmupCap);
 
+  // Intent drives which safety rules apply (see checkWhatsAppSafety):
+  //   marketing → quiet hours + opt-in required + daily/recipient caps
+  //   utility   → none of the above (still paced, still capped by daily send limit)
+  //   internal  → owner-facing alerts, no client-safety rules at all
+  // Follow-ups are transactional (thank-you/feedback), not a promotional discount
+  // push like birthday/cancellation offers, so they stay in "utility" — no quiet
+  // hours, no hard opt-in block (opt-in is only *recommended* for these, not
+  // enforced).
   const messageIntent =
     logMeta.type === "lowstock" ? "internal"
-    : ["followup", "cancellation", "birthday"].includes(logMeta.type) ? "marketing"
+    : ["cancellation", "birthday"].includes(logMeta.type) ? "marketing"
     : "utility";
+
+  // Real per-client opt-out status — without this, blockMarketingWithoutOptIn in
+  // Account → WhatsApp Safety has nothing to check against and never actually blocks
+  // anything. undefined (client not found) is treated as "unknown", not opted out,
+  // so marketing sends aren't blocked for phone numbers we can't match to a client.
+  const matchedClient = getStoredClients().find((c) => c.phone && normalizePhone(c.phone) === phone);
+  const recipientOptedIn = matchedClient ? !matchedClient.whatsappOptedOut : undefined;
+
   let ok = false;
   let errorReason: string | undefined;
   try {
@@ -394,7 +410,8 @@ async function callSendApi(
         phone,
         text,
         messageIntent,
-        messageType: logMeta.type
+        messageType: logMeta.type,
+        recipientOptedIn,
       }),
     });
     const data = await res.json() as { ok?: boolean; errorReason?: string };
