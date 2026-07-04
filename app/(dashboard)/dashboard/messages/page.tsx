@@ -90,8 +90,15 @@ function dayLabel(iso: string): string {
   return d.toLocaleDateString("en-PK", { weekday: "long", day: "2-digit", month: "short" });
 }
 
+// Only counts items still on their first attempt — a message that already failed
+// once and is waiting out its retry delay isn't "queued" in the sense this banner
+// means (new, not-yet-attempted work); it's a failed send retrying, which shows up
+// in the Failed stat and Message Log instead.
 function getQueueLength(baseKey: string): number {
-  try { return JSON.parse(localStorage.getItem(locationUserKey(baseKey)) || "[]").length; } catch { return 0; }
+  try {
+    const items = JSON.parse(localStorage.getItem(locationUserKey(baseKey)) || "[]") as { retries?: number }[];
+    return items.filter((item) => !item.retries).length;
+  } catch { return 0; }
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
