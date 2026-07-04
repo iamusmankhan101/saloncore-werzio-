@@ -737,6 +737,17 @@ export default function AppointmentsPage() {
     ));
   }, []);
 
+  // Deep-link support: opening /dashboard/appointments?id=<apptId> (e.g. from the
+  // "Today's Appointments" card on the main dashboard) auto-opens that appointment's
+  // detail modal once its data has loaded.
+  useEffect(() => {
+    if (appointments.length === 0) return;
+    const id = new URLSearchParams(window.location.search).get("id");
+    if (!id) return;
+    const appt = appointments.find((a) => a.id === id);
+    if (appt) setSelected(appt);
+  }, [appointments]);
+
   const filtered = useMemo(() => {
     return [...appointments]
       .sort((a, b) => {

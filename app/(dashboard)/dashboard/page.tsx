@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { getStoredAppointments, getStoredClients, getStoredStaff } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { AppointmentStatus, Appointment, Client, Staff } from "@/lib/types";
@@ -94,6 +95,7 @@ function Card({ title, subtitle, icon: Icon, children }: { title: string; subtit
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
@@ -341,14 +343,21 @@ export default function DashboardPage() {
             todayAppts.slice(0, 5).map((appt) => {
               const cfg = STATUS_CONFIG[appt.status] || { color: "#6b7280", bg: "#f9fafb", label: appt.status };
               return (
-                <div key={appt.id} style={{
-                  padding: "12px 20px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  borderBottom: "1px solid #f8f8fc",
-                  transition: "background 0.2s"
-                }} className="hover-bg-row">
+                <div
+                  key={appt.id}
+                  onClick={() => router.push(`/dashboard/appointments?id=${appt.id}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter") router.push(`/dashboard/appointments?id=${appt.id}`); }}
+                  style={{
+                    padding: "12px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    borderBottom: "1px solid #f8f8fc",
+                    transition: "background 0.2s",
+                    cursor: "pointer",
+                  }} className="hover-bg-row">
                   <Avatar name={appt.clientName} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
