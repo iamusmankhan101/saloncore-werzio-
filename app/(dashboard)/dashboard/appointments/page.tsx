@@ -325,6 +325,7 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
 function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onClose: () => void; onAdd: (appt: Appointment, newClientObj?: Client) => void; clients: Client[]; staffList: Staff[]; allServices: Service[] }) {
   const [form, setForm] = useState({ clientId: "", staffId: "", serviceIds: [] as string[], date: "", startTime: "", notes: "" });
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [newClient, setNewClient] = useState(false);
   const [newClientForm, setNewClientForm] = useState({ name: "", phone: "", email: "", dob: "" });
   const [newClientSaved, setNewClientSaved] = useState(false);
@@ -372,7 +373,11 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   const canSubmit = (newClient ? newClientSaved : !!form.clientId) && form.staffId && form.serviceIds.length > 0 && form.date && form.startTime;
 
   const handleBook = () => {
-    if (!canSubmit) return;
+    // Guards against a double-click/double-submit creating two separate
+    // appointments (and two separate confirmation messages) for the same booking —
+    // canSubmit alone doesn't change just because a submission is already in flight.
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
 
     let finalClientId = form.clientId;
     let finalClientName = "";
@@ -428,6 +433,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       console.error("[appointments] Could not create appointment", error);
       // Booking creation must never be blocked by a non-critical side effect
       // such as WhatsApp scheduling. Keep the modal usable and visible.
+      setSubmitting(false);
     }
   };
 
@@ -608,9 +614,10 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
             </button>
             <button
               onClick={handleBook}
-              style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit ? "#fff" : "#b0b0c8", cursor: canSubmit ? "pointer" : "not-allowed" }}
+              disabled={!canSubmit || submitting}
+              style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit && !submitting ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit && !submitting ? "#fff" : "#b0b0c8", cursor: canSubmit && !submitting ? "pointer" : "not-allowed" }}
             >
-              Book Appointment
+              {submitting ? "Booking…" : "Book Appointment"}
             </button>
           </div>
         </div>
