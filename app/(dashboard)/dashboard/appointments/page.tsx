@@ -933,11 +933,12 @@ export default function AppointmentsPage() {
             } catch (error) {
               console.warn("[appointments] WhatsApp confirmation queue skipped", error);
             }
-            try {
-              sendGroupBookingAlert(newAppt);
-            } catch (error) {
+            // sendGroupBookingAlert is async — a bare try/catch around the call site
+            // only catches synchronous throws, not a later rejection inside the
+            // returned promise, so that rejection must be caught here instead.
+            sendGroupBookingAlert(newAppt).catch((error) => {
               console.warn("[appointments] WhatsApp group alert skipped", error);
-            }
+            });
 
             if (newClientObj) {
               setClients((prevClients) => {

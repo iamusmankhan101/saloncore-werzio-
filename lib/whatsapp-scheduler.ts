@@ -263,12 +263,17 @@ export async function sendGroupBookingAlert(appt: {
   const ws = settingsStore.wasender as {
     provider?: string;
     apiKey: string;
+    botSailorApiToken?: string;
+    zaptickApiKey?: string;
     bookingGroupJid?: string;
     autoGroupBooking?: boolean;
   };
 
-  if (ws.provider === "botsailor" || !ws.autoGroupBooking || !ws.apiKey) return;
-  if (!ws.bookingGroupJid?.endsWith("@g.us")) return;
+  if (ws.provider === "botsailor") { console.warn("⚠️ New Booking group alert skipped — BotSailor doesn't support sending to groups."); return; }
+  if (!ws.autoGroupBooking) { console.warn("⚠️ New Booking group alert disabled — enable \"New Booking Group Alert\" in Account → WhatsApp Settings"); return; }
+  const hasCredentials = ws.provider === "zaptick" ? !!ws.zaptickApiKey : !!ws.apiKey;
+  if (!hasCredentials) { console.warn("⚠️ New Booking group alert skipped — no WhatsApp provider credentials set"); return; }
+  if (!ws.bookingGroupJid?.endsWith("@g.us")) { console.warn("⚠️ New Booking group alert skipped — no WhatsApp group linked in Account → WhatsApp Settings"); return; }
 
   const tpl = (settingsStore.whatsapp as { newBooking?: string }).newBooking ||
     "📅 New Booking! {{name}} has booked {{service}} on {{date}} at {{time}} at {{salon_name}}. Total: PKR {{amount}}.";
