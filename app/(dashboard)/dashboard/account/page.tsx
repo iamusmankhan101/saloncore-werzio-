@@ -1196,7 +1196,7 @@ function WhatsAppSection() {
         />
         <AutoRow
           label="Low Stock Alert"
-          hint="Sent to your number once daily when items run low"
+          hint="Sent once daily when items run low — to your number, and to the linked WhatsApp group below if one is set"
           enabled={form.autoLowStock}
           onToggle={() => set("autoLowStock", !form.autoLowStock)}
         />

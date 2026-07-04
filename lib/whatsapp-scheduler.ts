@@ -826,10 +826,13 @@ export async function checkLowStockAlerts(): Promise<void> {
   if (typeof window === "undefined") return;
 
   const ws = settingsStore.wasender as {
-    provider?: string; apiKey: string; botSailorApiToken?: string; autoLowStock: boolean; ownerPhone: string;
+    provider?: string; apiKey: string; botSailorApiToken?: string; autoLowStock: boolean; ownerPhone: string; bookingGroupJid?: string;
   };
   if (!ws.autoLowStock) { console.warn("⚠️ Low stock alerts disabled — enable in Account → WhatsApp Settings"); return; }
-  if (!ws.ownerPhone) { console.warn("⚠️ No owner phone set — add it in Account → WhatsApp Settings"); return; }
+  // BotSailor doesn't support sending to groups (same restriction as the New Booking
+  // group alert), so the group target only applies for the WaSender provider.
+  const groupJid = ws.provider !== "botsailor" && ws.bookingGroupJid?.endsWith("@g.us") ? ws.bookingGroupJid : "";
+  if (!ws.ownerPhone && !groupJid) { console.warn("⚠️ No owner phone or linked WhatsApp group set — add one in Account → WhatsApp Settings"); return; }
   if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey)) { console.warn("⚠️ No WhatsApp provider credentials set — add them in Account → WhatsApp Settings"); return; }
 
   const lowstockTemplate = (settingsStore.whatsapp as { lowstock: string }).lowstock;
@@ -855,9 +858,18 @@ export async function checkLowStockAlerts(): Promise<void> {
     salon_name: salonName,
   });
 
-  console.log("📦 Sending low stock alert for:", newlyLow.map((i) => i.name), "→", normalizePhone(ws.ownerPhone));
-  const ok = await callSendApi(normalizePhone(ws.ownerPhone), text, { type: "lowstock", clientName: "Owner" });
-  console.log("📦 Low stock alert result:", ok ? "sent ✅" : "failed ❌");
+  // Send to the owner's own number and the linked salon WhatsApp group — either or
+  // both, whichever are configured — so the whole team can see it, not just one phone.
+  if (ws.ownerPhone) {
+    console.log("📦 Sending low stock alert for:", newlyLow.map((i) => i.name), "→", normalizePhone(ws.ownerPhone));
+    const ok = await callSendApi(normalizePhone(ws.ownerPhone), text, { type: "lowstock", clientName: "Owner" });
+    console.log("📦 Low stock alert (owner) result:", ok ? "sent ✅" : "failed ❌");
+  }
+  if (groupJid) {
+    console.log("📦 Sending low stock alert for:", newlyLow.map((i) => i.name), "→ linked group");
+    const ok = await callSendApi(groupJid, text, { type: "lowstock", clientName: "Group" });
+    console.log("📦 Low stock alert (group) result:", ok ? "sent ✅" : "failed ❌");
+  }
 
   // Mark attempted regardless of outcome — low stock alerts send once per day only
   newlyLow.forEach((i) => { sent[i.id] = today; });
