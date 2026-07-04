@@ -104,6 +104,8 @@ function DetailModal({ appt, onClose, staffList, allServices }: {
   const cfg         = STATUS[appt.status];
   const staff       = staffList.find((s) => s.id === appt.staffId);
   const services    = allServices.filter((s) => appt.serviceIds.includes(s.id));
+  const teamStaffIds = Array.from(new Set(services.filter((s) => s.multiStylist && s.assignedStaffIds.length >= 2).flatMap((s) => s.assignedStaffIds)));
+  const teamStaff    = teamStaffIds.map((sid) => staffList.find((s) => s.id === sid)).filter((s): s is Staff => Boolean(s));
   const durationMin = toMin(appt.endTime) - toMin(appt.startTime);
   const accent      = staff?.color ?? cfg.color;
 
@@ -142,11 +144,23 @@ function DetailModal({ appt, onClose, staffList, allServices }: {
             <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: "var(--accent)", background: "rgba(124, 58, 237, 0.06)", padding: "2px 8px", borderRadius: 20 }}>{durationMin} min</span>
           </InfoRow>
 
-          <InfoRow icon={<User size={14} />} label="Stylist">
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: "#1a1a2e" }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: staff?.color ?? "#ccc", display: "inline-block", border: "1.5px solid rgba(255,255,255,0.8)", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }} />
-              {appt.staffName || "—"}
-            </span>
+          <InfoRow icon={<User size={14} />} label={teamStaff.length >= 2 ? "Stylist Team" : "Stylist"}>
+            {teamStaff.length >= 2 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                {teamStaff.map((s) => (
+                  <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: "#1a1a2e" }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, display: "inline-block", border: "1.5px solid rgba(255,255,255,0.8)", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }} />
+                    {s.name}
+                  </span>
+                ))}
+                <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 7px", borderRadius: 20, letterSpacing: "0.04em" }}>Team</span>
+              </div>
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: "#1a1a2e" }}>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: staff?.color ?? "#ccc", display: "inline-block", border: "1.5px solid rgba(255,255,255,0.8)", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }} />
+                {appt.staffName || "—"}
+              </span>
+            )}
           </InfoRow>
 
           <InfoRow icon={<Scissors size={14} />} label="Services">

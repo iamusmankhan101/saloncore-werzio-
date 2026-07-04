@@ -109,6 +109,8 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
   };
   const staff        = staffList.find((s) => s.id === appt.staffId);
   const services     = allServices.filter((s) => appt.serviceIds.includes(s.id));
+  const teamStaffIds = Array.from(new Set(services.filter((s) => s.multiStylist && s.assignedStaffIds.length >= 2).flatMap((s) => s.assignedStaffIds)));
+  const teamStaff    = teamStaffIds.map((sid) => staffList.find((s) => s.id === sid)).filter((s): s is Staff => Boolean(s));
   const client       = clients.find((c) => c.id === appt.clientId);
   const durationMin  = toMin(appt.endTime) - toMin(appt.startTime);
   const flowIdx      = FLOW_STEPS.indexOf(currentStatus);
@@ -189,11 +191,23 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
 
           {/* Info rows */}
-          <InfoRow icon={<User size={14} color="#9898b0" />} label="Stylist">
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: staff?.color ?? "#ccc", display: "inline-block" }} />
-              {appt.staffName || "—"}
-            </span>
+          <InfoRow icon={<User size={14} color="#9898b0" />} label={teamStaff.length >= 2 ? "Stylist Team" : "Stylist"}>
+            {teamStaff.length >= 2 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                {teamStaff.map((s) => (
+                  <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, display: "inline-block" }} />
+                    {s.name}
+                  </span>
+                ))}
+                <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 7px", borderRadius: 20, letterSpacing: "0.04em" }}>Team</span>
+              </div>
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: staff?.color ?? "#ccc", display: "inline-block" }} />
+                {appt.staffName || "—"}
+              </span>
+            )}
           </InfoRow>
 
           <InfoRow icon={<Scissors size={14} color="#9898b0" />} label="Services">
@@ -499,16 +513,28 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
                 <div style={{ fontSize: 13, color: "#b0b0c8", padding: "8px 0" }}>Select a stylist first to see available services.</div>
               ) : availableServices.map((sv) => {
                 const checked = form.serviceIds.includes(sv.id);
+                const isTeam = sv.multiStylist && sv.assignedStaffIds.length >= 2;
+                const teamNames = isTeam ? sv.assignedStaffIds.map((sid) => staffList.find((s) => s.id === sid)?.name).filter(Boolean) : [];
                 return (
-                  <label key={sv.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 8, border: `1px solid ${checked ? "#7C3AED" : "#e8e8f0"}`, background: checked ? "#F5F3FF" : "#fff", cursor: "pointer" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <input type="checkbox" checked={checked} onChange={() => toggleService(sv.id)} style={{ accentColor: "#7C3AED", width: 14, height: 14 }} />
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: "#1a1a2e" }}>{sv.name}</div>
-                        <div style={{ fontSize: 11, color: "#9898b0" }}>{sv.durationMin} min</div>
+                  <label key={sv.id} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "9px 12px", borderRadius: 8, border: `1px solid ${checked ? "#7C3AED" : "#e8e8f0"}`, background: checked ? "#F5F3FF" : "#fff", cursor: "pointer" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleService(sv.id)} style={{ accentColor: "#7C3AED", width: 14, height: 14 }} />
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 6 }}>
+                            {sv.name}
+                            {isTeam && (
+                              <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 7px", borderRadius: 20, letterSpacing: "0.04em" }}>Team</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#9898b0" }}>{sv.durationMin} min</div>
+                        </div>
                       </div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#7C3AED" }}>{fmt(sv.price)}</span>
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#7C3AED" }}>{fmt(sv.price)}</span>
+                    {isTeam && (
+                      <div style={{ fontSize: 11, color: "#7C3AED", paddingLeft: 24 }}>Worked together by: {teamNames.join(", ")}</div>
+                    )}
                   </label>
                 );
               })}
@@ -1134,6 +1160,7 @@ export default function AppointmentsPage() {
           filtered.map((appt, i) => {
             const cfg = STATUS[appt.status];
             const staff = staffList.find((s) => s.id === appt.staffId);
+            const isTeamAppt = services.some((s) => appt.serviceIds.includes(s.id) && s.multiStylist && s.assignedStaffIds.length >= 2);
             const isLast = i === filtered.length - 1;
             const isChecked = checkedIds.has(appt.id);
             return (
@@ -1170,9 +1197,12 @@ export default function AppointmentsPage() {
                 <div style={{ fontSize: 13, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 550 }}>
                   {appt.serviceNames.join(", ")}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: staff?.color ?? "#ccc", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.8)", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }} />
                   <span style={{ fontSize: 13, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}</span>
+                  {isTeamAppt && (
+                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em", flexShrink: 0 }}>Team</span>
+                  )}
                 </div>
                 <div>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 800, color: cfg.color, background: cfg.bg, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap" }}>
