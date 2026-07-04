@@ -26,7 +26,7 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
-export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday" | "thankyou";
+export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday" | "thankyou" | "newbooking";
 export type WaMsgStatus = "sent" | "failed";
 
 export interface WaLogEntry {
@@ -176,6 +176,18 @@ let lastSentAt = 0;
 let sentCount = 0;
 let schedulerRunning = false;
 
+// Booking confirmations and the new-booking group alert are the two most
+// time-sensitive, highest-visibility messages (a client/owner expects them
+// within minutes of booking, not up to ~15 later), so they get their own much
+// shorter 2-3 min random jitter instead of the slower general pacing floor
+// above — tracked on a separate clock so they never wait on an unrelated
+// bulk/marketing send (birthday, cancellation win-back) that happened to fire
+// moments earlier, and vice versa.
+const FAST_TIER_TYPES = new Set<WaMsgType>(["confirmation", "newbooking"]);
+const FAST_JITTER_MIN_MS = 2 * 60_000;
+const FAST_JITTER_MAX_MS = 3 * 60_000;
+let lastFastSentAt = 0;
+
 // ── Number warm-up ramp ──────────────────────────────────────────────────────
 // Unofficial WhatsApp warm-up schedule: a brand-new number's daily send volume
 // should climb gradually as it builds a sending history, never jumping from e.g.
@@ -284,7 +296,7 @@ export async function sendGroupBookingAlert(appt: {
     amount: appt.totalAmount != null ? String(appt.totalAmount) : "",
   });
 
-  await callSendApi(ws.bookingGroupJid, text, { type: "manual", clientName: "Group" });
+  await callSendApi(ws.bookingGroupJid, text, { type: "newbooking", clientName: "Group" });
 }
 
 /** Call when a new appointment is booked — sends confirmation after a random 0-5 min delay, not instantly, so every booking's confirmation doesn't land at the same moment. */
@@ -404,7 +416,18 @@ type ProviderConfig = WhatsAppSafetyConfig & {
 // disconnected — so that backlog's first item doesn't fire instantly before pacing
 // kicks in for the rest. Runs client-side via setTimeout — never inside the API
 // route — so it can never block a serverless request into a platform timeout.
-async function applyPacingGate(providerConfig: ProviderConfig): Promise<void> {
+//
+// Exception: confirmation and new-booking-group-alert messages use their own much
+// shorter 2-3 min jitter (see FAST_TIER_TYPES above) instead of this slower floor.
+async function applyPacingGate(providerConfig: ProviderConfig, msgType?: WaMsgType): Promise<void> {
+  if (msgType && FAST_TIER_TYPES.has(msgType)) {
+    const targetGapMs = randBetween(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS);
+    const elapsedSinceLast = lastFastSentAt > 0 ? Date.now() - lastFastSentAt : 0;
+    const wait = targetGapMs - elapsedSinceLast;
+    if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
+    lastFastSentAt = Date.now();
+    return;
+  }
   const selectedProvider = providerConfig.provider ?? "wasender";
   const targetGapMs = Math.max(
     getWhatsAppRandomDelayMs(providerConfig),
@@ -431,7 +454,7 @@ async function callSendApi(
     zaptickApiKey?: string;
   };
 
-  await applyPacingGate(providerConfig);
+  await applyPacingGate(providerConfig, logMeta.type);
 
   // Warm-up ramp: never let today's effective daily limit exceed the number's
   // warm-up ceiling, even if the salon's own Safety setting allows more.
@@ -727,7 +750,7 @@ async function runSchedulerInternal(): Promise<void> {
       const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
       const clientName = appt?.clientName ?? item.clientName ?? "there";
       if (!phone) {
-        await applyPacingGate(ws);
+        await applyPacingGate(ws, "confirmation");
         appendLog({ type: "confirmation", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
