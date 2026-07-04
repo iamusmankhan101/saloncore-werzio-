@@ -227,8 +227,16 @@ function getTodaysWarmupCap(): number {
 }
 
 // sendAfter: unix ms timestamp — scheduler skips item until Date.now() >= sendAfter
-// phone: stored at enqueue time so the message can still send even if the appointment is later deleted
-type QueueItem = { id: string; retries: number; sendAfter?: number; phone?: string; clientName?: string };
+// phone/clientName/serviceNames/date/startTime: snapshotted at enqueue time so the
+// message can still send (with correct template variables) even if the appointment
+// record is deleted before the delay elapses. Always preserve these via `...item`
+// when requeuing for a retry — rebuilding a bare-bones object silently throws this
+// safety net away, which is exactly what happened before this fix.
+type QueueItem = {
+  id: string; retries: number; sendAfter?: number;
+  phone?: string; clientName?: string;
+  serviceNames?: string[]; date?: string; startTime?: string;
+};
 
 function getQueue(storageKey: string): QueueItem[] {
   try {
@@ -280,7 +288,17 @@ export function enqueueWhatsAppConfirmation(apptId: string) {
   const q = getQueue(CONFIRM_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
     const delayMs = Math.random() * 5 * 60_000; // 0-5 minutes
-    setQueue(CONFIRM_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs }]);
+    // Snapshot phone/name/service/date/time now so the message can still send with
+    // the right details even if the appointment record is deleted before this fires.
+    const appt = getStoredAppointments().find(a => a.id === apptId);
+    const clients = getStoredClients();
+    const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
+    const phone = client?.phone ? normalizePhone(client.phone) : "";
+    setQueue(CONFIRM_QUEUE_KEY, [...q, {
+      id: apptId, retries: 0, sendAfter: Date.now() + delayMs,
+      phone, clientName: appt?.clientName,
+      serviceNames: appt?.serviceNames, date: appt?.date, startTime: appt?.startTime,
+    }]);
   }
 }
 
@@ -295,7 +313,18 @@ export function enqueueWhatsAppFollowup(apptId: string) {
   const jitterMs = (5 + Math.random() * 25) * 60_000;
   const q = getQueue(FOLLOWUP_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
-    setQueue(FOLLOWUP_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs }]);
+    // Snapshot phone/name/service/date/time now so the message can still send with
+    // the right details even if the appointment record is deleted before this fires
+    // (this is what caused follow-ups to fail as "Unknown client" with no phone).
+    const appt = getStoredAppointments().find(a => a.id === apptId);
+    const clients = getStoredClients();
+    const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
+    const phone = client?.phone ? normalizePhone(client.phone) : "";
+    setQueue(FOLLOWUP_QUEUE_KEY, [...q, {
+      id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs,
+      phone, clientName: appt?.clientName,
+      serviceNames: appt?.serviceNames, date: appt?.date, startTime: appt?.startTime,
+    }]);
   }
 }
 
@@ -660,32 +689,34 @@ async function runSchedulerInternal(): Promise<void> {
     for (const item of queue) {
       // Retry delay — keep waiting if last attempt was too recent
       if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
+      // Prefer the live appointment (freshest data), but fall back to what was
+      // snapshotted at enqueue time if it's since been deleted — this is what lets a
+      // confirmation still go out instead of failing as "Unknown client".
       const appt = appointments.find((a) => a.id === item.id);
-      const phone = appt ? clientPhone(appt.clientId) : "";
-      if (!appt) {
-        await applyPacingGate(ws);
-        appendLog({ type: "confirmation", clientName: item.clientName ?? "Unknown client", phone: item.phone ?? "", status: "failed", templateId: "direct", error: "Appointment was not found when the confirmation was processed." });
-        continue;
-      }
+      const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
+      const clientName = appt?.clientName ?? item.clientName ?? "there";
       if (!phone) {
         await applyPacingGate(ws);
-        appendLog({ type: "confirmation", clientName: appt.clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
+        appendLog({ type: "confirmation", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
-      const sentKey = `confirm_${appt.id}`;
+      const sentKey = `confirm_${item.id}`;
       if (alreadySent(sentKey)) continue;
-      const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
-      if (apptTime < now) {
-        await applyPacingGate(ws);
-        appendLog({ type: "confirmation", clientName: appt.clientName, phone, status: "failed", templateId: "direct", error: "Appointment time had already passed before confirmation could be sent." });
-        continue;
-      }
-      const text = fillTemplate(waTpl.confirmation, buildVars(appt, salonName));
-      const ok = await callSendApi(phone, text, { type: "confirmation", clientName: appt.clientName });
+      const serviceNames = appt?.serviceNames ?? item.serviceNames ?? [];
+      const date = appt?.date ?? item.date ?? "";
+      const startTime = appt?.startTime ?? item.startTime ?? "";
+      // A confirmation is purely informational ("your booking is confirmed"), not
+      // time-boxed like a reminder — our own pacing gate (0-5 min enqueue jitter +
+      // the mandatory 3-7+ min gap between any two sends) can occasionally push a
+      // near-term/walk-in booking's confirmation past its own start time. Send it
+      // regardless rather than dropping it as a "failure"; a slightly late
+      // confirmation is still useful, an undelivered one is not.
+      const text = fillTemplate(waTpl.confirmation, buildVars({ clientName, serviceNames, date, startTime }, salonName));
+      const ok = await callSendApi(phone, text, { type: "confirmation", clientName });
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
-        remaining.push({ id: item.id, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
+        remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
       }
     }
     setQueue(CONFIRM_QUEUE_KEY, remaining);
@@ -697,26 +728,28 @@ async function runSchedulerInternal(): Promise<void> {
     const remaining: QueueItem[] = [];
     for (const item of queue) {
       if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
+      // Prefer the live appointment (freshest data), but fall back to what was
+      // snapshotted at enqueue time if it's since been deleted — this is what lets a
+      // follow-up still go out instead of failing as "Unknown client" with no number.
       const appt = appointments.find((a) => a.id === item.id);
-      const phone = appt ? clientPhone(appt.clientId) : "";
-      if (!appt) {
-        await applyPacingGate(ws);
-        appendLog({ type: "followup", clientName: item.clientName ?? "Unknown client", phone: item.phone ?? "", status: "failed", templateId: "direct", error: "Appointment was not found when the follow-up was processed." });
-        continue;
-      }
+      const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
+      const clientName = appt?.clientName ?? item.clientName ?? "there";
       if (!phone) {
         await applyPacingGate(ws);
-        appendLog({ type: "followup", clientName: appt.clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
+        appendLog({ type: "followup", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
-      const sentKey = `followup_${appt.id}`;
+      const sentKey = `followup_${item.id}`;
       if (alreadySent(sentKey)) continue;
-      const text = fillTemplate(waTpl.followup, buildVars(appt, salonName));
-      const ok = await callSendApi(phone, text, { type: "followup", clientName: appt.clientName });
+      const serviceNames = appt?.serviceNames ?? item.serviceNames ?? [];
+      const date = appt?.date ?? item.date ?? "";
+      const startTime = appt?.startTime ?? item.startTime ?? "";
+      const text = fillTemplate(waTpl.followup, buildVars({ clientName, serviceNames, date, startTime }, salonName));
+      const ok = await callSendApi(phone, text, { type: "followup", clientName });
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
-        remaining.push({ id: item.id, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
+        remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
       }
     }
     setQueue(FOLLOWUP_QUEUE_KEY, remaining);
