@@ -11,7 +11,8 @@ import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
 import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, checkBirthdayReminders } from "@/lib/whatsapp-scheduler";
-import { getCurrentUser, userKey } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { locationUserKey } from "@/lib/locations";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import type { Client } from "@/lib/types";
 
@@ -90,7 +91,7 @@ function dayLabel(iso: string): string {
 }
 
 function getQueueLength(baseKey: string): number {
-  try { return JSON.parse(localStorage.getItem(userKey(baseKey)) || "[]").length; } catch { return 0; }
+  try { return JSON.parse(localStorage.getItem(locationUserKey(baseKey)) || "[]").length; } catch { return 0; }
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -396,6 +397,29 @@ export default function MessagesPage() {
     return () => window.removeEventListener("werzio_wa_message_logged", onMessageLogged);
   }, []);
 
+  // Queue counts ("N messages queued" banner) are read straight from localStorage,
+  // which changes from the background scheduler in the dashboard layout — a
+  // different component, so nothing here re-renders when it does. Poll on an
+  // interval (and refresh on every logged send) instead of computing it once per
+  // unrelated render, so the banner can't get stuck showing a stale non-zero count
+  // after the queue has actually drained.
+  const [queueCounts, setQueueCounts] = useState({ confirm: 0, followup: 0 });
+  useEffect(() => {
+    function refreshQueueCounts() {
+      setQueueCounts({
+        confirm: getQueueLength("werzio_wa_confirm_queue"),
+        followup: getQueueLength("werzio_wa_followup_queue"),
+      });
+    }
+    refreshQueueCounts();
+    const interval = window.setInterval(refreshQueueCounts, 5000);
+    window.addEventListener("werzio_wa_message_logged", refreshQueueCounts);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("werzio_wa_message_logged", refreshQueueCounts);
+    };
+  }, []);
+
   const ws = settingsStore.wasender as {
     enabled?: boolean; provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; ownerPhone: string;
     autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean;
@@ -451,9 +475,7 @@ export default function MessagesPage() {
   const failCount   = logs.filter((l) => l.status === "failed").length;
   const sentCount   = logs.filter((l) => l.status === "sent").length;
   const successRate = logs.length > 0 ? Math.round((sentCount / logs.length) * 100) : 100;
-  const confirmQueue  = getQueueLength("werzio_wa_confirm_queue");
-  const followupQueue = getQueueLength("werzio_wa_followup_queue");
-  const totalQueue    = confirmQueue + followupQueue;
+  const totalQueue = queueCounts.confirm + queueCounts.followup;
 
   // Group logs by day
   const grouped = useMemo(() => {
