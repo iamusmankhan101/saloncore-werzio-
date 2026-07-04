@@ -287,10 +287,18 @@ export function enqueueWhatsAppConfirmation(apptId: string) {
   if (typeof window === "undefined") return;
   const q = getQueue(CONFIRM_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
+    const appt = getStoredAppointments().find(a => a.id === apptId);
+    // Never queue a confirmation for a booking that was already in the past the
+    // moment it was added to the system (backdated/historical entries, bulk
+    // imports, etc). This check happens once, here, at enqueue time — it does not
+    // conflict with always sending an already-queued confirmation even if pacing
+    // delay later nudges it slightly past a genuinely future appointment's start
+    // time (see the confirmation drain loop below); that's normal processing
+    // drift for a real booking, not a backdated one.
+    if (appt && new Date(`${appt.date}T${appt.startTime}:00`) < new Date()) return;
     const delayMs = Math.random() * 5 * 60_000; // 0-5 minutes
     // Snapshot phone/name/service/date/time now so the message can still send with
     // the right details even if the appointment record is deleted before this fires.
-    const appt = getStoredAppointments().find(a => a.id === apptId);
     const clients = getStoredClients();
     const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
     const phone = client?.phone ? normalizePhone(client.phone) : "";
