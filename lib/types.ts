@@ -66,6 +66,8 @@ export interface Service {
   /** Ad-hoc services bundled into this Deal/Package that aren't part of the master service list. */
   customServices?: { name: string; price?: number; durationMin?: number }[];
   assignedStaffIds: string[];
+  /** When true, all of assignedStaffIds work together as a team on this service (e.g. bridal hair + makeup done jointly), rather than assignedStaffIds being a pool of individually-eligible stylists. Informational only — doesn't affect booking, calendar, or payroll. */
+  multiStylist?: boolean;
   isActive: boolean;
 }
 

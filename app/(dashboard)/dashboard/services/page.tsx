@@ -44,6 +44,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
     priceRangeMin:    serviceToEdit?.priceRangeMin ? String(serviceToEdit.priceRangeMin) : "",
     priceRangeMax:    serviceToEdit?.priceRangeMax ? String(serviceToEdit.priceRangeMax) : "",
     assignedStaffIds: serviceToEdit?.assignedStaffIds ?? [] as string[],
+    multiStylist:     serviceToEdit?.multiStylist ?? false,
   });
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
   const [done, setDone] = useState(false);
@@ -134,6 +135,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
       packageServiceIds: form.isPackage ? form.packageServiceIds : undefined,
       customServices:   !form.isPackage && form.customServices.length > 0 ? form.customServices : undefined,
       assignedStaffIds: form.assignedStaffIds,
+      multiStylist:     form.multiStylist && form.assignedStaffIds.length >= 2 ? true : undefined,
       isActive:         serviceToEdit?.isActive ?? true,
     });
     setDone(true);
@@ -323,7 +325,9 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Assign Stylists</label>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              {form.multiStylist ? "Stylist Team" : "Assign Stylists"}
+            </label>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 140, overflowY: "auto", border: "1px solid #e8e8f0", borderRadius: 8, padding: 8 }}>
               {staffList.map((st) => {
                 const checked = form.assignedStaffIds.includes(st.id);
@@ -338,6 +342,15 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
               })}
               {staffList.length === 0 && <div style={{ fontSize: 12, color: "#9898b0", padding: "6px 8px" }}>No staff added yet</div>}
             </div>
+            {form.assignedStaffIds.length >= 2 && (
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", marginTop: 2 }}>
+                <input type="checkbox" checked={form.multiStylist} onChange={(e) => set("multiStylist", e.target.checked)}
+                  style={{ width: 14, height: 14, accentColor: "#7C3AED", cursor: "pointer", marginTop: 2, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>
+                  These stylists work together as a team on this service (e.g. bridal hair + makeup done jointly) — not individually interchangeable. Informational only; doesn&rsquo;t change booking or payroll.
+                </span>
+              </label>
+            )}
           </div>
           <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
@@ -573,7 +586,12 @@ export default function ServicesPage() {
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}><Users size={12} /> Assigned Staff ({assigned.length})</div>
+                  <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}>
+                    <Users size={12} /> {sv.multiStylist ? "Stylist Team" : "Assigned Staff"} ({assigned.length})
+                    {sv.multiStylist && (
+                      <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 7px", borderRadius: 20, letterSpacing: "0.04em" }}>Team</span>
+                    )}
+                  </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                     {assigned.length > 0 ? assigned.map((st) => (
                       <span key={st.id} style={{ fontSize: 11, fontWeight: 600, color: st.color, background: st.color + "12", padding: "3px 10px", borderRadius: 12 }}>{st.name}</span>
