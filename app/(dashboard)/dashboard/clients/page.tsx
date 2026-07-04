@@ -6,12 +6,11 @@ import { BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
-import { Search, X, Plus, Phone, Mail, Calendar, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet, TrendingUp, Clock, Send } from "lucide-react";
+import { Search, X, Plus, Phone, Mail, Calendar, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
-import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
-import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, locationUserKey, type SalonLocation } from "@/lib/locations";
+import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
 import PageTitle from "@/components/page-title";
 
 const STATUS_CONFIG = {
@@ -880,178 +879,6 @@ function ImportModal({ existing, onClose, onImport }: {
   );
 }
 
-// ── Send Segment Modal ────────────────────────────────────────────────────────
-
-const SEGMENT_META = {
-  spend:  { label: "Top Spenders",           tplKey: "topSpenders",  color: "#7C3AED", vars: "{{name}}, {{salon_name}}, {{spend}}" },
-  visits: { label: "Most Frequent Visitors", tplKey: "mostFrequent", color: "#0284c7", vars: "{{name}}, {{salon_name}}, {{visits}}" },
-  absent: { label: "Long Absent Clients",    tplKey: "longAbsent",   color: "#dc2626", vars: "{{name}}, {{salon_name}}, {{discount}}, {{days}}" },
-} as const;
-
-function SendSegmentModal({ mode, clients, onClose }: {
-  mode: "spend" | "visits" | "absent";
-  clients: Client[];
-  onClose: () => void;
-}) {
-  const meta = SEGMENT_META[mode];
-  const wa = settingsStore.whatsapp as Record<string, string>;
-  const salonName = (settingsStore.salon as Record<string, string>).name || "";
-  const providerConfig = settingsStore.wasender as Record<string, string>;
-  const activeCredential = providerConfig.provider === "botsailor"
-    ? providerConfig.botSailorApiToken
-    : providerConfig.provider === "zaptick"
-      ? providerConfig.zaptickApiKey
-      : providerConfig.apiKey;
-  const discount = providerConfig.cancelDiscount || "10%";
-
-  const [text, setText] = useState(wa[meta.tplKey] || "");
-  const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
-  const [finished, setFinished] = useState(false);
-  const [queueError, setQueueError] = useState("");
-
-  const today = Date.now();
-
-  function buildMsg(c: Client) {
-    const days = c.lastVisitDate
-      ? Math.floor((today - new Date(c.lastVisitDate).getTime()) / 86400000)
-      : 0;
-    return text
-      .replace(/\{\{name\}\}/g, c.name)
-      .replace(/\{\{salon_name\}\}/g, salonName)
-      .replace(/\{\{visits\}\}/g, String(c.totalVisits || 0))
-      .replace(/\{\{spend\}\}/g, String(c.totalSpend || 0))
-      .replace(/\{\{days\}\}/g, String(days))
-      .replace(/\{\{discount\}\}/g, discount);
-  }
-
-  async function send() {
-    if (!activeCredential || !text.trim() || clients.length === 0 || progress) return;
-    const recipients = clients.filter((c) => !!c.phone);
-    const skipped = clients.length - recipients.length;
-    setQueueError("");
-    setProgress({ done: 0, total: clients.length, failed: skipped });
-    try {
-      const response = await fetch("/api/wa/campaigns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode,
-          templateId: meta.tplKey,
-          locationId: getActiveLocationFilter(),
-          recipients: recipients.map((c) => ({
-            clientName: c.name,
-            phone: normalizePhone(c.phone),
-            text: buildMsg(c),
-          })),
-        }),
-      });
-      const data = await response.json() as { ok?: boolean; queued?: number; error?: string };
-      if (!response.ok || !data.ok) throw new Error(data.error || "Campaign could not be queued.");
-      setProgress({ done: data.queued || recipients.length, total: clients.length, failed: skipped });
-      setFinished(true);
-      window.dispatchEvent(new CustomEvent("werzio_segment_campaign_queue_changed"));
-    } catch (error) {
-      setProgress(null);
-      setQueueError(error instanceof Error ? error.message : "Campaign could not be queued.");
-    }
-  }
-
-  const pct = progress ? Math.round((progress.done / progress.total) * 100) : 0;
-
-  return (
-    <div onClick={!progress ? onClose : undefined} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 500, padding: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: meta.color + "15", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Send size={17} color={meta.color} />
-            </div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>Send to {meta.label}</div>
-              <div style={{ fontSize: 11, color: "#9898b0" }}>{clients.length} recipient{clients.length !== 1 ? "s" : ""}</div>
-            </div>
-          </div>
-          {!progress && <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#9898b0" /></button>}
-        </div>
-
-        {finished ? (
-          <div style={{ textAlign: "center", padding: "16px 0" }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a2e", marginBottom: 6 }}>Campaign Queued!</div>
-            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 20 }}>
-              <span style={{ color: "#059669", fontWeight: 700 }}>{(progress?.done || 0)} queued across ~4 hours</span>
-              {(progress?.failed || 0) > 0 && <span style={{ color: "#dc2626", fontWeight: 700, marginLeft: 10 }}>{progress?.failed} skipped: no phone</span>}
-            </div>
-            <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`, fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>Done</button>
-          </div>
-        ) : progress ? (
-          <div style={{ padding: "8px 0" }}>
-            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 12 }}>Queueing campaign… {progress.done}/{progress.total}</div>
-            <div style={{ height: 8, background: "#f0f0f8", borderRadius: 20, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${meta.color}, ${meta.color}aa)`, borderRadius: 20, transition: "width 0.3s" }} />
-            </div>
-            {progress.failed > 0 && <div style={{ fontSize: 11, color: "#dc2626", marginTop: 8 }}>{progress.failed} failed so far</div>}
-          </div>
-        ) : (
-          <>
-            {/* Template */}
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Message Template</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
-                {meta.vars.split(", ").map(v => (
-                  <button key={v} type="button" onClick={() => setText(t => t + v)}
-                    style={{ padding: "2px 8px", borderRadius: 20, background: meta.color + "10", border: `1px solid ${meta.color}28`, color: meta.color, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                    + {v}
-                  </button>
-                ))}
-              </div>
-              <textarea value={text} onChange={e => setText(e.target.value)} rows={5}
-                style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, color: "#1d1d2f", lineHeight: 1.65, resize: "vertical", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
-              <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 4 }}>
-                Edit this template in <strong>Messages → Templates → Segment Broadcasts</strong> to save it permanently.
-              </div>
-            </div>
-
-            {/* Recipients preview */}
-            <div style={{ background: "#f9f9fb", borderRadius: 10, padding: "10px 14px", marginBottom: 20, border: "1px solid #f0f0f8" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Recipients</div>
-              {clients.slice(0, 5).map(c => (
-                <div key={c.id} style={{ fontSize: 13, color: "#1a1a2e", marginBottom: 4 }}>
-                  {c.name} <span style={{ color: "#9898b0" }}>· {c.phone}</span>
-                </div>
-              ))}
-              {clients.length > 5 && <div style={{ fontSize: 12, color: "#b0b0c8", marginTop: 4 }}>…and {clients.length - 5} more</div>}
-            </div>
-
-            {!activeCredential && (
-              <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 12, color: "#dc2626" }}>
-                WhatsApp API key not configured. Go to Account → WhatsApp Settings.
-              </div>
-            )}
-            {queueError && (
-              <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 12, color: "#dc2626" }}>
-                {queueError}
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
-              <button onClick={send} disabled={!activeCredential || !text.trim()}
-                style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 0", borderRadius: 10, border: "none",
-                  background: (!activeCredential || !text.trim()) ? "#e8e8f0" : `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)`,
-                  fontSize: 13, fontWeight: 700, color: (!activeCredential || !text.trim()) ? "#b0b0c8" : "#fff", cursor: (!activeCredential || !text.trim()) ? "not-allowed" : "pointer" }}>
-                <Send size={14} /> Queue {clients.length} Client{clients.length !== 1 ? "s" : ""}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ClientsPage() {
   const [search, setSearch] = useState("");
@@ -1067,17 +894,6 @@ export default function ClientsPage() {
   const [showDeleteSelected, setShowDeleteSelected] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [sortMode, setSortMode] = useState<"spend" | "visits" | "absent">("spend");
-  const [absentDays, setAbsentDays] = useState(60);
-  const [showSendModal, setShowSendModal] = useState(false);
-  const [campaignQueueCount, setCampaignQueueCount] = useState(0);
-  const [latestCampaign, setLatestCampaign] = useState<{
-    mode: string;
-    total: number;
-    pending: number;
-    sent: number;
-    failed: number;
-  } | null>(null);
   const [locations, setLocations] = useState<SalonLocation[]>(() => getSalonLocations());
 
   const [clients, setClients] = useState<Client[]>([]);
@@ -1123,67 +939,21 @@ export default function ClientsPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const refreshQueueCount = async () => {
-      try {
-        const response = await fetch("/api/wa/campaigns", { cache: "no-store" });
-        const data = await response.json() as {
-          ok?: boolean;
-          pending?: number;
-          campaigns?: Array<{ mode: string; total: number; pending: number; sent: number; failed: number }>;
-        };
-        if (response.ok && data.ok) {
-          setCampaignQueueCount(data.pending ?? 0);
-          setLatestCampaign(data.campaigns?.[0] ?? null);
-        }
-      } catch {
-        // Keep the last known count when the network is temporarily unavailable.
-      }
-    };
-    void refreshQueueCount();
-    const interval = window.setInterval(() => void refreshQueueCount(), 60_000);
-    window.addEventListener("werzio_segment_campaign_queue_changed", refreshQueueCount);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("werzio_segment_campaign_queue_changed", refreshQueueCount);
-    };
-  }, []);
-
   const plan          = getCurrentPlan();
   const clientLimited = isAtLimit(plan.clientLimit, clients.length);
 
   const filtered = useMemo(() => {
-    const todayMs = new Date().setHours(0, 0, 0, 0);
-    let result = clients.filter((c) => {
+    return clients.filter((c) => {
       if (tagFilter !== "all" && !c.tags.includes(tagFilter)) return false;
       if (sourceFilter !== "all" && c.source !== sourceFilter) return false;
       if (locationFilter !== "all" && clientLocationId(c) !== locationFilter) return false;
-      if (sortMode === "absent") {
-        const diffDays = c.lastVisitDate
-          ? Math.floor((todayMs - new Date(c.lastVisitDate).getTime()) / 86400000)
-          : Infinity;
-        if (diffDays < absentDays) return false;
-      }
       if (search) {
         const q = search.toLowerCase();
         return c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email ?? "").toLowerCase().includes(q);
       }
       return true;
     });
-    if (sortMode === "visits") {
-      result = result.sort((a, b) => b.totalVisits - a.totalVisits);
-    } else if (sortMode === "absent") {
-      result = result.sort((a, b) => {
-        if (!a.lastVisitDate && !b.lastVisitDate) return 0;
-        if (!a.lastVisitDate) return -1;
-        if (!b.lastVisitDate) return 1;
-        return a.lastVisitDate.localeCompare(b.lastVisitDate);
-      });
-    } else {
-      result = result.sort((a, b) => b.totalSpend - a.totalSpend);
-    }
-    return result;
-  }, [clients, search, tagFilter, sourceFilter, locationFilter, sortMode, absentDays]);
+  }, [clients, search, tagFilter, sourceFilter, locationFilter]);
 
   const allTags = Array.from(new Set(clients.flatMap((c) => c.tags)));
   const allSources = Array.from(new Set(clients.map((c) => c.source)));
@@ -1252,14 +1022,6 @@ export default function ClientsPage() {
               return updated;
             });
           }}
-        />
-      )}
-
-      {showSendModal && (
-        <SendSegmentModal
-          mode={sortMode}
-          clients={filtered}
-          onClose={() => setShowSendModal(false)}
         />
       )}
 
@@ -1433,50 +1195,10 @@ export default function ClientsPage() {
         </button>
       </div>
 
-      {/* Sort / quick-filter pills */}
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-        {([
-          { key: "spend",  label: "Top Spenders",   icon: <TrendingUp size={12} /> },
-          { key: "visits", label: "Most Frequent",  icon: <TrendingUp size={12} /> },
-          { key: "absent", label: "Long Absent",    icon: <Clock size={12} /> },
-        ] as const).map(({ key, label, icon }) => (
-          <button key={key} onClick={() => setSortMode(key)}
-            style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 20,
-              border: `1px solid ${sortMode === key ? "var(--accent-light)" : "#e3e0eb"}`,
-              background: sortMode === key ? "var(--accent-gradient)" : "#fff",
-              fontSize: 12, fontWeight: 750,
-              color: sortMode === key ? "#fff" : "#6b6b8a",
-              boxShadow: sortMode === key ? "0 2px 8px var(--accent-glow)" : "none",
-              cursor: "pointer", transition: "all 0.18s ease" }}
-            className={sortMode !== key ? "hover-bg-light" : ""}>
-            {icon}{label}
-          </button>
-        ))}
-        {sortMode === "absent" && (
-          <select value={absentDays} onChange={(e) => setAbsentDays(Number(e.target.value))}
-            style={{ padding: "5px 12px", borderRadius: 20, border: "1px solid rgba(124, 58, 237, 0.15)", background: "rgba(124, 58, 237, 0.04)",
-              fontSize: 12, fontWeight: 750, color: "var(--accent)", cursor: "pointer", outline: "none" }}>
-            <option value={30}>30+ days</option>
-            <option value={60}>60+ days</option>
-            <option value={90}>90+ days</option>
-            <option value={180}>6+ months</option>
-          </select>
-        )}
-        <>
-          <span style={{ fontSize: 12, color: "#b0b0c8", marginLeft: 4, fontWeight: 600 }}>
-            {filtered.length} client{filtered.length !== 1 ? "s" : ""}
-          </span>
-          {filtered.length > 0 && (
-            <button onClick={() => setShowSendModal(true)}
-              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 20,
-                border: "none", background: "var(--accent-gradient)",
-                fontSize: 12, fontWeight: 800, color: "#fff", cursor: "pointer", boxShadow: "0 3px 8px var(--accent-glow)", transition: "transform 0.15s" }}
-              className="hover-scale"
-            >
-              <Send size={11} /> Send Message
-            </button>
-          )}
-        </>
+        <span style={{ fontSize: 12, color: "#b0b0c8", fontWeight: 600 }}>
+          {filtered.length} client{filtered.length !== 1 ? "s" : ""}
+        </span>
       </div>
 
       {showFilters && (
@@ -1505,15 +1227,6 @@ export default function ClientsPage() {
           {activeFilters > 0 && (
             <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
           )}
-        </div>
-      )}
-
-      {latestCampaign && (
-        <div style={{ padding: "12px 16px", borderRadius: 14, background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: 12, fontWeight: 700 }}>
-          Latest campaign: {latestCampaign.sent}/{latestCampaign.total} sent
-          {latestCampaign.pending > 0 ? ` · ${latestCampaign.pending} queued` : ""}
-          {latestCampaign.failed > 0 ? ` · ${latestCampaign.failed} failed` : ""}
-          {campaignQueueCount > 0 ? " — running on the server; you can safely close this page." : " — completed."}
         </div>
       )}
 

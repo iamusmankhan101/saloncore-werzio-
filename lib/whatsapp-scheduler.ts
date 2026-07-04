@@ -77,6 +77,33 @@ export function appendLog(entry: Omit<WaLogEntry, "id" | "timestamp">) {
 }
 
 const SENT_KEY = "werzio_wa_sent";
+// Once a reminder first becomes due (crosses the salon's configured reminderHours
+// window), it doesn't send on that same tick — it waits a random 0-10 min from the
+// moment it was first detected as due. The offset is picked once per appointment
+// and cached, so 50 reminders all due at once spread over the next few minutes
+// instead of firing in the same tick, while still landing close to the configured time.
+const REMINDER_JITTER_KEY = "werzio_wa_reminder_jitter"; // { [apptId]: sendAtTimestampMs }
+
+function getReminderSendAt(apptId: string): number {
+  const key = locationUserKey(REMINDER_JITTER_KEY);
+  let map: Record<string, number> = {};
+  try { map = JSON.parse(localStorage.getItem(key) || "{}"); } catch { /* reset below */ }
+  if (map[apptId] != null) return map[apptId];
+  const sendAt = Date.now() + Math.random() * 10 * 60_000; // 0-10 min from now
+  map[apptId] = sendAt;
+  localStorage.setItem(key, JSON.stringify(map));
+  return sendAt;
+}
+
+function clearReminderSendAt(apptId: string) {
+  const key = locationUserKey(REMINDER_JITTER_KEY);
+  try {
+    const map = JSON.parse(localStorage.getItem(key) || "{}") as Record<string, number>;
+    delete map[apptId];
+    localStorage.setItem(key, JSON.stringify(map));
+  } catch { /* ignore */ }
+}
+
 const CONFIRM_QUEUE_KEY = "werzio_wa_confirm_queue";
 const FOLLOWUP_QUEUE_KEY = "werzio_wa_followup_queue";
 const CANCEL_QUEUE_KEY  = "werzio_wa_cancel_queue";
@@ -262,9 +289,13 @@ export function enqueueWhatsAppFollowup(apptId: string) {
   if (typeof window === "undefined") return;
   const delayMinutes = (settingsStore.wasender as { followupDelayMinutes?: number }).followupDelayMinutes ?? 1440;
   const delayMs = delayMinutes * 60 * 1000;
+  // On top of the configured base delay (24h by default), add a random 5-30 min
+  // jitter so every customer's follow-up lands at a slightly different time instead
+  // of everyone getting it at exactly the same clock time 24h later.
+  const jitterMs = (5 + Math.random() * 25) * 60_000;
   const q = getQueue(FOLLOWUP_QUEUE_KEY);
   if (!q.some((item) => item.id === apptId)) {
-    setQueue(FOLLOWUP_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs }]);
+    setQueue(FOLLOWUP_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs }]);
   }
 }
 
@@ -595,9 +626,12 @@ async function runSchedulerInternal(): Promise<void> {
       const sentKey = `reminder_${appt.id}`;
       const phone = clientPhone(appt.clientId);
       if (phone && !alreadySent(sentKey) && hoursUntil > 0 && hoursUntil <= ws.reminderHours) {
+        // Wait out this reminder's own 0-10 min jitter (from when it first became
+        // due) before sending — see getReminderSendAt.
+        if (Date.now() < getReminderSendAt(appt.id)) continue;
         const text = fillTemplate(waTpl.reminder, buildVars(appt, salonName));
         const ok = await callSendApi(phone, text, { type: "reminder", clientName: appt.clientName });
-        if (ok) markSent(sentKey); // only mark sent on success so failures are retried
+        if (ok) { markSent(sentKey); clearReminderSendAt(appt.id); } // only mark sent on success so failures are retried
       }
     }
   }
