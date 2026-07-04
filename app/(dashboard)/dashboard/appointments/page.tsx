@@ -333,14 +333,40 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   const setNC = (k: string, v: string) => setNewClientForm((f) => ({ ...f, [k]: v }));
   const canSaveNewClient = newClientForm.name && newClientForm.phone;
 
-  const availableServices = form.staffId
-    ? allServices.filter((s) => s.assignedStaffIds.includes(form.staffId))
-    : allServices;
-
-  const toggleService = (id: string) =>
-    setForm((f) => ({ ...f, serviceIds: f.serviceIds.includes(id) ? f.serviceIds.filter((s) => s !== id) : [...f.serviceIds, id] }));
+  // Services are the master control — the stylist is derived from what's selected, so
+  // the checklist always shows the full catalog rather than narrowing by staffId.
+  const availableServices = allServices;
 
   const selectedServices = allServices.filter((s) => form.serviceIds.includes(s.id));
+  const teamService = selectedServices.find((s) => s.multiStylist && s.assignedStaffIds.length >= 2);
+  const isTeamBooking = !!teamService;
+  const teamStaff = isTeamBooking
+    ? teamService!.assignedStaffIds.map((sid) => staffList.find((s) => s.id === sid)).filter((s): s is Staff => Boolean(s))
+    : [];
+  /** Active stylists who can perform every currently-selected service. */
+  const eligibleStaffIds = selectedServices.length > 0
+    ? staffList.filter((s) => s.isActive && selectedServices.every((sv) => sv.assignedStaffIds.includes(s.id))).map((s) => s.id)
+    : staffList.filter((s) => s.isActive).map((s) => s.id);
+
+  // Selecting a service auto-assigns the stylist(s): the full team for a team service,
+  // or the single eligible stylist when the chosen service(s) narrow it down to one.
+  const toggleService = (id: string) =>
+    setForm((f) => {
+      const serviceIds = f.serviceIds.includes(id) ? f.serviceIds.filter((s) => s !== id) : [...f.serviceIds, id];
+      const selected = allServices.filter((s) => serviceIds.includes(s.id));
+      const team = selected.find((s) => s.multiStylist && s.assignedStaffIds.length >= 2);
+      let staffId = f.staffId;
+      if (team) {
+        staffId = team.assignedStaffIds[0];
+      } else if (selected.length > 0) {
+        const eligible = staffList.filter((s) => s.isActive && selected.every((sv) => sv.assignedStaffIds.includes(s.id))).map((s) => s.id);
+        if (eligible.length === 1) staffId = eligible[0];
+        else if (!eligible.includes(f.staffId)) staffId = "";
+      } else {
+        staffId = "";
+      }
+      return { ...f, serviceIds, staffId };
+    });
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.durationMin, 0);
   const totalPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
   const canSubmit = (newClient ? newClientSaved : !!form.clientId) && form.staffId && form.serviceIds.length > 0 && form.date && form.startTime;
@@ -494,23 +520,38 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
             )}
           </FormField>
 
-          <FormField label="Stylist">
-            <select
-              value={form.staffId}
-              onChange={(e) => setForm((f) => ({ ...f, staffId: e.target.value, serviceIds: [] }))}
-              style={selectStyle}
-            >
-              <option value="">Select a stylist…</option>
-              {staffList.filter((s) => s.isActive).map((s) => (
-                <option key={s.id} value={s.id}>{s.name} · {s.role.replace(/-/g, " ")}</option>
-              ))}
-            </select>
+          <FormField label={isTeamBooking ? "Stylist Team" : "Stylist"}>
+            {isTeamBooking ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, border: "1px solid #EDE9FE", background: "#F5F3FF", borderRadius: 10, padding: "10px 12px" }}>
+                  {teamStaff.map((s) => (
+                    <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, display: "inline-block" }} />
+                      {s.name}
+                    </span>
+                  ))}
+                  <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#fff", padding: "2px 7px", borderRadius: 20, letterSpacing: "0.04em" }}>Team</span>
+                </div>
+                <div style={{ fontSize: 11, color: "#9898b0" }}>Auto-assigned — this service is done together by the full stylist team.</div>
+              </div>
+            ) : (
+              <select
+                value={form.staffId}
+                onChange={(e) => set("staffId", e.target.value)}
+                style={selectStyle}
+              >
+                <option value="">Select a stylist…</option>
+                {staffList.filter((s) => s.isActive && (selectedServices.length === 0 || eligibleStaffIds.includes(s.id))).map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} · {s.role.replace(/-/g, " ")}</option>
+                ))}
+              </select>
+            )}
           </FormField>
 
           <FormField label={`Services${form.serviceIds.length > 0 ? ` (${form.serviceIds.length} selected)` : ""}`}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {availableServices.length === 0 ? (
-                <div style={{ fontSize: 13, color: "#b0b0c8", padding: "8px 0" }}>Select a stylist first to see available services.</div>
+                <div style={{ fontSize: 13, color: "#b0b0c8", padding: "8px 0" }}>No services set up yet.</div>
               ) : availableServices.map((sv) => {
                 const checked = form.serviceIds.includes(sv.id);
                 const isTeam = sv.multiStylist && sv.assignedStaffIds.length >= 2;
