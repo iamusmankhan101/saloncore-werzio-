@@ -479,6 +479,7 @@ interface WhatsAppSettings {
   cancelDiscount: string;
   autoLowStock: boolean;
   autoGroupBooking: boolean;
+  autoPosThankYou: boolean;
   safetyEnabled: boolean;
   emergencyPause: boolean;
   dailySendLimit: number;
@@ -1198,6 +1199,12 @@ function WhatsAppSection() {
           hint="Sent to your number once daily when items run low"
           enabled={form.autoLowStock}
           onToggle={() => set("autoLowStock", !form.autoLowStock)}
+        />
+        <AutoRow
+          label="POS Thank You Message"
+          hint="Sent right after a POS sale, alongside the invoice PDF"
+          enabled={form.autoPosThankYou !== false}
+          onToggle={() => set("autoPosThankYou", !(form.autoPosThankYou !== false))}
         />
       </div>
 

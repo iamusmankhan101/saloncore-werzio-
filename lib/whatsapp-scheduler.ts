@@ -26,7 +26,7 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
-export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday";
+export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday" | "thankyou";
 export type WaMsgStatus = "sent" | "failed";
 
 export interface WaLogEntry {
@@ -354,6 +354,24 @@ export function enqueueWhatsAppCancellation(apptId: string) {
     const phone = client?.phone ? normalizePhone(client.phone) : "";
     setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs, phone, clientName: appt?.clientName }]);
   }
+}
+
+/**
+ * Call right after a POS sale completes — sends a short thank-you text to the
+ * client, on top of (not instead of) the invoice PDF. Sent immediately (subject to
+ * the same pacing gate as every other message), since the client may still be at
+ * the counter. Uses "utility" intent (see callSendApi) — a courtesy thank-you tied
+ * to a real, just-completed purchase, not a discount-laden marketing push.
+ */
+export async function sendPosThankYou(phone: string, clientName: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  const ws = settingsStore.wasender as { autoPosThankYou?: boolean };
+  if (ws.autoPosThankYou === false) return false;
+  const tpl = (settingsStore.whatsapp as { posThankYou?: string }).posThankYou;
+  if (!tpl || !phone) return false;
+  const salonName = settingsStore.salon.name as string;
+  const text = fillTemplate(tpl, { name: clientName, salon_name: salonName });
+  return callSendApi(phone, text, { type: "thankyou", clientName });
 }
 
 type ProviderConfig = WhatsAppSafetyConfig & {

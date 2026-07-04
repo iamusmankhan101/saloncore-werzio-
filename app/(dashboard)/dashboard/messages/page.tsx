@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw,
   Zap, Bell, ThumbsUp, Package, ChevronRight, Phone, Copy, Check,
-  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, AlertCircle, Cake, CalendarX,
+  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, AlertCircle, Cake, CalendarX, Heart,
 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -25,6 +25,7 @@ const TYPE_META: Record<WaMsgType, { label: string; color: string; bg: string; i
   lowstock:     { label: "Low Stock",    color: "#ea580c", bg: "rgba(234,88,12,0.1)",   icon: Package },
   manual:       { label: "Manual",       color: "#6b7280", bg: "rgba(107,114,128,0.1)", icon: Send },
   birthday:     { label: "Birthday",     color: "#db2777", bg: "rgba(219,39,119,0.1)",  icon: Cake },
+  thankyou:     { label: "Thank You",    color: "#c026d3", bg: "rgba(192,38,211,0.1)",  icon: Heart },
 };
 
 const SAMPLE_VARS: Record<string, string> = {
@@ -48,6 +49,7 @@ const TPL_CONFIG: TplCfg[] = [
   { key: "cancellation", label: "Cancellation Win-back",   description: "Sent 24h after cancellation with a discount to re-book",   vars: ["name","salon_name","discount"],              color: "#dc2626", icon: CalendarX },
   { key: "lowstock",     label: "Low Stock Alert",         description: "Sent once daily to your WhatsApp when stock is low",        vars: ["items","count","salon_name"],                color: "#ea580c", icon: Package },
   { key: "birthday",     label: "Birthday Greeting",       description: "Queued on each client's birthday and spread randomly across 4 hours",     vars: ["name","salon_name","discount"],              color: "#db2777", icon: Cake },
+  { key: "posThankYou",  label: "POS Thank You",           description: "Sent right after a POS sale, alongside the invoice PDF",    vars: ["name","salon_name"],                          color: "#c026d3", icon: Heart },
 ];
 
 const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
@@ -57,6 +59,7 @@ const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
   { value: "followup",     label: "Follow-ups" },
   { value: "cancellation", label: "Cancellations" },
   { value: "birthday",     label: "Birthdays" },
+  { value: "thankyou",     label: "Thank You" },
   { value: "lowstock",     label: "Low Stock" },
   { value: "manual",       label: "Manual" },
 ];

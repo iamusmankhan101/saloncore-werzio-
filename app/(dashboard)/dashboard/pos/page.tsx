@@ -21,7 +21,7 @@ import {
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
-import { normalizePhone } from "@/lib/whatsapp-scheduler";
+import { normalizePhone, sendPosThankYou } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
@@ -463,6 +463,9 @@ export default function POSPage() {
     } catch {
       setWaStatus("failed");
     }
+    // Also send a short thank-you text — independent of whether the invoice PDF
+    // itself succeeded, since it's a separate courtesy message, not a retry.
+    void sendPosThankYou(normalizePhone(client.phone), client.name);
   }
 
   const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string; logo?: string };

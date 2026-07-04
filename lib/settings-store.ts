@@ -52,6 +52,7 @@ const defaults = {
     autoLowStock: true,
     autoNewBooking: true,
     autoGroupBooking: false,
+    autoPosThankYou: true,
     safetyEnabled: true,
     emergencyPause: false,
     dailySendLimit: 300,
@@ -98,6 +99,7 @@ const defaults = {
     newBooking: "📅 New Booking! {{name}} has booked {{service}} on {{date}} at {{time}} at {{salon_name}}. Total: PKR {{amount}}.",
     lowstock: "⚠️ Low Stock Alert from {{salon_name}}: {{count}} item(s) running low — {{items}}. Please restock soon.",
     birthday: "🎂 Happy Birthday {{name}}! Wishing you a beautiful day from all of us at {{salon_name}}. As a birthday gift, enjoy {{discount}} off your next visit — book anytime this week 💜",
+    posThankYou: "Thank you so much for visiting {{salon_name}} today, {{name}}! We hope you loved your experience — see you again soon 💜",
   },
   birthday: {
     autoBirthday: true,
