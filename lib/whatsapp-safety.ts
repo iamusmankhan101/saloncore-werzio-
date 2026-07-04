@@ -26,8 +26,14 @@ interface SafetyState {
   dayKey: string;
   totalSent: number;
   byRecipient: Record<string, number>;
-  lastSentAt: Record<string, number>;
+  /** Per-recipient timestamp (ms) before which a resend is blocked — jittered around recipientCooldownSeconds so the cooldown isn't a fixed, guessable interval. */
+  cooldownUntil: Record<string, number>;
 }
+
+// Jitter the configured cooldown by ±15% each time it's recorded, so "wait N
+// seconds before texting the same client again" isn't an exact, robotic interval.
+const COOLDOWN_JITTER_MIN = 0.85;
+const COOLDOWN_JITTER_MAX = 1.15;
 
 const DEFAULT_SAFETY: Required<WhatsAppSafetyConfig> = {
   safetyEnabled: true,
@@ -88,7 +94,7 @@ function normalizeRecipient(phone: string) {
 function getState(config: Required<WhatsAppSafetyConfig>) {
   const dayKey = todayKey(config.quietHoursTimezone);
   if (!g.__werzioWaSafetyState || g.__werzioWaSafetyState.dayKey !== dayKey) {
-    g.__werzioWaSafetyState = { dayKey, totalSent: 0, byRecipient: {}, lastSentAt: {} };
+    g.__werzioWaSafetyState = { dayKey, totalSent: 0, byRecipient: {}, cooldownUntil: {} };
   }
   return g.__werzioWaSafetyState;
 }
@@ -153,10 +159,9 @@ export function checkWhatsAppSafety(input: WhatsAppSafetyCheckInput) {
     return { ok: false, status: 429, error: `Daily WhatsApp limit reached for this recipient (${config.perRecipientDailyLimit}).` };
   }
 
-  const cooldownMs = config.recipientCooldownSeconds * 1000;
-  const elapsed = Date.now() - (state.lastSentAt[recipient] ?? 0);
-  if (!isGroup && cooldownMs > 0 && elapsed < cooldownMs) {
-    const retryAfter = Math.ceil((cooldownMs - elapsed) / 1000);
+  const cooldownUntil = state.cooldownUntil[recipient] ?? 0;
+  if (!isGroup && config.recipientCooldownSeconds > 0 && Date.now() < cooldownUntil) {
+    const retryAfter = Math.ceil((cooldownUntil - Date.now()) / 1000);
     return { ok: false, status: 429, error: `WhatsApp safety cooldown active. Try again in ${retryAfter}s.`, retryAfter };
   }
 
@@ -172,5 +177,9 @@ export function recordWhatsAppSafetySend(input: { phone: string; config?: WhatsA
   // backs the mandatory warm-up cap check in checkWhatsAppSafety above.
   state.totalSent += 1;
   state.byRecipient[recipient] = (state.byRecipient[recipient] ?? 0) + 1;
-  state.lastSentAt[recipient] = Date.now();
+  // Jitter the cooldown window ±15% so it's not an exact, predictable interval —
+  // e.g. a configured 30-minute cooldown lands somewhere between ~25.5-34.5 min.
+  const jitteredCooldownMs = config.recipientCooldownSeconds * 1000
+    * (COOLDOWN_JITTER_MIN + Math.random() * (COOLDOWN_JITTER_MAX - COOLDOWN_JITTER_MIN));
+  state.cooldownUntil[recipient] = Date.now() + jitteredCooldownMs;
 }
