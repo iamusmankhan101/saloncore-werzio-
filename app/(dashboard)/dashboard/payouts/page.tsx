@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { getStoredStaff, getStoredAppointments } from "@/lib/storage";
-import { getPayouts, savePayouts, lastPayoutEnd, type Payout, type PayoutStatus } from "@/lib/payouts";
-import type { Staff, Appointment } from "@/lib/types";
+import { getStoredStaff, getStoredAppointments, getStoredServices } from "@/lib/storage";
+import { getPayouts, savePayouts, lastPayoutEnd, revenueInPeriod, type Payout, type PayoutStatus } from "@/lib/payouts";
+import type { Staff, Appointment, Service } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
   Wallet, X, Trash2, Clock, TrendingUp, Users as UsersIcon,
@@ -25,19 +25,12 @@ function fmtDate(s: string) {
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-/** Revenue a staff member generated from completed appointments within [start, end] inclusive. */
-function revenueInPeriod(staffId: string, appointments: Appointment[], start: string, end: string) {
-  return appointments
-    .filter((a) => a.staffId === staffId && a.status === "completed" && a.date >= start && a.date <= end)
-    .reduce((s, a) => s + (a.totalAmount ?? 0), 0);
-}
-
 const inp: React.CSSProperties = { padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", width: "100%", boxSizing: "border-box" };
 const label: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" };
 
 // ── Process Payout Modal ────────────────────────────────────────────────────
-function ProcessPayoutModal({ staff, appointments, payouts, onClose, onSave }: {
-  staff: Staff; appointments: Appointment[]; payouts: Payout[]; onClose: () => void;
+function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, onSave }: {
+  staff: Staff; appointments: Appointment[]; services: Service[]; payouts: Payout[]; onClose: () => void;
   onSave: (p: Omit<Payout, "id" | "createdAt">) => void;
 }) {
   const lastEnd = lastPayoutEnd(staff.id, payouts);
@@ -59,9 +52,16 @@ function ProcessPayoutModal({ staff, appointments, payouts, onClose, onSave }: {
   const [done, setDone] = useState(false);
 
   const revenue = useMemo(
-    () => revenueInPeriod(staff.id, appointments, form.periodStart, form.periodEnd),
-    [staff.id, appointments, form.periodStart, form.periodEnd],
+    () => revenueInPeriod(staff.id, appointments, services, form.periodStart, form.periodEnd),
+    [staff.id, appointments, services, form.periodStart, form.periodEnd],
   );
+  const hasTeamRevenue = useMemo(() => appointments.some((a) =>
+    a.status === "completed" && a.date >= form.periodStart && a.date <= form.periodEnd &&
+    a.serviceIds.some((sid) => {
+      const sv = services.find((s) => s.id === sid);
+      return sv?.multiStylist && sv.assignedStaffIds.includes(staff.id);
+    })
+  ), [appointments, services, staff.id, form.periodStart, form.periodEnd]);
   const rate = Number(form.commissionRate) || 0;
   const baseAmount = form.payType === "commission"
     ? Math.round(revenue * rate / 100)
@@ -164,6 +164,9 @@ function ProcessPayoutModal({ staff, appointments, payouts, onClose, onSave }: {
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b6b8a" }}>
                   <span>Commission ({rate}%)</span><span style={{ fontWeight: 700, color: "#1a1a2e" }}>{fmt(baseAmount)}</span>
                 </div>
+                {hasTeamRevenue && (
+                  <div style={{ fontSize: 11, color: "#7C3AED" }}>Includes an even split of revenue from team services done with other stylists.</div>
+                )}
               </div>
             </>
           ) : (
@@ -279,6 +282,7 @@ const STATUS_META: Record<PayoutStatus, { label: string; color: string; bg: stri
 export default function PayoutsPage() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [processingFor, setProcessingFor] = useState<Staff | null>(null);
   const [markPaidTarget, setMarkPaidTarget] = useState<Payout | null>(null);
@@ -289,6 +293,7 @@ export default function PayoutsPage() {
   useEffect(() => {
     setStaffList(getStoredStaff());
     setAppointments(getStoredAppointments());
+    setServices(getStoredServices());
     setPayouts(getPayouts());
   }, []);
 
@@ -340,6 +345,7 @@ export default function PayoutsPage() {
         <ProcessPayoutModal
           staff={processingFor}
           appointments={appointments}
+          services={services}
           payouts={payouts}
           onClose={() => setProcessingFor(null)}
           onSave={handleAddPayout}
@@ -402,7 +408,7 @@ export default function PayoutsPage() {
             const payType = s.payType ?? "commission";
             const lastEnd = lastPayoutEnd(s.id, payouts);
             const periodStart = lastEnd ? addDays(lastEnd, 1) : startOfMonth();
-            const revenue = revenueInPeriod(s.id, appointments, periodStart, todayStr());
+            const revenue = revenueInPeriod(s.id, appointments, services, periodStart, todayStr());
             const estimated = payType === "commission" ? Math.round(revenue * (s.commissionRate ?? 0) / 100) : (s.baseSalary ?? 0);
             return (
               <div key={s.id} style={{ background: "#fff", padding: "20px", display: "flex", flexDirection: "column", gap: 14, border: "1px solid #ebebf0", borderRadius: 16 }}>
