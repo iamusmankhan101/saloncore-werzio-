@@ -7,6 +7,7 @@ import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { AppointmentStatus, Appointment, Client, Staff } from "@/lib/types";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import DashboardHeader from "@/components/dashboard-header";
+import MobilePageHeader from "@/components/mobile-page-header";
 import { MoreHorizontal, TrendingUp, Calendar, Users, Award, Clock, ArrowUpRight, Tag, Star } from "lucide-react";
 import { fmtCurrency as fmt } from "@/lib/format";
 
@@ -153,6 +154,7 @@ export default function DashboardPage() {
 
       {/* Header */}
       <DashboardHeader />
+      <MobilePageHeader title="Dashboard" subtitle="Salon Overview" />
 
       {/* Stats Row */}
       <div className="stats-grid-4" style={{ marginBottom: 4 }}>
@@ -668,8 +670,8 @@ export default function DashboardPage() {
             </span>
           </div>
           
-          {/* Table header */}
-          <div style={{
+          {/* Table header — desktop grid only, replaced by a stacked list on mobile */}
+          <div className="desktop-only" style={{
             display: "grid",
             gridTemplateColumns: "1.2fr 0.8fr 1fr 1fr",
             padding: "10px 20px",
@@ -680,7 +682,7 @@ export default function DashboardPage() {
               <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#8e89a3", letterSpacing: "0.08em" }}>{h}</div>
             ))}
           </div>
-          
+
           {/* Rows */}
           <div style={{ flex: 1, overflowY: "auto", maxHeight: 260 }}>
             {todayAppts.length === 0 ? (
@@ -688,43 +690,76 @@ export default function DashboardPage() {
                 No services logged for today.
               </div>
             ) : (
-              todayAppts.map((appt, i) => {
+              todayAppts.map((appt) => {
                 const cfg = STATUS_CONFIG[appt.status] || { color: "#6b7280", bg: "#f9fafb", label: appt.status };
                 return (
-                  <div key={appt.id} style={{
-                    display: "grid",
-                    gridTemplateColumns: "1.2fr 0.8fr 1fr 1fr",
-                    padding: "14px 20px",
-                    borderBottom: "1px solid #f8f8fc",
-                    alignItems: "center",
-                    transition: "background 0.2s"
-                  }} className="hover-bg-row">
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{appt.serviceNames[0]}</div>
-                      <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3, display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
-                        <Clock size={10} />
-                        <span>{fmtTime(appt.startTime)}</span>
+                  <div key={appt.id}>
+                    {/* Desktop: 4-column grid row */}
+                    <div className="desktop-only hover-bg-row" style={{
+                      display: "grid",
+                      gridTemplateColumns: "1.2fr 0.8fr 1fr 1fr",
+                      padding: "14px 20px",
+                      borderBottom: "1px solid #f8f8fc",
+                      alignItems: "center",
+                      transition: "background 0.2s"
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{appt.serviceNames[0]}</div>
+                        <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3, display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
+                          <Clock size={10} />
+                          <span>{fmtTime(appt.startTime)}</span>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#4a4a6a", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}</div>
+                      <div>
+                        <span style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 10,
+                          fontWeight: 800,
+                          color: cfg.color,
+                          background: cfg.bg,
+                          padding: "3px 8px",
+                          borderRadius: 20,
+                          whiteSpace: "nowrap"
+                        }}>
+                          <span style={{ width: 4, height: 4, borderRadius: "50%", background: cfg.color }} />
+                          {cfg.label}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{fmt(appt.totalAmount)}</div>
+                    </div>
+
+                    {/* Mobile: stacked row, matching the "Today's Appointments" card pattern above */}
+                    <div className="mobile-only mobile-only-flex" style={{ alignItems: "center", gap: 10, padding: "12px 16px", borderBottom: "1px solid #f8f8fc" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{appt.serviceNames[0]}</div>
+                        <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3, display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
+                          <Clock size={10} />
+                          <span>{fmtTime(appt.startTime)}</span>
+                          <span>· {appt.staffName.split(" ")[0]}</span>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                        <span style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 9,
+                          fontWeight: 800,
+                          color: cfg.color,
+                          background: cfg.bg,
+                          padding: "3px 7px",
+                          borderRadius: 20,
+                          whiteSpace: "nowrap"
+                        }}>
+                          <span style={{ width: 4, height: 4, borderRadius: "50%", background: cfg.color }} />
+                          {cfg.label}
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)" }}>{fmt(appt.totalAmount)}</span>
                       </div>
                     </div>
-                    <div style={{ fontSize: 12, color: "#4a4a6a", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}</div>
-                    <div>
-                      <span style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontSize: 10,
-                        fontWeight: 800,
-                        color: cfg.color,
-                        background: cfg.bg,
-                        padding: "3px 8px",
-                        borderRadius: 20,
-                        whiteSpace: "nowrap"
-                      }}>
-                        <span style={{ width: 4, height: 4, borderRadius: "50%", background: cfg.color }} />
-                        {cfg.label}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{fmt(appt.totalAmount)}</div>
                   </div>
                 );
               })

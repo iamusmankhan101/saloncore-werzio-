@@ -620,6 +620,12 @@ input, textarea, select { font-family: inherit; }
     padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
+  /* POS hides the global bottom-nav in favor of its own Customer/Catalog/Cart
+     tab bar, so it doesn't need main's usual bottom-nav clearance. */
+  .pos-page-main {
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+
   .sidebar-logo {
     height: 48px !important;
   }

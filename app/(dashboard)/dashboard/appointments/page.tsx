@@ -10,6 +10,7 @@ import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
 import PageTitle from "@/components/page-title";
+import MobilePageHeader from "@/components/mobile-page-header";
 
 const STATUS: Record<AppointmentStatus, { label: string; color: string; bg: string }> = {
   booked:        { label: "Booked",      color: "#6366f1", bg: "#EEF2FF" },
@@ -123,7 +124,7 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
   }
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 480, maxHeight: "92vh", overflowY: "auto", overflowX: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,0.22)" }}>
 
         {/* Header */}
@@ -439,8 +440,8 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
 
   if (done) {
     return (
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 380, padding: "48px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 380, maxWidth: "100%", padding: "48px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
           <div style={{ fontWeight: 700, fontSize: 18, color: "#1a1a2e", marginBottom: 8 }}>Appointment Created</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 24 }}>The appointment has been booked successfully.</div>
@@ -451,7 +452,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   }
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 500, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
 
         {/* Header */}
@@ -673,6 +674,8 @@ function CancellationsTab({ appointments, staffList, onReschedule, onSelect }: {
         boxShadow: "0 8px 28px rgba(38,25,75,.04)",
         overflow: "hidden"
       }}>
+        {/* Desktop: dense grid table */}
+        <div className="desktop-only">
         <div style={{
           display: "grid",
           gridTemplateColumns: "1.2fr 130px 1.5fr 120px 110px 150px",
@@ -766,6 +769,66 @@ function CancellationsTab({ appointments, staffList, onReschedule, onSelect }: {
             );
           })
         )}
+        </div>{/* /desktop-only */}
+
+        {/* Mobile: stacked card list */}
+        <div className="mobile-only">
+          {cancelled.length === 0 ? (
+            <div style={{ padding: "40px 20px", textAlign: "center", color: "#b0b0c8", fontSize: 14 }}>
+              No cancellations or no-shows yet.
+            </div>
+          ) : (
+            cancelled.map((appt, i) => {
+              const staff = staffList.find((s) => s.id === appt.staffId);
+              const isLast = i === cancelled.length - 1;
+              const isCancelled = appt.status === "cancelled";
+              return (
+                <div key={appt.id} style={{ padding: "14px 16px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#6b6b8a", flexShrink: 0 }}>
+                      {appt.clientName.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{appt.clientName}</div>
+                      <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{appt.serviceNames.join(", ")}</div>
+                    </div>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, color: isCancelled ? "#dc2626" : "#d97706", background: isCancelled ? "#fef2f2" : "#fffbeb", padding: "3px 8px", borderRadius: 20, whiteSpace: "nowrap", flexShrink: 0 }}>
+                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: isCancelled ? "#dc2626" : "#d97706" }} />
+                      {isCancelled ? "Cancelled" : "No Show"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 44 }}>
+                    <div style={{ fontSize: 11, color: "#9898b0", display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
+                      <Clock size={10} />
+                      <span>{fmtDate(appt.date)} · {fmtTime(appt.startTime)}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#9898b0", fontWeight: 600 }}>{fmt(appt.totalAmount)} lost</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 44, gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: staff?.color ?? "#ccc", flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: "#4a4a6a", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => onSelect(appt)}
+                        style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #e3e0eb", background: "#fff", fontSize: 11, fontWeight: 700, color: "#6b6b8a", cursor: "pointer" }}
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={onReschedule}
+                        style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "var(--accent-gradient)", fontSize: 11, fontWeight: 800, color: "#fff", cursor: "pointer" }}
+                      >
+                        Reschedule
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
 
         {cancelled.length > 0 && (
           <div style={{ padding: "16px 20px", borderTop: "1px solid #eef0f5", background: "#faf9fd", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -975,7 +1038,7 @@ export default function AppointmentsPage() {
       )}
 
       {/* Page header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="dashboard-topbar page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <PageTitle
           icon={<CalendarDays size={24} />}
           title="Appointments"
@@ -1006,6 +1069,13 @@ export default function AppointmentsPage() {
           {apptLimited && <span style={{ fontSize: 11, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px", marginLeft: 2 }}>Limit reached</span>}
         </button>
       </div>
+
+      {/* Native mobile app bar */}
+      <MobilePageHeader
+        title="Appointments"
+        subtitle={`${filtered.length} · ${fmt(totalRevenue)}`}
+        action={{ label: apptLimited ? "Limit reached" : "New", icon: <Plus size={14} />, onClick: () => !apptLimited && setShowCreate(true) }}
+      />
 
       {/* Free-plan usage bar */}
       {plan.appointmentsPerMonth !== -1 && (
@@ -1186,6 +1256,8 @@ export default function AppointmentsPage() {
         boxShadow: "0 8px 28px rgba(38,25,75,.04)",
         overflow: "hidden"
       }}>
+        {/* Desktop: dense scrollable table */}
+        <div className="desktop-only">
         <div className="table-scroll-inner">
         <div className="appt-table-inner">
         <div style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 130px 1.5fr 120px 110px 90px 110px", padding: "12px 20px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd" }}>
@@ -1275,6 +1347,70 @@ export default function AppointmentsPage() {
             );
           })
         )}
+        </div>{/* /appt-table-inner */}
+        </div>{/* /table-scroll-inner */}
+        </div>{/* /desktop-only */}
+
+        {/* Mobile: stacked card list */}
+        <div className="mobile-only">
+          {filtered.length === 0 ? (
+            <div style={{ padding: "40px 20px", textAlign: "center", color: "#b0b0c8", fontSize: 14 }}>No appointments match your filters.</div>
+          ) : (
+            filtered.map((appt, i) => {
+              const cfg = STATUS[appt.status];
+              const staff = staffList.find((s) => s.id === appt.staffId);
+              const isTeamAppt = services.some((s) => appt.serviceIds.includes(s.id) && s.multiStylist && s.assignedStaffIds.length >= 2);
+              const isLast = i === filtered.length - 1;
+              const canCheckout = ["arrived", "in-progress", "completed"].includes(appt.status) && !invoicedApptIds.has(appt.id);
+              return (
+                <div
+                  key={appt.id}
+                  onClick={() => setSelected(appt)}
+                  style={{ padding: "14px 16px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", display: "flex", flexDirection: "column", gap: 8, cursor: "pointer" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: (staff?.color ?? "#7C3AED") + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: staff?.color ?? "#7C3AED", flexShrink: 0 }}>
+                      {appt.clientName.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e", letterSpacing: "-0.01em" }}>{appt.clientName}</div>
+                      <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{appt.serviceNames.join(", ")}</div>
+                    </div>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, color: cfg.color, background: cfg.bg, padding: "3px 8px", borderRadius: 20, whiteSpace: "nowrap", flexShrink: 0 }}>
+                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: cfg.color }} />
+                      {cfg.label}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 44 }}>
+                    <div style={{ fontSize: 11, color: "#9898b0", display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
+                      <Clock size={10} />
+                      <span>{fmtDate(appt.date)} · {fmtTime(appt.startTime)}</span>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{fmt(appt.totalAmount)}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 44, gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: staff?.color ?? "#ccc", flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: "#4a4a6a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{appt.staffName.split(" ")[0]}</span>
+                      {isTeamAppt && (
+                        <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em", flexShrink: 0 }}>Team</span>
+                      )}
+                    </div>
+                    {canCheckout && (
+                      <a
+                        href={`/dashboard/pos?appointmentId=${appt.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "var(--accent-gradient)", color: "#fff", fontSize: 11, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
+                      >
+                        <ShoppingCart size={11} /> Checkout
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
 
         {filtered.length > 0 && (
           <div style={{ padding: "16px 20px", borderTop: "1px solid #eef0f5", background: "#faf9fd", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1282,8 +1418,6 @@ export default function AppointmentsPage() {
             <span style={{ fontSize: 15, fontWeight: 900, color: "var(--accent)" }}>{fmt(totalRevenue)}</span>
           </div>
         )}
-        </div>{/* /appt-table-inner */}
-        </div>{/* /table-scroll-inner */}
       </div>{/* /table-scroll-wrap */}
       </>)}
     </div>

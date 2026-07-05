@@ -823,7 +823,7 @@ export default function POSPage() {
             )}
 
             {/* Tab switcher */}
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2 }}>
               {([
                 { id: "all",      label: "All Items", icon: Sparkles },
                 { id: "services", label: "Services",  icon: Scissors },
@@ -833,7 +833,7 @@ export default function POSPage() {
                 const Icon = t.icon;
                 return (
                   <button key={t.id} type="button" onClick={() => setCatalogTab(t.id)}
-                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 9, border: `1.5px solid ${active ? "#7C3AED" : "#e8e8f4"}`, background: active ? "#f5f3ff" : "#fafafe", color: active ? "#7C3AED" : "#9999b0", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.12s" }}>
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 9, border: `1.5px solid ${active ? "#7C3AED" : "#e8e8f4"}`, background: active ? "#f5f3ff" : "#fafafe", color: active ? "#7C3AED" : "#9999b0", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.12s", flexShrink: 0, whiteSpace: "nowrap" }}>
                     <Icon size={12} /> {t.label}
                   </button>
                 );

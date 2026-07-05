@@ -6,6 +6,7 @@ import type { AppointmentStatus, Appointment, Staff, Service } from "@/lib/types
 import { ChevronLeft, ChevronRight, X, Clock, User, Scissors, Tag, CalendarDays } from "lucide-react";
 import { fmtCurrency as fmt } from "@/lib/format";
 import PageTitle from "@/components/page-title";
+import MobilePageHeader from "@/components/mobile-page-header";
 
 const HOURS  = Array.from({ length: 24 }, (_, i) => i);
 const SLOT_H = 64;
@@ -116,7 +117,7 @@ function DetailModal({ appt, onClose, staffList, allServices }: {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: "#fff", borderRadius: 20, width: 420, boxShadow: "0 24px 64px rgba(0,0,0,0.18)", overflow: "hidden", border: "1px solid rgba(226,223,235,0.6)" }}
+        style={{ background: "#fff", borderRadius: 20, width: 420, maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", overflowX: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.18)", border: "1px solid rgba(226,223,235,0.6)" }}
       >
         {/* Coloured header */}
         <div style={{ background: `linear-gradient(135deg, ${accent}14 0%, ${accent}04 100%)`, padding: "24px 24px 20px", borderBottom: `1px solid ${accent}15`, position: "relative" }}>
@@ -217,12 +218,14 @@ export default function CalendarPage() {
   const [services, setServices]       = useState<Service[]>([]);
   const [today, setToday]             = useState("");
   const [nowMin, setNowMin]           = useState(0);
+  const [mobileDay, setMobileDay]     = useState(""); // YYYY-MM-DD — single-day agenda view on mobile, navigated independently of the desktop week grid
   const scrollRef                     = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const todayStr = new Date().toLocaleDateString("en-CA");
     setToday(todayStr);
     setAnchor(parseDate(todayStr));
+    setMobileDay(todayStr);
     setAppointments(getStoredAppointments());
     setStaffList(getStoredStaff());
     setServices(getStoredServices());
@@ -254,13 +257,33 @@ export default function CalendarPage() {
 
   const nowTop = (nowMin / 60) * SLOT_H;
 
+  // Mobile single-day agenda — independent of the desktop week grid's anchor
+  const mobileDayDate  = mobileDay ? parseDate(mobileDay) : new Date();
+  const mobileWeek     = weekOf(mobileDayDate);
+  const mobileDayLabel = mobileDayDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  const mobileDayAppts = appointments
+    .filter((a) => a.date === mobileDay)
+    .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+  function shiftMobileDay(deltaDays: number) {
+    const d = parseDate(mobileDay);
+    d.setDate(d.getDate() + deltaDays);
+    setMobileDay(toStr(d));
+  }
+
   return (
     <div className="dash-page dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
 
       {selected && <DetailModal appt={selected} onClose={() => setSelected(null)} staffList={staffList} allServices={services} />}
 
+      {/* Native mobile app bar */}
+      <MobilePageHeader
+        title="Calendar"
+        subtitle={mobileDayLabel}
+        action={{ label: "Today", onClick: () => setMobileDay(today) }}
+      />
+
       {/* ── Header ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="dashboard-topbar page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <PageTitle icon={<CalendarDays size={24} />} title="Calendar" subtitle={`${weekStart} – ${weekEnd}`} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -291,8 +314,8 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* ── Calendar card ── */}
-      <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(226,223,235,.95)", overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", boxShadow: "0 8px 28px rgba(38,25,75,.04)" }} className="cal-scroll-wrap">
+      {/* ── Calendar card (desktop week grid) ── */}
+      <div className="desktop-only cal-scroll-wrap" style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(226,223,235,.95)", overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", boxShadow: "0 8px 28px rgba(38,25,75,.04)" }}>
 
         {/* Day header row */}
         <div style={{ display: "grid", gridTemplateColumns: "64px repeat(7, 1fr)", borderBottom: "1.5px solid #f0f0f8", background: "#fff" }}>
@@ -379,6 +402,83 @@ export default function CalendarPage() {
               );
             })}
           </div>
+        </div>
+      </div>
+
+      {/* ── Mobile: single-day agenda view ── */}
+      <div className="mobile-only" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+        {/* Day picker strip */}
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
+          {mobileWeek.map((d, i) => {
+            const ds      = toStr(d);
+            const isSel   = ds === mobileDay;
+            const isToday = ds === today;
+            return (
+              <button
+                key={ds}
+                onClick={() => setMobileDay(ds)}
+                style={{
+                  flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                  padding: "8px 13px", borderRadius: 12, minWidth: 46,
+                  border: isSel ? "none" : "1px solid #e3e0eb",
+                  background: isSel ? "var(--accent-gradient)" : "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", color: isSel ? "rgba(255,255,255,0.8)" : "#9898b0" }}>{DAYS[i]}</span>
+                <span style={{ fontSize: 15, fontWeight: 850, color: isSel ? "#fff" : isToday ? "var(--accent)" : "#1a1a2e" }}>{d.getDate()}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Prev / label / next day nav */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={() => shiftMobileDay(-1)} style={{ width: 34, height: 34, borderRadius: 10, border: "1.5px solid #e3e0eb", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#6b6b8a" }}>
+            <ChevronLeft size={16} />
+          </button>
+          <span style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{mobileDayLabel}</span>
+          <button onClick={() => shiftMobileDay(1)} style={{ width: 34, height: 34, borderRadius: 10, border: "1.5px solid #e3e0eb", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#6b6b8a" }}>
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        {/* Agenda list */}
+        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", overflow: "hidden" }}>
+          {mobileDayAppts.length === 0 ? (
+            <div style={{ padding: "48px 20px", textAlign: "center", color: "#b0b0c8", fontSize: 14 }}>No appointments on this day.</div>
+          ) : (
+            mobileDayAppts.map((a, i) => {
+              const cfg = STATUS[a.status];
+              const staff = staffList.find((s) => s.id === a.staffId);
+              const accent = staff?.color ?? cfg.color;
+              const isLast = i === mobileDayAppts.length - 1;
+              return (
+                <div
+                  key={a.id}
+                  onClick={() => setSelected(a)}
+                  style={{ display: "flex", gap: 12, padding: "14px 16px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", cursor: "pointer" }}
+                >
+                  <div style={{ width: 4, borderRadius: 2, background: accent, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.clientName}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, color: cfg.color, background: cfg.bg, padding: "3px 8px", borderRadius: 20, whiteSpace: "nowrap", flexShrink: 0 }}>
+                        <span style={{ width: 4, height: 4, borderRadius: "50%", background: cfg.dot }} />
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.serviceNames.join(", ")}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0", marginTop: 4, display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
+                      <Clock size={10} />
+                      <span>{fmtTime(a.startTime)} – {fmtTime(a.endTime)} · {a.staffName.split(" ")[0]}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

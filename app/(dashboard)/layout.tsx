@@ -643,6 +643,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Billing page is always accessible even when suspended
   const isBillingPage = pathname === "/dashboard/billing";
+  // POS has its own internal Customer/Catalog/Cart tab bar on mobile — showing the
+  // global bottom-nav on top of it stacks two toolbars and eats screen space from
+  // an already tight checkout flow, so it's hidden here specifically.
+  const isPosPage = pathname === "/dashboard/pos";
 
   const bottomTabs = [
     { href: "/dashboard",             icon: LayoutDashboard, label: "Dashboard"    },
@@ -663,7 +667,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       />
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main style={{
+      <main className={isPosPage ? "pos-page-main" : ""} style={{
         marginLeft: "var(--sidebar-width)",
         flex: 1,
         minHeight: "100vh",
@@ -707,6 +711,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
+      {!isPosPage && (
       <nav className="bottom-nav">
         {/* Left tabs */}
         {leftTabs.map((tab) => {
@@ -749,6 +754,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           );
         })}
       </nav>
+      )}
 
       {/* Suspension gate — shown over everything except the billing page */}
       {suspended && !isBillingPage && <SuspensionGate reason={suspReason} />}

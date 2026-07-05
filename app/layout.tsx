@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -16,6 +16,15 @@ export const metadata: Metadata = {
     icon: [{ url: "/salon-central-favicon.png", type: "image/png", sizes: "1254x1254" }],
     apple: { url: "/salon-central-favicon.png", sizes: "1254x1254", type: "image/png" },
   },
+};
+
+// viewportFit: "cover" lets content draw under the notch/home-indicator area on
+// iOS so the env(safe-area-inset-*) values globals.css already reads (bottom nav,
+// mobile app bar) actually resolve to something non-zero instead of silently no-op'ing.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
