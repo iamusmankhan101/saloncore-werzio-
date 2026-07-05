@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
@@ -102,6 +102,11 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
   const [currentStatus, setCurrentStatus] = useState<AppointmentStatus>(appt.status);
   const cfg          = STATUS[currentStatus];
   const [photos, setPhotos] = useState<{ before?: string; after?: string }>({});
+  // A ref (not state) so it latches synchronously — a rapid double-click/double-tap
+  // on Cancel/No Show/Complete fires this handler twice before React re-renders to
+  // hide the button (isTerminal only updates on the next render), which previously
+  // could enqueue two separate WhatsApp sends for the same status change.
+  const terminalLockRef = useRef(false);
 
   const handlePhotoUpload = (side: "before" | "after", file: File) => {
     const reader = new FileReader();
@@ -119,6 +124,8 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
   const isTerminal   = ["completed", "cancelled", "no-show"].includes(currentStatus);
 
   function changeStatus(newStatus: AppointmentStatus) {
+    if (terminalLockRef.current) return;
+    if (["completed", "cancelled", "no-show"].includes(newStatus)) terminalLockRef.current = true;
     setCurrentStatus(newStatus);
     onStatusChange(appt.id, newStatus);
   }

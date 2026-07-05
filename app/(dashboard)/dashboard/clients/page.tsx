@@ -12,6 +12,7 @@ import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
 import PageTitle from "@/components/page-title";
+import MobilePageHeader from "@/components/mobile-page-header";
 
 const STATUS_CONFIG = {
   booked:        { color: "#6366f1", bg: "#eef2ff" },
@@ -39,8 +40,8 @@ function fmtDate(s?: string) {
 // ── Delete All Confirm Modal ──────────────────────────────────────────────────
 function DeleteAllConfirmModal({ count, onConfirm, onCancel }: { count: number; onConfirm: () => void; onCancel: () => void }) {
   return (
-    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 360, padding: "28px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", textAlign: "center" }}>
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 360, maxWidth: "100%", padding: "28px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", textAlign: "center" }}>
         <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
           <Trash2 size={22} color="#dc2626" />
         </div>
@@ -64,8 +65,8 @@ function DeleteAllConfirmModal({ count, onConfirm, onCancel }: { count: number; 
 // ── Delete Confirm Modal ──────────────────────────────────────────────────────
 function DeleteConfirmModal({ clientName, onConfirm, onCancel }: { clientName: string; onConfirm: () => void; onCancel: () => void }) {
   return (
-    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 340, padding: "28px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", textAlign: "center" }}>
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 340, maxWidth: "100%", padding: "28px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", textAlign: "center" }}>
         <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
           <Trash2 size={22} color="#dc2626" />
         </div>
@@ -162,7 +163,7 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
   const displayLocationId = saved ? editForm.locationId : clientLocationId(client);
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
       {showDeleteConfirm && (
         <DeleteConfirmModal
           clientName={client.name}
@@ -578,8 +579,8 @@ function AddClientModal({ onClose, onAdd, locations, allowLocationSelection }: {
   };
 
   if (done) return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 360, padding: "48px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 360, maxWidth: "100%", padding: "48px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
         <div style={{ fontWeight: 700, fontSize: 18, color: "#1a1a2e", marginBottom: 8 }}>Client Added</div>
         <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 24 }}>The new client has been created.</div>
@@ -589,8 +590,8 @@ function AddClientModal({ onClose, onAdd, locations, allowLocationSelection }: {
   );
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 440, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>Add New Client</div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#6b6b8a" /></button>
@@ -1104,8 +1105,15 @@ export default function ClientsPage() {
         />
       )}
 
+      {/* Native mobile app bar */}
+      <MobilePageHeader
+        title="Clients"
+        subtitle={`${filtered.length} clients`}
+        action={{ label: clientLimited ? "Limit reached" : "Add", icon: <Plus size={14} />, onClick: () => !clientLimited && setShowAdd(true) }}
+      />
+
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="dashboard-topbar page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <PageTitle
           icon={<Heart size={24} />}
           title="Clients"
@@ -1278,6 +1286,8 @@ export default function ClientsPage() {
         boxShadow: "0 8px 28px rgba(38,25,75,.04)",
         overflow: "hidden"
       }}>
+        {/* Desktop: dense scrollable table */}
+        <div className="desktop-only">
         <div className="table-scroll-inner">
         <div className="client-table-inner" style={{ background: "#fff" }}>
         <div style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 1.1fr 1fr 1fr 1.1fr 90px 110px 130px", padding: "12px 20px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd", alignItems: "center" }}>
@@ -1384,6 +1394,67 @@ export default function ClientsPage() {
         })}
         </div>{/* /client-table-inner */}
         </div>{/* /table-scroll-inner */}
+        </div>{/* /desktop-only */}
+
+        {/* Mobile: stacked card list */}
+        <div className="mobile-only">
+          {filtered.length === 0 ? (
+            <div style={{ padding: "40px 20px", textAlign: "center", color: "#b0b0c8", fontSize: 14 }}>No clients match your search.</div>
+          ) : filtered.map((client, i) => {
+            const isLast = i === filtered.length - 1;
+            return (
+              <div
+                key={client.id}
+                onClick={() => openClient(client)}
+                style={{ padding: "14px 16px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", display: "flex", flexDirection: "column", gap: 8, cursor: "pointer" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #9333EA15, #ec489915)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#9333EA", flexShrink: 0 }}>
+                    {client.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{client.name}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{client.phone}</div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{fmt(client.totalSpend)}</div>
+                    <div style={{ fontSize: 10, color: "#9898b0", marginTop: 1 }}>{client.totalVisits} visit{client.totalVisits !== 1 ? "s" : ""}</div>
+                  </div>
+                </div>
+                {client.tags.length > 0 && (
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", paddingLeft: 44 }}>
+                    {client.tags.map((tag) => {
+                      const tc = TAG_COLORS[tag] ?? { color: "#6b6b8a", bg: "#F5F3FF" };
+                      return <span key={tag} style={{ fontSize: 9, fontWeight: 800, color: tc.color, background: tc.bg, padding: "1px 6px", borderRadius: 10, textTransform: "uppercase", letterSpacing: "0.02em" }}>{tag}</span>;
+                    })}
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 44, gap: 8 }}>
+                  <div style={{ fontSize: 11, color: "#9898b0" }}>
+                    {locationName(clientLocationId(client))} · <span style={{ textTransform: "capitalize" }}>{client.source}</span> · {fmtDate(client.lastVisitDate)}
+                  </div>
+                  <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); openClient(client); }}
+                      style={{ display: "flex", alignItems: "center", padding: "6px 10px", borderRadius: 8, border: "1px solid #e3e0eb", background: "#fff", cursor: "pointer" }}
+                    >
+                      <ExternalLink size={12} color="#6b6b8a" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${client.name}`}
+                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDeleteTarget(client); }}
+                      style={{ display: "flex", alignItems: "center", padding: "6px 8px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer" }}
+                    >
+                      <Trash2 size={12} color="#dc2626" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>{/* /table-scroll-wrap */}
     </div>
   );

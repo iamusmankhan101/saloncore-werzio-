@@ -5,6 +5,7 @@ import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
 import type { Service, Staff } from "@/lib/types";
 import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon } from "lucide-react";
 import PageTitle from "@/components/page-title";
+import MobilePageHeader from "@/components/mobile-page-header";
 
 const CATEGORY_LABELS: Record<string, { label: string; bg: string; color: string }> = {
   hair:   { label: "Hair Care", bg: "#EDE9FE", color: "#7C3AED" },
@@ -142,7 +143,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
   };
 
   if (done) return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 360, padding: "48px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28, color: "#059669" }}>✓</div>
         <div style={{ fontWeight: 700, fontSize: 18, color: "#1a1a2e", marginBottom: 8 }}>{isEditing ? "Service Updated" : "Service Added"}</div>
@@ -153,7 +154,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
   );
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div onClick={onClose} className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 460, maxHeight: "90vh", overflowY: "auto", overflowX: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>{isEditing ? "Edit Service" : "Add Service"}</div>
@@ -367,8 +368,8 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
 // ── Delete Confirm Modal ──────────────────────────────────────────────────────
 function DeleteConfirmModal({ name, onConfirm, onCancel }: { name: string; onConfirm: () => void; onCancel: () => void }) {
   return (
-    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 340, padding: "32px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 340, maxWidth: "100%", padding: "32px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
           <Trash2 size={22} color="#dc2626" />
         </div>
@@ -451,8 +452,15 @@ export default function ServicesPage() {
         />
       )}
 
+      {/* Native mobile app bar */}
+      <MobilePageHeader
+        title="Services"
+        subtitle={`${services.length} services · ${activeCount} active`}
+        action={{ label: "Add", icon: <Plus size={14} />, onClick: () => setShowAdd(true) }}
+      />
+
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="dashboard-topbar page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <PageTitle
           icon={<Scissors size={24} />}
           title="Services"

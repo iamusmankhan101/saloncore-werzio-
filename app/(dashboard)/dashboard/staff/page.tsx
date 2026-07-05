@@ -7,6 +7,7 @@ import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
 import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import PageTitle from "@/components/page-title";
+import MobilePageHeader from "@/components/mobile-page-header";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   owner:           { color: "#7C3AED", bg: "#EDE9FE" },
@@ -197,8 +198,8 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
 // ── Delete Confirm Modal ──────────────────────────────────────────────────────
 function DeleteConfirmModal({ name, onConfirm, onCancel }: { name: string; onConfirm: () => void; onCancel: () => void }) {
   return (
-    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 340, padding: "32px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 340, maxWidth: "100%", padding: "32px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
           <Trash2 size={22} color="#dc2626" />
         </div>
@@ -287,8 +288,15 @@ export default function StaffPage() {
         />
       )}
 
+      {/* Native mobile app bar */}
+      <MobilePageHeader
+        title="Staff"
+        subtitle={`${staffList.length} team members`}
+        action={{ label: staffLimited ? "Limit reached" : "Add", icon: <Plus size={14} />, onClick: () => !staffLimited && setShowAdd(true) }}
+      />
+
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="dashboard-topbar page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <PageTitle
           icon={<UserCog size={24} />}
           title="Staff"
