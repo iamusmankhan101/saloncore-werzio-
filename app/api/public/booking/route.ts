@@ -91,11 +91,18 @@ export async function POST(req: NextRequest) {
       ? JSON.parse(apptRow.rows[0].data as string)
       : [];
 
-    const updatedAppts = [appointment, ...existingAppts];
-    await db.execute({
-      sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
-      args: [apptKey, JSON.stringify(updatedAppts), now],
-    });
+    // A double-click on "Confirm Booking" (or a network-level retry of this exact
+    // request) resubmits the same appointment.id — without this check, each
+    // request still independently sends its own client confirmation + group
+    // alert even when the row itself collapses to one on write.
+    const isDuplicateSubmission = existingAppts.some((a) => a.id === appointment.id);
+    if (!isDuplicateSubmission) {
+      const updatedAppts = [appointment, ...existingAppts];
+      await db.execute({
+        sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
+        args: [apptKey, JSON.stringify(updatedAppts), now],
+      });
+    }
 
     // ── Save / update client ──────────────────────────────────────────────────
     if (client) {
@@ -133,9 +140,13 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Send WhatsApp messages using salon's saved templates ─────────────────
+    // Skipped entirely on a duplicate submission — a resubmitted request for an
+    // appointment.id already on file must not send a second confirmation/group alert.
     // clientPhone is always sent from the booking form (covers both new and returning clients)
     const phone = body.clientPhone || client?.phone || "";
-    try {
+    if (isDuplicateSubmission) {
+      console.log(`[public/booking] Duplicate submission for appointment ${appointment.id} — skipping WhatsApp sends`);
+    } else try {
       const settingsRow = await db.execute({
         sql: "SELECT data FROM salon_data WHERE entity = ?",
         args: [`${salonId}_settings`],
@@ -198,8 +209,9 @@ export async function POST(req: NextRequest) {
           console.warn("[public/booking] No phone number — skipping WhatsApp confirmation");
         }
 
-        // Salon group alert — always fire for online bookings if a group JID is configured
-        if (providerConfig.provider === "wasender" && bookingGroupJid.endsWith("@g.us")) {
+        // Salon group alert — respects the same "New Booking Group Alert" toggle as
+        // dashboard-created bookings (previously ignored here, so it fired regardless).
+        if (autoGroupBooking && providerConfig.provider === "wasender" && bookingGroupJid.endsWith("@g.us")) {
           const groupTpl: string =
             tpl.newBooking ||
             "📅 New Online Booking!\n👤 Name: {{name}}\n💇 Service: {{service}}\n📅 Date: {{date}}\n⏰ Time: {{time}}\n💰 Total: PKR {{amount}}\n\nBooked via {{salon_name}} online booking page.";
@@ -211,6 +223,8 @@ export async function POST(req: NextRequest) {
           } else {
             console.log("[public/booking] WhatsApp group alert sent ✓");
           }
+        } else if (!autoGroupBooking) {
+          console.log("[public/booking] New Booking Group Alert is disabled — skipping group alert");
         } else if (bookingGroupJid) {
           console.warn("[public/booking] bookingGroupJid is set but not a valid group JID (@g.us):", bookingGroupJid);
         } else {

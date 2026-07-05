@@ -108,6 +108,7 @@ function OnlineBookingInner() {
   const [name, setName]                         = useState("");
   const [phone, setPhone]                       = useState("");
   const [notes, setNotes]                       = useState("");
+  const [booking, setBooking]                   = useState(false);
 
   // Use remote settings (when external customer) or local settingsStore (owner's device)
   const rawHoursSource = salonId
@@ -147,6 +148,14 @@ function OnlineBookingInner() {
   }
 
   function handleBook() {
+    // Guards against a double-click/double-tap firing this twice before the step
+    // changes to "success" on the next render — without this, each call generates
+    // its own appointment (createId() has no random component, just Date.now(), so
+    // two calls within the same millisecond can even collide on the same id) and
+    // independently sends its own confirmation + group alert.
+    if (booking) return;
+    setBooking(true);
+
     const existing = clients.find(
       (c) => c.phone.replace(/\D/g, "") === phone.replace(/\D/g, "")
     );
@@ -435,11 +444,11 @@ function OnlineBookingInner() {
               <div className="stepNav">
                 <button className="btnBack" onClick={() => setStep(2)}><ChevronLeft size={16} /> Back</button>
                 <button
-                  className={`btnNext ${name.trim() && phone.trim() ? "active" : "disabled"}`}
-                  disabled={!name.trim() || !phone.trim()}
+                  className={`btnNext ${name.trim() && phone.trim() && !booking ? "active" : "disabled"}`}
+                  disabled={!name.trim() || !phone.trim() || booking}
                   onClick={handleBook}
                 >
-                  Confirm Booking <Check size={16} />
+                  {booking ? "Booking…" : <>Confirm Booking <Check size={16} /></>}
                 </button>
               </div>
             </div>
