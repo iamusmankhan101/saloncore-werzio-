@@ -160,13 +160,14 @@ async function getAllBirthdayUsers(): Promise<BirthdayUser[]> {
 
         const autoBirthday = s?.birthday?.autoBirthday;
         const providerConfig: WhatsAppProviderConfig & WhatsAppSafetyConfig = { ...(s?.wasender ?? {}), provider: s?.wasender?.provider || "wasender" };
-        const template     = s?.whatsapp?.birthday;
+        const discountEnabled = s?.birthday?.birthdayDiscountEnabled !== false;
+        const template     = discountEnabled ? s?.whatsapp?.birthday : (s?.whatsapp?.birthdayNoDiscount || s?.whatsapp?.birthday);
 
         if (!autoBirthday || !activeWhatsAppCredential(providerConfig) || !template) continue;
 
         users.push({
           userId,
-          discount:        s?.birthday?.birthdayDiscountEnabled === false ? "" : (s?.birthday?.birthdayDiscount || "a special treat"),
+          discount:        discountEnabled ? (s?.birthday?.birthdayDiscount || "a special treat") : "",
           providerConfig,
           birthdayTemplate: template,
           salonName:        s?.salon?.name || "Your Salon",

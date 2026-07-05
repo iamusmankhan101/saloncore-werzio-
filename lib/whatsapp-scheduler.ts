@@ -558,7 +558,9 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
   if (!force && !bd.autoBirthday) return;
   if (!force && !(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey)) return;
 
-  const birthdayTemplate = (settingsStore.whatsapp as { birthday: string }).birthday;
+  const birthdayTemplate = (settingsStore.whatsapp as { birthday: string; birthdayNoDiscount?: string })[
+    bd.birthdayDiscountEnabled === false ? "birthdayNoDiscount" : "birthday"
+  ] || (settingsStore.whatsapp as { birthday: string }).birthday;
   if (!birthdayTemplate) return;
 
   const today = new Date();
@@ -811,7 +813,10 @@ async function runSchedulerInternal(): Promise<void> {
   }
 
   // 4. Cancellation win-back — retries once after a 30-60 min delay on failure.
-  const cancelTpl = (settingsStore.whatsapp as { cancellation: string }).cancellation;
+  const cancelSettings = settingsStore.wasender as { cancelDiscount?: string; cancelDiscountEnabled?: boolean };
+  const cancelTpl = (settingsStore.whatsapp as { cancellation: string; cancellationNoDiscount?: string })[
+    cancelSettings.cancelDiscountEnabled === false ? "cancellationNoDiscount" : "cancellation"
+  ] || (settingsStore.whatsapp as { cancellation: string }).cancellation;
   if (ws.autoCancellation && cancelTpl) {
     const queue = getQueue(CANCEL_QUEUE_KEY);
     const remaining: QueueItem[] = [];
@@ -827,7 +832,6 @@ async function runSchedulerInternal(): Promise<void> {
         appendLog({ type: "cancellation", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
-      const cancelSettings = settingsStore.wasender as { cancelDiscount?: string; cancelDiscountEnabled?: boolean };
       const cancelDiscount = cancelSettings.cancelDiscountEnabled === false ? "" : (cancelSettings.cancelDiscount || "10%");
       const text = appt
         ? fillTemplate(cancelTpl, { ...buildVars(appt, salonName), discount: cancelDiscount })

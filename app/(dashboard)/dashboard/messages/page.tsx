@@ -42,15 +42,15 @@ const SAMPLE_VARS: Record<string, string> = {
   amount: "2500",
 };
 
-type TplCfg = { key: string; label: string; description: string; vars: string[]; color: string; icon: React.ElementType };
+type TplCfg = { key: string; noDiscountKey?: string; label: string; description: string; vars: string[]; noDiscountVars?: string[]; color: string; icon: React.ElementType };
 
 const TPL_CONFIG: TplCfg[] = [
   { key: "reminder",     label: "Appointment Reminder",    description: "Sent automatically X hours before the appointment",         vars: ["name","service","date","time","salon_name"], color: "#7C3AED", icon: Bell },
   { key: "confirmation", label: "Booking Confirmation",    description: "Sent when a new appointment is booked",                     vars: ["name","service","date","time","salon_name"], color: "#059669", icon: CheckCircle2 },
   { key: "followup",     label: "Follow-up Message",       description: "Sent 24h after appointment is marked as completed",         vars: ["name","service","salon_name"],               color: "#0284c7", icon: ThumbsUp },
-  { key: "cancellation", label: "Cancellation Win-back",   description: "Sent 24h after cancellation with a discount to re-book",   vars: ["name","salon_name","discount"],              color: "#dc2626", icon: CalendarX },
+  { key: "cancellation", noDiscountKey: "cancellationNoDiscount", label: "Cancellation Win-back", description: "Sent after cancellation. Supports separate discount and no-discount wording", vars: ["name","salon_name","discount"], noDiscountVars: ["name","salon_name"], color: "#dc2626", icon: CalendarX },
   { key: "lowstock",     label: "Low Stock Alert",         description: "Sent once daily to your WhatsApp when stock is low",        vars: ["items","count","salon_name"],                color: "#ea580c", icon: Package },
-  { key: "birthday",     label: "Birthday Greeting",       description: "Queued on each client's birthday and spread randomly across 4 hours",     vars: ["name","salon_name","discount"],              color: "#db2777", icon: Cake },
+  { key: "birthday", noDiscountKey: "birthdayNoDiscount", label: "Birthday Greeting", description: "Queued on each client's birthday. Supports separate discount and no-discount wording", vars: ["name","salon_name","discount"], noDiscountVars: ["name","salon_name"], color: "#db2777", icon: Cake },
   { key: "posThankYou",  label: "POS Thank You",           description: "Sent right after a POS sale, alongside the invoice PDF",    vars: ["name","salon_name"],                          color: "#c026d3", icon: Heart },
 ];
 
@@ -160,8 +160,9 @@ function getDiscountEnabledInitial(key: string): boolean {
 
 function TemplateCard({ cfg }: { cfg: TplCfg }) {
   const wa = settingsStore.whatsapp as Record<string, string>;
-  const hasDiscount = cfg.vars.includes("discount");
-  const [text, setText]           = useState(wa[cfg.key] || "");
+  const hasDiscount = Boolean(cfg.noDiscountKey);
+  const [textWithDiscount, setTextWithDiscount] = useState(wa[cfg.key] || "");
+  const [textNoDiscount, setTextNoDiscount] = useState(cfg.noDiscountKey ? (wa[cfg.noDiscountKey] || "") : "");
   const [discount, setDiscount]   = useState(() => getDiscountInitial(cfg.key));
   const [discountEnabled, setDiscountEnabled] = useState(() => getDiscountEnabledInitial(cfg.key));
   const [showPreview, setShowPreview] = useState(false);
@@ -170,6 +171,13 @@ function TemplateCard({ cfg }: { cfg: TplCfg }) {
   const dirtyRef = useRef(false);
   const Icon = cfg.icon;
 
+  const text = hasDiscount && !discountEnabled ? textNoDiscount : textWithDiscount;
+  const activeVars = hasDiscount && !discountEnabled ? (cfg.noDiscountVars || cfg.vars.filter((v) => v !== "discount")) : cfg.vars;
+  const setActiveText = (updater: string | ((value: string) => string)) => {
+    const setNext = (current: string) => typeof updater === "function" ? updater(current) : updater;
+    if (hasDiscount && !discountEnabled) setTextNoDiscount(setNext);
+    else setTextWithDiscount(setNext);
+  };
   const liveVars: Record<string, string> = { ...SAMPLE_VARS, discount: discountEnabled ? (discount || SAMPLE_VARS.discount) : "" };
   const preview  = text.replace(/\{\{(\w+)\}\}/g, (_, k) => liveVars[k] ?? `{{${k}}}`);
   const charCount = text.length;
@@ -178,19 +186,22 @@ function TemplateCard({ cfg }: { cfg: TplCfg }) {
     function onSettingsChanged() {
       if (dirtyRef.current) return;
       const fresh = (settingsStore.whatsapp as Record<string, string>)[cfg.key] || "";
-      setText(fresh);
+      const freshNoDiscount = cfg.noDiscountKey ? ((settingsStore.whatsapp as Record<string, string>)[cfg.noDiscountKey] || "") : "";
+      setTextWithDiscount(fresh);
+      setTextNoDiscount(freshNoDiscount);
       setDiscount(getDiscountInitial(cfg.key));
       setDiscountEnabled(getDiscountEnabledInitial(cfg.key));
     }
     window.addEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
     return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
-  }, [cfg.key]);
+  }, [cfg.key, cfg.noDiscountKey]);
 
   function copy() {
     navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   }
   function save() {
-    (settingsStore.whatsapp as Record<string, string>)[cfg.key] = text;
+    (settingsStore.whatsapp as Record<string, string>)[cfg.key] = textWithDiscount;
+    if (cfg.noDiscountKey) (settingsStore.whatsapp as Record<string, string>)[cfg.noDiscountKey] = textNoDiscount;
     if (cfg.key === "cancellation") {
       (settingsStore.wasender as Record<string, string | boolean>).cancelDiscount = discount;
       (settingsStore.wasender as Record<string, string | boolean>).cancelDiscountEnabled = discountEnabled;
@@ -229,8 +240,8 @@ function TemplateCard({ cfg }: { cfg: TplCfg }) {
 
       <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {cfg.vars.map((v) => (
-            <button key={v} type="button" onClick={() => setText((t) => t + `{{${v}}}`)} title="Click to insert"
+          {activeVars.map((v) => (
+            <button key={v} type="button" onClick={() => setActiveText((t) => t + `{{${v}}}`)} title="Click to insert"
               style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 9px", borderRadius: 20, background: cfg.color + "10", border: `1px solid ${cfg.color}28`, color: cfg.color, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
               + {`{{${v}}}`}
             </button>
@@ -242,9 +253,7 @@ function TemplateCard({ cfg }: { cfg: TplCfg }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, background: cfg.color + "06", border: `1px solid ${cfg.color}20` }}>
             <div style={{ flexShrink: 0 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 2 }}>Discount Option</div>
-              <div style={{ fontSize: 10, color: "#9999b0" }}>
-                {discountEnabled ? <>Replaces {"{{discount}}"} in the message</> : <>Discount is off — {"{{discount}}"} will be blank</>}
-              </div>
+              <div style={{ fontSize: 10, color: "#9999b0" }}>{discountEnabled ? "Editing discount template" : "Editing no-discount template"}</div>
             </div>
             <button
               type="button"
@@ -265,7 +274,7 @@ function TemplateCard({ cfg }: { cfg: TplCfg }) {
           </div>
         )}
 
-        <textarea value={text} onChange={(e) => { dirtyRef.current = true; setText(e.target.value); }} rows={4}
+        <textarea value={text} onChange={(e) => { dirtyRef.current = true; setActiveText(e.target.value); }} rows={4}
           placeholder={`Write your ${cfg.label.toLowerCase()} message here…`}
           style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, color: "#1d1d2f", lineHeight: 1.65, resize: "vertical", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
 

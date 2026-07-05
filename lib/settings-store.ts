@@ -97,9 +97,11 @@ const defaults = {
     confirmation: "Hi {{name}}, your {{service}} booking on {{date}} at {{time}} is confirmed at {{salon_name}}. We look forward to seeing you! 💜",
     followup: "Hi {{name}}, thank you for visiting {{salon_name}}! We hope you loved your {{service}}. We'd love to see you again soon 💜",
     cancellation: "Hi {{name}}, we noticed your appointment at {{salon_name}} was cancelled. We'd love to have you back — enjoy {{discount}} off your next booking! Just reply to reschedule 💜",
+    cancellationNoDiscount: "Hi {{name}}, we noticed your appointment at {{salon_name}} was cancelled. We'd love to have you back — just reply here and we’ll help you reschedule 💜",
     newBooking: "📅 New Booking! {{name}} has booked {{service}} on {{date}} at {{time}} at {{salon_name}}. Total: PKR {{amount}}.",
     lowstock: "⚠️ Low Stock Alert from {{salon_name}}: {{count}} item(s) running low — {{items}}. Please restock soon.",
     birthday: "🎂 Happy Birthday {{name}}! Wishing you a beautiful day from all of us at {{salon_name}}. As a birthday gift, enjoy {{discount}} off your next visit — book anytime this week 💜",
+    birthdayNoDiscount: "🎂 Happy Birthday {{name}}! Wishing you a beautiful day from all of us at {{salon_name}}. We hope your day is full of joy and glow 💜",
     posThankYou: "Thank you so much for visiting {{salon_name}} today, {{name}}! We hope you loved your experience — see you again soon 💜",
   },
   birthday: {
