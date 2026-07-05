@@ -109,7 +109,7 @@ function Badge({ type }: { type: string }) {
   const m = TYPE_META[type as WaMsgType] ?? TYPE_META.manual;
   const Icon = m.icon;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 20, background: m.bg, color: m.color, fontSize: 11, fontWeight: 700 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 20, background: m.bg, color: m.color, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
       <Icon size={10} /> {m.label}
     </span>
   );
@@ -860,7 +860,7 @@ export default function MessagesPage() {
                 </div>
               ) : (
                 <div style={{ overflowX: "auto" }}>
-                  <div style={{ minWidth: 560 }}>
+                  <div style={{ minWidth: 600 }}>
                   {grouped.map(({ day, items }) => (
                     <div key={day}>
                       {/* Day separator */}
@@ -871,7 +871,7 @@ export default function MessagesPage() {
                       </div>
                       {items.map((log) => (
                         <div key={log.id}
-                          style={{ display: "grid", gridTemplateColumns: "110px 1fr 130px 100px 80px", alignItems: "center", padding: "10px 20px", borderBottom: "1px solid #f8f8fc", gap: 12, transition: "background 0.1s" }}
+                          style={{ display: "grid", gridTemplateColumns: "110px 1fr 150px 120px 80px", alignItems: "center", padding: "10px 20px", borderBottom: "1px solid #f8f8fc", gap: 12, transition: "background 0.1s" }}
                           onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafe")}
                           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
                           <div style={{ fontSize: 11, color: "#aaaabc", fontVariantNumeric: "tabular-nums" }}>{fmtTime(log.timestamp)}</div>
@@ -884,9 +884,10 @@ export default function MessagesPage() {
                               </div>
                             )}
                           </div>
-                          <button type="button" onClick={() => openWa(log.phone)}
-                            style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "1px solid #e8e8f0", borderRadius: 7, padding: "4px 10px", cursor: "pointer", color: "#6a6a8a", fontSize: 11, fontWeight: 600 }}>
-                            <Phone size={11} /> {log.phone}
+                          <button type="button" onClick={() => openWa(log.phone)} title={log.phone}
+                            style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "1px solid #e8e8f0", borderRadius: 7, padding: "4px 10px", cursor: "pointer", color: "#6a6a8a", fontSize: 11, fontWeight: 600, minWidth: 0, overflow: "hidden" }}>
+                            <Phone size={11} style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.phone}</span>
                           </button>
                           <Badge type={log.type} />
                           <StatusChip status={log.status} />
