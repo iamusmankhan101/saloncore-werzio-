@@ -166,7 +166,7 @@ async function getAllBirthdayUsers(): Promise<BirthdayUser[]> {
 
         users.push({
           userId,
-          discount:        s?.birthday?.birthdayDiscount || "a special treat",
+          discount:        s?.birthday?.birthdayDiscountEnabled === false ? "" : (s?.birthday?.birthdayDiscount || "a special treat"),
           providerConfig,
           birthdayTemplate: template,
           salonName:        s?.salon?.name || "Your Salon",

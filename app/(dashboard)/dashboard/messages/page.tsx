@@ -152,18 +152,25 @@ function getDiscountInitial(key: string): string {
   return "";
 }
 
+function getDiscountEnabledInitial(key: string): boolean {
+  if (key === "cancellation") return (settingsStore.wasender as { cancelDiscountEnabled?: boolean }).cancelDiscountEnabled !== false;
+  if (key === "birthday")     return (settingsStore.birthday  as { birthdayDiscountEnabled?: boolean }).birthdayDiscountEnabled !== false;
+  return false;
+}
+
 function TemplateCard({ cfg }: { cfg: TplCfg }) {
   const wa = settingsStore.whatsapp as Record<string, string>;
   const hasDiscount = cfg.vars.includes("discount");
   const [text, setText]           = useState(wa[cfg.key] || "");
   const [discount, setDiscount]   = useState(() => getDiscountInitial(cfg.key));
+  const [discountEnabled, setDiscountEnabled] = useState(() => getDiscountEnabledInitial(cfg.key));
   const [showPreview, setShowPreview] = useState(false);
   const [copied, setCopied]       = useState(false);
   const [saved, setSaved]         = useState(false);
   const dirtyRef = useRef(false);
   const Icon = cfg.icon;
 
-  const liveVars: Record<string, string> = { ...SAMPLE_VARS, discount: discount || SAMPLE_VARS.discount };
+  const liveVars: Record<string, string> = { ...SAMPLE_VARS, discount: discountEnabled ? (discount || SAMPLE_VARS.discount) : "" };
   const preview  = text.replace(/\{\{(\w+)\}\}/g, (_, k) => liveVars[k] ?? `{{${k}}}`);
   const charCount = text.length;
 
@@ -173,6 +180,7 @@ function TemplateCard({ cfg }: { cfg: TplCfg }) {
       const fresh = (settingsStore.whatsapp as Record<string, string>)[cfg.key] || "";
       setText(fresh);
       setDiscount(getDiscountInitial(cfg.key));
+      setDiscountEnabled(getDiscountEnabledInitial(cfg.key));
     }
     window.addEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
     return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, onSettingsChanged);
@@ -183,8 +191,14 @@ function TemplateCard({ cfg }: { cfg: TplCfg }) {
   }
   function save() {
     (settingsStore.whatsapp as Record<string, string>)[cfg.key] = text;
-    if (cfg.key === "cancellation") (settingsStore.wasender as Record<string, string>).cancelDiscount   = discount;
-    if (cfg.key === "birthday")     (settingsStore.birthday  as Record<string, string>).birthdayDiscount = discount;
+    if (cfg.key === "cancellation") {
+      (settingsStore.wasender as Record<string, string | boolean>).cancelDiscount = discount;
+      (settingsStore.wasender as Record<string, string | boolean>).cancelDiscountEnabled = discountEnabled;
+    }
+    if (cfg.key === "birthday") {
+      (settingsStore.birthday as Record<string, string | boolean>).birthdayDiscount = discount;
+      (settingsStore.birthday as Record<string, string | boolean>).birthdayDiscountEnabled = discountEnabled;
+    }
     saveSettings();
     dirtyRef.current = false;
     setSaved(true);
@@ -227,15 +241,26 @@ function TemplateCard({ cfg }: { cfg: TplCfg }) {
         {hasDiscount && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, background: cfg.color + "06", border: `1px solid ${cfg.color}20` }}>
             <div style={{ flexShrink: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 2 }}>Discount Value</div>
-              <div style={{ fontSize: 10, color: "#9999b0" }}>Replaces {"{{discount}}"} in the message</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 2 }}>Discount Option</div>
+              <div style={{ fontSize: 10, color: "#9999b0" }}>
+                {discountEnabled ? <>Replaces {"{{discount}}"} in the message</> : <>Discount is off — {"{{discount}}"} will be blank</>}
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => { dirtyRef.current = true; setDiscountEnabled((v) => !v); }}
+              aria-label={`${discountEnabled ? "Disable" : "Enable"} discount for ${cfg.label}`}
+              style={{ width: 42, height: 24, borderRadius: 999, border: "none", cursor: "pointer", background: discountEnabled ? cfg.color : "#d1d5db", position: "relative", flexShrink: 0, transition: "background 0.2s" }}
+            >
+              <span style={{ position: "absolute", top: 3, left: discountEnabled ? 21 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 0.2s" }} />
+            </button>
             <input
               type="text"
               value={discount}
               onChange={e => { dirtyRef.current = true; setDiscount(e.target.value); }}
+              disabled={!discountEnabled}
               placeholder="e.g. 10%, 15%, PKR 500"
-              style={{ flex: 1, padding: "7px 12px", borderRadius: 8, border: `1.5px solid ${cfg.color}40`, fontSize: 13, fontWeight: 700, color: "#1d1d2f", background: "#fff", outline: "none", minWidth: 0 }}
+              style={{ flex: 1, padding: "7px 12px", borderRadius: 8, border: `1.5px solid ${discountEnabled ? cfg.color + "40" : "#e5e7eb"}`, fontSize: 13, fontWeight: 700, color: discountEnabled ? "#1d1d2f" : "#9ca3af", background: discountEnabled ? "#fff" : "#f9fafb", outline: "none", minWidth: 0 }}
             />
           </div>
         )}
@@ -322,8 +347,9 @@ export default function MessagesPage() {
   const [loadingLogs, setLoadingLogs] = useState(true);
 
   // Birthday reminder settings
-  const bdDefaults = settingsStore.birthday as { autoBirthday: boolean; birthdayDiscount: string };
+  const bdDefaults = settingsStore.birthday as { autoBirthday: boolean; birthdayDiscount: string; birthdayDiscountEnabled?: boolean };
   const [bdEnabled,    setBdEnabled]    = useState(bdDefaults.autoBirthday);
+  const [bdDiscountEnabled, setBdDiscountEnabled] = useState(bdDefaults.birthdayDiscountEnabled !== false);
   const [bdDiscount,   setBdDiscount]   = useState(bdDefaults.birthdayDiscount);
   const [bdSaving,     setBdSaving]     = useState(false);
   const [bdSaved,      setBdSaved]      = useState(false);
@@ -344,6 +370,7 @@ export default function MessagesPage() {
     // Persist locally
     const bd = settingsStore.birthday as Record<string, unknown>;
     bd.autoBirthday     = bdEnabled;
+    bd.birthdayDiscountEnabled = bdDiscountEnabled;
     bd.birthdayDiscount = bdDiscount;
     saveSettings();
     setBdSaving(false);
@@ -1022,16 +1049,29 @@ export default function MessagesPage() {
                   </div>
 
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Discount / Gift (optional)
-                    </label>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 5 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Discount / Gift (optional)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setBdDiscountEnabled((v) => !v)}
+                        aria-label={`${bdDiscountEnabled ? "Disable" : "Enable"} birthday discount`}
+                        style={{ width: 40, height: 22, borderRadius: 11, border: "none", cursor: "pointer", background: bdDiscountEnabled ? "#db2777" : "#d1d5db", transition: "background 0.2s", position: "relative", flexShrink: 0 }}
+                      >
+                        <span style={{ position: "absolute", top: 3, left: bdDiscountEnabled ? 20 : 3, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                      </button>
+                    </div>
                     <input
                       value={bdDiscount}
                       onChange={(e) => setBdDiscount(e.target.value)}
+                      disabled={!bdDiscountEnabled}
                       placeholder="e.g. 15% off or a free blow-dry"
-                      style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", outline: "none", boxSizing: "border-box" }}
+                      style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 9, border: `1px solid ${bdDiscountEnabled ? "#e4e4ee" : "#e5e7eb"}`, fontSize: 13, color: bdDiscountEnabled ? "#29293d" : "#9ca3af", background: bdDiscountEnabled ? "#fff" : "#f9fafb", outline: "none", boxSizing: "border-box" }}
                     />
-                    <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>Inserted as {"{{discount}}"} in the birthday template</div>
+                    <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>
+                      {bdDiscountEnabled ? <>Inserted as {"{{discount}}"} in the birthday template</> : <>Discount is off — {"{{discount}}"} will be blank if used in the template</>}
+                    </div>
                   </div>
 
                   <div style={{ display: "flex", gap: 8 }}>

@@ -551,6 +551,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
   const ws = settingsStore.wasender as { provider?: string; apiKey: string; botSailorApiToken?: string; autoReminder: boolean };
   const bd = settingsStore.birthday as {
     autoBirthday: boolean;
+    birthdayDiscountEnabled?: boolean;
     birthdayDiscount: string;
   };
 
@@ -626,7 +627,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
     const text = fillTemplate(birthdayTemplate, {
       name: clientName,
       salon_name: salonName,
-      discount: bd.birthdayDiscount || "a special treat",
+      discount: bd.birthdayDiscountEnabled === false ? "" : (bd.birthdayDiscount || "a special treat"),
     });
 
     console.log(`Birthday wish queued → ${clientName} (${phone})`);
@@ -826,7 +827,8 @@ async function runSchedulerInternal(): Promise<void> {
         appendLog({ type: "cancellation", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
-      const cancelDiscount = (settingsStore.wasender as { cancelDiscount?: string }).cancelDiscount || "10%";
+      const cancelSettings = settingsStore.wasender as { cancelDiscount?: string; cancelDiscountEnabled?: boolean };
+      const cancelDiscount = cancelSettings.cancelDiscountEnabled === false ? "" : (cancelSettings.cancelDiscount || "10%");
       const text = appt
         ? fillTemplate(cancelTpl, { ...buildVars(appt, salonName), discount: cancelDiscount })
         : fillTemplate(cancelTpl, { name: clientName, salon_name: salonName, discount: cancelDiscount, service: "", date: "", time: "", staff: "" });

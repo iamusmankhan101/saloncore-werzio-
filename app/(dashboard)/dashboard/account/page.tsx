@@ -476,6 +476,7 @@ interface WhatsAppSettings {
   followupDelayMinutes: number;
   autoCancellation: boolean;
   cancellationDelayMinutes: number;
+  cancelDiscountEnabled?: boolean;
   cancelDiscount: string;
   autoLowStock: boolean;
   autoGroupBooking: boolean;
@@ -1183,11 +1184,19 @@ function WhatsAppSection() {
                 minutes={form.cancellationDelayMinutes ?? 1440}
                 onChange={(v) => set("cancellationDelayMinutes", v)}
               />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 12px", border: "1px solid #ede9fe", borderRadius: 10, background: "#fff" }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#1d1d2f" }}>Include discount in win-back message</div>
+                  <div style={{ fontSize: 11, color: "#9999b0", marginTop: 2 }}>When off, {"{{discount}}"} is sent as blank.</div>
+                </div>
+                <Toggle value={form.cancelDiscountEnabled !== false} onChange={() => set("cancelDiscountEnabled", !(form.cancelDiscountEnabled !== false))} />
+              </div>
               <Field label="Discount to offer" hint="Used in {{discount}} variable in the template">
                 <input
                   style={inputStyle}
                   value={form.cancelDiscount ?? "10%"}
                   onChange={(e) => set("cancelDiscount", e.target.value)}
+                  disabled={form.cancelDiscountEnabled === false}
                   placeholder="e.g. 10% or PKR 500"
                 />
               </Field>

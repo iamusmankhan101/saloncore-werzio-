@@ -48,6 +48,7 @@ const defaults = {
     followupDelayMinutes: 1440,
     autoCancellation: true,
     cancellationDelayMinutes: 1440,
+    cancelDiscountEnabled: true,
     cancelDiscount: "10%",
     autoLowStock: true,
     autoNewBooking: true,
@@ -104,6 +105,7 @@ const defaults = {
   birthday: {
     autoBirthday: true,
     birthdayTemplateId: "",
+    birthdayDiscountEnabled: true,
     birthdayDiscount: "",
   },
   loyalty: {
