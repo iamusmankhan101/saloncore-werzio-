@@ -951,9 +951,24 @@ export default function AppointmentsPage() {
     if (linkedInvoices.length > 0) {
       saveSalonInvoices(getSalonInvoices().filter((invoice) => !invoice.appointmentId || !deletedIds.has(invoice.appointmentId)));
     }
+    const deletedAppts = appointments.filter((a) => deletedIds.has(a.id));
     setAppointments(prev => {
       const updated = prev.filter(a => !deletedIds.has(a.id));
       saveAppointments(updated);
+      return updated;
+    });
+    // Booking an appointment credits the client with a visit/spend right away (see
+    // onAdd above), so deleting it must reverse that same credit — otherwise the
+    // client's totals stay inflated forever, exactly like the invoice-delete bug.
+    setClients((prev) => {
+      const updated = prev.map((c) => {
+        const apptsForClient = deletedAppts.filter((a) => a.clientId === c.id);
+        if (apptsForClient.length === 0) return c;
+        const visitsToRemove = apptsForClient.length;
+        const spendToRemove = apptsForClient.reduce((sum, a) => sum + (a.totalAmount || 0), 0);
+        return { ...c, totalVisits: Math.max(0, c.totalVisits - visitsToRemove), totalSpend: Math.max(0, c.totalSpend - spendToRemove) };
+      });
+      saveClients(updated);
       return updated;
     });
     setCheckedIds(new Set());

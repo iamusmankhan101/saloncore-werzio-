@@ -9,7 +9,7 @@ import {
   getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid,
   type SalonInvoice,
 } from "@/lib/salon-invoices";
-import { getStoredAppointments, saveAppointments } from "@/lib/storage";
+import { getStoredAppointments, saveAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import { settingsStore } from "@/lib/settings-store";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -108,6 +108,18 @@ export default function InvoicesPage() {
           : appt
       );
       saveAppointments(updatedAppointments);
+    }
+    // A deleted invoice previously left the client's visit/revenue totals stuck at
+    // their old inflated value forever (nothing else ever recomputes them), so
+    // reverse the exact increment the POS sale applied when the invoice was created.
+    if (invoice?.clientId) {
+      const clients = getStoredClients();
+      const updatedClients = clients.map((c) =>
+        c.id === invoice.clientId
+          ? { ...c, totalVisits: Math.max(0, c.totalVisits - 1), totalSpend: Math.max(0, c.totalSpend - invoice.total) }
+          : c
+      );
+      saveClients(updatedClients);
     }
     setDeleteConfirm(null);
     reload();
