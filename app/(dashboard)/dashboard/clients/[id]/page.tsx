@@ -12,6 +12,7 @@ import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySett
 import { settingsStore } from "@/lib/settings-store";
 import { exportClientPdf } from "@/lib/export-pdf";
 import { locationUserKey } from "@/lib/locations";
+import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import {
   ArrowLeft, Phone, Mail, Calendar, Heart, Star, Camera, X,
   Plus, Edit2, TrendingUp, Clock, Users, Scissors,
@@ -155,7 +156,7 @@ export default function ClientProfilePage() {
     const updated: Client = {
       ...client,
       name: editForm.name,
-      phone: editForm.phone,
+      phone: normalizePhone(editForm.phone),
       email: editForm.email || undefined,
       dob: editForm.dob || undefined,
       source: editForm.source as Client["source"],

@@ -21,7 +21,7 @@ import {
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
-import { normalizePhone, enqueuePosThankYou, hasBeenSent, markAsSent, posJitterMs } from "@/lib/whatsapp-scheduler";
+import { normalizePhone, enqueuePosThankYou, hasBeenSent, markAsSent, posJitterMs, appendLog } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
@@ -335,7 +335,7 @@ export default function POSPage() {
     if (!newName.trim()) return;
     const c: Client = {
       id: "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-      name: newName.trim(), phone: newPhone.trim(),
+      name: newName.trim(), phone: normalizePhone(newPhone),
       dob: newDob || undefined,
       locationId: getDefaultLocationId(),
       tags: [], source: "walk-in",
@@ -371,7 +371,7 @@ export default function POSPage() {
         appointmentId: checkoutAppointmentId || undefined,
         clientId:      selectedClient?.id || undefined,
         clientName:    selectedClient?.name || "Walk-in Customer",
-        clientPhone:   selectedClient?.phone || "",
+        clientPhone:   selectedClient?.phone ? normalizePhone(selectedClient.phone) : "",
         clientEmail:   selectedClient?.email,
         staffName:     staffMember?.name || "",
         items:         cartLineItems,
@@ -457,6 +457,9 @@ export default function POSPage() {
       setWaStatus("sent");
     } else {
       setWaStatus("sending");
+      const normalizedPhone = normalizePhone(client.phone);
+      let ok = false;
+      let errorReason: string | undefined;
       try {
         // A random 5-60s delay before the invoice PDF goes out — this route has no
         // pacing gate of its own (a blocking sleep inside a serverless function
@@ -469,16 +472,24 @@ export default function POSPage() {
           body: JSON.stringify({
             invoice,
             salon,
-            phone: normalizePhone(client.phone),
+            phone: normalizedPhone,
             providerConfig: settingsStore.wasender,
           }),
         });
-        const result = await response.json() as { ok?: boolean };
-        if (result.ok) markAsSent(sentKey);
-        setWaStatus(result.ok ? "sent" : "failed");
-      } catch {
-        setWaStatus("failed");
+        const result = await response.json() as { ok?: boolean; error?: string };
+        ok = result.ok === true;
+        if (!ok) errorReason = result.error || `HTTP ${response.status}`;
+      } catch (err) {
+        ok = false;
+        errorReason = String(err);
       }
+      // This previously had no log entry at all on either outcome, so there was no
+      // way to tell whether a specific client's invoice actually went out or why
+      // it didn't (e.g. an invalid phone number) — only a transient on-screen
+      // status that disappears once you leave the receipt view.
+      appendLog({ type: "invoice", clientName: client.name, phone: normalizedPhone, status: ok ? "sent" : "failed", templateId: "direct", error: errorReason });
+      if (ok) markAsSent(sentKey);
+      setWaStatus(ok ? "sent" : "failed");
     }
     // Also queue a short thank-you text — independent of whether the invoice PDF
     // itself succeeded, since it's a separate courtesy message, not a retry. The

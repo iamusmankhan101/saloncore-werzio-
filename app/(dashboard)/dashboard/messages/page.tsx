@@ -28,6 +28,7 @@ const TYPE_META: Record<WaMsgType, { label: string; color: string; bg: string; i
   birthday:     { label: "Birthday",     color: "#db2777", bg: "rgba(219,39,119,0.1)",  icon: Cake },
   thankyou:     { label: "Thank You",    color: "#c026d3", bg: "rgba(192,38,211,0.1)",  icon: Heart },
   newbooking:   { label: "New Booking",  color: "#6366f1", bg: "rgba(99,102,241,0.1)",  icon: CalendarDays },
+  invoice:      { label: "Invoice",      color: "#2563eb", bg: "rgba(37,99,235,0.1)",   icon: MessageSquare },
 };
 
 const SAMPLE_VARS: Record<string, string> = {
@@ -64,6 +65,7 @@ const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
   { value: "thankyou",     label: "Thank You" },
   { value: "lowstock",     label: "Low Stock" },
   { value: "newbooking",   label: "New Booking" },
+  { value: "invoice",      label: "Invoice" },
   { value: "manual",       label: "Manual" },
 ];
 

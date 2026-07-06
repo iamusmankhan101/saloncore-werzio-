@@ -11,6 +11,7 @@ import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
+import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -436,7 +437,7 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
                     const updatedC: Client = {
                       ...client,
                       name: editForm.name,
-                      phone: editForm.phone,
+                      phone: normalizePhone(editForm.phone),
                       email: editForm.email || undefined,
                       dob: editForm.dob || undefined,
                       source: editForm.source as any,
@@ -553,14 +554,14 @@ function AddClientModal({ onClose, onAdd, locations, allowLocationSelection }: {
   const [done, setDone] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", notes: "", locationId: getDefaultLocationId() });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const canSubmit = form.name && form.phone;
+  const canSubmit = form.name.trim();
 
   const handleAdd = () => {
     if (!canSubmit) return;
     const newClient: Client = {
       id: "c_" + Date.now(),
-      name: form.name,
-      phone: form.phone,
+      name: form.name.trim(),
+      phone: normalizePhone(form.phone),
       locationId: allowLocationSelection ? form.locationId : getDefaultLocationId(),
       email: form.email || undefined,
       gender: "female",
@@ -599,7 +600,7 @@ function AddClientModal({ onClose, onAdd, locations, allowLocationSelection }: {
         <div style={{ padding: "22px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
           {[
             { label: "Full Name *", key: "name", placeholder: "e.g. Amna Siddiqui", type: "text" },
-            { label: "Phone *", key: "phone", placeholder: "e.g. 0321-1234567", type: "text" },
+            { label: "Phone", key: "phone", placeholder: "Optional · e.g. 0321-1234567", type: "text" },
             { label: "Email", key: "email", placeholder: "e.g. amna@email.com", type: "email" },
             { label: "Date of Birth", key: "dob", placeholder: "", type: "date" },
           ].map(({ label, key, placeholder, type }) => (

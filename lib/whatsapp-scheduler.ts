@@ -26,7 +26,7 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
-export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday" | "thankyou" | "newbooking";
+export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday" | "thankyou" | "newbooking" | "invoice";
 export type WaMsgStatus = "sent" | "failed";
 
 export interface WaLogEntry {
@@ -100,6 +100,15 @@ function clearReminderSendAt(apptId: string) {
   try {
     const map = JSON.parse(localStorage.getItem(key) || "{}") as Record<string, number>;
     delete map[apptId];
+    localStorage.setItem(key, JSON.stringify(map));
+  } catch { /* ignore */ }
+}
+
+function clearReminderSendAts(apptIds: Set<string>) {
+  const key = locationUserKey(REMINDER_JITTER_KEY);
+  try {
+    const map = JSON.parse(localStorage.getItem(key) || "{}") as Record<string, number>;
+    apptIds.forEach((apptId) => { delete map[apptId]; });
     localStorage.setItem(key, JSON.stringify(map));
   } catch { /* ignore */ }
 }
@@ -285,6 +294,23 @@ function setQueue(storageKey: string, items: QueueItem[]) {
   localStorage.setItem(locationUserKey(storageKey), JSON.stringify(items));
 }
 
+export function purgeQueuedAppointmentMessages(apptIds: Iterable<string>): void {
+  if (typeof window === "undefined") return;
+  const ids = new Set(Array.from(apptIds).filter(Boolean));
+  if (ids.size === 0) return;
+  setQueue(CONFIRM_QUEUE_KEY, getQueue(CONFIRM_QUEUE_KEY).filter((item) => !ids.has(item.id)));
+  setQueue(FOLLOWUP_QUEUE_KEY, getQueue(FOLLOWUP_QUEUE_KEY).filter((item) => !ids.has(item.id)));
+  setQueue(CANCEL_QUEUE_KEY, getQueue(CANCEL_QUEUE_KEY).filter((item) => !ids.has(item.id)));
+  clearReminderSendAts(ids);
+}
+
+export function purgeQueuedPosThankYou(invoiceIds: Iterable<string>): void {
+  if (typeof window === "undefined") return;
+  const ids = new Set(Array.from(invoiceIds).filter(Boolean));
+  if (ids.size === 0) return;
+  setQueue(POS_THANK_QUEUE_KEY, getQueue(POS_THANK_QUEUE_KEY).filter((item) => !ids.has(item.id)));
+}
+
 /** Send a new-booking alert to the salon WhatsApp group immediately (fire-and-forget). */
 export async function sendGroupBookingAlert(appt: {
   id?: string;
@@ -413,31 +439,6 @@ export function enqueueWhatsAppCancellation(apptId: string) {
     if (!phone) return;
     setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs, phone, clientName: appt?.clientName }]);
   }
-}
-
-/**
- * Call right after a POS sale completes — sends a short thank-you text to the
- * client, on top of (not instead of) the invoice PDF. Sent immediately (subject to
- * the same pacing gate as every other message), since the client may still be at
- * the counter. Uses "utility" intent (see callSendApi) — a courtesy thank-you tied
- * to a real, just-completed purchase, not a discount-laden marketing push.
- */
-export async function sendPosThankYou(phone: string, clientName: string, invoiceId?: string): Promise<boolean> {
-  if (typeof window === "undefined") return false;
-  const ws = settingsStore.wasender as { autoPosThankYou?: boolean };
-  if (ws.autoPosThankYou === false) return false;
-  const tpl = (settingsStore.whatsapp as { posThankYou?: string }).posThankYou;
-  if (!tpl || !phone) return false;
-  // Scoped to this one invoice — the receipt view has a manual "resend" action on
-  // top of the automatic send-on-sale-complete, so without this a resend would
-  // also fire a second thank-you text alongside the (intentionally) resent PDF.
-  const sentKey = invoiceId ? `thankyou_${invoiceId}` : undefined;
-  if (sentKey && alreadySent(sentKey)) return false;
-  const salonName = settingsStore.salon.name as string;
-  const text = fillTemplate(tpl, { name: clientName, salon_name: salonName });
-  const ok = await callSendApi(phone, text, { type: "thankyou", clientName });
-  if (ok && sentKey) markSent(sentKey);
-  return ok;
 }
 
 /** Queue a POS thank-you text so the scheduler can send it after the POS jitter. */
@@ -855,20 +856,18 @@ async function runSchedulerInternal(): Promise<void> {
     for (const item of queue) {
       // Retry delay — keep waiting if last attempt was too recent
       if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
-      // Prefer the live appointment (freshest data), but fall back to what was
-      // snapshotted at enqueue time if it's since been deleted — this is what lets a
-      // confirmation still go out instead of failing as "Unknown client".
       const appt = appointments.find((a) => a.id === item.id);
-      const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
-      const clientName = appt?.clientName ?? item.clientName ?? "there";
+      if (!appt) continue;
+      const phone = clientPhone(appt.clientId);
+      const clientName = appt.clientName;
       if (!phone) {
         continue;
       }
       const sentKey = `confirm_${item.id}`;
       if (alreadySent(sentKey)) continue;
-      const serviceNames = appt?.serviceNames ?? item.serviceNames ?? [];
-      const date = appt?.date ?? item.date ?? "";
-      const startTime = appt?.startTime ?? item.startTime ?? "";
+      const serviceNames = appt.serviceNames;
+      const date = appt.date;
+      const startTime = appt.startTime;
       // A confirmation is purely informational ("your booking is confirmed"), not
       // time-boxed like a reminder — our own pacing gate (0-5 min enqueue jitter +
       // the mandatory 3-7+ min gap between any two sends) can occasionally push a
@@ -892,20 +891,18 @@ async function runSchedulerInternal(): Promise<void> {
     const remaining: QueueItem[] = [];
     for (const item of queue) {
       if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
-      // Prefer the live appointment (freshest data), but fall back to what was
-      // snapshotted at enqueue time if it's since been deleted — this is what lets a
-      // follow-up still go out instead of failing as "Unknown client" with no number.
       const appt = appointments.find((a) => a.id === item.id);
-      const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
-      const clientName = appt?.clientName ?? item.clientName ?? "there";
+      if (!appt) continue;
+      const phone = clientPhone(appt.clientId);
+      const clientName = appt.clientName;
       if (!phone) {
         continue;
       }
       const sentKey = `followup_${item.id}`;
       if (alreadySent(sentKey)) continue;
-      const serviceNames = appt?.serviceNames ?? item.serviceNames ?? [];
-      const date = appt?.date ?? item.date ?? "";
-      const startTime = appt?.startTime ?? item.startTime ?? "";
+      const serviceNames = appt.serviceNames;
+      const date = appt.date;
+      const startTime = appt.startTime;
       const text = fillTemplate(waTpl.followup, buildVars({ clientName, serviceNames, date, startTime }, salonName));
       const ok = await callSendApi(phone, text, { type: "followup", clientName });
       if (ok) {
@@ -930,15 +927,14 @@ async function runSchedulerInternal(): Promise<void> {
       const sentKey = `cancel_${item.id}`;
       if (alreadySent(sentKey)) continue;
       const appt = appointments.find((a) => a.id === item.id);
-      const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
-      const clientName = appt?.clientName ?? item.clientName ?? "there";
+      if (!appt) continue;
+      const phone = clientPhone(appt.clientId);
+      const clientName = appt.clientName;
       if (!phone) {
         continue;
       }
       const cancelDiscount = cancelSettings.cancelDiscountEnabled === false ? "" : (cancelSettings.cancelDiscount || "10%");
-      const text = appt
-        ? fillTemplate(cancelTpl, { ...buildVars(appt, salonName), discount: cancelDiscount })
-        : fillTemplate(cancelTpl, { name: clientName, salon_name: salonName, discount: cancelDiscount, service: "", date: "", time: "", staff: "" });
+      const text = fillTemplate(cancelTpl, { ...buildVars(appt, salonName), discount: cancelDiscount });
       const ok = await callSendApi(phone, text, { type: "cancellation", clientName });
       if (ok) {
         markSent(sentKey);

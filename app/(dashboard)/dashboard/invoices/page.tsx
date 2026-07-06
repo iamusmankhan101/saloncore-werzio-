@@ -9,6 +9,8 @@ import {
   getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid,
   type SalonInvoice,
 } from "@/lib/salon-invoices";
+import { getStoredAppointments, saveAppointments } from "@/lib/storage";
+import { purgeQueuedPosThankYou } from "@/lib/whatsapp-scheduler";
 import { settingsStore } from "@/lib/settings-store";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -97,7 +99,18 @@ export default function InvoicesPage() {
   }
 
   function handleDelete(id: string) {
+    const invoice = getSalonInvoices().find((item) => item.id === id);
+    purgeQueuedPosThankYou([id]);
     deleteSalonInvoice(id);
+    if (invoice?.appointmentId) {
+      const appointments = getStoredAppointments();
+      const updatedAppointments = appointments.map((appt) =>
+        appt.id === invoice.appointmentId && appt.status === "completed"
+          ? { ...appt, status: "booked" as const, totalAmount: 0 }
+          : appt
+      );
+      saveAppointments(updatedAppointments);
+    }
     setDeleteConfirm(null);
     reload();
     if (viewingInvoice?.id === id) setViewingInvoice(null);

@@ -2,10 +2,10 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
-import { getSalonInvoices } from "@/lib/salon-invoices";
+import { getSalonInvoices, saveSalonInvoices } from "@/lib/salon-invoices";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
 import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2 } from "lucide-react";
-import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert } from "@/lib/whatsapp-scheduler";
+import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert, purgeQueuedAppointmentMessages, purgeQueuedPosThankYou, normalizePhone } from "@/lib/whatsapp-scheduler";
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
@@ -340,7 +340,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const setNC = (k: string, v: string) => setNewClientForm((f) => ({ ...f, [k]: v }));
-  const canSaveNewClient = newClientForm.name && newClientForm.phone;
+  const canSaveNewClient = newClientForm.name.trim();
 
   // Services are the master control — the stylist is derived from what's selected, so
   // the checklist always shows the full catalog rather than narrowing by staffId.
@@ -395,8 +395,8 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       const newId = "c_" + Date.now();
       newClientObj = {
         id: newId,
-        name: newClientForm.name,
-        phone: newClientForm.phone,
+        name: newClientForm.name.trim(),
+        phone: normalizePhone(newClientForm.phone),
         email: newClientForm.email || undefined,
         dob: newClientForm.dob || undefined,
         gender: "female",
@@ -506,13 +506,13 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
                 </div>
                 {newClientSaved ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#059669", fontWeight: 600 }}>
-                    <span>✓</span> {newClientForm.name} · {newClientForm.phone}
+                    <span>✓</span> {newClientForm.name}{newClientForm.phone ? ` · ${newClientForm.phone}` : ""}
                   </div>
                 ) : (
                   <>
                     <input value={newClientForm.name} onChange={(e) => setNC("name", e.target.value)} placeholder="Full name *"
                       style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #e8e8f0", fontSize: 13, outline: "none", background: "#fff" }} />
-                    <input value={newClientForm.phone} onChange={(e) => setNC("phone", e.target.value)} placeholder="Phone number *"
+                    <input value={newClientForm.phone} onChange={(e) => setNC("phone", e.target.value)} placeholder="Phone number (optional)"
                       style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #e8e8f0", fontSize: 13, outline: "none", background: "#fff" }} />
                     <input value={newClientForm.email} onChange={(e) => setNC("email", e.target.value)} placeholder="Email (optional)"
                       style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #e8e8f0", fontSize: 13, outline: "none", background: "#fff" }} />
@@ -945,8 +945,15 @@ export default function AppointmentsPage() {
   function deleteChecked() {
     if (!checkedIds.size) return;
     if (!window.confirm(`Delete ${checkedIds.size} appointment${checkedIds.size > 1 ? "s" : ""}? This cannot be undone.`)) return;
+    const deletedIds = new Set(checkedIds);
+    purgeQueuedAppointmentMessages(deletedIds);
+    const linkedInvoices = getSalonInvoices().filter((invoice) => invoice.appointmentId && deletedIds.has(invoice.appointmentId));
+    if (linkedInvoices.length > 0) {
+      purgeQueuedPosThankYou(linkedInvoices.map((invoice) => invoice.id));
+      saveSalonInvoices(getSalonInvoices().filter((invoice) => !invoice.appointmentId || !deletedIds.has(invoice.appointmentId)));
+    }
     setAppointments(prev => {
-      const updated = prev.filter(a => !checkedIds.has(a.id));
+      const updated = prev.filter(a => !deletedIds.has(a.id));
       saveAppointments(updated);
       return updated;
     });

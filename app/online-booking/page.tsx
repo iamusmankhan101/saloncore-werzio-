@@ -15,7 +15,7 @@ import {
 import type { Appointment, Client, Staff, Service } from "@/lib/types";
 import { settingsStore } from "@/lib/settings-store";
 import { fmtCurrency as fmt } from "@/lib/format";
-import { enqueueWhatsAppConfirmation } from "@/lib/whatsapp-scheduler";
+import { enqueueWhatsAppConfirmation, normalizePhone } from "@/lib/whatsapp-scheduler";
 import { getDefaultLocationId } from "@/lib/locations";
 
 interface BusinessHour {
@@ -156,12 +156,13 @@ function OnlineBookingInner() {
     if (booking) return;
     setBooking(true);
 
+    const normalizedPhone = normalizePhone(phone);
     const existing = clients.find(
-      (c) => c.phone.replace(/\D/g, "") === phone.replace(/\D/g, "")
+      (c) => normalizePhone(c.phone) === normalizedPhone
     );
     let finalClientId = existing ? existing.id : createId("c");
     const newClientObj: Client | undefined = existing ? undefined : {
-      id: finalClientId, name, phone, gender: "female",
+      id: finalClientId, name, phone: normalizedPhone, gender: "female",
       locationId: getDefaultLocationId(),
       tags: ["New"], source: "web",
       createdAt: selectedDate || new Date().toISOString().split("T")[0],
@@ -195,7 +196,7 @@ function OnlineBookingInner() {
       fetch("/api/public/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ salonId, appointment: appt, client: newClientObj ?? undefined, clientPhone: phone }),
+        body: JSON.stringify({ salonId, appointment: appt, client: newClientObj ?? undefined, clientPhone: normalizedPhone }),
       }).catch(() => {});
     } else {
       // On the salon's own device — use localStorage

@@ -38,6 +38,18 @@ function initialData<T>(mock: T[]): T[] {
   return getActiveLocationFilter() === "main" ? mock : [];
 }
 
+function normalizeClientPhone(raw?: string): string {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("0")) return `92${digits.slice(1)}`;
+  if (digits.length === 10 && digits.startsWith("3")) return `92${digits}`;
+  return digits;
+}
+
+function normalizeClients(clients: Client[]): Client[] {
+  return clients.map((client) => ({ ...client, phone: normalizeClientPhone(client.phone) }));
+}
+
 export function getStoredAppointments(): Appointment[] {
   if (typeof window === "undefined") return mockAppointments;
   checkSchema();
@@ -65,18 +77,24 @@ export function getStoredClients(): Client[] {
   const key = locationUserKey(K.clients);
   const saved = localStorage.getItem(key);
   if (!saved) {
-    const initial = initialData(mockClients);
+    const initial = normalizeClients(initialData(mockClients));
     localStorage.setItem(key, JSON.stringify(initial));
     return initial;
   }
-  return JSON.parse(saved);
+  const parsed = JSON.parse(saved) as Client[];
+  const normalized = normalizeClients(parsed);
+  if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+    localStorage.setItem(key, JSON.stringify(normalized));
+  }
+  return normalized;
 }
 
 export function saveClients(clients: Client[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    localStorage.setItem(locationUserKey(K.clients), JSON.stringify(clients));
-    saveToDB("clients", clients);
+    const normalized = normalizeClients(clients);
+    localStorage.setItem(locationUserKey(K.clients), JSON.stringify(normalized));
+    saveToDB("clients", normalized);
   }
 }
 

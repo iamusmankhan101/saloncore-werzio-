@@ -50,6 +50,18 @@ async function saveToDB<T>(resource: string, records: T[]): Promise<void> {
   }
 }
 
+function normalizeClientPhone(raw?: string): string {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("0")) return `92${digits.slice(1)}`;
+  if (digits.length === 10 && digits.startsWith("3")) return `92${digits}`;
+  return digits;
+}
+
+function normalizeClients(clients: Client[]): Client[] {
+  return clients.map((client) => ({ ...client, phone: normalizeClientPhone(client.phone) }));
+}
+
 // ─── Appointments ──────────────────────────────────────────────────────────────
 
 export function getStoredAppointments(): Appointment[] {
@@ -76,7 +88,7 @@ export async function getStoredClientsAsync(): Promise<Client[]> {
 }
 
 export function saveClients(clients: Client[]): void {
-  saveToDB("clients", clients);
+  saveToDB("clients", normalizeClients(clients));
 }
 
 // ─── Staff ─────────────────────────────────────────────────────────────────────
