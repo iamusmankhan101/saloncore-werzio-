@@ -8,8 +8,9 @@ import { AuthUser, getCurrentUser, signOut, updateCurrentPassword, updateCurrent
 import { saveSettings, settingsStore } from "@/lib/settings-store";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
-import { getStoredStaff } from "@/lib/storage";
-import type { Staff } from "@/lib/types";
+import { getStoredStaff, getStoredClients, saveClients } from "@/lib/storage";
+import type { Staff, Client } from "@/lib/types";
+import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import { getDefaultLocationId, getSalonLocations, type SalonLocation } from "@/lib/locations";
 
 type SectionId = "profile" | "salon" | "hours" | "roles" | "security" | "whatsapp" | "decidr" | "tryon";
@@ -680,6 +681,34 @@ function WhatsAppSection() {
   const [contacts, setContacts] = useState<{ phone: string; name: string; jid: string }[]>([]);
   const [showContacts, setShowContacts] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [addedPhones, setAddedPhones] = useState<Set<string>>(new Set());
+
+  useEffect(() => { setClients(getStoredClients()); }, []);
+
+  function isExistingClient(phone: string): boolean {
+    const normalized = normalizePhone(phone);
+    return addedPhones.has(normalized) || clients.some((c) => normalizePhone(c.phone) === normalized);
+  }
+
+  function addContactAsClient(contact: { phone: string; name: string }) {
+    const normalized = normalizePhone(contact.phone);
+    if (isExistingClient(normalized)) return;
+    const newClient: Client = {
+      id: "c" + Date.now() + Math.random().toString(36).slice(2, 6),
+      name: contact.name || contact.phone,
+      phone: normalized,
+      tags: [],
+      source: "whatsapp",
+      createdAt: new Date().toISOString().slice(0, 10),
+      totalVisits: 0,
+      totalSpend: 0,
+    };
+    const updated = [newClient, ...clients];
+    setClients(updated);
+    saveClients(updated);
+    setAddedPhones((prev) => new Set(prev).add(normalized));
+  }
 
   function set<K extends keyof WhatsAppSettings>(key: K, value: WhatsAppSettings[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -1412,12 +1441,29 @@ function WhatsAppSection() {
                 <div style={{ padding: "30px 12px", textAlign: "center", color: "#9898b0", fontSize: 13 }}>
                   {contacts.length === 0 ? "No contacts loaded." : "No contacts match your search."}
                 </div>
-              ) : filteredContacts.map((c) => (
-                <div key={c.jid || c.phone} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 9 }} className="hover-bg-light">
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{c.name}</div>
-                  <div style={{ fontSize: 12, color: "#6b6b8a", fontVariantNumeric: "tabular-nums" }}>{c.phone}</div>
-                </div>
-              ))}
+              ) : filteredContacts.map((c) => {
+                const already = isExistingClient(c.phone);
+                return (
+                  <div key={c.jid || c.phone} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 12px", borderRadius: 9 }} className="hover-bg-light">
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{c.name}</div>
+                      <div style={{ fontSize: 12, color: "#6b6b8a", fontVariantNumeric: "tabular-nums" }}>{c.phone}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => addContactAsClient(c)}
+                      disabled={already}
+                      style={{
+                        flexShrink: 0, whiteSpace: "nowrap", border: already ? "1px solid #bbf7d0" : "1px solid var(--accent)",
+                        background: already ? "#ecfdf5" : "#fff", color: already ? "#059669" : "var(--accent)",
+                        borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 800, cursor: already ? "default" : "pointer",
+                      }}
+                    >
+                      {already ? "✓ Added" : "+ Add as Client"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
