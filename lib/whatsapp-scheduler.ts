@@ -108,6 +108,7 @@ const CONFIRM_QUEUE_KEY = "werzio_wa_confirm_queue";
 const FOLLOWUP_QUEUE_KEY = "werzio_wa_followup_queue";
 const CANCEL_QUEUE_KEY  = "werzio_wa_cancel_queue";
 const BIRTHDAY_QUEUE_KEY = "werzio_wa_birthday_queue";
+const POS_THANK_QUEUE_KEY = "werzio_wa_pos_thank_queue";
 // Birthday messages carry a discount, so all of today's birthdays should never land
 // in the same 4-hour block — spread across a random 6-8 hour window, chosen once
 // per day (cached) so every client that day shares the same spread, not a fresh
@@ -193,6 +194,22 @@ const FAST_TIER_TYPES = new Set<WaMsgType>(["confirmation", "newbooking"]);
 const FAST_JITTER_MIN_MS = 2 * 60_000;
 const FAST_JITTER_MAX_MS = 3 * 60_000;
 let lastFastSentAt = 0;
+
+// The POS thank-you text (and, via posJitterMs() below, the invoice PDF — sent
+// through a separate API route that has no pacing gate of its own) should reach
+// the client within about a minute of the sale completing, with a small random
+// jitter so the two don't fire at the exact same instant a real bot would. This
+// is its own, even shorter tier than confirmations/new-booking — tracked on its
+// own clock so it never waits behind either of those.
+const POS_TIER_TYPES = new Set<WaMsgType>(["thankyou"]);
+const POS_JITTER_MIN_MS = 5_000;   // 5 seconds
+const POS_JITTER_MAX_MS = 60_000;  // 60 seconds
+let lastPosSentAt = 0;
+
+/** Random 5-60s delay for POS-transaction messages sent outside this file's own pacing gate (e.g. the invoice PDF route). */
+export function posJitterMs(): number {
+  return randBetween(POS_JITTER_MIN_MS, POS_JITTER_MAX_MS);
+}
 
 // ── Number warm-up ramp ──────────────────────────────────────────────────────
 // Unofficial WhatsApp warm-up schedule: a brand-new number's daily send volume
@@ -423,6 +440,27 @@ export async function sendPosThankYou(phone: string, clientName: string, invoice
   return ok;
 }
 
+/** Queue a POS thank-you text so the scheduler can send it after the POS jitter. */
+export function enqueuePosThankYou(phone: string, clientName: string, invoiceId: string): boolean {
+  if (typeof window === "undefined") return false;
+  const ws = settingsStore.wasender as { autoPosThankYou?: boolean };
+  if (ws.autoPosThankYou === false) return false;
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone || !invoiceId) return false;
+  const sentKey = `thankyou_${invoiceId}`;
+  if (alreadySent(sentKey)) return false;
+  const queue = getQueue(POS_THANK_QUEUE_KEY);
+  if (queue.some((item) => item.id === invoiceId)) return false;
+  setQueue(POS_THANK_QUEUE_KEY, [...queue, {
+    id: invoiceId,
+    retries: 0,
+    sendAfter: Date.now() + posJitterMs(),
+    phone: normalizedPhone,
+    clientName,
+  }]);
+  return true;
+}
+
 type ProviderConfig = WhatsAppSafetyConfig & {
   provider?: string;
   apiKey?: string;
@@ -452,6 +490,14 @@ type ProviderConfig = WhatsAppSafetyConfig & {
 // Exception: confirmation and new-booking-group-alert messages use their own much
 // shorter 2-3 min jitter (see FAST_TIER_TYPES above) instead of this slower floor.
 async function applyPacingGate(providerConfig: ProviderConfig, msgType?: WaMsgType): Promise<void> {
+  if (msgType && POS_TIER_TYPES.has(msgType)) {
+    const targetGapMs = posJitterMs();
+    const elapsedSinceLast = lastPosSentAt > 0 ? Date.now() - lastPosSentAt : 0;
+    const wait = targetGapMs - elapsedSinceLast;
+    if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
+    lastPosSentAt = Date.now();
+    return;
+  }
   if (msgType && FAST_TIER_TYPES.has(msgType)) {
     const targetGapMs = randBetween(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS);
     const elapsedSinceLast = lastFastSentAt > 0 ? Date.now() - lastFastSentAt : 0;
@@ -712,6 +758,7 @@ async function runSchedulerInternal(): Promise<void> {
     autoFollowup: boolean;
     autoCancellation: boolean;
     autoLowStock: boolean;
+    autoPosThankYou?: boolean;
   };
 
   // Check if WhatsApp automation is enabled
@@ -736,6 +783,34 @@ async function runSchedulerInternal(): Promise<void> {
   // fire during salon opening hours so clients aren't messaged at midnight.
   // Booking confirmations always fire immediately regardless of the hour.
   const openNow = isWithinSalonHours();
+
+  // 0. POS thank-you queue — sends due thank-you texts created by POS sales.
+  // This catches queued POS thank-yous on the next scheduler tick if the first
+  // attempt did not happen immediately.
+  if (ws.autoPosThankYou !== false) {
+    const tpl = (settingsStore.whatsapp as { posThankYou?: string }).posThankYou;
+    const queue = getQueue(POS_THANK_QUEUE_KEY);
+    const remaining: QueueItem[] = [];
+    if (tpl) {
+      for (const item of queue) {
+        if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
+        const phone = item.phone ? normalizePhone(item.phone) : "";
+        const clientName = item.clientName || "there";
+        const sentKey = `thankyou_${item.id}`;
+        if (!phone || alreadySent(sentKey)) continue;
+        const text = fillTemplate(tpl, { name: clientName, salon_name: salonName });
+        const ok = await callSendApi(phone, text, { type: "thankyou", clientName });
+        if (ok) {
+          markSent(sentKey);
+        } else if (item.retries < MAX_RETRIES - 1) {
+          remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
+        }
+      }
+      setQueue(POS_THANK_QUEUE_KEY, remaining);
+    } else {
+      setQueue(POS_THANK_QUEUE_KEY, queue);
+    }
+  }
 
   function clientPhone(clientId: string): string {
     const client = clients.find((c) => c.id === clientId);

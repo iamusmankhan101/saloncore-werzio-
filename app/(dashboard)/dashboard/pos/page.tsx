@@ -21,7 +21,7 @@ import {
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
-import { normalizePhone, sendPosThankYou, hasBeenSent, markAsSent } from "@/lib/whatsapp-scheduler";
+import { normalizePhone, enqueuePosThankYou, hasBeenSent, markAsSent, posJitterMs } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
@@ -458,6 +458,11 @@ export default function POSPage() {
     } else {
       setWaStatus("sending");
       try {
+        // A random 5-60s delay before the invoice PDF goes out — this route has no
+        // pacing gate of its own (a blocking sleep inside a serverless function
+        // risks its execution timeout), so without this it fired the instant the
+        // sale completed with zero jitter at all, a distinctly bot-like pattern.
+        await new Promise<void>((resolve) => setTimeout(resolve, posJitterMs()));
         const response = await fetch("/api/whatsapp/send-invoice", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -475,10 +480,11 @@ export default function POSPage() {
         setWaStatus("failed");
       }
     }
-    // Also send a short thank-you text — independent of whether the invoice PDF
-    // itself succeeded, since it's a separate courtesy message, not a retry.
-    // (sendPosThankYou has its own per-invoice dedup, so this stays safe too.)
-    void sendPosThankYou(normalizePhone(client.phone), client.name, invoice.id);
+    // Also queue a short thank-you text — independent of whether the invoice PDF
+    // itself succeeded, since it's a separate courtesy message, not a retry. The
+    // WhatsApp scheduler drains this queue, so if it is queued it will be picked up
+    // on the next scheduler tick instead of being lost.
+    enqueuePosThankYou(normalizePhone(client.phone), client.name, invoice.id);
   }
 
   const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string; logo?: string };

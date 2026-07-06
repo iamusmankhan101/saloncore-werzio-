@@ -669,6 +669,7 @@ function AutoRow({
 }
 
 function WhatsAppSection() {
+  type WhatsAppContact = { phone: string; name: string; jid: string };
   const [form, setForm] = useState<WhatsAppSettings>({ ...(settingsStore.wasender as WhatsAppSettings) });
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -678,36 +679,94 @@ function WhatsAppSection() {
   const [connectionState, setConnectionState] = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [loadingContacts, setLoadingContacts] = useState(false);
-  const [contacts, setContacts] = useState<{ phone: string; name: string; jid: string }[]>([]);
+  const [contacts, setContacts] = useState<WhatsAppContact[]>([]);
   const [showContacts, setShowContacts] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
   const [addedPhones, setAddedPhones] = useState<Set<string>>(new Set());
+  const [selectedContactKeys, setSelectedContactKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => { setClients(getStoredClients()); }, []);
+
+  function contactKey(contact: WhatsAppContact): string {
+    return contact.jid || normalizePhone(contact.phone) || contact.phone;
+  }
 
   function isExistingClient(phone: string): boolean {
     const normalized = normalizePhone(phone);
     return addedPhones.has(normalized) || clients.some((c) => normalizePhone(c.phone) === normalized);
   }
 
-  function addContactAsClient(contact: { phone: string; name: string }) {
-    const normalized = normalizePhone(contact.phone);
-    if (isExistingClient(normalized)) return;
-    const newClient: Client = {
-      id: "c" + Date.now() + Math.random().toString(36).slice(2, 6),
-      name: contact.name || contact.phone,
-      phone: normalized,
-      tags: [],
-      source: "whatsapp",
-      createdAt: new Date().toISOString().slice(0, 10),
-      totalVisits: 0,
-      totalSpend: 0,
-    };
-    const updated = [newClient, ...clients];
+  function addContactsAsClients(selectedContacts: Array<{ phone: string; name: string }>): number {
+    const knownPhones = new Set([
+      ...clients.map((c) => normalizePhone(c.phone)).filter(Boolean),
+      ...Array.from(addedPhones),
+    ]);
+    const now = new Date().toISOString().slice(0, 10);
+    const newClients: Client[] = [];
+
+    for (const contact of selectedContacts) {
+      const normalized = normalizePhone(contact.phone);
+      if (!normalized || knownPhones.has(normalized)) continue;
+      knownPhones.add(normalized);
+      newClients.push({
+        id: "c" + Date.now() + Math.random().toString(36).slice(2, 6),
+        name: contact.name || contact.phone,
+        phone: normalized,
+        tags: [],
+        source: "whatsapp",
+        createdAt: now,
+        totalVisits: 0,
+        totalSpend: 0,
+      });
+    }
+
+    if (newClients.length === 0) return 0;
+    const updated = [...newClients, ...clients];
     setClients(updated);
     saveClients(updated);
-    setAddedPhones((prev) => new Set(prev).add(normalized));
+    setAddedPhones((prev) => {
+      const next = new Set(prev);
+      newClients.forEach((client) => next.add(normalizePhone(client.phone)));
+      return next;
+    });
+    return newClients.length;
+  }
+
+  function addContactAsClient(contact: { phone: string; name: string }) {
+    addContactsAsClients([contact]);
+  }
+
+  function addSelectedContactsAsClients() {
+    const selected = filteredContacts.filter((contact) => selectedContactKeys.has(contactKey(contact)) && !isExistingClient(contact.phone));
+    const count = addContactsAsClients(selected);
+    setSelectedContactKeys(new Set());
+    setTestResult({ ok: count > 0, msg: count > 0 ? `${count} contact${count === 1 ? "" : "s"} added as client${count === 1 ? "" : "s"}.` : "No new contacts selected to add." });
+  }
+
+  function toggleContactSelection(contact: WhatsAppContact) {
+    const normalized = normalizePhone(contact.phone);
+    if (!normalized || isExistingClient(normalized)) return;
+    const key = contactKey(contact);
+    setSelectedContactKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleVisibleContacts() {
+    const selectableKeys = visibleSelectableContacts.map(contactKey);
+    const allSelected = selectableKeys.length > 0 && selectableKeys.every((key) => selectedContactKeys.has(key));
+    setSelectedContactKeys((prev) => {
+      const next = new Set(prev);
+      selectableKeys.forEach((key) => {
+        if (allSelected) next.delete(key);
+        else next.add(key);
+      });
+      return next;
+    });
   }
 
   function set<K extends keyof WhatsAppSettings>(key: K, value: WhatsAppSettings[K]) {
@@ -888,6 +947,7 @@ function WhatsAppSection() {
       }
       const availableContacts = data.contacts ?? [];
       setContacts(availableContacts);
+      setSelectedContactKeys(new Set());
       setShowContacts(true);
       if (availableContacts.length === 0) {
         setTestResult({
@@ -908,6 +968,10 @@ function WhatsAppSection() {
     if (!q) return true;
     return c.name.toLowerCase().includes(q) || c.phone.includes(q);
   });
+  const visibleSelectableContacts = filteredContacts.filter((contact) => normalizePhone(contact.phone) && !isExistingClient(contact.phone));
+  const selectedVisibleCount = visibleSelectableContacts.filter((contact) => selectedContactKeys.has(contactKey(contact))).length;
+  const totalSelectedCount = filteredContacts.filter((contact) => selectedContactKeys.has(contactKey(contact)) && !isExistingClient(contact.phone)).length;
+  const allVisibleSelected = visibleSelectableContacts.length > 0 && selectedVisibleCount === visibleSelectableContacts.length;
 
   const activeCredential = form.provider === "botsailor" ? form.botSailorApiToken : form.provider === "zaptick" ? form.zaptickApiKey : form.apiKey;
   const isConnected = !!activeCredential && connectionState !== "disconnected";
@@ -1435,6 +1499,32 @@ function WhatsAppSection() {
                 placeholder="Search by name or phone…"
                 style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, border: "1px solid #e8e8f0", fontSize: 13, outline: "none" }}
               />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={toggleVisibleContacts}
+                  disabled={visibleSelectableContacts.length === 0}
+                  style={{
+                    border: "1px solid #e8e8f0", background: visibleSelectableContacts.length === 0 ? "#f8f8fc" : "#fff",
+                    color: visibleSelectableContacts.length === 0 ? "#b0b0c8" : "#5a5a78", borderRadius: 8, padding: "7px 10px",
+                    fontSize: 11, fontWeight: 800, cursor: visibleSelectableContacts.length === 0 ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {allVisibleSelected ? "Clear visible" : "Select visible"} ({visibleSelectableContacts.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={addSelectedContactsAsClients}
+                  disabled={totalSelectedCount === 0}
+                  style={{
+                    border: "1px solid var(--accent)", background: totalSelectedCount === 0 ? "#f8f8fc" : "var(--accent)",
+                    color: totalSelectedCount === 0 ? "#b0b0c8" : "#fff", borderRadius: 8, padding: "7px 12px",
+                    fontSize: 11, fontWeight: 900, cursor: totalSelectedCount === 0 ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Add Selected {totalSelectedCount > 0 ? `(${totalSelectedCount})` : ""}
+                </button>
+              </div>
             </div>
             <div style={{ overflowY: "auto", flex: 1, padding: "0 10px 14px" }}>
               {filteredContacts.length === 0 ? (
@@ -1443,23 +1533,34 @@ function WhatsAppSection() {
                 </div>
               ) : filteredContacts.map((c) => {
                 const already = isExistingClient(c.phone);
+                const normalized = normalizePhone(c.phone);
+                const selectable = Boolean(normalized) && !already;
+                const selected = selectedContactKeys.has(contactKey(c));
                 return (
                   <div key={c.jid || c.phone} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 12px", borderRadius: 9 }} className="hover-bg-light">
-                    <div style={{ minWidth: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      disabled={!selectable}
+                      onChange={() => toggleContactSelection(c)}
+                      aria-label={`Select ${c.name || c.phone}`}
+                      style={{ width: 16, height: 16, accentColor: "var(--accent)", cursor: selectable ? "pointer" : "not-allowed", flexShrink: 0 }}
+                    />
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{c.name}</div>
                       <div style={{ fontSize: 12, color: "#6b6b8a", fontVariantNumeric: "tabular-nums" }}>{c.phone}</div>
                     </div>
                     <button
                       type="button"
                       onClick={() => addContactAsClient(c)}
-                      disabled={already}
+                      disabled={!selectable}
                       style={{
                         flexShrink: 0, whiteSpace: "nowrap", border: already ? "1px solid #bbf7d0" : "1px solid var(--accent)",
                         background: already ? "#ecfdf5" : "#fff", color: already ? "#059669" : "var(--accent)",
-                        borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 800, cursor: already ? "default" : "pointer",
+                        borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 800, cursor: selectable ? "pointer" : "default",
                       }}
                     >
-                      {already ? "✓ Added" : "+ Add as Client"}
+                      {already ? "✓ Added" : normalized ? "+ Add as Client" : "No number"}
                     </button>
                   </div>
                 );
