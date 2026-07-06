@@ -5,7 +5,7 @@ import { getStoredAppointments, saveAppointments, getStoredClients, saveClients,
 import { getSalonInvoices, saveSalonInvoices } from "@/lib/salon-invoices";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
 import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2 } from "lucide-react";
-import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert, purgeQueuedAppointmentMessages, purgeQueuedPosThankYou, normalizePhone } from "@/lib/whatsapp-scheduler";
+import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert, purgeQueuedAppointmentMessages, normalizePhone } from "@/lib/whatsapp-scheduler";
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
@@ -949,7 +949,6 @@ export default function AppointmentsPage() {
     purgeQueuedAppointmentMessages(deletedIds);
     const linkedInvoices = getSalonInvoices().filter((invoice) => invoice.appointmentId && deletedIds.has(invoice.appointmentId));
     if (linkedInvoices.length > 0) {
-      purgeQueuedPosThankYou(linkedInvoices.map((invoice) => invoice.id));
       saveSalonInvoices(getSalonInvoices().filter((invoice) => !invoice.appointmentId || !deletedIds.has(invoice.appointmentId)));
     }
     setAppointments(prev => {

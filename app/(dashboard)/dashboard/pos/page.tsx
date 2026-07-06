@@ -21,7 +21,7 @@ import {
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
-import { normalizePhone, enqueuePosThankYou, hasBeenSent, markAsSent, posJitterMs, appendLog } from "@/lib/whatsapp-scheduler";
+import { normalizePhone, hasBeenSent, markAsSent, posJitterMs, appendLog, fillTemplate } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
@@ -461,11 +461,18 @@ export default function POSPage() {
       let ok = false;
       let errorReason: string | undefined;
       try {
-        // A random 5-60s delay before the invoice PDF goes out — this route has no
+        // A random 5-60s delay before the message goes out — this route has no
         // pacing gate of its own (a blocking sleep inside a serverless function
         // risks its execution timeout), so without this it fired the instant the
         // sale completed with zero jitter at all, a distinctly bot-like pattern.
         await new Promise<void>((resolve) => setTimeout(resolve, posJitterMs()));
+        // The thank-you text is prepended to the invoice caption so the client gets
+        // one WhatsApp message (PDF + caption), not two separate texts back to back.
+        const ws = settingsStore.wasender as { autoPosThankYou?: boolean };
+        const thankYouTpl = (settingsStore.whatsapp as { posThankYou?: string }).posThankYou;
+        const thankYouText = ws.autoPosThankYou !== false && thankYouTpl
+          ? fillTemplate(thankYouTpl, { name: client.name, salon_name: salon.name })
+          : "";
         const response = await fetch("/api/whatsapp/send-invoice", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -474,6 +481,7 @@ export default function POSPage() {
             salon,
             phone: normalizedPhone,
             providerConfig: settingsStore.wasender,
+            thankYouText,
           }),
         });
         const result = await response.json() as { ok?: boolean; error?: string };
@@ -491,11 +499,6 @@ export default function POSPage() {
       if (ok) markAsSent(sentKey);
       setWaStatus(ok ? "sent" : "failed");
     }
-    // Also queue a short thank-you text — independent of whether the invoice PDF
-    // itself succeeded, since it's a separate courtesy message, not a retry. The
-    // WhatsApp scheduler drains this queue, so if it is queued it will be picked up
-    // on the next scheduler tick instead of being lost.
-    enqueuePosThankYou(normalizePhone(client.phone), client.name, invoice.id);
   }
 
   const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string; logo?: string };

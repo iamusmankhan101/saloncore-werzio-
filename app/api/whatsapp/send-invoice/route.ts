@@ -10,6 +10,8 @@ interface RequestBody {
   salon: { name: string; phone?: string; email?: string; address?: string; logo?: string };
   phone: string;
   providerConfig: WhatsAppProviderConfig & WhatsAppSafetyConfig;
+  /** Optional thank-you text prepended to the invoice caption, so both go out as one message. */
+  thankYouText?: string;
 }
 
 function cleanPhone(phone: string) {
@@ -39,7 +41,8 @@ export async function POST(request: NextRequest) {
     const pdf = await generateSalonInvoicePdf(body.invoice, body.salon);
     const pdfArrayBuffer = Uint8Array.from(pdf).buffer;
     const fileName = `${body.invoice.number}.pdf`;
-    const caption = `Invoice ${body.invoice.number} from ${body.salon.name} — PKR ${body.invoice.total.toLocaleString("en-PK")}`;
+    const invoiceLine = `Invoice ${body.invoice.number} from ${body.salon.name} — PKR ${body.invoice.total.toLocaleString("en-PK")}`;
+    const caption = body.thankYouText ? `${body.thankYouText}\n\n${invoiceLine}` : invoiceLine;
     const provider = body.providerConfig.provider ?? "wasender";
 
     if (provider === "botsailor") {

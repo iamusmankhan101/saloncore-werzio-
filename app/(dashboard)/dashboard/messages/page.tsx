@@ -52,7 +52,7 @@ const TPL_CONFIG: TplCfg[] = [
   { key: "cancellation", noDiscountKey: "cancellationNoDiscount", label: "Cancellation Win-back", description: "Sent after cancellation. Supports separate discount and no-discount wording", vars: ["name","salon_name","discount"], noDiscountVars: ["name","salon_name"], color: "#dc2626", icon: CalendarX },
   { key: "lowstock",     label: "Low Stock Alert",         description: "Sent once daily to your WhatsApp when stock is low",        vars: ["items","count","salon_name"],                color: "#ea580c", icon: Package },
   { key: "birthday", noDiscountKey: "birthdayNoDiscount", label: "Birthday Greeting", description: "Queued on each client's birthday. Supports separate discount and no-discount wording", vars: ["name","salon_name","discount"], noDiscountVars: ["name","salon_name"], color: "#db2777", icon: Cake },
-  { key: "posThankYou",  label: "POS Thank You",           description: "Sent right after a POS sale, alongside the invoice PDF",    vars: ["name","salon_name"],                          color: "#c026d3", icon: Heart },
+  { key: "posThankYou",  label: "POS Thank You",           description: "Included in the invoice message caption after a POS sale", vars: ["name","salon_name"],                          color: "#c026d3", icon: Heart },
 ];
 
 const FILTERS: { value: WaMsgType | "all"; label: string }[] = [

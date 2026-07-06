@@ -1363,7 +1363,7 @@ function WhatsAppSection() {
         />
         <AutoRow
           label="POS Thank You Message"
-          hint="Sent right after a POS sale, alongside the invoice PDF"
+          hint="Included in the invoice message sent after a POS sale"
           enabled={form.autoPosThankYou !== false}
           onToggle={() => set("autoPosThankYou", !(form.autoPosThankYou !== false))}
         />
