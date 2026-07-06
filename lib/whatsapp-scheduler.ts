@@ -343,20 +343,23 @@ export function enqueueWhatsAppFollowup(apptId: string) {
   // of everyone getting it at exactly the same clock time 24h later.
   const jitterMs = (5 + Math.random() * 25) * 60_000;
   const q = getQueue(FOLLOWUP_QUEUE_KEY);
-  if (!q.some((item) => item.id === apptId)) {
-    // Snapshot phone/name/service/date/time now so the message can still send with
-    // the right details even if the appointment record is deleted before this fires
-    // (this is what caused follow-ups to fail as "Unknown client" with no phone).
-    const appt = getStoredAppointments().find(a => a.id === apptId);
-    const clients = getStoredClients();
-    const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
-    const phone = client?.phone ? normalizePhone(client.phone) : "";
-    setQueue(FOLLOWUP_QUEUE_KEY, [...q, {
-      id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs,
-      phone, clientName: appt?.clientName,
-      serviceNames: appt?.serviceNames, date: appt?.date, startTime: appt?.startTime,
-    }]);
-  }
+  // Snapshot phone/name/service/date/time now so the message can still send with
+  // the right details even if the appointment record is deleted before this fires
+  // (this is what caused follow-ups to fail as "Unknown client" with no phone).
+  const appt = getStoredAppointments().find(a => a.id === apptId);
+  const clients = getStoredClients();
+  const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
+  const phone = client?.phone ? normalizePhone(client.phone) : "";
+  // At most one pending follow-up per appointment AND per client phone at a time —
+  // same reasoning as enqueueWhatsAppConfirmation: two appointments for the same
+  // client both marked completed close together must not queue two follow-ups.
+  const alreadyQueued = q.some((item) => item.id === apptId || (phone && item.phone === phone));
+  if (alreadyQueued) return;
+  setQueue(FOLLOWUP_QUEUE_KEY, [...q, {
+    id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs,
+    phone, clientName: appt?.clientName,
+    serviceNames: appt?.serviceNames, date: appt?.date, startTime: appt?.startTime,
+  }]);
 }
 
 /** Call when an appointment is cancelled — sends a win-back discount message after the configured delay. */
@@ -726,6 +729,13 @@ async function runSchedulerInternal(): Promise<void> {
   // 1. Appointment reminders — send X hours before appointment (only during salon hours).
   // Same-day bookings never get a reminder — reminders only make sense for a future day.
   if (openNow && ws.autoReminder && waTpl.reminder) {
+    // Reminders aren't queue-based — they're recomputed fresh every tick from the
+    // live appointment list — so per-client dedup has to happen within this same
+    // pass: if a client has two upcoming appointments both due for a reminder
+    // right now, only the first one sends; the second appointment's reminder
+    // stays unset (not marked sent) and is simply picked up on a later tick once
+    // it becomes the client's next due reminder, not sent alongside this one.
+    const remindedPhones = new Set<string>();
     for (const appt of appointments) {
       if (appt.status === "cancelled" || appt.status === "no-show" || appt.status === "completed") continue;
       if (appt.date === todayKey) continue;
@@ -738,8 +748,10 @@ async function runSchedulerInternal(): Promise<void> {
         // Wait out this reminder's own 0-10 min jitter (from when it first became
         // due) before sending — see getReminderSendAt.
         if (Date.now() < getReminderSendAt(appt.id)) continue;
+        if (remindedPhones.has(phone)) continue;
         const text = fillTemplate(waTpl.reminder, buildVars(appt, salonName));
         const ok = await callSendApi(phone, text, { type: "reminder", clientName: appt.clientName });
+        remindedPhones.add(phone);
         if (ok) { markSent(sentKey); clearReminderSendAt(appt.id); } // only mark sent on success so failures are retried
       }
     }
