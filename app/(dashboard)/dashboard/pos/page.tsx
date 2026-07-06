@@ -465,7 +465,7 @@ export default function POSPage() {
     }
     // Also send a short thank-you text — independent of whether the invoice PDF
     // itself succeeded, since it's a separate courtesy message, not a retry.
-    void sendPosThankYou(normalizePhone(client.phone), client.name);
+    void sendPosThankYou(normalizePhone(client.phone), client.name, invoice.id);
   }
 
   const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string; logo?: string };

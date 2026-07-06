@@ -264,6 +264,7 @@ function setQueue(storageKey: string, items: QueueItem[]) {
 
 /** Send a new-booking alert to the salon WhatsApp group immediately (fire-and-forget). */
 export async function sendGroupBookingAlert(appt: {
+  id?: string;
   clientName: string;
   serviceNames: string[];
   date: string;
@@ -271,6 +272,17 @@ export async function sendGroupBookingAlert(appt: {
   totalAmount?: number;
 }): Promise<void> {
   if (typeof window === "undefined") return;
+
+  // Scoped to this one booking — this function has no queue of its own (it fires
+  // once, immediately, from the booking-creation call site), so a caller-side
+  // double-invocation for the same appointment is the only way this could
+  // duplicate; guard it here too rather than trusting every call site. Checked
+  // synchronously up front (fails fast on a duplicate call), but only actually
+  // marked sent once every validation gate below has passed — a config problem
+  // (no credentials, no group linked) must not permanently block a later, valid
+  // attempt for the same booking.
+  const sentKey = appt.id ? `newbooking_${appt.id}` : undefined;
+  if (sentKey && alreadySent(sentKey)) return;
 
   const ws = settingsStore.wasender as {
     provider?: string;
@@ -296,6 +308,7 @@ export async function sendGroupBookingAlert(appt: {
     amount: appt.totalAmount != null ? String(appt.totalAmount) : "",
   });
 
+  if (sentKey) markSent(sentKey);
   await callSendApi(ws.bookingGroupJid, text, { type: "newbooking", clientName: "Group" });
 }
 
@@ -317,14 +330,11 @@ export function enqueueWhatsAppConfirmation(apptId: string) {
   const clients = getStoredClients();
   const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
   const phone = client?.phone ? normalizePhone(client.phone) : "";
-  // At most one pending confirmation per appointment AND per client phone at a
-  // time — a duplicate booking action (whether from a UI double-click that slips
-  // past the form's own guard, or two genuinely separate bookings made seconds
-  // apart before the first confirmation has gone out) must never queue a second
-  // confirmation to the same person. Once the first one actually sends and is
-  // removed from the queue, a later, separate booking is free to queue its own.
-  const alreadyQueued = q.some((item) => item.id === apptId || (phone && item.phone === phone));
-  if (alreadyQueued) return;
+  // Scoped to this one booking, not the client overall — a duplicate enqueue call
+  // for the *same* appointment (e.g. a double-click slipping past the form's own
+  // guard) must never queue a second confirmation, but a genuinely separate
+  // booking for the same client is still its own event and gets its own message.
+  if (q.some((item) => item.id === apptId)) return;
   const delayMs = Math.random() * 5 * 60_000; // 0-5 minutes
   setQueue(CONFIRM_QUEUE_KEY, [...q, {
     id: apptId, retries: 0, sendAfter: Date.now() + delayMs,
@@ -350,11 +360,8 @@ export function enqueueWhatsAppFollowup(apptId: string) {
   const clients = getStoredClients();
   const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
   const phone = client?.phone ? normalizePhone(client.phone) : "";
-  // At most one pending follow-up per appointment AND per client phone at a time —
-  // same reasoning as enqueueWhatsAppConfirmation: two appointments for the same
-  // client both marked completed close together must not queue two follow-ups.
-  const alreadyQueued = q.some((item) => item.id === apptId || (phone && item.phone === phone));
-  if (alreadyQueued) return;
+  // Scoped to this one booking, not the client overall — see enqueueWhatsAppConfirmation.
+  if (q.some((item) => item.id === apptId)) return;
   setQueue(FOLLOWUP_QUEUE_KEY, [...q, {
     id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs,
     phone, clientName: appt?.clientName,
@@ -389,15 +396,22 @@ export function enqueueWhatsAppCancellation(apptId: string) {
  * the counter. Uses "utility" intent (see callSendApi) — a courtesy thank-you tied
  * to a real, just-completed purchase, not a discount-laden marketing push.
  */
-export async function sendPosThankYou(phone: string, clientName: string): Promise<boolean> {
+export async function sendPosThankYou(phone: string, clientName: string, invoiceId?: string): Promise<boolean> {
   if (typeof window === "undefined") return false;
   const ws = settingsStore.wasender as { autoPosThankYou?: boolean };
   if (ws.autoPosThankYou === false) return false;
   const tpl = (settingsStore.whatsapp as { posThankYou?: string }).posThankYou;
   if (!tpl || !phone) return false;
+  // Scoped to this one invoice — the receipt view has a manual "resend" action on
+  // top of the automatic send-on-sale-complete, so without this a resend would
+  // also fire a second thank-you text alongside the (intentionally) resent PDF.
+  const sentKey = invoiceId ? `thankyou_${invoiceId}` : undefined;
+  if (sentKey && alreadySent(sentKey)) return false;
   const salonName = settingsStore.salon.name as string;
   const text = fillTemplate(tpl, { name: clientName, salon_name: salonName });
-  return callSendApi(phone, text, { type: "thankyou", clientName });
+  const ok = await callSendApi(phone, text, { type: "thankyou", clientName });
+  if (ok && sentKey) markSent(sentKey);
+  return ok;
 }
 
 type ProviderConfig = WhatsAppSafetyConfig & {
@@ -729,29 +743,23 @@ async function runSchedulerInternal(): Promise<void> {
   // 1. Appointment reminders — send X hours before appointment (only during salon hours).
   // Same-day bookings never get a reminder — reminders only make sense for a future day.
   if (openNow && ws.autoReminder && waTpl.reminder) {
-    // Reminders aren't queue-based — they're recomputed fresh every tick from the
-    // live appointment list — so per-client dedup has to happen within this same
-    // pass: if a client has two upcoming appointments both due for a reminder
-    // right now, only the first one sends; the second appointment's reminder
-    // stays unset (not marked sent) and is simply picked up on a later tick once
-    // it becomes the client's next due reminder, not sent alongside this one.
-    const remindedPhones = new Set<string>();
     for (const appt of appointments) {
       if (appt.status === "cancelled" || appt.status === "no-show" || appt.status === "completed") continue;
       if (appt.date === todayKey) continue;
       if (ws.autoConfirmation && pendingConfirmIds.has(appt.id)) continue;
       const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
       const hoursUntil = (apptTime.getTime() - now.getTime()) / 3_600_000;
+      // Scoped to this one appointment, not the client overall — sentKey is keyed by
+      // appt.id, so a client with two distinct upcoming appointments both due for a
+      // reminder still gets one reminder per appointment, not just one total.
       const sentKey = `reminder_${appt.id}`;
       const phone = clientPhone(appt.clientId);
       if (phone && !alreadySent(sentKey) && hoursUntil > 0 && hoursUntil <= ws.reminderHours) {
         // Wait out this reminder's own 0-10 min jitter (from when it first became
         // due) before sending — see getReminderSendAt.
         if (Date.now() < getReminderSendAt(appt.id)) continue;
-        if (remindedPhones.has(phone)) continue;
         const text = fillTemplate(waTpl.reminder, buildVars(appt, salonName));
         const ok = await callSendApi(phone, text, { type: "reminder", clientName: appt.clientName });
-        remindedPhones.add(phone);
         if (ok) { markSent(sentKey); clearReminderSendAt(appt.id); } // only mark sent on success so failures are retried
       }
     }
