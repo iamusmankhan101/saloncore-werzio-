@@ -143,6 +143,12 @@ function alreadySent(key: string): boolean {
   return !!getSentLog()[key];
 }
 
+// Exported for one-off "has this exact thing already been sent" checks outside
+// this file (e.g. the POS invoice PDF, which isn't queued/sent through here) —
+// callers should namespace their own key (e.g. `invoice_${invoiceId}`) so it
+// can't collide with the confirm_/followup_/cancel_/reminder_/etc. keys used above.
+export { alreadySent as hasBeenSent, markSent as markAsSent };
+
 // Initial attempt + exactly one retry — repeatedly hammering a bad number or a down
 // provider is riskier than just giving up sooner, so we no longer retry more than once.
 const MAX_RETRIES = 2;

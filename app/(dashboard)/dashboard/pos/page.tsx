@@ -21,7 +21,7 @@ import {
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
-import { normalizePhone, sendPosThankYou } from "@/lib/whatsapp-scheduler";
+import { normalizePhone, sendPosThankYou, hasBeenSent, markAsSent } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
@@ -446,25 +446,38 @@ export default function POSPage() {
   // ── WhatsApp PDF invoice ──────────────────────────────────────────────────
   async function sendReceiptWA(invoice: SalonInvoice, client: Client | null) {
     if (!client?.phone) { setWaStatus("idle"); return; }
-    setWaStatus("sending");
-    try {
-      const response = await fetch("/api/whatsapp/send-invoice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invoice,
-          salon,
-          phone: normalizePhone(client.phone),
-          providerConfig: settingsStore.wasender,
-        }),
-      });
-      const result = await response.json() as { ok?: boolean };
-      setWaStatus(result.ok ? "sent" : "failed");
-    } catch {
-      setWaStatus("failed");
+    // Scoped to this one transaction — this is called both automatically right
+    // after a sale completes and from a manual "resend" action on the receipt
+    // view, so without this a resend would send a second copy of the same
+    // invoice. Only marked sent on success, so a failed attempt can still be
+    // retried (via the manual resend button) — this blocks a second successful
+    // send, not a legitimate retry after a failure.
+    const sentKey = `invoice_${invoice.id}`;
+    if (hasBeenSent(sentKey)) {
+      setWaStatus("sent");
+    } else {
+      setWaStatus("sending");
+      try {
+        const response = await fetch("/api/whatsapp/send-invoice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invoice,
+            salon,
+            phone: normalizePhone(client.phone),
+            providerConfig: settingsStore.wasender,
+          }),
+        });
+        const result = await response.json() as { ok?: boolean };
+        if (result.ok) markAsSent(sentKey);
+        setWaStatus(result.ok ? "sent" : "failed");
+      } catch {
+        setWaStatus("failed");
+      }
     }
     // Also send a short thank-you text — independent of whether the invoice PDF
     // itself succeeded, since it's a separate courtesy message, not a retry.
+    // (sendPosThankYou has its own per-invoice dedup, so this stays safe too.)
     void sendPosThankYou(normalizePhone(client.phone), client.name, invoice.id);
   }
 
