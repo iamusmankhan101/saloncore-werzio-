@@ -1000,11 +1000,25 @@ export default function AppointmentsPage() {
           staffList={staffList}
           allServices={services}
           onAdd={(newAppt, newClientObj) => {
-            setAppointments((prevAppts) => {
-              const updated = [newAppt, ...prevAppts];
-              saveAppointments(updated);
-              return updated;
-            });
+            // Computed and persisted directly from the closure's current appointments/clients
+            // (not via setState updater callbacks) so saveClients() has actually run — and
+            // getStoredClients() can see the new client — before enqueueWhatsAppConfirmation
+            // reads it below. React defers calling a setState updater function to its own
+            // batch after this handler returns, so calling saveClients() *inside* a
+            // setClients(prev => ...) updater does not make it available synchronously
+            // to code later in this same function, even placed after it.
+            const updatedAppts = [newAppt, ...appointments];
+            saveAppointments(updatedAppts);
+            setAppointments(updatedAppts);
+
+            const updatedClients = newClientObj
+              ? [newClientObj, ...clients]
+              : clients.map((c) => c.id === newAppt.clientId
+                  ? { ...c, totalVisits: c.totalVisits + 1, totalSpend: c.totalSpend + newAppt.totalAmount, lastVisitDate: newAppt.date }
+                  : c);
+            saveClients(updatedClients);
+            setClients(updatedClients);
+
             try {
               enqueueWhatsAppConfirmation(newAppt.id);
             } catch (error) {
@@ -1016,30 +1030,6 @@ export default function AppointmentsPage() {
             sendGroupBookingAlert(newAppt).catch((error) => {
               console.warn("[appointments] WhatsApp group alert skipped", error);
             });
-
-            if (newClientObj) {
-              setClients((prevClients) => {
-                const updated = [newClientObj, ...prevClients];
-                saveClients(updated);
-                return updated;
-              });
-            } else {
-              setClients((prevClients) => {
-                const updated = prevClients.map((c) => {
-                  if (c.id === newAppt.clientId) {
-                    return {
-                      ...c,
-                      totalVisits: c.totalVisits + 1,
-                      totalSpend: c.totalSpend + newAppt.totalAmount,
-                      lastVisitDate: newAppt.date,
-                    };
-                  }
-                  return c;
-                });
-                saveClients(updated);
-                return updated;
-              });
-            }
           }}
         />
       )}
