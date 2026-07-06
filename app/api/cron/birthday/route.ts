@@ -284,6 +284,7 @@ async function sendBirthdayMessage(
   providerConfig: WhatsAppProviderConfig & WhatsAppSafetyConfig,
   text: string,
 ): Promise<boolean> {
+  if (!phone.trim()) return false;
   try {
     const safety = checkWhatsAppSafety({ phone, intent: "marketing", config: providerConfig });
     if (!safety.ok) throw new Error(safety.error);

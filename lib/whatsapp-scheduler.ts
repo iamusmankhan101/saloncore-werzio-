@@ -336,6 +336,7 @@ export function enqueueWhatsAppConfirmation(apptId: string) {
   const clients = getStoredClients();
   const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
   const phone = client?.phone ? normalizePhone(client.phone) : "";
+  if (!phone) return;
   // Scoped to this one booking, not the client overall — a duplicate enqueue call
   // for the *same* appointment (e.g. a double-click slipping past the form's own
   // guard) must never queue a second confirmation, but a genuinely separate
@@ -366,6 +367,7 @@ export function enqueueWhatsAppFollowup(apptId: string) {
   const clients = getStoredClients();
   const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
   const phone = client?.phone ? normalizePhone(client.phone) : "";
+  if (!phone) return;
   // Scoped to this one booking, not the client overall — see enqueueWhatsAppConfirmation.
   if (q.some((item) => item.id === apptId)) return;
   setQueue(FOLLOWUP_QUEUE_KEY, [...q, {
@@ -391,6 +393,7 @@ export function enqueueWhatsAppCancellation(apptId: string) {
     const clients = getStoredClients();
     const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
     const phone = client?.phone ? normalizePhone(client.phone) : "";
+    if (!phone) return;
     setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs, phone, clientName: appt?.clientName }]);
   }
 }
@@ -475,6 +478,7 @@ async function callSendApi(
   text: string,
   logMeta: { type: WaMsgType; clientName: string },
 ): Promise<boolean> {
+  if (!phone.trim()) return false;
   const providerConfig = settingsStore.wasender as WhatsAppSafetyConfig & {
     provider?: "wasender" | "botsailor" | "zaptick";
     apiKey: string;
@@ -645,8 +649,6 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
     const sentKey = `${item.id}_${year}`;
     if (sent[sentKey]) continue;
     if (!phone) {
-      await applyPacingGate(ws);
-      appendLog({ type: "birthday", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
       continue;
     }
 
@@ -785,8 +787,6 @@ async function runSchedulerInternal(): Promise<void> {
       const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
       const clientName = appt?.clientName ?? item.clientName ?? "there";
       if (!phone) {
-        await applyPacingGate(ws, "confirmation");
-        appendLog({ type: "confirmation", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
       const sentKey = `confirm_${item.id}`;
@@ -824,8 +824,6 @@ async function runSchedulerInternal(): Promise<void> {
       const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
       const clientName = appt?.clientName ?? item.clientName ?? "there";
       if (!phone) {
-        await applyPacingGate(ws);
-        appendLog({ type: "followup", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
       const sentKey = `followup_${item.id}`;
@@ -860,8 +858,6 @@ async function runSchedulerInternal(): Promise<void> {
       const phone = appt ? clientPhone(appt.clientId) : (item.phone ?? "");
       const clientName = appt?.clientName ?? item.clientName ?? "there";
       if (!phone) {
-        await applyPacingGate(ws);
-        appendLog({ type: "cancellation", clientName, phone: "", status: "failed", templateId: "direct", error: "Client has no WhatsApp phone number." });
         continue;
       }
       const cancelDiscount = cancelSettings.cancelDiscountEnabled === false ? "" : (cancelSettings.cancelDiscount || "10%");

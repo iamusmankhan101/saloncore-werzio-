@@ -564,6 +564,11 @@ export default function MessagesPage() {
         .replace(/\{\{salon_name\}\}/g, salonName);
       
       const normalizedPhone = normalizePhone(client.phone);
+      if (!normalizedPhone) {
+        setSendResult({ ok: false, msg: `${client.name} has no phone number, so the message was skipped.` });
+        setSending(false);
+        return;
+      }
       const isGroup = normalizedPhone.endsWith("@g.us");
       
       // If sending to a group and provider is BotSailor, switch to WaSender
@@ -953,7 +958,7 @@ export default function MessagesPage() {
                     <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Client</label>
                     <select value={selClientId} onChange={(e) => setSelClientId(e.target.value)} style={{ ...inputSt }}>
                       <option value="">Select client…</option>
-                      {clients.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}
+                      {clients.filter((c) => normalizePhone(c.phone)).map((c) => <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}
                     </select>
                   </div>
 
