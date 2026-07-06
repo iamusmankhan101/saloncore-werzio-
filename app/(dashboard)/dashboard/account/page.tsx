@@ -676,6 +676,10 @@ function WhatsAppSection() {
   const [groupInviteLink, setGroupInviteLink] = useState("");
   const [connectionState, setConnectionState] = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [contacts, setContacts] = useState<{ phone: string; name: string; jid: string }[]>([]);
+  const [showContacts, setShowContacts] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
 
   function set<K extends keyof WhatsAppSettings>(key: K, value: WhatsAppSettings[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -828,6 +832,53 @@ function WhatsAppSection() {
       setLoadingGroups(false);
     }
   }
+
+  async function loadContacts() {
+    if (!form.apiKey) {
+      setTestResult({ ok: false, msg: "Enter your WaSender API key first." });
+      return;
+    }
+    setLoadingContacts(true);
+    setTestResult(null);
+    try {
+      const response = await fetch("/api/whatsapp/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: form.apiKey }),
+      });
+      const data = await response.json() as {
+        ok?: boolean;
+        contacts?: { phone: string; name: string; jid: string }[];
+        session?: { id?: string; name?: string };
+        error?: string;
+      };
+      if (!response.ok || !data.ok) {
+        setContacts([]);
+        setTestResult({ ok: false, msg: data.error || "Unable to load WhatsApp contacts." });
+        return;
+      }
+      const availableContacts = data.contacts ?? [];
+      setContacts(availableContacts);
+      setShowContacts(true);
+      if (availableContacts.length === 0) {
+        setTestResult({
+          ok: false,
+          msg: `No contacts were returned for ${data.session?.name || data.session?.id || "this WaSender session"}. Reconnect the salon number in WaSender to refresh contact sync, then try again.`,
+        });
+      }
+    } catch {
+      setContacts([]);
+      setTestResult({ ok: false, msg: "Could not reach WaSender API. Check your connection." });
+    } finally {
+      setLoadingContacts(false);
+    }
+  }
+
+  const filteredContacts = contacts.filter((c) => {
+    const q = contactSearch.trim().toLowerCase();
+    if (!q) return true;
+    return c.name.toLowerCase().includes(q) || c.phone.includes(q);
+  });
 
   const activeCredential = form.provider === "botsailor" ? form.botSailorApiToken : form.provider === "zaptick" ? form.zaptickApiKey : form.apiKey;
   const isConnected = !!activeCredential && connectionState !== "disconnected";
@@ -1101,6 +1152,14 @@ function WhatsAppSection() {
             >
               {testing ? "Testing..." : "Test Connection"}
             </button>}
+            {form.provider === "wasender" && <button
+              type="button"
+              onClick={loadContacts}
+              disabled={loadingContacts}
+              style={{ marginLeft: 8, border: "1px solid var(--accent)", background: "transparent", color: "var(--accent)", borderRadius: 9, padding: "8px 18px", fontSize: 12, fontWeight: 800, cursor: loadingContacts ? "wait" : "pointer" }}
+            >
+              {loadingContacts ? "Loading..." : "View Contacts"}
+            </button>}
             <button
               type="button"
               onClick={testGroup}
@@ -1327,6 +1386,42 @@ function WhatsAppSection() {
 
       {saved && <SavedBanner />}
       <SaveButton onClick={save} />
+
+      {showContacts && (
+        <div onClick={() => setShowContacts(false)} className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 20, width: 440, maxWidth: "100%", maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ padding: "20px 22px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e" }}>WhatsApp Contacts</div>
+                <div style={{ fontSize: 12, color: "#9898b0", marginTop: 2 }}>{contacts.length} synced to the connected salon number</div>
+              </div>
+              <button type="button" onClick={() => setShowContacts(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#6b6b8a" }}>
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: "14px 22px" }}>
+              <input
+                value={contactSearch}
+                onChange={(e) => setContactSearch(e.target.value)}
+                placeholder="Search by name or phone…"
+                style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, border: "1px solid #e8e8f0", fontSize: 13, outline: "none" }}
+              />
+            </div>
+            <div style={{ overflowY: "auto", flex: 1, padding: "0 10px 14px" }}>
+              {filteredContacts.length === 0 ? (
+                <div style={{ padding: "30px 12px", textAlign: "center", color: "#9898b0", fontSize: 13 }}>
+                  {contacts.length === 0 ? "No contacts loaded." : "No contacts match your search."}
+                </div>
+              ) : filteredContacts.map((c) => (
+                <div key={c.jid || c.phone} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 9 }} className="hover-bg-light">
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{c.name}</div>
+                  <div style={{ fontSize: 12, color: "#6b6b8a", fontVariantNumeric: "tabular-nums" }}>{c.phone}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
