@@ -407,14 +407,21 @@ export default function DashboardPage() {
               const staffTodayAppts = todayAppts.filter((a) => a.staffId === s.id);
               const busy = staffTodayAppts.some((a) => a.status === "in-progress" || a.status === "arrived");
               return (
-                <div key={s.id} style={{
-                  padding: "12px 20px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  borderBottom: "1px solid #f8f8fc",
-                  transition: "background 0.2s"
-                }} className="hover-bg-row">
+                <div
+                  key={s.id}
+                  onClick={() => router.push(`/dashboard/staff/${s.id}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter") router.push(`/dashboard/staff/${s.id}`); }}
+                  style={{
+                    padding: "12px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    borderBottom: "1px solid #f8f8fc",
+                    transition: "background 0.2s",
+                    cursor: "pointer",
+                  }} className="hover-bg-row">
                   <Avatar name={s.name} color={s.color} bg={s.color + "15"} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 13, color: "#1a1a2e" }}>{s.name}</div>
@@ -461,11 +468,18 @@ export default function DashboardPage() {
                 const pct = (client.totalSpend / maxSpend) * 100;
                 const tag = client.tags[0] || "Client";
                 return (
-                  <div key={client.id} style={{
-                    padding: "14px 20px",
-                    borderBottom: "1px solid #f8f8fc",
-                    transition: "background 0.2s"
-                  }} className="hover-bg-row">
+                  <div
+                    key={client.id}
+                    onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter") router.push(`/dashboard/clients/${client.id}`); }}
+                    style={{
+                      padding: "14px 20px",
+                      borderBottom: "1px solid #f8f8fc",
+                      transition: "background 0.2s",
+                      cursor: "pointer",
+                    }} className="hover-bg-row">
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <Avatar name={client.name} />
                       <div style={{ flex: 1, minWidth: 0 }}>
