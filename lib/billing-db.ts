@@ -367,6 +367,14 @@ export async function markInvoiceOverdue(id: string): Promise<void> {
   });
 }
 
+/** Admin override: re-price an invoice that hasn't been paid yet (e.g. after a custom price change). */
+export async function updateInvoiceAmount(invoiceId: string, amount: number): Promise<void> {
+  await db.execute({
+    sql: "UPDATE billing_invoices SET amount = ? WHERE id = ? AND status IN ('unpaid', 'overdue')",
+    args: [amount, invoiceId],
+  });
+}
+
 export async function markInvoicePaidDB(invoiceId: string): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
   await db.execute({
