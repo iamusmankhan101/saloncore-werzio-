@@ -244,6 +244,14 @@ export async function suspendUser(userId: string, reason: string): Promise<void>
   });
 }
 
+/** Admin override: set a custom monthly price for a user, independent of their plan tier. */
+export async function setCustomPlanPrice(userId: string, price: number): Promise<void> {
+  await db.execute({
+    sql: "UPDATE billing_users SET plan_price = ? WHERE id = ?",
+    args: [price, userId],
+  });
+}
+
 export async function unsuspendUser(userId: string): Promise<void> {
   await db.execute({
     sql: "UPDATE billing_users SET suspended = 0, suspension_reason = NULL WHERE id = ?",

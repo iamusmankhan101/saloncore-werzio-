@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getPaymentRequests,
@@ -13,6 +13,18 @@ import {
 } from "@/lib/payment-requests";
 
 import { fmtCurrency as fmt } from "@/lib/format";
+
+interface BillingUserRow {
+  id: string;
+  email: string;
+  ownerName: string;
+  salonName: string;
+  planId: string;
+  planName: string;
+  planPrice: number;
+  suspended: boolean;
+  suspensionReason: string | null;
+}
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
@@ -143,10 +155,150 @@ function RequestCard({ req, onUpdate }: { req: PaymentRequest; onUpdate: () => v
   );
 }
 
+function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: string, price: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(row.planPrice));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    const price = Number(value);
+    if (!Number.isFinite(price) || price < 0) {
+      setError("Enter a valid amount");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/set-price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: row.id, price }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to save");
+      onSaved(row.id, price);
+      setEditing(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{fmt(row.planPrice)}</span>
+        <button onClick={() => { setValue(String(row.planPrice)); setEditing(true); }}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, color: "#9898b0", display: "flex" }} title="Edit price">
+          <Pencil size={13} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <input
+          type="number"
+          min={0}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={saving}
+          style={{ width: 90, padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4ee", fontSize: 13, outline: "none" }}
+        />
+        <button onClick={save} disabled={saving}
+          style={{ background: "#ecfdf5", border: "1px solid #6ee7b7", borderRadius: 8, padding: "6px 8px", cursor: saving ? "not-allowed" : "pointer", color: "#059669", display: "flex" }} title="Save">
+          <Save size={13} />
+        </button>
+        <button onClick={() => { setEditing(false); setError(null); }} disabled={saving}
+          style={{ background: "#f4f5f7", border: "1px solid #e4e4ee", borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: "#6b6b8a", display: "flex" }} title="Cancel">
+          <Ban size={13} />
+        </button>
+      </div>
+      {error && <div style={{ fontSize: 11, color: "#dc2626" }}>{error}</div>}
+    </div>
+  );
+}
+
+function SalonAccountsPanel() {
+  const [rows, setRows] = useState<BillingUserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    fetch("/api/billing/users")
+      .then((res) => res.json())
+      .then((data) => { if (data.ok) setRows(data.users); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  function handleSaved(userId: string, price: number) {
+    setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, planPrice: price } : r)));
+  }
+
+  const filtered = rows.filter((r) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return r.salonName.toLowerCase().includes(q) || r.ownerName.toLowerCase().includes(q) || r.email.toLowerCase().includes(q);
+  });
+
+  if (loading) {
+    return (
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "48px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>
+        Loading salon accounts…
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by salon, owner, or email…"
+        style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", maxWidth: 340 }}
+      />
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 100px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+          {["SALON", "PLAN", "STATUS", "MONTHLY PRICE", ""].map((h) => (
+            <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+          ))}
+        </div>
+        {filtered.length === 0 ? (
+          <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No salon accounts found</div>
+        ) : (
+          filtered.map((row, i) => (
+            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 100px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{row.salonName}</div>
+                <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{row.ownerName} · {row.email}</div>
+              </div>
+              <div style={{ fontSize: 12, color: "#6b6b8a" }}>{row.planName}</div>
+              <div>
+                {row.suspended ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 16, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 10, fontWeight: 700, color: "#dc2626" }}>Suspended</span>
+                ) : (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 16, background: "#ecfdf5", border: "1px solid #6ee7b7", fontSize: 10, fontWeight: 700, color: "#059669" }}>Active</span>
+                )}
+              </div>
+              <PriceCell row={row} onSaved={handleSaved} />
+              <div />
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [filter, setFilter] = useState<PaymentStatus | "all">("all");
+  const [tab, setTab] = useState<"requests" | "salons">("requests");
   const [isAdmin, setIsAdmin] = useState(false);
   const [checking, setChecking] = useState(true);
 
@@ -180,35 +332,55 @@ export default function AdminPage() {
         </div>
         <div>
           <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e" }}>Admin Panel</div>
-          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 1 }}>Review and approve payment requests</div>
+          <div style={{ fontSize: 13, color: "#9898b0", marginTop: 1 }}>
+            {tab === "requests" ? "Review and approve payment requests" : "Manage salon accounts and set custom pricing"}
+          </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-        {(["all", "pending", "approved", "rejected"] as const).map((s) => {
-          const meta = s === "all" ? { label: "Total", color: "#7C3AED", bg: "#EDE9FE" } : { label: STATUS_META[s].label, color: STATUS_META[s].color, bg: STATUS_META[s].bg };
-          return (
-            <button key={s} onClick={() => setFilter(s)}
-              style={{ background: filter === s ? meta.bg : "#fff", border: `2px solid ${filter === s ? meta.color : "#ebebf0"}`, borderRadius: 14, padding: "16px 18px", textAlign: "left", cursor: "pointer" }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: meta.color }}>{counts[s]}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: filter === s ? meta.color : "#9898b0", marginTop: 2 }}>{meta.label}</div>
-            </button>
-          );
-        })}
+      {/* Tab switcher */}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={() => setTab("requests")}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "requests" ? "#7C3AED" : "#ebebf0"}`, background: tab === "requests" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "requests" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
+          <Clock size={14} /> Payment Requests
+        </button>
+        <button onClick={() => setTab("salons")}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "salons" ? "#7C3AED" : "#ebebf0"}`, background: tab === "salons" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "salons" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
+          <Store size={14} /> Salon Accounts
+        </button>
       </div>
 
-      {/* Requests */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {filtered.length === 0 ? (
-          <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "48px", textAlign: "center" }}>
-            <Clock size={32} color="#d1d5db" style={{ margin: "0 auto 12px" }} />
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#9898b0" }}>No {filter === "all" ? "" : filter} requests</div>
+      {tab === "requests" ? (
+        <>
+          {/* Stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            {(["all", "pending", "approved", "rejected"] as const).map((s) => {
+              const meta = s === "all" ? { label: "Total", color: "#7C3AED", bg: "#EDE9FE" } : { label: STATUS_META[s].label, color: STATUS_META[s].color, bg: STATUS_META[s].bg };
+              return (
+                <button key={s} onClick={() => setFilter(s)}
+                  style={{ background: filter === s ? meta.bg : "#fff", border: `2px solid ${filter === s ? meta.color : "#ebebf0"}`, borderRadius: 14, padding: "16px 18px", textAlign: "left", cursor: "pointer" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: meta.color }}>{counts[s]}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: filter === s ? meta.color : "#9898b0", marginTop: 2 }}>{meta.label}</div>
+                </button>
+              );
+            })}
           </div>
-        ) : (
-          filtered.map((req) => <RequestCard key={req.id} req={req} onUpdate={refresh} />)
-        )}
-      </div>
+
+          {/* Requests */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {filtered.length === 0 ? (
+              <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "48px", textAlign: "center" }}>
+                <Clock size={32} color="#d1d5db" style={{ margin: "0 auto 12px" }} />
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#9898b0" }}>No {filter === "all" ? "" : filter} requests</div>
+              </div>
+            ) : (
+              filtered.map((req) => <RequestCard key={req.id} req={req} onUpdate={refresh} />)
+            )}
+          </div>
+        </>
+      ) : (
+        <SalonAccountsPanel />
+      )}
     </div>
   );
 }

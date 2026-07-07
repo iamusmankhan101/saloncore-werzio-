@@ -188,6 +188,7 @@ export default function BillingPage() {
   const [hasPending,   setHasPending]  = useState(false);
   const [invoices,     setInvoices]    = useState<Invoice[]>([]);
   const [viewInvoice,  setViewInvoice] = useState<Invoice | null>(null);
+  const [actualPrice,  setActualPrice] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -205,6 +206,9 @@ export default function BillingPage() {
         if (data.ok) {
           const planId = data.planId as PlanId;
           setActivePlanId(planId);
+          // Admin may have set a custom negotiated price for this salon —
+          // prefer it over the static plan-tier price when displaying.
+          if (typeof data.planPrice === "number") setActualPrice(data.planPrice);
 
           // Also update localStorage for backward compatibility
           if (planId !== "free") {
@@ -232,6 +236,7 @@ export default function BillingPage() {
   }, [submitted]);
 
   const currentPlan = PLAN_CONFIGS[activePlanId];
+  const displayPrice = actualPrice ?? currentPlan.price;
   const upgradePlan = showModal ? PLAN_CONFIGS[showModal] : null;
   const latestInvoice = invoices[0];
 
@@ -430,9 +435,9 @@ export default function BillingPage() {
             <div>
               <div style={{ fontSize: 24, fontWeight: 900, color: "#fff", lineHeight: 1.1 }}>{currentPlan.label}</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.78)", marginTop: 3 }}>
-                {currentPlan.price === 0
+                {displayPrice === 0
                   ? "Free forever · no billing"
-                  : `PKR ${currentPlan.price.toLocaleString("en-PK")}/month`}
+                  : `PKR ${displayPrice.toLocaleString("en-PK")}/month`}
               </div>
             </div>
           </div>
@@ -572,9 +577,9 @@ export default function BillingPage() {
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.09em" }}>Active Plan</div>
               <div style={{ fontSize: 26, fontWeight: 900, color: "#fff", marginTop: 2 }}>{currentPlan.label}</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>
-                {currentPlan.price === 0
+                {displayPrice === 0
                   ? "Free forever · no billing"
-                  : `PKR ${currentPlan.price.toLocaleString("en-PK")}/month · billed every 30 days`}
+                  : `PKR ${displayPrice.toLocaleString("en-PK")}/month · billed every 30 days`}
               </div>
             </div>
           </div>
