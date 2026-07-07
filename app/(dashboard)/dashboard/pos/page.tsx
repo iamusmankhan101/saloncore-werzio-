@@ -446,6 +446,11 @@ export default function POSPage() {
   // ── WhatsApp PDF invoice ──────────────────────────────────────────────────
   async function sendReceiptWA(invoice: SalonInvoice, client: Client | null) {
     if (!client?.phone) { setWaStatus("idle"); return; }
+    const ws = settingsStore.wasender as { enabled?: boolean; autoPosThankYou?: boolean };
+    if (ws.enabled === false) {
+      setWaStatus("idle");
+      return;
+    }
     // Scoped to this one transaction — this is called both automatically right
     // after a sale completes and from a manual "resend" action on the receipt
     // view, so without this a resend would send a second copy of the same
@@ -468,7 +473,6 @@ export default function POSPage() {
         await new Promise<void>((resolve) => setTimeout(resolve, posJitterMs()));
         // The thank-you text is prepended to the invoice caption so the client gets
         // one WhatsApp message (PDF + caption), not two separate texts back to back.
-        const ws = settingsStore.wasender as { autoPosThankYou?: boolean };
         const thankYouTpl = (settingsStore.whatsapp as { posThankYou?: string }).posThankYou;
         const thankYouText = ws.autoPosThankYou !== false && thankYouTpl
           ? fillTemplate(thankYouTpl, { name: client.name, salon_name: salon.name })
