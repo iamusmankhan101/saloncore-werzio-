@@ -911,7 +911,7 @@ export default function AppointmentsPage() {
   }, [appointments, search, statusFilter, staffFilter, dateFilter]);
 
   const totalRevenue = filtered
-    .filter((a) => a.status !== "cancelled" && a.status !== "no-show")
+    .filter((a) => a.status === "completed")
     .reduce((s, a) => s + a.totalAmount, 0);
   const activeFilters = [statusFilter !== "all", staffFilter !== "all", !!dateFilter].filter(Boolean).length;
 
