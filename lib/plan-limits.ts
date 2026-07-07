@@ -9,7 +9,7 @@
  *  │ Salon Central Free  │ 0 PKR   │ Appts 30/mo, POS 5 products, staff 5,         │
  *  │              │         │ clients 5, invoicing ✓                        │
  *  ├──────────────┼─────────┼───────────────────────────────────────────────┤
- *  │ Salon Central Pro   │ 12000   │ Everything unlimited + WhatsApp               │
+ *  │ Salon Central Pro   │ 10000   │ Everything unlimited + WhatsApp               │
  *  ├──────────────┼─────────┼───────────────────────────────────────────────┤
  *  │ Salon Central Prem. │ 20000   │ Everything unlimited + WhatsApp + Try-On      │
  *  └──────────────┴─────────┴───────────────────────────────────────────────┘
@@ -94,7 +94,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     name: "Pro",
     label: "Salon Central Pro",
     badge: "PRO",
-    price: 12000,
+    price: 10000,
     color: "#7C3AED",
     bg: "#f5f3ff",
     gradient: "linear-gradient(135deg,#5B21B6,#9333EA)",

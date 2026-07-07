@@ -639,7 +639,7 @@ export default function BillingPage() {
             { feature: "WhatsApp automation",   pro: "✓",              premium: "✓" },
             { feature: "Virtual Try-On (AI)",   pro: "—",              premium: "✓" },
             { feature: "Multi-location branches", pro: "—",            premium: "✓" },
-            { feature: "Price",                 pro: "PKR 12,000/month",  premium: "PKR 20,000/month" },
+            { feature: "Price",                 pro: `PKR ${PLAN_CONFIGS.pro.price.toLocaleString("en-PK")}/month`,  premium: `PKR ${PLAN_CONFIGS.premium.price.toLocaleString("en-PK")}/month` },
           ].map((row, i) => (
             <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getPaymentRequests,
@@ -223,10 +223,84 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
   );
 }
 
+function DeleteAccountModal({ row, onClose, onDeleted }: { row: BillingUserRow; onClose: () => void; onDeleted: (userId: string) => void }) {
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const matches = confirmText.trim() === row.salonName;
+
+  async function handleDelete() {
+    if (!matches) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: row.id, confirmSalonName: confirmText.trim() }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to delete account");
+      onDeleted(row.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete account");
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div onClick={deleting ? undefined : onClose} style={{ position: "fixed", inset: 0, background: "rgba(17,17,27,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 440, maxWidth: "100%", boxShadow: "0 24px 64px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <AlertTriangle size={18} color="#dc2626" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>Delete salon account</div>
+            <div style={{ fontSize: 12, color: "#9898b0" }}>This cannot be undone</div>
+          </div>
+          <button onClick={onClose} disabled={deleting} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#9898b0" }}>
+            <X size={16} />
+          </button>
+        </div>
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ fontSize: 13, color: "#4a4a6a", lineHeight: 1.6 }}>
+            This permanently deletes <strong>{row.salonName}</strong> ({row.email}) — their login, staff accounts, appointments, clients, staff, services, inventory, invoices, settings, and billing history. There is no undo.
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>
+              Type <strong>{row.salonName}</strong> to confirm
+            </div>
+            <input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              disabled={deleting}
+              placeholder={row.salonName}
+              style={{ width: "100%", padding: "10px 13px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+          {error && <div style={{ fontSize: 12, color: "#dc2626" }}>{error}</div>}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={onClose} disabled={deleting}
+              style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: deleting ? "not-allowed" : "pointer" }}>
+              Cancel
+            </button>
+            <button onClick={handleDelete} disabled={!matches || deleting}
+              style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: !matches || deleting ? "#f4f5f7" : "#dc2626", fontSize: 13, fontWeight: 700, color: !matches || deleting ? "#c4c4d4" : "#fff", cursor: !matches || deleting ? "not-allowed" : "pointer" }}>
+              {deleting ? "Deleting…" : "Delete Permanently"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SalonAccountsPanel() {
   const [rows, setRows] = useState<BillingUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<BillingUserRow | null>(null);
 
   useEffect(() => {
     fetch("/api/billing/users")
@@ -237,6 +311,11 @@ function SalonAccountsPanel() {
 
   function handleSaved(userId: string, price: number) {
     setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, planPrice: price } : r)));
+  }
+
+  function handleDeleted(userId: string) {
+    setRows((prev) => prev.filter((r) => r.id !== userId));
+    setDeleteTarget(null);
   }
 
   const filtered = rows.filter((r) => {
@@ -262,7 +341,7 @@ function SalonAccountsPanel() {
         style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", maxWidth: 340 }}
       />
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 100px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 44px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
           {["SALON", "PLAN", "STATUS", "MONTHLY PRICE", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
@@ -271,7 +350,7 @@ function SalonAccountsPanel() {
           <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No salon accounts found</div>
         ) : (
           filtered.map((row, i) => (
-            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 100px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 44px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{row.salonName}</div>
                 <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{row.ownerName} · {row.email}</div>
@@ -285,11 +364,20 @@ function SalonAccountsPanel() {
                 )}
               </div>
               <PriceCell row={row} onSaved={handleSaved} />
-              <div />
+              <button onClick={() => setDeleteTarget(row)} title="Delete account"
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "#c4c4d4", display: "flex", justifySelf: "start" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#dc2626")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#c4c4d4")}>
+                <Trash2 size={14} />
+              </button>
             </div>
           ))
         )}
       </div>
+
+      {deleteTarget && (
+        <DeleteAccountModal row={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={handleDeleted} />
+      )}
     </div>
   );
 }
