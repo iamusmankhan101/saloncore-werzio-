@@ -79,7 +79,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
                     <div>Salon Management Software</div>
                     <div>iamusmankhan101@gmail.com</div>
-                    <div>+92 305 8562523</div>
+                    <div>+92 305 8562523 · +92 308 2669945</div>
                     <div>Pakistan</div>
                   </div>
                 </div>
@@ -116,7 +116,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
                     <div>Salon Management Software</div>
                     <div>iamusmankhan101@gmail.com</div>
-                    <div>+92 305 8562523</div>
+                    <div>+92 305 8562523 · +92 308 2669945</div>
                     <div>Pakistan</div>
                   </div>
                 </div>
@@ -174,7 +174,7 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                 <div style={{ fontSize: 11, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Terms</div>
                 <div style={{ fontSize: 12, color: "#555", lineHeight: 1.9 }}>
                   Payment is due within 7 days of the invoice date. Late payments may result in service suspension.<br />
-                  For billing queries, contact iamusmankhan101@gmail.com or +92 305 8562523.
+                  For billing queries, contact iamusmankhan101@gmail.com or +92 305 8562523 / +92 308 2669945.
                 </div>
               </div>
 
