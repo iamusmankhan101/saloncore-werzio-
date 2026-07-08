@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X, ReceiptText } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getPaymentRequests,
@@ -11,6 +11,7 @@ import {
   type PaymentRequest,
   type PaymentStatus,
 } from "@/lib/payment-requests";
+import type { Invoice } from "@/lib/invoices";
 
 import { fmtCurrency as fmt } from "@/lib/format";
 
@@ -296,11 +297,121 @@ function DeleteAccountModal({ row, onClose, onDeleted }: { row: BillingUserRow; 
   );
 }
 
+function InvoicesModal({ row, onClose, onMarkedPaid }: { row: BillingUserRow; onClose: () => void; onMarkedPaid: (userId: string) => void }) {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [markingId, setMarkingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function loadInvoices() {
+    setLoading(true);
+    setError(null);
+    fetch(`/api/billing/invoices?userId=${encodeURIComponent(row.id)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.ok) throw new Error(data.error || "Failed to load invoices");
+        setInvoices(data.invoices ?? []);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load invoices"))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => { loadInvoices(); }, [row.id]);
+
+  async function markPaid(invoice: Invoice) {
+    if (invoice.status === "paid" || markingId) return;
+    if (!window.confirm(`Mark ${invoice.number} as paid for ${row.salonName}?`)) return;
+    setMarkingId(invoice.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/mark-paid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: row.id, invoiceId: invoice.id }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to mark invoice paid");
+      setInvoices((prev) => prev.map((inv) => (
+        inv.id === invoice.id
+          ? { ...inv, status: "paid", paidDate: new Date().toISOString().slice(0, 10) }
+          : inv
+      )));
+      onMarkedPaid(row.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to mark invoice paid");
+    } finally {
+      setMarkingId(null);
+    }
+  }
+
+  return (
+    <div onClick={markingId ? undefined : onClose} style={{ position: "fixed", inset: 0, background: "rgba(17,17,27,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 720, maxWidth: "100%", maxHeight: "86vh", overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.25)" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <ReceiptText size={18} color="#7C3AED" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>{row.salonName} invoices</div>
+            <div style={{ fontSize: 12, color: "#9898b0" }}>{row.ownerName} · {row.email}</div>
+          </div>
+          <button onClick={onClose} disabled={!!markingId} style={{ background: "none", border: "none", cursor: markingId ? "not-allowed" : "pointer", padding: 4, color: "#9898b0" }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div style={{ padding: 20, overflowY: "auto", maxHeight: "calc(86vh - 80px)" }}>
+          {error && <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 9, background: "#fef2f2", color: "#dc2626", fontSize: 12, fontWeight: 700 }}>{error}</div>}
+          {loading ? (
+            <div style={{ padding: 48, textAlign: "center", fontSize: 13, color: "#9898b0" }}>Loading invoices…</div>
+          ) : invoices.length === 0 ? (
+            <div style={{ padding: 48, textAlign: "center", fontSize: 13, color: "#9898b0" }}>No invoices found for this salon.</div>
+          ) : (
+            <div style={{ border: "1px solid #ebebf0", borderRadius: 12, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.1fr 110px 110px 110px 130px", padding: "10px 14px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+                {["INVOICE", "DUE", "AMOUNT", "STATUS", "ACTION"].map((h) => (
+                  <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+                ))}
+              </div>
+              {invoices.map((invoice, i) => {
+                const paid = invoice.status === "paid";
+                return (
+                  <div key={invoice.id} style={{ display: "grid", gridTemplateColumns: "1.1fr 110px 110px 110px 130px", padding: "13px 14px", alignItems: "center", borderBottom: i < invoices.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>{invoice.number}</div>
+                      <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{invoice.planName}</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(invoice.dueDate)}</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#7C3AED" }}>{fmt(invoice.total)}</div>
+                    <div>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 16, background: paid ? "#ecfdf5" : invoice.status === "overdue" ? "#fef2f2" : "#fffbeb", border: `1px solid ${paid ? "#6ee7b7" : invoice.status === "overdue" ? "#fecaca" : "#fde68a"}`, fontSize: 10, fontWeight: 800, color: paid ? "#059669" : invoice.status === "overdue" ? "#dc2626" : "#d97706", textTransform: "capitalize" }}>
+                        {invoice.status}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => markPaid(invoice)}
+                      disabled={paid || !!markingId}
+                      style={{ padding: "8px 10px", borderRadius: 9, border: paid ? "1px solid #e8e8f0" : "none", background: paid ? "#f8f8fc" : "#059669", color: paid ? "#b0b0c8" : "#fff", fontSize: 12, fontWeight: 800, cursor: paid || markingId ? "not-allowed" : "pointer" }}
+                    >
+                      {paid ? "Paid" : markingId === invoice.id ? "Marking…" : "Mark Paid"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SalonAccountsPanel() {
   const [rows, setRows] = useState<BillingUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<BillingUserRow | null>(null);
+  const [invoiceTarget, setInvoiceTarget] = useState<BillingUserRow | null>(null);
 
   useEffect(() => {
     fetch("/api/billing/users")
@@ -316,6 +427,10 @@ function SalonAccountsPanel() {
   function handleDeleted(userId: string) {
     setRows((prev) => prev.filter((r) => r.id !== userId));
     setDeleteTarget(null);
+  }
+
+  function handleMarkedPaid(userId: string) {
+    setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, suspended: false, suspensionReason: null } : r)));
   }
 
   const filtered = rows.filter((r) => {
@@ -341,8 +456,8 @@ function SalonAccountsPanel() {
         style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", maxWidth: 340 }}
       />
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 44px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-          {["SALON", "PLAN", "STATUS", "MONTHLY PRICE", ""].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 96px 44px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+          {["SALON", "PLAN", "STATUS", "MONTHLY PRICE", "INVOICES", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
         </div>
@@ -350,7 +465,7 @@ function SalonAccountsPanel() {
           <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No salon accounts found</div>
         ) : (
           filtered.map((row, i) => (
-            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 44px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 96px 44px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{row.salonName}</div>
                 <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{row.ownerName} · {row.email}</div>
@@ -364,6 +479,10 @@ function SalonAccountsPanel() {
                 )}
               </div>
               <PriceCell row={row} onSaved={handleSaved} />
+              <button onClick={() => setInvoiceTarget(row)}
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, width: 78, padding: "7px 0", borderRadius: 9, border: "1px solid #ddd6fe", background: "#f5f3ff", color: "#7C3AED", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>
+                <ReceiptText size={12} /> View
+              </button>
               <button onClick={() => setDeleteTarget(row)} title="Delete account"
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "#c4c4d4", display: "flex", justifySelf: "start" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "#dc2626")}
@@ -377,6 +496,9 @@ function SalonAccountsPanel() {
 
       {deleteTarget && (
         <DeleteAccountModal row={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={handleDeleted} />
+      )}
+      {invoiceTarget && (
+        <InvoicesModal row={invoiceTarget} onClose={() => setInvoiceTarget(null)} onMarkedPaid={handleMarkedPaid} />
       )}
     </div>
   );
