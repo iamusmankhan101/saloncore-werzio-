@@ -17,6 +17,12 @@ const STATUS_STYLE: Record<string, { color: string; label: string }> = {
   overdue: { color: "#dc2626", label: "OVERDUE" },
 };
 
+const BANK_DETAILS = {
+  title: "TAREEZ TECH",
+  accountNumber: "02291011176553",
+  iban: "PK90ALFH0229001011176553",
+};
+
 const PRINT_STYLES = `
   @media print {
     body > *:not(#werzio-invoice-portal) { display: none !important; }
@@ -167,6 +173,25 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                     <span style={{ fontWeight: 900, color: "#111" }}>{fmt(invoice.total)}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* ── PAYMENT DETAILS ── */}
+              <div style={{ marginBottom: 36, border: "1px solid #e8e8e8", borderRadius: 10, padding: "16px 18px", background: "#fafafa" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Payment Details</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <tbody>
+                    {[
+                      ["Account Title:", BANK_DETAILS.title],
+                      ["Account Number:", BANK_DETAILS.accountNumber],
+                      ["IBAN:", BANK_DETAILS.iban],
+                    ].map(([label, value]) => (
+                      <tr key={label}>
+                        <td style={{ padding: "4px 0", color: "#555", width: "34%" }}>{label}</td>
+                        <td style={{ padding: "4px 0", color: "#111", fontWeight: 800 }}>{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
               {/* ── TERMS ── */}

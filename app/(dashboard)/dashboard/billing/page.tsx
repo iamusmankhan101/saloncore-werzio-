@@ -20,7 +20,7 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const EP_DETAILS  = { name: "Muhammad Usman Khan", phone: "03058562523" };
-const BANK_DETAILS = { bank: "Meezan Bank", name: "Muhammad Usman Khan", account: "02361019994452" };
+const BANK_DETAILS = { name: "TAREEZ TECH", account: "02291011176553", iban: "PK90ALFH0229001011176553" };
 const CONTACT_SALES_URL = "https://wa.me/923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
 
 const STATUS_META: Record<InvoiceStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
@@ -371,9 +371,9 @@ export default function BillingPage() {
                       <div style={{ fontSize: 11, color: "#6b8fa8" }}>Transfer to this account</div>
                     </div>
                   </div>
-                  <CopyField label="Bank" value={BANK_DETAILS.bank} />
                   <CopyField label="Account Title" value={BANK_DETAILS.name} />
                   <CopyField label="Account Number" value={BANK_DETAILS.account} />
+                  <CopyField label="IBAN" value={BANK_DETAILS.iban} />
                 </div>
               )}
 
