@@ -6,12 +6,6 @@ const METHOD_LABELS: Record<string, string> = {
   raast: "Raast", card: "Card", bank: "Bank Transfer", "": "—",
 };
 
-const BANK_DETAILS = {
-  title: "TAREEZ TECH",
-  accountNumber: "02291011176553",
-  iban: "PK90ALFH0229001011176553",
-};
-
 const styles = StyleSheet.create({
   page: { padding: 48, fontFamily: "Helvetica", fontSize: 9, color: "#111111" },
 
@@ -47,10 +41,6 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 10, fontFamily: "Helvetica-Bold" },
 
   paidLine: { fontSize: 9, color: "#059669", fontFamily: "Helvetica-Bold", marginTop: 24 },
-  bankBlock: { marginTop: 24, borderWidth: 1, borderColor: "#e8e8e8", borderRadius: 8, padding: 12, backgroundColor: "#fafafa" },
-  bankRow: { flexDirection: "row", paddingVertical: 2 },
-  bankLabel: { width: "32%", fontSize: 9, color: "#555555" },
-  bankValue: { flex: 1, fontSize: 9, fontFamily: "Helvetica-Bold", color: "#111111" },
   notesBlock: { marginTop: 24 },
   termsBlock: { marginTop: 24 },
   termsText: { fontSize: 9, color: "#555555", lineHeight: 1.6 },
@@ -179,23 +169,6 @@ function InvoiceDocument({ invoice, salon }: {
         {isPaid && invoice.paymentMethod && (
           <Text style={styles.paidLine}>Paid via {methodLabel}</Text>
         )}
-
-        {/* ── BANK TRANSFER DETAILS ── */}
-        <View style={styles.bankBlock}>
-          <Text style={styles.sectionLabel}>Bank Transfer Details</Text>
-          <View style={styles.bankRow}>
-            <Text style={styles.bankLabel}>Account Title:</Text>
-            <Text style={styles.bankValue}>{BANK_DETAILS.title}</Text>
-          </View>
-          <View style={styles.bankRow}>
-            <Text style={styles.bankLabel}>Account Number:</Text>
-            <Text style={styles.bankValue}>{BANK_DETAILS.accountNumber}</Text>
-          </View>
-          <View style={styles.bankRow}>
-            <Text style={styles.bankLabel}>IBAN:</Text>
-            <Text style={styles.bankValue}>{BANK_DETAILS.iban}</Text>
-          </View>
-        </View>
 
         {/* ── NOTES ── */}
         {!!invoice.notes && (

@@ -19,12 +19,6 @@ const METHOD_LABELS: Record<string, string> = {
   raast: "Raast", card: "Card", bank: "Bank Transfer", "": "—",
 };
 
-const BANK_DETAILS = {
-  title: "TAREEZ TECH",
-  accountNumber: "02291011176553",
-  iban: "PK90ALFH0229001011176553",
-};
-
 const PRINT_STYLES = `
   @media print {
     body > *:not(#salon-invoice-portal) { display: none !important; }
@@ -257,25 +251,6 @@ export default function SalonInvoicePrint({
                   <div style={{ fontSize: 12, color: "#059669", fontWeight: 700 }}>✓ Paid via {METHOD_LABELS[invoice.paymentMethod] ?? invoice.paymentMethod}</div>
                 </div>
               )}
-
-              {/* ── BANK TRANSFER DETAILS ── */}
-              <div style={{ marginBottom: 32, border: "1px solid #e8e8e8", borderRadius: 10, padding: "14px 16px", background: "#fafafa" }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Bank Transfer Details</div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <tbody>
-                    {[
-                      ["Account Title:", BANK_DETAILS.title],
-                      ["Account Number:", BANK_DETAILS.accountNumber],
-                      ["IBAN:", BANK_DETAILS.iban],
-                    ].map(([label, value]) => (
-                      <tr key={label}>
-                        <td style={{ padding: "3px 0", color: "#555", width: "35%" }}>{label}</td>
-                        <td style={{ padding: "3px 0", color: "#111", fontWeight: 700 }}>{value}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
 
               {/* ── NOTES ── */}
               {invoice.notes && (
