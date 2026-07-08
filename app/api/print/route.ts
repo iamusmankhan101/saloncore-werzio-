@@ -25,6 +25,12 @@ const CMD = {
   lf:          Buffer.from([0x0a]),
 };
 
+const BANK_DETAILS = {
+  title: "TAREEZ TECH",
+  accountNumber: "02291011176553",
+  iban: "PK90ALFH0229001011176553",
+};
+
 function text(s: string): Buffer {
   return Buffer.from(s + "\n", "utf8");
 }
@@ -108,6 +114,13 @@ function buildReceipt(data: ReceiptData): Buffer {
   push(CMD.alignCenter, CMD.boldOn);
   push(text(isPaid ? "** PAID **" : "** UNPAID **"));
   push(CMD.boldOff);
+
+  push(CMD.alignLeft);
+  push(divider("-", W));
+  push(CMD.boldOn, text("BANK TRANSFER DETAILS"), CMD.boldOff);
+  push(text(`Account Title : ${BANK_DETAILS.title}`));
+  push(text(`Account Number: ${BANK_DETAILS.accountNumber}`));
+  push(text(`IBAN          : ${BANK_DETAILS.iban}`));
 
   if (data.invoice.notes) {
     push(CMD.alignLeft);
