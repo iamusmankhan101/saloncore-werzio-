@@ -133,9 +133,13 @@ function ProfileSection() {
   });
   const [saved, setSaved]   = useState(false);
   const [error, setError]   = useState("");
+  const [saving, setSaving] = useState(false);
 
-  function save() {
+  async function save() {
+    if (saving) return;
     setError("");
+    setSaved(false);
+    setSaving(true);
     try {
       const updated = updateCurrentUser(form);
       // Sync salon name back to settings store so Salon Settings reflects the change
@@ -143,8 +147,9 @@ function ProfileSection() {
         (settingsStore.salon as SalonSettings).name = form.salonName;
         saveSettings();
       }
-      // Fire-and-forget: sync to Turso billing_users
-      fetch("/api/user/profile", {
+      // Sync to Turso billing_users so monthly Billing invoices immediately use
+      // the latest owner/salon details instead of stale signup data.
+      const response = await fetch("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -153,11 +158,15 @@ function ProfileSection() {
           salonName: form.salonName,
           phone:     form.phone,
         }),
-      }).catch(() => { /* non-critical — billing DB sync */ });
+      });
+      const result = await response.json().catch(() => ({ ok: false, error: "Invalid profile sync response." })) as { ok?: boolean; error?: string };
+      if (!response.ok || !result.ok) throw new Error(result.error || "Could not sync profile to billing invoices.");
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2200);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update profile.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -234,8 +243,8 @@ function ProfileSection() {
           {error}
         </div>
       )}
-      {saved && <div style={{ marginTop: 16 }}><SavedBanner text="Profile updated successfully." /></div>}
-      <SaveButton onClick={save} />
+      {saved && <div style={{ marginTop: 16 }}><SavedBanner text="Profile and billing invoice details updated successfully." /></div>}
+      <SaveButton onClick={save} disabled={saving} label={saving ? "Saving…" : "Save Changes"} />
     </section>
   );
 }
