@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import styles from "./Hero.module.css";
-import DemoModal from "./DemoModal";
+import DemoVideoModal from "./DemoVideoModal";
 
 export default function Hero() {
   const frameRef            = useRef<HTMLDivElement>(null);
@@ -51,7 +51,7 @@ export default function Hero() {
         </p>
         <div className={styles.btns}>
           <Link href="/#pricing" className={styles.btnPrimary}>View Pricing</Link>
-          <button type="button" onClick={() => setDemo(true)} className={styles.btnOutline}>Book a Demo</button>
+          <button type="button" onClick={() => setDemo(true)} className={styles.btnOutline}>View Demo</button>
         </div>
       </div>
 
@@ -88,7 +88,7 @@ export default function Hero() {
 
     </section>
 
-    <DemoModal open={demoOpen} onClose={() => setDemo(false)} />
+    <DemoVideoModal open={demoOpen} onClose={() => setDemo(false)} />
     </>
   );
 }
