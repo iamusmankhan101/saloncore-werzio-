@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
     const provider = body.providerConfig.provider ?? "wasender";
 
     if (provider === "botsailor") {
-      const apiToken = body.providerConfig.botSailorApiToken || process.env.BOTSAILOR_API_TOKEN || "";
-      const phoneNumberId = body.providerConfig.botSailorPhoneNumberId || process.env.BOTSAILOR_PHONE_NUMBER_ID || "";
+      const apiToken = body.providerConfig.botSailorApiToken || "";
+      const phoneNumberId = body.providerConfig.botSailorPhoneNumberId || "";
       if (!apiToken || !phoneNumberId) throw new Error("BotSailor credentials are not configured.");
 
       const uploadForm = new FormData();
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ ok: true, provider });
     }
 
-    const apiKey = body.providerConfig.apiKey || process.env.WASENDER_API_KEY || "";
+    const apiKey = body.providerConfig.apiKey || "";
     if (!apiKey) throw new Error("WaSender API key is not configured.");
 
     const uploadResponse = await fetch("https://wasenderapi.com/api/upload", {

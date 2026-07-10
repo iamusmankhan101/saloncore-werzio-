@@ -463,8 +463,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // WhatsApp connection status check
   useEffect(() => {
     if (!isReady) return;
-    const config = settingsStore.wasender as { provider?: "wasender" | "botsailor"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string };
-    const credential = config.provider === "botsailor" ? config.botSailorApiToken : config.apiKey;
+    const config = settingsStore.wasender as { provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string };
+    const credential = config.provider === "botsailor" ? config.botSailorApiToken : config.provider === "zaptick" ? config.zaptickApiKey : config.apiKey;
     if (!credential) return;
 
     async function checkWa() {
@@ -474,6 +474,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           apiKey: config.apiKey,
           botSailorApiToken: config.botSailorApiToken || "",
           botSailorPhoneNumberId: config.botSailorPhoneNumberId || "",
+          zaptickApiKey: config.zaptickApiKey || "",
         });
         const res  = await fetch(`/api/whatsapp/status?${params}`);
         if (!res.ok) return; // server error — keep current status, don't flip to disconnected

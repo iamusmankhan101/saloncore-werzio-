@@ -62,6 +62,8 @@ async function ensureTable() {
       phone        TEXT NOT NULL,
       text         TEXT NOT NULL,
       client_name  TEXT NOT NULL,
+      appt_date    TEXT,
+      appt_time    TEXT,
       scheduled_at TEXT NOT NULL,
       status       TEXT NOT NULL DEFAULT 'pending',
       attempts     INTEGER NOT NULL DEFAULT 0,
@@ -71,6 +73,9 @@ async function ensureTable() {
       PRIMARY KEY (user_id, id)
     )
   `);
+  // Older deployments may predate appt_date/appt_time — add them if missing.
+  await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_date TEXT`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_time TEXT`).catch(() => {});
 }
 
 export async function POST(req: NextRequest) {
@@ -179,6 +184,7 @@ export async function POST(req: NextRequest) {
         apiKey: settings?.wasender?.apiKey,
         botSailorApiToken: settings?.wasender?.botSailorApiToken,
         botSailorPhoneNumberId: settings?.wasender?.botSailorPhoneNumberId,
+        zaptickApiKey: settings?.wasender?.zaptickApiKey,
       };
       const autoConfirmation: boolean = settings?.wasender?.autoConfirmation !== false; // default true
       const bookingGroupJid: string = settings?.wasender?.bookingGroupJid?.trim() || "";
@@ -191,7 +197,7 @@ export async function POST(req: NextRequest) {
       // the dashboard scheduler and cron jobs.
       const automationEnabled = settings?.wasender?.enabled !== false;
 
-      if (automationEnabled && (activeWhatsAppCredential(providerConfig) || process.env.WASENDER_API_KEY || process.env.BOTSAILOR_API_TOKEN)) {
+      if (automationEnabled && activeWhatsAppCredential(providerConfig)) {
         const to12h = (t: string) => {
           const [h, m] = t.split(":").map(Number);
           return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
@@ -225,17 +231,22 @@ export async function POST(req: NextRequest) {
           const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
           await db.execute({
             sql: `INSERT INTO wa_booking_send_queue
-                    (id, user_id, kind, phone, text, client_name, scheduled_at, status, attempts, created_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
+                    (id, user_id, kind, phone, text, client_name, appt_date, appt_time, scheduled_at, status, attempts, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
             args: [
               id, salonId, kind, targetPhone, text, clientNameForLog,
+              appointment.date, appointment.startTime,
               new Date(Date.now() + jitterMs()).toISOString(), new Date().toISOString(),
             ],
           });
         }
 
-        // Confirmation to client
-        if (phone && autoConfirmation) {
+        // Confirmation to client — skipped up front if the appointment's start time
+        // has already passed (e.g. a same-day/near-term booking whose 5-7 min queue
+        // delay pushed it past its own start), same as the dashboard's confirmation
+        // queue: confirming a booking that's already happened isn't useful.
+        const apptAlreadyStarted = new Date(`${appointment.date}T${appointment.startTime}:00`) < new Date();
+        if (phone && autoConfirmation && !apptAlreadyStarted) {
           const confirmationTpl: string =
             tpl.confirmation ||
             "Hi {{name}}, your {{service}} booking on {{date}} at {{time}} is confirmed at {{salon_name}}. We look forward to seeing you! 💜";
@@ -245,6 +256,8 @@ export async function POST(req: NextRequest) {
           console.log(`[public/booking] Queued confirmation to ${normalizedPhone}`);
         } else if (!phone) {
           console.warn("[public/booking] No phone number — skipping WhatsApp confirmation");
+        } else if (apptAlreadyStarted) {
+          console.log("[public/booking] Appointment time already passed — skipping WhatsApp confirmation");
         }
 
         // Salon group alert — respects the same "New Booking Group Alert" toggle as

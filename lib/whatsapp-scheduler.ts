@@ -625,7 +625,7 @@ function birthdaySpreadDelay(index: number, total: number): number {
 export async function checkBirthdayReminders(force = false, queueNewBirthdays = true): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const ws = settingsStore.wasender as { provider?: string; apiKey: string; botSailorApiToken?: string; autoReminder: boolean; enabled?: boolean };
+  const ws = settingsStore.wasender as { provider?: string; apiKey: string; botSailorApiToken?: string; zaptickApiKey?: string; autoReminder: boolean; enabled?: boolean };
   const bd = settingsStore.birthday as {
     autoBirthday: boolean;
     birthdayDiscountEnabled?: boolean;
@@ -637,7 +637,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
   // override, so it still works even while automation is paused.
   if (!force && ws.enabled === false) return;
   if (!force && !bd.autoBirthday) return;
-  if (!force && !(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey)) return;
+  if (!force && !(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey)) return;
 
   const birthdayTemplate = (settingsStore.whatsapp as { birthday: string; birthdayNoDiscount?: string })[
     bd.birthdayDiscountEnabled === false ? "birthdayNoDiscount" : "birthday"
@@ -832,11 +832,12 @@ async function runSchedulerInternal(): Promise<void> {
       const appt = appointments.find((a) => a.id === item.id);
       if (!appt) continue;
       // A confirmation queued while automation was off (or during a long pacing
-      // backlog) can sit for days — by the time the queue drains, the appointment
-      // date itself may already be in the past. Unlike the few-minutes drift this
-      // queue normally tolerates (see below), a stale-by-calendar-days booking is
-      // no longer useful to "confirm" — drop it instead of sending.
-      if (appt.date < todayKey) continue;
+      // backlog) can sit for hours or days — by the time the queue drains, the
+      // appointment's start time may already have passed, same-day or otherwise.
+      // Confirming a booking that's already happened (or been missed) isn't useful
+      // — drop it instead of sending, rather than the previous "send it late
+      // anyway" behavior.
+      if (new Date(`${appt.date}T${appt.startTime}:00`) < new Date()) continue;
       const phone = clientPhone(appt.clientId);
       const clientName = appt.clientName;
       if (!phone) {
@@ -847,12 +848,6 @@ async function runSchedulerInternal(): Promise<void> {
       const serviceNames = appt.serviceNames;
       const date = appt.date;
       const startTime = appt.startTime;
-      // A confirmation is purely informational ("your booking is confirmed"), not
-      // time-boxed like a reminder — our own pacing gate (0-5 min enqueue jitter +
-      // the mandatory 3-7+ min gap between any two sends) can occasionally push a
-      // near-term/walk-in booking's confirmation past its own start time. Send it
-      // regardless rather than dropping it as a "failure"; a slightly late
-      // confirmation is still useful, an undelivered one is not.
       const text = fillTemplate(waTpl.confirmation, buildVars({ clientName, serviceNames, date, startTime }, salonName));
       const ok = await callSendApi(phone, text, { type: "confirmation", clientName });
       if (ok) {
@@ -938,7 +933,7 @@ export async function checkLowStockAlerts(): Promise<void> {
   if (typeof window === "undefined") return;
 
   const ws = settingsStore.wasender as {
-    provider?: string; apiKey: string; botSailorApiToken?: string; autoLowStock: boolean; ownerPhone: string; bookingGroupJid?: string; enabled?: boolean;
+    provider?: string; apiKey: string; botSailorApiToken?: string; zaptickApiKey?: string; autoLowStock: boolean; ownerPhone: string; bookingGroupJid?: string; enabled?: boolean;
   };
   // Master "WhatsApp Automation" toggle — this function is called directly from
   // the inventory page too (not just the gated scheduler tick), so it needs its
@@ -949,7 +944,7 @@ export async function checkLowStockAlerts(): Promise<void> {
   // group alert), so the group target only applies for the WaSender provider.
   const groupJid = ws.provider !== "botsailor" && ws.bookingGroupJid?.endsWith("@g.us") ? ws.bookingGroupJid : "";
   if (!ws.ownerPhone && !groupJid) { console.warn("⚠️ No owner phone or linked WhatsApp group set — add one in Account → WhatsApp Settings"); return; }
-  if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey)) { console.warn("⚠️ No WhatsApp provider credentials set — add them in Account → WhatsApp Settings"); return; }
+  if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey)) { console.warn("⚠️ No WhatsApp provider credentials set — add them in Account → WhatsApp Settings"); return; }
 
   const lowstockTemplate = (settingsStore.whatsapp as { lowstock: string }).lowstock;
   if (!lowstockTemplate) { console.warn("⚠️ No low stock template found in WhatsApp Settings"); return; }

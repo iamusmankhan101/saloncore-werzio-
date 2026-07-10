@@ -491,6 +491,7 @@ export default function MessagesPage() {
         apiKey: ws.apiKey,
         botSailorApiToken: ws.botSailorApiToken || "",
         botSailorPhoneNumberId: ws.botSailorPhoneNumberId || "",
+        zaptickApiKey: ws.zaptickApiKey || "",
         force: "1",
       });
       const res = await fetch(`/api/whatsapp/status?${params}`);

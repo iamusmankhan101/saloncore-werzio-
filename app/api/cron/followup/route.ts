@@ -120,6 +120,7 @@ async function runFollowupCron() {
         apiKey: s?.wasender?.apiKey,
         botSailorApiToken: s?.wasender?.botSailorApiToken,
         botSailorPhoneNumberId: s?.wasender?.botSailorPhoneNumberId,
+        zaptickApiKey: s?.wasender?.zaptickApiKey,
       };
       const autoFollowup = s?.wasender?.autoFollowup;
       const template     = s?.whatsapp?.followup;

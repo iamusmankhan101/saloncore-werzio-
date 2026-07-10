@@ -13,13 +13,14 @@ export async function GET(request: NextRequest) {
   if (!actor) return Response.json({ ok: false, connected: false, error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
-  const apiKey = searchParams.get("apiKey") || process.env.WASENDER_API_KEY;
   const provider = (searchParams.get("provider") || "wasender") as WhatsAppProvider;
-  const botSailorApiToken = searchParams.get("botSailorApiToken") || process.env.BOTSAILOR_API_TOKEN;
-  const botSailorPhoneNumberId = searchParams.get("botSailorPhoneNumberId") || process.env.BOTSAILOR_PHONE_NUMBER_ID;
+  const apiKey = searchParams.get("apiKey") || "";
+  const botSailorApiToken = searchParams.get("botSailorApiToken") || "";
+  const botSailorPhoneNumberId = searchParams.get("botSailorPhoneNumberId") || "";
+  const zaptickApiKey = searchParams.get("zaptickApiKey") || "";
   const force  = searchParams.get("force") === "1"; // manual "Test Connection" click
 
-  const credential = provider === "botsailor" ? botSailorApiToken : apiKey;
+  const credential = provider === "botsailor" ? botSailorApiToken : provider === "zaptick" ? zaptickApiKey : apiKey;
   if (!credential) {
     return Response.json({ ok: false, connected: false, error: "No API key configured" });
   }
@@ -32,7 +33,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await checkWhatsAppProvider({ provider, apiKey: apiKey || undefined, botSailorApiToken: botSailorApiToken || undefined, botSailorPhoneNumberId: botSailorPhoneNumberId || undefined });
+    const result = await checkWhatsAppProvider({
+      provider,
+      apiKey: apiKey || undefined,
+      botSailorApiToken: botSailorApiToken || undefined,
+      botSailorPhoneNumberId: botSailorPhoneNumberId || undefined,
+      zaptickApiKey: zaptickApiKey || undefined,
+    });
     cache.set(cacheKey, { ...result, ts: Date.now() });
     return Response.json({ ok: result.connected, ...result });
 

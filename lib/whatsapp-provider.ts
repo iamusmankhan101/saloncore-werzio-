@@ -36,7 +36,7 @@ export async function sendWhatsAppMessage(
 
   // ─── Zaptick Provider ───────────────────────────────────────────────────────
   if (provider === "zaptick") {
-    const apiKey = config.zaptickApiKey || process.env.ZAPTICK_API_KEY || "";
+    const apiKey = config.zaptickApiKey || "";
     
     if (!apiKey) {
       return { ok: false, status: 500, errorReason: "Zaptick API key is required." };
@@ -85,8 +85,8 @@ export async function sendWhatsAppMessage(
 
   // ─── BotSailor Provider ─────────────────────────────────────────────────────
   if (provider === "botsailor") {
-    const apiToken = config.botSailorApiToken || process.env.BOTSAILOR_API_TOKEN || "";
-    const phoneNumberId = config.botSailorPhoneNumberId || process.env.BOTSAILOR_PHONE_NUMBER_ID || "";
+    const apiToken = config.botSailorApiToken || "";
+    const phoneNumberId = config.botSailorPhoneNumberId || "";
     if (!apiToken || !phoneNumberId) {
       return { ok: false, status: 500, errorReason: "BotSailor API token and phone number ID are required." };
     }
@@ -134,7 +134,7 @@ export async function sendWhatsAppMessage(
   }
 
   // ─── WaSender Provider ──────────────────────────────────────────────────────
-  const apiKey = config.apiKey || process.env.WASENDER_API_KEY || "";
+  const apiKey = config.apiKey || "";
   if (!apiKey) return { ok: false, status: 500, errorReason: "WaSender API key not configured." };
   const to = phone.endsWith("@g.us") || phone.startsWith("+") ? phone : `+${phone}`;
   const response = await fetch("https://www.wasenderapi.com/api/send-message", {
@@ -152,7 +152,7 @@ export async function checkWhatsAppProvider(config: WhatsAppProviderConfig) {
   
   // ─── Zaptick Provider Status ────────────────────────────────────────────────
   if (provider === "zaptick") {
-    const apiKey = config.zaptickApiKey || process.env.ZAPTICK_API_KEY || "";
+    const apiKey = config.zaptickApiKey || "";
     if (!apiKey) return { connected: false, status: "NOT_CONFIGURED", message: "Zaptick API key is required." };
     
     try {
@@ -189,7 +189,7 @@ export async function checkWhatsAppProvider(config: WhatsAppProviderConfig) {
   
   // ─── BotSailor Provider Status ──────────────────────────────────────────────
   if (provider === "botsailor") {
-    const apiToken = config.botSailorApiToken || process.env.BOTSAILOR_API_TOKEN || "";
+    const apiToken = config.botSailorApiToken || "";
     if (!apiToken) return { connected: false, status: "NOT_CONFIGURED", message: "BotSailor API token is required." };
     const response = await fetch(`https://botsailor.com/api/v1/user/myInfo?apiToken=${encodeURIComponent(apiToken)}`, {
       headers: { Accept: "application/json" },
@@ -213,7 +213,7 @@ export async function checkWhatsAppProvider(config: WhatsAppProviderConfig) {
   }
 
   // ─── WaSender Provider Status ───────────────────────────────────────────────
-  const apiKey = config.apiKey || process.env.WASENDER_API_KEY || "";
+  const apiKey = config.apiKey || "";
   if (!apiKey) return { connected: false, status: "NOT_CONFIGURED", message: "WaSender API key is required." };
   const response = await fetch("https://www.wasenderapi.com/api/status", {
     headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },

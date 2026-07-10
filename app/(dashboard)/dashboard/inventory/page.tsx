@@ -276,7 +276,7 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
   const [sending, setSending] = useState(false);
   const [apiResult, setApiResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const ws = settingsStore.wasender as { provider?: "wasender" | "botsailor"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; ownerPhone: string };
+  const ws = settingsStore.wasender as { provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; ownerPhone: string };
   const salonName = settingsStore.salon.name as string;
 
   const message = [
@@ -306,7 +306,7 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
   };
 
   const sendViaApi = async () => {
-    if (!(ws.provider === "botsailor" ? ws.botSailorApiToken && ws.botSailorPhoneNumberId : ws.apiKey)) {
+    if (!(ws.provider === "botsailor" ? ws.botSailorApiToken && ws.botSailorPhoneNumberId : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey)) {
       setApiResult({ ok: false, msg: "WhatsApp provider credentials are not set in Account → WhatsApp Settings" });
       return;
     }

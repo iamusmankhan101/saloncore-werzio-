@@ -790,11 +790,13 @@ function WhatsAppSection() {
   }
 
   async function testConnection() {
-    const credential = form.provider === "botsailor" ? form.botSailorApiToken : form.apiKey;
+    const credential = form.provider === "botsailor" ? form.botSailorApiToken : form.provider === "zaptick" ? form.zaptickApiKey : form.apiKey;
     const missingProviderFields = form.provider === "botsailor" && !form.botSailorPhoneNumberId;
     if (!credential || missingProviderFields) {
       const msg = form.provider === "botsailor"
         ? "Enter your BotSailor API token and phone number ID first."
+        : form.provider === "zaptick"
+        ? "Enter your Zaptick API key first."
         : "Enter your WaSender API key first.";
       setTestResult({ ok: false, msg });
       return;
@@ -808,6 +810,7 @@ function WhatsAppSection() {
         apiKey: form.apiKey,
         botSailorApiToken: form.botSailorApiToken,
         botSailorPhoneNumberId: form.botSailorPhoneNumberId,
+        zaptickApiKey: form.zaptickApiKey,
       });
       const res = await fetch(`/api/whatsapp/status?${params}`);
       const data = await res.json();

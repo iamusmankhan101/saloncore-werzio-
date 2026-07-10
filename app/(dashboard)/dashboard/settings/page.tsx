@@ -244,7 +244,7 @@ function WhatsAppSection() {
   const [form, setForm] = useState({ ...settingsStore.whatsapp });
   const [saved, setSaved] = useState(false);
   const ws = settingsStore.wasender;
-  const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey;
+  const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey;
   const isConfigured = Boolean(activeCredential)
     && (ws.provider !== "botsailor" || Boolean(ws.botSailorPhoneNumberId));
   const [connectionState, setConnectionState] = useState<"checking" | "connected" | "disconnected" | "not-configured">(
@@ -263,6 +263,7 @@ function WhatsAppSection() {
       apiKey: ws.apiKey,
       botSailorApiToken: ws.botSailorApiToken || "",
       botSailorPhoneNumberId: ws.botSailorPhoneNumberId || "",
+      zaptickApiKey: ws.zaptickApiKey || "",
       force: "1",
     });
     fetch(`/api/whatsapp/status?${params}`, { signal: controller.signal })
@@ -274,7 +275,7 @@ function WhatsAppSection() {
         }
       });
     return () => controller.abort();
-  }, [isConfigured, ws.apiKey, ws.botSailorApiToken, ws.botSailorPhoneNumberId, ws.provider]);
+  }, [isConfigured, ws.apiKey, ws.botSailorApiToken, ws.botSailorPhoneNumberId, ws.provider, ws.zaptickApiKey]);
 
   const save = () => { Object.assign(settingsStore.whatsapp, form); saveSettings(); setSaved(true); setTimeout(() => setSaved(false), 3000); };
   const connected = connectionState === "connected";

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => ({})) as { apiKey?: string; inviteLink?: string };
-  const apiKey = body.apiKey || process.env.WASENDER_API_KEY || "";
+  const apiKey = body.apiKey || "";
 
   if (!apiKey) {
     return Response.json({ ok: false, error: "WaSender API key not configured." }, { status: 400 });

@@ -155,6 +155,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       apiKey: wasender.apiKey as string | undefined,
       botSailorApiToken: wasender.botSailorApiToken as string | undefined,
       botSailorPhoneNumberId: wasender.botSailorPhoneNumberId as string | undefined,
+      zaptickApiKey: wasender.zaptickApiKey as string | undefined,
     };
 
     const result = await sendWhatsAppMessage(
