@@ -26,12 +26,42 @@ export function activeWhatsAppCredential(config: WhatsAppProviderConfig): string
   return config.apiKey || "";
 }
 
+/**
+ * Detects obviously-fake/placeholder phone numbers — every digit the same
+ * (0000000000), sequential runs (1234567890, 0123456789, 9876543210, ...), or the
+ * "count from 1" pattern (12345678910 = "1"+"2"+...+"9"+"10") that test/demo
+ * bookings tend to get typed in — so WhatsApp sends are skipped for them instead
+ * of failing (or worse, landing on some unrelated real number) at the provider.
+ */
+export function isFakePlaceholderPhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return false;
+
+  if (/^(\d)\1+$/.test(digits)) return true;
+
+  const chars = digits.split("");
+  const isAscending = chars.length > 1 && chars.every((d, i) => i === 0 || (Number(d) - Number(chars[i - 1]) + 10) % 10 === 1);
+  const isDescending = chars.length > 1 && chars.every((d, i) => i === 0 || (Number(chars[i - 1]) - Number(d) + 10) % 10 === 1);
+  if (isAscending || isDescending) return true;
+
+  let counted = "";
+  for (let n = 1; counted.length < digits.length; n++) counted += String(n);
+  if (counted.slice(0, digits.length) === digits) return true;
+
+  return false;
+}
+
 export async function sendWhatsAppMessage(
   config: WhatsAppProviderConfig,
   phone: string,
   text: string,
   options?: { messageType?: "reminder" | "confirmation" | "followup" | "cancellation" | "birthday" | "manual" },
 ): Promise<WhatsAppSendResult> {
+  // Group JIDs (…@g.us) aren't phone numbers, so the fake-number check doesn't apply.
+  if (!phone.endsWith("@g.us") && isFakePlaceholderPhone(phone)) {
+    return { ok: false, status: 400, errorReason: "Skipped: recipient looks like a fake/placeholder phone number." };
+  }
+
   const provider = config.provider ?? "wasender";
 
   // ─── Zaptick Provider ───────────────────────────────────────────────────────
