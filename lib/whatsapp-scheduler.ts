@@ -198,16 +198,33 @@ let lastSentAt = 0;
 let sentCount = 0;
 let schedulerRunning = false;
 
-// Booking confirmations and the new-booking group alert are the two most
-// time-sensitive, highest-visibility messages, so they're tracked on their own
-// clock — never waiting on an unrelated bulk/marketing send (birthday,
-// cancellation win-back) that happened to fire moments earlier, and vice versa.
-// Same 5-7 min floor as everything else (see MESSAGE_JITTER_* above), just
-// isolated from the general pacing clock.
+// Confirmations, reminders, and follow-ups each get their own independent pacing
+// clock and gap range, so a burst of one type never eats into or waits on another
+// type's spacing. The new-booking group alert shares the confirmation clock —
+// both are the most time-sensitive, highest-visibility messages.
 const FAST_TIER_TYPES = new Set<WaMsgType>(["confirmation", "newbooking"]);
-const FAST_JITTER_MIN_MS = MESSAGE_JITTER_MIN_MS;
-const FAST_JITTER_MAX_MS = MESSAGE_JITTER_MAX_MS;
-let lastFastSentAt = 0;
+const FAST_JITTER_MIN_MS = MESSAGE_JITTER_MIN_MS;       // 5 min
+const FAST_JITTER_MAX_MS = MESSAGE_JITTER_MAX_MS;        // 7 min
+const REMINDER_TIER_MIN_MS = 15 * 60_000;
+const REMINDER_TIER_MAX_MS = 30 * 60_000;
+const FOLLOWUP_TIER_MIN_MS = 20 * 60_000;
+const FOLLOWUP_TIER_MAX_MS = 35 * 60_000;
+
+/** Builds an independent "wait at least min-max between sends of this type" gate, each with its own clock. */
+function makeTierGate(minMs: number, maxMs: number) {
+  let lastSentAtForTier = 0;
+  return async function gate(): Promise<void> {
+    const targetGapMs = randBetween(minMs, maxMs);
+    const elapsedSinceLast = lastSentAtForTier > 0 ? Date.now() - lastSentAtForTier : 0;
+    const wait = targetGapMs - elapsedSinceLast;
+    if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
+    lastSentAtForTier = Date.now();
+  };
+}
+
+const fastTierGate = makeTierGate(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS);
+const reminderTierGate = makeTierGate(REMINDER_TIER_MIN_MS, REMINDER_TIER_MAX_MS);
+const followupTierGate = makeTierGate(FOLLOWUP_TIER_MIN_MS, FOLLOWUP_TIER_MAX_MS);
 
 /** Random 5-7 min delay for the POS invoice send, applied outside this file's own pacing gate (it runs in the invoice PDF API route). */
 export function posJitterMs(): number {
@@ -460,27 +477,24 @@ type ProviderConfig = WhatsAppSafetyConfig & {
 // different message types landing in the log at the same minute), which looks
 // exactly like an unpaced burst even though only one real message went out.
 //
-// Base pacing is a random 3-7 minutes between every logged item, with longer
-// escalating breaks every 10th/50th/100th one (see minNaturalGapMs). This floor
-// always applies regardless of the optional WhatsApp Safety toggle or provider —
-// the Safety setting and WaSender's rate limit can only make the gap longer, never
-// shorter. Also always runs for the very first item of a fresh page load — e.g.
-// right after WhatsApp gets reconfigured with a backlog queued up while it was
-// disconnected — so that backlog's first item doesn't fire instantly before pacing
-// kicks in for the rest. Runs client-side via setTimeout — never inside the API
-// route — so it can never block a serverless request into a platform timeout.
+// Base pacing (for anything not in one of the dedicated tiers below — cancellation,
+// birthday, lowstock, invoice) is a random 5-7 minutes between every logged item,
+// with longer escalating breaks every 10th/50th/100th one (see minNaturalGapMs).
+// This floor always applies regardless of the optional WhatsApp Safety toggle or
+// provider — the Safety setting and WaSender's rate limit can only make the gap
+// longer, never shorter. Also always runs for the very first item of a fresh page
+// load — e.g. right after WhatsApp gets reconfigured with a backlog queued up while
+// it was disconnected — so that backlog's first item doesn't fire instantly before
+// pacing kicks in for the rest. Runs client-side via setTimeout — never inside the
+// API route — so it can never block a serverless request into a platform timeout.
 //
-// Exception: confirmation and new-booking-group-alert messages use their own much
-// shorter 2-3 min jitter (see FAST_TIER_TYPES above) instead of this slower floor.
+// Confirmation/new-booking-group-alert (5-7 min), reminder (15-30 min), and
+// follow-up (20-35 min) each use their own dedicated gate/clock instead of this
+// shared floor — see fastTierGate/reminderTierGate/followupTierGate above.
 async function applyPacingGate(providerConfig: ProviderConfig, msgType?: WaMsgType): Promise<void> {
-  if (msgType && FAST_TIER_TYPES.has(msgType)) {
-    const targetGapMs = randBetween(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS);
-    const elapsedSinceLast = lastFastSentAt > 0 ? Date.now() - lastFastSentAt : 0;
-    const wait = targetGapMs - elapsedSinceLast;
-    if (wait > 0) await new Promise<void>((resolve) => setTimeout(resolve, wait));
-    lastFastSentAt = Date.now();
-    return;
-  }
+  if (msgType && FAST_TIER_TYPES.has(msgType)) { await fastTierGate(); return; }
+  if (msgType === "reminder") { await reminderTierGate(); return; }
+  if (msgType === "followup") { await followupTierGate(); return; }
   const selectedProvider = providerConfig.provider ?? "wasender";
   const targetGapMs = Math.max(
     getWhatsAppRandomDelayMs(providerConfig),
