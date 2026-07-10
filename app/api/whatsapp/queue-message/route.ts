@@ -92,6 +92,22 @@ function logTypeForKind(kind: QueueKind): string {
   return kind;
 }
 
+function autoSettingEnabled(settings: Record<string, unknown>, kind: QueueKind): boolean {
+  const wasender = settings.wasender as {
+    autoGroupBooking?: boolean;
+    autoFollowup?: boolean;
+    autoCancellation?: boolean;
+    autoReminder?: boolean;
+    autoLowStock?: boolean;
+  } | undefined;
+  if (kind === "groupalert") return wasender?.autoGroupBooking !== false;
+  if (kind === "followup") return wasender?.autoFollowup !== false;
+  if (kind === "cancellation") return wasender?.autoCancellation !== false;
+  if (kind === "reminder") return wasender?.autoReminder !== false;
+  if (kind === "lowstock") return wasender?.autoLowStock !== false;
+  return true;
+}
+
 async function hasSentMessage(userId: string, kind: QueueKind, apptId?: string): Promise<boolean> {
   if (!apptId?.trim()) return false;
   const result = await db.execute({
@@ -134,6 +150,9 @@ export async function POST(req: NextRequest) {
 
     if (settings?.wasender?.enabled === false) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "automation-disabled" });
+    }
+    if (!autoSettingEnabled(settings, body.kind)) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: `${body.kind}-automation-disabled` });
     }
 
     const providerConfig: WhatsAppProviderConfig = {

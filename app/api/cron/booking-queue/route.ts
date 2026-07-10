@@ -174,11 +174,15 @@ function autoSettingEnabled(settings: Record<string, unknown> | null, kind: Queu
     autoGroupBooking?: boolean;
     autoFollowup?: boolean;
     autoCancellation?: boolean;
+    autoReminder?: boolean;
+    autoLowStock?: boolean;
   } | undefined;
   if (kind === "confirmation") return wasender?.autoConfirmation !== false;
   if (kind === "groupalert") return wasender?.autoGroupBooking !== false;
   if (kind === "followup") return wasender?.autoFollowup !== false;
   if (kind === "cancellation") return wasender?.autoCancellation !== false;
+  if (kind === "reminder") return wasender?.autoReminder !== false;
+  if (kind === "lowstock") return wasender?.autoLowStock !== false;
   return true;
 }
 
@@ -286,28 +290,28 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       continue;
     }
 
-    // Confirmations are informational ("your booking is confirmed") — once the
-    // appointment's own start time has passed, confirming it is no longer useful.
-    // The group alert isn't checked here: a late "someone booked X" heads-up to
-    // the salon is still relevant even after the appointment started.
-    if (item.kind === "confirmation" && item.apptDate && item.apptTime
+    // Confirmation/reminder messages are tied to the appointment start. Once that
+    // time has passed, do not send them later from a backlog.
+    if ((item.kind === "confirmation" || item.kind === "reminder") && item.apptDate && item.apptTime
         && new Date(`${item.apptDate}T${item.apptTime}:00`) < new Date()) {
-      await updateItem(item, "expired", "Appointment time already passed — confirmation skipped.");
+      await updateItem(item, "expired", "Appointment time already passed — queued message skipped.");
       expired++;
       continue;
     }
 
     const settings = await getSettings(item.userId, settingsCache);
 
-    // Master "WhatsApp Automation" toggle — if it got switched off during the
-    // wait, leave the item pending (don't burn an attempt) so it can still send
-    // once re-enabled, without logging anything while automation is off.
+    // If automation or a specific message type is off when a due item is reached,
+    // expire it instead of leaving a backlog that fires when the toggle is turned
+    // on again later.
     if (settings?.wasender && (settings.wasender as { enabled?: boolean }).enabled === false) {
-      skipped++;
+      await updateItem(item, "expired", "WhatsApp automation was disabled at the scheduled send time.");
+      expired++;
       continue;
     }
     if (!autoSettingEnabled(settings, item.kind)) {
-      skipped++;
+      await updateItem(item, "expired", `${logTypeForKind(item.kind)} automation was disabled at the scheduled send time.`);
+      expired++;
       continue;
     }
     const apptId = apptIdForQueueItem(item);
