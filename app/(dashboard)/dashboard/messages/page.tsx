@@ -450,15 +450,37 @@ export default function MessagesPage() {
   // interval (and refresh on every logged send) instead of computing it once per
   // unrelated render, so the banner can't get stuck showing a stale non-zero count
   // after the queue has actually drained.
-  const [queueCounts, setQueueCounts] = useState({ confirm: 0, followup: 0 });
+  const [queueCounts, setQueueCounts] = useState({ confirm: 0, followup: 0, booking: 0, pos: 0, due: 0 });
   useEffect(() => {
-    function refreshQueueCounts() {
+    async function refreshQueueCounts() {
+      let booking = 0;
+      let pos = 0;
+      let due = 0;
+      try {
+        const res = await fetch("/api/whatsapp/queue-status", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json() as {
+            ok?: boolean;
+            bookingPending?: number;
+            posPending?: number;
+            totalDue?: number;
+          };
+          if (data.ok) {
+            booking = data.bookingPending ?? 0;
+            pos = data.posPending ?? 0;
+            due = data.totalDue ?? 0;
+          }
+        }
+      } catch { /* DB queue status is best-effort; local queues still show below */ }
       setQueueCounts({
         confirm: getQueueLength("werzio_wa_confirm_queue"),
         followup: getQueueLength("werzio_wa_followup_queue"),
+        booking,
+        pos,
+        due,
       });
     }
-    refreshQueueCounts();
+    void refreshQueueCounts();
     const interval = window.setInterval(refreshQueueCounts, 5000);
     window.addEventListener("werzio_wa_message_logged", refreshQueueCounts);
     return () => {
@@ -523,7 +545,7 @@ export default function MessagesPage() {
   const failCount   = logs.filter((l) => l.status === "failed").length;
   const sentCount   = logs.filter((l) => l.status === "sent").length;
   const successRate = logs.length > 0 ? Math.round((sentCount / logs.length) * 100) : 100;
-  const totalQueue = queueCounts.confirm + queueCounts.followup;
+  const totalQueue = queueCounts.confirm + queueCounts.followup + queueCounts.booking + queueCounts.pos;
 
   // Group logs by day
   const grouped = useMemo(() => {
@@ -1028,7 +1050,10 @@ export default function MessagesPage() {
                 {totalQueue > 0 && (
                   <div style={{ marginTop: 12, padding: "10px 13px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 12, color: "#92400e", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
                     <Clock size={13} style={{ flexShrink: 0 }} />
-                    {totalQueue} message{totalQueue > 1 ? "s" : ""} queued — sends on next scheduler tick
+                    {totalQueue} message{totalQueue > 1 ? "s" : ""} queued
+                    {queueCounts.pos > 0 ? ` · ${queueCounts.pos} POS receipt${queueCounts.pos > 1 ? "s" : ""}` : ""}
+                    {queueCounts.booking > 0 ? ` · ${queueCounts.booking} booking alert${queueCounts.booking > 1 ? "s" : ""}` : ""}
+                    {queueCounts.due > 0 ? " · due now" : " · waiting for scheduled time"}
                   </div>
                 )}
 
