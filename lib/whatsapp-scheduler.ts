@@ -198,11 +198,9 @@ let lastSentAt = 0;
 let sentCount = 0;
 let schedulerRunning = false;
 
-// Confirmations, reminders, and follow-ups each get their own independent pacing
+// Confirmations, new-booking group alerts, reminders, and follow-ups each get their own independent pacing
 // clock and gap range, so a burst of one type never eats into or waits on another
-// type's spacing. The new-booking group alert shares the confirmation clock —
-// both are the most time-sensitive, highest-visibility messages.
-const FAST_TIER_TYPES = new Set<WaMsgType>(["confirmation", "newbooking"]);
+// type's spacing.
 const FAST_JITTER_MIN_MS = MESSAGE_JITTER_MIN_MS;       // 5 min
 const FAST_JITTER_MAX_MS = MESSAGE_JITTER_MAX_MS;        // 7 min
 const REMINDER_TIER_MIN_MS = 15 * 60_000;
@@ -211,9 +209,13 @@ const FOLLOWUP_TIER_MIN_MS = 20 * 60_000;
 const FOLLOWUP_TIER_MAX_MS = 35 * 60_000;
 
 /** Builds an independent "wait at least min-max between sends of this type" gate, each with its own clock. */
-function makeTierGate(minMs: number, maxMs: number) {
+function makeTierGate(minMs: number, maxMs: number, waitBeforeFirst = true) {
   let lastSentAtForTier = 0;
   return async function gate(): Promise<void> {
+    if (lastSentAtForTier === 0 && !waitBeforeFirst) {
+      lastSentAtForTier = Date.now();
+      return;
+    }
     const targetGapMs = randBetween(minMs, maxMs);
     const elapsedSinceLast = lastSentAtForTier > 0 ? Date.now() - lastSentAtForTier : 0;
     const wait = targetGapMs - elapsedSinceLast;
@@ -223,6 +225,7 @@ function makeTierGate(minMs: number, maxMs: number) {
 }
 
 const fastTierGate = makeTierGate(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS);
+const newBookingTierGate = makeTierGate(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS, false);
 const reminderTierGate = makeTierGate(REMINDER_TIER_MIN_MS, REMINDER_TIER_MAX_MS);
 const followupTierGate = makeTierGate(FOLLOWUP_TIER_MIN_MS, FOLLOWUP_TIER_MAX_MS);
 
@@ -368,8 +371,8 @@ export async function sendGroupBookingAlert(appt: {
     amount: appt.totalAmount != null ? String(appt.totalAmount) : "",
   });
 
-  if (sentKey) markSent(sentKey);
-  await callSendApi(ws.bookingGroupJid, text, { type: "newbooking", clientName: "Group" });
+  const ok = await callSendApi(ws.bookingGroupJid, text, { type: "newbooking", clientName: "Group" });
+  if (ok && sentKey) markSent(sentKey);
 }
 
 /** Call when a new appointment is booked — sends confirmation after a random 5-7 min delay, not instantly, so every booking's confirmation doesn't land at the same moment. */
@@ -488,11 +491,13 @@ type ProviderConfig = WhatsAppSafetyConfig & {
 // pacing kicks in for the rest. Runs client-side via setTimeout — never inside the
 // API route — so it can never block a serverless request into a platform timeout.
 //
-// Confirmation/new-booking-group-alert (5-7 min), reminder (15-30 min), and
+// Confirmation (5-7 min), new-booking group alert (immediate first send, then
+// 5-7 min between later alerts), reminder (15-30 min), and
 // follow-up (20-35 min) each use their own dedicated gate/clock instead of this
-// shared floor — see fastTierGate/reminderTierGate/followupTierGate above.
+// shared floor — see the tier gates above.
 async function applyPacingGate(providerConfig: ProviderConfig, msgType?: WaMsgType): Promise<void> {
-  if (msgType && FAST_TIER_TYPES.has(msgType)) { await fastTierGate(); return; }
+  if (msgType === "newbooking") { await newBookingTierGate(); return; }
+  if (msgType === "confirmation") { await fastTierGate(); return; }
   if (msgType === "reminder") { await reminderTierGate(); return; }
   if (msgType === "followup") { await followupTierGate(); return; }
   const selectedProvider = providerConfig.provider ?? "wasender";
