@@ -101,13 +101,14 @@ function SaveButton({ label = "Save Changes", onClick, disabled = false }: { lab
   );
 }
 
-function Toggle({ value, onChange }: { value: boolean; onChange: () => void }) {
+function Toggle({ value, onChange, disabled = false }: { value: boolean; onChange: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
-      onClick={onChange}
+      onClick={disabled ? undefined : onChange}
       aria-pressed={value}
-      style={{ width: 44, height: 24, border: "none", borderRadius: 999, background: value ? "var(--accent)" : "#dedeea", position: "relative", cursor: "pointer" }}
+      disabled={disabled}
+      style={{ width: 44, height: 24, border: "none", borderRadius: 999, background: value ? "var(--accent)" : "#dedeea", position: "relative", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.65 : 1 }}
     >
       <span style={{ position: "absolute", top: 3, left: value ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.2)", transition: "left 0.15s" }} />
     </button>
@@ -673,21 +674,23 @@ function AutoRow({
   enabled,
   onToggle,
   extra,
+  disabled = false,
 }: {
   label: string;
   hint: string;
   enabled: boolean;
   onToggle: () => void;
   extra?: React.ReactNode;
+  disabled?: boolean;
 }) {
   return (
-    <div style={{ border: "1px solid #e8e8f4", borderRadius: 12, padding: "16px 18px", background: enabled ? "#faf9ff" : "#fafafd" }}>
+    <div style={{ border: "1px solid #e8e8f4", borderRadius: 12, padding: "16px 18px", background: enabled ? "#faf9ff" : "#fafafd", opacity: disabled ? 0.62 : 1 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enabled && extra ? 14 : 0 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 800, color: "#1d1d2f" }}>{label}</div>
           <div style={{ fontSize: 11, color: "#9999b0", marginTop: 2 }}>{hint}</div>
         </div>
-        <Toggle value={enabled} onChange={onToggle} />
+        <Toggle value={enabled} onChange={onToggle} disabled={disabled} />
       </div>
       {enabled && extra}
     </div>
@@ -799,9 +802,40 @@ function WhatsAppSection() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  const automationKeys = [
+    "autoReminder",
+    "autoConfirmation",
+    "autoFollowup",
+    "autoCancellation",
+    "autoLowStock",
+    "autoGroupBooking",
+    "autoPosThankYou",
+  ] as const;
+
+  function withAutomationOff(settings: WhatsAppSettings): WhatsAppSettings {
+    return automationKeys.reduce(
+      (next, key) => ({ ...next, [key]: false }),
+      { ...settings },
+    );
+  }
+
+  function toggleMainAutomation() {
+    setForm((prev) => {
+      const nextEnabled = prev.enabled === false;
+      return nextEnabled
+        ? { ...prev, enabled: true }
+        : withAutomationOff({ ...prev, enabled: false });
+    });
+  }
+
   function save() {
-    Object.assign(settingsStore.wasender, form);
+    const normalizedForm = form.enabled === false ? withAutomationOff(form) : form;
+    Object.assign(settingsStore.wasender, normalizedForm);
+    if (normalizedForm.enabled === false) {
+      (settingsStore.birthday as { autoBirthday?: boolean }).autoBirthday = false;
+    }
     saveSettings();
+    setForm(normalizedForm);
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2200);
   }
@@ -1021,7 +1055,7 @@ function WhatsAppSection() {
             <span style={{ fontSize: 12, fontWeight: 700, color: isEnabled ? "#059669" : "#9999b0" }}>
               {isEnabled ? "Enabled" : "Disabled"}
             </span>
-            <Toggle value={isEnabled} onChange={() => set("enabled", !isEnabled)} />
+            <Toggle value={isEnabled} onChange={toggleMainAutomation} />
           </div>
           <span style={{ fontSize: 10, color: "#b0b0c8", textAlign: "right", maxWidth: 180 }}>
             {isEnabled ? "All WhatsApp automation is active" : "All WhatsApp messages are paused"}
@@ -1307,7 +1341,8 @@ function WhatsAppSection() {
         <AutoRow
           label="Appointment Reminder"
           hint="Sent automatically X hours before appointment"
-          enabled={form.autoReminder}
+          enabled={isEnabled && form.autoReminder}
+          disabled={!isEnabled}
           onToggle={() => set("autoReminder", !form.autoReminder)}
           extra={
             <ReminderLeadSelector
@@ -1319,13 +1354,15 @@ function WhatsAppSection() {
         <AutoRow
           label="Booking Confirmation"
           hint="Sent when a new appointment is booked"
-          enabled={form.autoConfirmation}
+          enabled={isEnabled && form.autoConfirmation}
+          disabled={!isEnabled}
           onToggle={() => set("autoConfirmation", !form.autoConfirmation)}
         />
         {form.provider === "wasender" && <AutoRow
           label="New Booking Group Alert"
           hint="Send each online-booking summary to your WhatsApp group from the connected salon number"
-          enabled={form.autoGroupBooking ?? false}
+          enabled={isEnabled && (form.autoGroupBooking ?? false)}
+          disabled={!isEnabled}
           onToggle={() => set("autoGroupBooking", !(form.autoGroupBooking ?? false))}
           extra={
             <div style={{ fontSize: 11, color: form.bookingGroupJid?.endsWith("@g.us") ? "#059669" : "#dc2626" }}>
@@ -1343,7 +1380,8 @@ function WhatsAppSection() {
         <AutoRow
           label="Follow-up Message"
           hint="Sent after appointment is completed — ask for review or re-book"
-          enabled={form.autoFollowup}
+          enabled={isEnabled && form.autoFollowup}
+          disabled={!isEnabled}
           onToggle={() => set("autoFollowup", !form.autoFollowup)}
           extra={
             <DelaySelector
@@ -1356,7 +1394,8 @@ function WhatsAppSection() {
         <AutoRow
           label="Cancellation Win-back"
           hint="Sent after cancellation with a discount to encourage re-booking"
-          enabled={form.autoCancellation}
+          enabled={isEnabled && form.autoCancellation}
+          disabled={!isEnabled}
           onToggle={() => set("autoCancellation", !form.autoCancellation)}
           extra={
             <div style={{ display: "grid", gap: 10 }}>
@@ -1387,13 +1426,15 @@ function WhatsAppSection() {
         <AutoRow
           label="Low Stock Alert"
           hint="Sent once daily when items run low — to your number, and to the linked WhatsApp group below if one is set"
-          enabled={form.autoLowStock}
+          enabled={isEnabled && form.autoLowStock}
+          disabled={!isEnabled}
           onToggle={() => set("autoLowStock", !form.autoLowStock)}
         />
         <AutoRow
           label="POS Thank You Message"
           hint="Included in the invoice message sent after a POS sale"
-          enabled={form.autoPosThankYou !== false}
+          enabled={isEnabled && form.autoPosThankYou !== false}
+          disabled={!isEnabled}
           onToggle={() => set("autoPosThankYou", !(form.autoPosThankYou !== false))}
         />
       </div>
@@ -1406,19 +1447,22 @@ function WhatsAppSection() {
         <AutoRow
           label="WhatsApp Safety Guard"
           hint="Adds daily limits, recipient cooldowns, quiet hours, and opt-in checks before sending"
-          enabled={form.safetyEnabled !== false}
+          enabled={isEnabled && form.safetyEnabled !== false}
+          disabled={!isEnabled}
           onToggle={() => set("safetyEnabled", !(form.safetyEnabled !== false))}
         />
         <AutoRow
           label="Emergency Pause"
           hint="Immediately blocks all WhatsApp sends if the account receives warnings or looks unstable"
-          enabled={form.emergencyPause === true}
+          enabled={isEnabled && form.emergencyPause === true}
+          disabled={!isEnabled}
           onToggle={() => set("emergencyPause", !(form.emergencyPause === true))}
         />
         <AutoRow
           label="Quiet Hours for Marketing"
           hint="Marketing broadcasts wait outside these hours; utility invoices and appointment updates can still send"
-          enabled={form.quietHoursEnabled !== false}
+          enabled={isEnabled && form.quietHoursEnabled !== false}
+          disabled={!isEnabled}
           onToggle={() => set("quietHoursEnabled", !(form.quietHoursEnabled !== false))}
           extra={
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
@@ -1486,7 +1530,8 @@ function WhatsAppSection() {
         <AutoRow
           label="Block Marketing Without Opt-in"
           hint="When client opt-in data is available, promotional messages are blocked unless the client opted in"
-          enabled={form.blockMarketingWithoutOptIn !== false}
+          enabled={isEnabled && form.blockMarketingWithoutOptIn !== false}
+          disabled={!isEnabled}
           onToggle={() => set("blockMarketingWithoutOptIn", !(form.blockMarketingWithoutOptIn !== false))}
         />
         <div style={{ border: "1px solid #fed7aa", borderRadius: 12, padding: "13px 16px", background: "#fff7ed", color: "#9a3412", fontSize: 11, lineHeight: 1.6 }}>
