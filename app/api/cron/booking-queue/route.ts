@@ -13,7 +13,10 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { activeWhatsAppCredential, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { sendSalonInvoiceWhatsApp } from "@/lib/whatsapp-invoice-send";
+import type { SalonInvoice } from "@/lib/salon-invoices";
+import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
 
 const BATCH_LIMIT = 50;
 const MAX_ATTEMPTS = 5;
@@ -64,6 +67,26 @@ async function ensureTables() {
       template_id   TEXT NOT NULL DEFAULT '',
       error_message TEXT NOT NULL DEFAULT '',
       PRIMARY KEY (user_id, id)
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS wa_pos_receipt_queue (
+      id             TEXT NOT NULL,
+      user_id        TEXT NOT NULL,
+      invoice_id     TEXT NOT NULL,
+      invoice_number TEXT NOT NULL,
+      phone          TEXT NOT NULL,
+      client_name    TEXT NOT NULL,
+      invoice_json   TEXT NOT NULL,
+      salon_json     TEXT NOT NULL,
+      thank_you_text TEXT NOT NULL DEFAULT '',
+      scheduled_at   TEXT NOT NULL,
+      status         TEXT NOT NULL DEFAULT 'pending',
+      attempts       INTEGER NOT NULL DEFAULT 0,
+      last_error     TEXT,
+      created_at     TEXT NOT NULL,
+      sent_at        TEXT,
+      PRIMARY KEY (user_id, invoice_id)
     )
   `);
 }
@@ -129,9 +152,81 @@ async function logMessage(userId: string, kind: string, clientName: string, phon
   } catch { /* non-critical */ }
 }
 
-async function runBookingQueueCron(): Promise<{ sent: number; failed: number; skipped: number; expired: number }> {
+interface PosReceiptRow {
+  id: string;
+  userId: string;
+  invoiceId: string;
+  phone: string;
+  clientName: string;
+  invoice: SalonInvoice;
+  salon: { name: string; phone?: string; email?: string; address?: string; logo?: string };
+  thankYouText: string;
+  scheduledAt: string;
+  attempts: number;
+}
+
+async function getDuePosReceipts(): Promise<PosReceiptRow[]> {
+  const result = await db.execute({
+    sql: `SELECT id, user_id, invoice_id, phone, client_name, invoice_json, salon_json, thank_you_text, scheduled_at, attempts
+          FROM wa_pos_receipt_queue
+          WHERE status = 'pending' AND scheduled_at <= ? AND attempts < ?
+          ORDER BY scheduled_at ASC
+          LIMIT ?`,
+    args: [new Date().toISOString(), MAX_ATTEMPTS, BATCH_LIMIT],
+  });
+  return result.rows.map((r) => ({
+    id: r.id as string,
+    userId: r.user_id as string,
+    invoiceId: r.invoice_id as string,
+    phone: r.phone as string,
+    clientName: r.client_name as string,
+    invoice: JSON.parse(r.invoice_json as string) as SalonInvoice,
+    salon: JSON.parse(r.salon_json as string) as PosReceiptRow["salon"],
+    thankYouText: (r.thank_you_text as string) || "",
+    scheduledAt: r.scheduled_at as string,
+    attempts: Number(r.attempts ?? 0),
+  }));
+}
+
+async function updatePosReceipt(item: PosReceiptRow, status: "sent" | "pending" | "expired", error?: string) {
+  await db.execute({
+    sql: `UPDATE wa_pos_receipt_queue
+          SET status = ?, attempts = ?, last_error = ?, sent_at = ?
+          WHERE user_id = ? AND invoice_id = ?`,
+    args: [
+      status, item.attempts + 1, error ?? null,
+      status === "sent" ? new Date().toISOString() : null,
+      item.userId, item.invoiceId,
+    ],
+  });
+}
+
+function providerFromSettings(settings: Record<string, unknown> | null): WhatsAppProviderConfig & WhatsAppSafetyConfig {
+  const wasender = (settings?.wasender ?? {}) as Record<string, unknown>;
+  return {
+    ...(wasender as WhatsAppSafetyConfig),
+    provider: (wasender.provider as WhatsAppProviderConfig["provider"]) || "wasender",
+    apiKey: wasender.apiKey as string | undefined,
+    botSailorApiToken: wasender.botSailorApiToken as string | undefined,
+    botSailorPhoneNumberId: wasender.botSailorPhoneNumberId as string | undefined,
+    zaptickApiKey: wasender.zaptickApiKey as string | undefined,
+  };
+}
+
+async function getSettings(userId: string, cache: Map<string, Record<string, unknown> | null>) {
+  if (!cache.has(userId)) {
+    const row = await db.execute({
+      sql: "SELECT data FROM salon_data WHERE entity = ?",
+      args: [`${userId}_settings`],
+    });
+    cache.set(userId, row.rows.length > 0 ? JSON.parse(row.rows[0].data as string) : null);
+  }
+  return cache.get(userId) ?? null;
+}
+
+async function runBookingQueueCron(): Promise<{ sent: number; failed: number; skipped: number; expired: number; posSent: number; posFailed: number; posExpired: number }> {
   const items = await getDueItems();
-  let sent = 0, failed = 0, skipped = 0, expired = 0;
+  let sent = 0, failed = 0, skipped = 0, expired = 0, posSent = 0, posFailed = 0, posExpired = 0;
   const settingsCache = new Map<string, Record<string, unknown> | null>();
 
   for (const item of items) {
@@ -152,14 +247,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       continue;
     }
 
-    if (!settingsCache.has(item.userId)) {
-      const row = await db.execute({
-        sql: "SELECT data FROM salon_data WHERE entity = ?",
-        args: [`${item.userId}_settings`],
-      });
-      settingsCache.set(item.userId, row.rows.length > 0 ? JSON.parse(row.rows[0].data as string) : null);
-    }
-    const settings = settingsCache.get(item.userId);
+    const settings = await getSettings(item.userId, settingsCache);
 
     // Master "WhatsApp Automation" toggle — if it got switched off during the
     // wait, leave the item pending (don't burn an attempt) so it can still send
@@ -169,14 +257,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       continue;
     }
 
-    const wasender = (settings?.wasender ?? {}) as Record<string, unknown>;
-    const providerConfig: WhatsAppProviderConfig = {
-      provider: (wasender.provider as WhatsAppProviderConfig["provider"]) || "wasender",
-      apiKey: wasender.apiKey as string | undefined,
-      botSailorApiToken: wasender.botSailorApiToken as string | undefined,
-      botSailorPhoneNumberId: wasender.botSailorPhoneNumberId as string | undefined,
-      zaptickApiKey: wasender.zaptickApiKey as string | undefined,
-    };
+    const providerConfig = providerFromSettings(settings);
 
     const result = await sendWhatsAppMessage(
       providerConfig, item.phone, item.text,
@@ -196,7 +277,58 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     }
   }
 
-  return { sent, failed, skipped, expired };
+  const posItems = await getDuePosReceipts();
+  for (const item of posItems) {
+    if (Date.now() - new Date(item.scheduledAt).getTime() > EXPIRE_AFTER_MS) {
+      await updatePosReceipt(item, "expired", "Expired before the queue could drain — too stale to send.");
+      posExpired++;
+      continue;
+    }
+
+    const settings = await getSettings(item.userId, settingsCache);
+    if (settings?.wasender && (settings.wasender as { enabled?: boolean }).enabled === false) {
+      skipped++;
+      continue;
+    }
+
+    const providerConfig = providerFromSettings(settings);
+    if (!activeWhatsAppCredential(providerConfig)) {
+      await updatePosReceipt(item, "pending", "WhatsApp provider credentials are not configured.");
+      posFailed++;
+      continue;
+    }
+
+    const safety = checkWhatsAppSafety({ phone: item.phone, intent: "utility", config: providerConfig });
+    if (!safety.ok) {
+      await updatePosReceipt(item, item.attempts + 1 >= MAX_ATTEMPTS ? "expired" : "pending", safety.error);
+      await logMessage(item.userId, "invoice", item.clientName, item.phone, "failed", safety.error);
+      posFailed++;
+      continue;
+    }
+
+    const result = await sendSalonInvoiceWhatsApp({
+      invoice: item.invoice,
+      salon: item.salon,
+      phone: item.phone,
+      providerConfig,
+      thankYouText: item.thankYouText,
+    });
+    await logMessage(item.userId, "invoice", item.clientName, item.phone, result.ok ? "sent" : "failed", result.error);
+
+    if (result.ok) {
+      recordWhatsAppSafetySend({ phone: item.phone, config: providerConfig });
+      await updatePosReceipt(item, "sent");
+      posSent++;
+    } else if (item.attempts + 1 >= MAX_ATTEMPTS) {
+      await updatePosReceipt(item, "expired", result.error);
+      posFailed++;
+    } else {
+      await updatePosReceipt(item, "pending", result.error);
+      posFailed++;
+    }
+  }
+
+  return { sent, failed, skipped, expired, posSent, posFailed, posExpired };
 }
 
 export async function GET(req: NextRequest) {

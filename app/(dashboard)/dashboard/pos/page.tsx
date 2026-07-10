@@ -21,7 +21,7 @@ import {
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
-import { normalizePhone, hasBeenSent, markAsSent, posJitterMs, appendLog, fillTemplate } from "@/lib/whatsapp-scheduler";
+import { normalizePhone, fillTemplate } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
@@ -197,7 +197,7 @@ export default function POSPage() {
   const [printInvoice,     setPrintInvoice]     = useState<SalonInvoice | null>(null);
   const [completed,        setCompleted]        = useState(false);
   const [lastInvoice,      setLastInvoice]      = useState<SalonInvoice | null>(null);
-  const [waStatus,         setWaStatus]         = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const [waStatus,         setWaStatus]         = useState<"idle" | "queued" | "sending" | "sent" | "failed">("idle");
 
   // ── Derived catalog ───────────────────────────────────────────────────────
   const catalogItems = useMemo<CatalogItem[]>(() => {
@@ -451,57 +451,30 @@ export default function POSPage() {
       setWaStatus("idle");
       return;
     }
-    // Scoped to this one transaction — this is called both automatically right
-    // after a sale completes and from a manual "resend" action on the receipt
-    // view, so without this a resend would send a second copy of the same
-    // invoice. Only marked sent on success, so a failed attempt can still be
-    // retried (via the manual resend button) — this blocks a second successful
-    // send, not a legitimate retry after a failure.
-    const sentKey = `invoice_${invoice.id}`;
-    if (hasBeenSent(sentKey)) {
-      setWaStatus("sent");
-    } else {
-      setWaStatus("sending");
-      const normalizedPhone = normalizePhone(client.phone);
-      let ok = false;
-      let errorReason: string | undefined;
-      try {
-        // A random 5-10 min delay before the invoice PDF + thank-you caption goes out — this route has no
-        // pacing gate of its own (a blocking sleep inside a serverless function
-        // risks its execution timeout), so without this it fired the instant the
-        // sale completed with zero jitter at all, a distinctly bot-like pattern.
-        await new Promise<void>((resolve) => setTimeout(resolve, posJitterMs()));
-        // The thank-you text is prepended to the invoice caption so the client gets
-        // one WhatsApp message (PDF + caption), not two separate texts back to back.
-        const thankYouTpl = (settingsStore.whatsapp as { posThankYou?: string }).posThankYou;
-        const thankYouText = ws.autoPosThankYou !== false && thankYouTpl
-          ? fillTemplate(thankYouTpl, { name: client.name, salon_name: salon.name })
-          : "";
-        const response = await fetch("/api/whatsapp/send-invoice", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            invoice,
-            salon,
-            phone: normalizedPhone,
-            providerConfig: settingsStore.wasender,
-            thankYouText,
-          }),
-        });
-        const result = await response.json() as { ok?: boolean; error?: string };
-        ok = result.ok === true;
-        if (!ok) errorReason = result.error || `HTTP ${response.status}`;
-      } catch (err) {
-        ok = false;
-        errorReason = String(err);
-      }
-      // This previously had no log entry at all on either outcome, so there was no
-      // way to tell whether a specific client's invoice actually went out or why
-      // it didn't (e.g. an invalid phone number) — only a transient on-screen
-      // status that disappears once you leave the receipt view.
-      appendLog({ type: "invoice", clientName: client.name, phone: normalizedPhone, status: ok ? "sent" : "failed", templateId: "direct", error: errorReason });
-      if (ok) markAsSent(sentKey);
-      setWaStatus(ok ? "sent" : "failed");
+    setWaStatus("sending");
+    const normalizedPhone = normalizePhone(client.phone);
+    try {
+      // The thank-you text is prepended to the invoice caption so the client gets
+      // one WhatsApp message (PDF + caption), not two separate texts back to back.
+      const thankYouTpl = (settingsStore.whatsapp as { posThankYou?: string }).posThankYou;
+      const thankYouText = ws.autoPosThankYou !== false && thankYouTpl
+        ? fillTemplate(thankYouTpl, { name: client.name, salon_name: salon.name })
+        : "";
+      const response = await fetch("/api/whatsapp/queue-pos-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoice,
+          salon,
+          phone: normalizedPhone,
+          providerConfig: settingsStore.wasender,
+          thankYouText,
+        }),
+      });
+      const result = await response.json() as { ok?: boolean; error?: string };
+      setWaStatus(result.ok && response.ok ? "queued" : "failed");
+    } catch {
+      setWaStatus("failed");
     }
   }
 
@@ -592,7 +565,8 @@ export default function POSPage() {
               <span>· {lastInvoice.clientName}</span>
               {lastInvoice.status === "unpaid" && <span style={{ fontWeight: 700 }}>· Awaiting payment</span>}
               {waStatus === "sent" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#059669", fontWeight: 700 }}><CheckCircle2 size={11} /> WhatsApp sent</span>}
-              {waStatus === "sending" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#7C3AED", fontWeight: 700 }}><RefreshCw size={11} /> Sending PDF…</span>}
+              {waStatus === "queued" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#7C3AED", fontWeight: 700 }}><Clock size={11} /> WhatsApp queued</span>}
+              {waStatus === "sending" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#7C3AED", fontWeight: 700 }}><RefreshCw size={11} /> Queueing PDF…</span>}
               {waStatus === "failed" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#d97706", fontWeight: 700 }}><AlertCircle size={11} /> WhatsApp failed</span>}
             </div>
           </div>
