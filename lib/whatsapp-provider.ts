@@ -52,6 +52,10 @@ export function isFakePlaceholderPhone(phone: string): boolean {
   return false;
 }
 
+export function isNonWhatsAppRecipientError(reason?: string): boolean {
+  return /jid does not exist on whatsapp/i.test(reason || "");
+}
+
 export async function sendWhatsAppMessage(
   config: WhatsAppProviderConfig,
   phone: string,
@@ -175,7 +179,11 @@ export async function sendWhatsAppMessage(
   });
   const data = await response.json().catch(() => ({})) as { success?: boolean; message?: string; error?: string };
   const ok = response.ok && data.success === true;
-  return { ok, status: response.status, data, errorReason: ok ? undefined : (data.message || data.error || `HTTP ${response.status}`) };
+  const errorReason = ok ? undefined : (data.message || data.error || `HTTP ${response.status}`);
+  if (isNonWhatsAppRecipientError(errorReason)) {
+    return { ok: false, skipped: true, status: response.status, data, errorReason };
+  }
+  return { ok, status: response.status, data, errorReason };
 }
 
 export async function checkWhatsAppProvider(config: WhatsAppProviderConfig) {

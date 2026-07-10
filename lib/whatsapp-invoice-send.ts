@@ -1,6 +1,6 @@
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { generateSalonInvoicePdf } from "@/lib/salon-invoice-pdf";
-import { isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { isFakePlaceholderPhone, isNonWhatsAppRecipientError, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 
 export interface SendSalonInvoiceWhatsAppInput {
   invoice: SalonInvoice;
@@ -105,5 +105,7 @@ export async function sendSalonInvoiceWhatsApp({
   });
   const sendData = await sendResponse.json().catch(() => ({})) as { success?: boolean; message?: string; error?: string };
   const ok = sendResponse.ok && sendData.success === true;
-  return { ok, provider, error: ok ? undefined : (sendData.message || sendData.error || "WaSender invoice send failed.") };
+  const error = ok ? undefined : (sendData.message || sendData.error || "WaSender invoice send failed.");
+  if (isNonWhatsAppRecipientError(error)) return { ok: false, skipped: true, provider, error };
+  return { ok, provider, error };
 }
