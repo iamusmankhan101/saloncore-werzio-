@@ -590,6 +590,11 @@ function toHours(num: number, unit: "minutes" | "hours" | "days") {
 
 function ReminderLeadSelector({ hours, onChange }: { hours: number; onChange: (hours: number) => void }) {
   const isPreset = REMINDER_HOUR_PRESETS.includes(hours);
+  // Tracked independently of `isPreset` — while typing a custom value (e.g.
+  // clearing the field to retype), the in-progress number can transiently equal
+  // a preset (most often 1, via the `Number("") || 1` fallback below), which must
+  // not collapse the custom row out from under the user mid-edit.
+  const [custom, setCustom] = useState(!isPreset);
   const [customNum, setCustomNum] = useState(() => {
     if (isPreset) return "3";
     if (hours < 1)  return String(Math.round(hours * 60));
@@ -612,11 +617,13 @@ function ReminderLeadSelector({ hours, onChange }: { hours: number; onChange: (h
     <Field label="Hours before appointment">
       <select
         style={inputStyle}
-        value={isPreset ? String(hours) : "custom"}
+        value={custom ? "custom" : String(hours)}
         onChange={(event) => {
           if (event.target.value === "custom") {
+            setCustom(true);
             applyCustom(customNum, customUnit);
           } else {
+            setCustom(false);
             onChange(Number(event.target.value));
           }
         }}
@@ -626,7 +633,7 @@ function ReminderLeadSelector({ hours, onChange }: { hours: number; onChange: (h
         ))}
         <option value="custom">Custom...</option>
       </select>
-      {!isPreset && (
+      {custom && (
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <input
             type="number"
