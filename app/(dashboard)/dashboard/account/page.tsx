@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Banknote, Check, ChevronLeft, ChevronRight, Clock, ImageIcon, KeyRound, LogOut, MapPin, Save, Shield, Smartphone, Store, Trash2, User, UserCog, Wand2, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -613,6 +613,15 @@ function ReminderLeadSelector({ hours, onChange }: { hours: number; onChange: (h
     onChange(toHours(n, unit));
   }
 
+  // The <select> keeps keyboard focus after picking "Custom..." — without this,
+  // pressing Up/Down would cycle the <select>'s own option list (native browser
+  // behavior) instead of the number input below it, landing on a preset and
+  // collapsing the custom row right back out from under the user.
+  const customInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (custom) customInputRef.current?.focus();
+  }, [custom]);
+
   return (
     <Field label="Hours before appointment">
       <select
@@ -636,6 +645,7 @@ function ReminderLeadSelector({ hours, onChange }: { hours: number; onChange: (h
       {custom && (
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <input
+            ref={customInputRef}
             type="number"
             min={1}
             value={customNum}
