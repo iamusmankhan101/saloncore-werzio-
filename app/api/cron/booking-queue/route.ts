@@ -38,6 +38,8 @@ async function ensureTables() {
       phone        TEXT NOT NULL,
       text         TEXT NOT NULL,
       client_name  TEXT NOT NULL,
+      appt_date    TEXT,
+      appt_time    TEXT,
       scheduled_at TEXT NOT NULL,
       status       TEXT NOT NULL DEFAULT 'pending',
       attempts     INTEGER NOT NULL DEFAULT 0,
@@ -47,6 +49,9 @@ async function ensureTables() {
       PRIMARY KEY (user_id, id)
     )
   `);
+  // Older deployments may predate appt_date/appt_time — add them if missing.
+  await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_date TEXT`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_time TEXT`).catch(() => {});
   await db.execute(`
     CREATE TABLE IF NOT EXISTS wa_message_logs (
       id            TEXT NOT NULL,
@@ -70,13 +75,15 @@ interface QueueRow {
   phone: string;
   text: string;
   clientName: string;
+  apptDate: string | null;
+  apptTime: string | null;
   scheduledAt: string;
   attempts: number;
 }
 
 async function getDueItems(): Promise<QueueRow[]> {
   const result = await db.execute({
-    sql: `SELECT id, user_id, kind, phone, text, client_name, scheduled_at, attempts
+    sql: `SELECT id, user_id, kind, phone, text, client_name, appt_date, appt_time, scheduled_at, attempts
           FROM wa_booking_send_queue
           WHERE status = 'pending' AND scheduled_at <= ? AND attempts < ?
           ORDER BY scheduled_at ASC
@@ -90,6 +97,8 @@ async function getDueItems(): Promise<QueueRow[]> {
     phone: r.phone as string,
     text: r.text as string,
     clientName: r.client_name as string,
+    apptDate: (r.appt_date as string) ?? null,
+    apptTime: (r.appt_time as string) ?? null,
     scheduledAt: r.scheduled_at as string,
     attempts: Number(r.attempts ?? 0),
   }));
@@ -128,6 +137,17 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
   for (const item of items) {
     if (Date.now() - new Date(item.scheduledAt).getTime() > EXPIRE_AFTER_MS) {
       await updateItem(item, "expired", "Expired before the queue could drain — too stale to send.");
+      expired++;
+      continue;
+    }
+
+    // Confirmations are informational ("your booking is confirmed") — once the
+    // appointment's own start time has passed, confirming it is no longer useful.
+    // The group alert isn't checked here: a late "someone booked X" heads-up to
+    // the salon is still relevant even after the appointment started.
+    if (item.kind === "confirmation" && item.apptDate && item.apptTime
+        && new Date(`${item.apptDate}T${item.apptTime}:00`) < new Date()) {
+      await updateItem(item, "expired", "Appointment time already passed — confirmation skipped.");
       expired++;
       continue;
     }
