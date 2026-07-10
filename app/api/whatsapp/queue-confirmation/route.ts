@@ -119,6 +119,13 @@ export async function POST(req: NextRequest) {
     if (sentLog.rows.length > 0) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent" });
     }
+    const existingQueue = await db.execute({
+      sql: "SELECT status FROM wa_booking_send_queue WHERE user_id = ? AND id = ? AND status IN ('pending', 'sent') LIMIT 1",
+      args: [actor.userId, appointment.id],
+    });
+    if (existingQueue.rows.length > 0) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: `already-${existingQueue.rows[0].status}` });
+    }
 
     const settingsRow = await db.execute({
       sql: "SELECT data FROM salon_data WHERE entity = ?",

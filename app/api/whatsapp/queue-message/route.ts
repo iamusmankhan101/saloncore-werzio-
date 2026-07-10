@@ -46,6 +46,22 @@ async function ensureTable() {
   `);
   await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_date TEXT`).catch(() => {});
   await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_time TEXT`).catch(() => {});
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS wa_message_logs (
+      id            TEXT NOT NULL,
+      user_id       TEXT NOT NULL,
+      timestamp     TEXT NOT NULL,
+      type          TEXT NOT NULL,
+      client_name   TEXT NOT NULL,
+      phone         TEXT NOT NULL,
+      status        TEXT NOT NULL,
+      template_id   TEXT NOT NULL DEFAULT '',
+      error_message TEXT NOT NULL DEFAULT '',
+      appt_id       TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY (user_id, id)
+    )
+  `);
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
 }
 
 function normalizePhone(raw: string): string {
@@ -69,6 +85,20 @@ function queueIdFor(body: QueueMessageBody): string {
   if (body.dedupeKey?.trim()) return body.dedupeKey.trim();
   if (body.apptId?.trim()) return `${body.kind}_${body.apptId.trim()}`;
   return `${body.kind}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function logTypeForKind(kind: QueueKind): string {
+  if (kind === "groupalert") return "newbooking";
+  return kind;
+}
+
+async function hasSentMessage(userId: string, kind: QueueKind, apptId?: string): Promise<boolean> {
+  if (!apptId?.trim()) return false;
+  const result = await db.execute({
+    sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND appt_id = ? AND type = ? AND status = 'sent' LIMIT 1",
+    args: [userId, apptId.trim(), logTypeForKind(kind)],
+  });
+  return result.rows.length > 0;
 }
 
 export async function POST(req: NextRequest) {
@@ -117,13 +147,25 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "missing-provider-credentials" });
     }
 
+    const id = queueIdFor(body);
+    if (await hasSentMessage(actor.userId, body.kind, body.apptId)) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent" });
+    }
+    const existingQueue = await db.execute({
+      sql: "SELECT status FROM wa_booking_send_queue WHERE user_id = ? AND id = ? AND status IN ('pending', 'sent') LIMIT 1",
+      args: [actor.userId, id],
+    });
+    if (existingQueue.rows.length > 0) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: `already-${existingQueue.rows[0].status}` });
+    }
+
     const now = new Date().toISOString();
     await db.execute({
       sql: `INSERT OR IGNORE INTO wa_booking_send_queue
               (id, user_id, kind, phone, text, client_name, appt_date, appt_time, scheduled_at, status, attempts, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
       args: [
-        queueIdFor(body),
+        id,
         actor.userId,
         body.kind,
         phone,

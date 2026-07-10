@@ -143,12 +143,13 @@ async function updateItem(item: QueueRow, status: "sent" | "pending" | "expired"
   });
 }
 
-async function hasSentConfirmation(userId: string, apptId: string): Promise<boolean> {
+async function hasSentMessage(userId: string, logType: string, apptId: string): Promise<boolean> {
+  if (!apptId) return false;
   try {
     await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
     const result = await db.execute({
-      sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND appt_id = ? AND type = 'confirmation' AND status = 'sent' LIMIT 1",
-      args: [userId, apptId],
+      sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND appt_id = ? AND type = ? AND status = 'sent' LIMIT 1",
+      args: [userId, apptId, logType],
     });
     return result.rows.length > 0;
   } catch {
@@ -309,7 +310,8 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       skipped++;
       continue;
     }
-    if (item.kind === "confirmation" && await hasSentConfirmation(item.userId, item.id)) {
+    const apptId = apptIdForQueueItem(item);
+    if (apptId && await hasSentMessage(item.userId, logTypeForKind(item.kind), apptId)) {
       await updateItem(item, "sent");
       skipped++;
       continue;
@@ -326,7 +328,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       skipped++;
       continue;
     }
-    await logMessage(item.userId, item.kind, item.clientName, item.phone, result.ok ? "sent" : "failed", result.errorReason, apptIdForQueueItem(item));
+    await logMessage(item.userId, item.kind, item.clientName, item.phone, result.ok ? "sent" : "failed", result.errorReason, apptId);
 
     if (result.ok) {
       await updateItem(item, "sent");
