@@ -229,7 +229,7 @@ function makeTierGate(minMs: number, maxMs: number, waitBeforeFirst = true) {
 }
 
 const fastTierGate = makeTierGate(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS);
-const newBookingTierGate = makeTierGate(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS, false);
+const newBookingTierGate = makeTierGate(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS);
 const reminderTierGate = makeTierGate(REMINDER_TIER_MIN_MS, REMINDER_TIER_MAX_MS);
 const followupTierGate = makeTierGate(FOLLOWUP_TIER_MIN_MS, FOLLOWUP_TIER_MAX_MS);
 
@@ -495,8 +495,8 @@ type ProviderConfig = WhatsAppSafetyConfig & {
 // pacing kicks in for the rest. Runs client-side via setTimeout — never inside the
 // API route — so it can never block a serverless request into a platform timeout.
 //
-// Confirmation (5-7 min), new-booking group alert (immediate first send, then
-// 5-7 min between later alerts), reminder (15-30 min), and
+// Confirmation (5-7 min), new-booking group alert (5-7 min with random seconds),
+// reminder (15-30 min), and
 // follow-up (20-35 min) each use their own dedicated gate/clock instead of this
 // shared floor — see the tier gates above.
 async function applyPacingGate(providerConfig: ProviderConfig, msgType?: WaMsgType): Promise<void> {
