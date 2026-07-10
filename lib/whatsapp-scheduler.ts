@@ -551,10 +551,9 @@ async function callSendApi(
     : ["cancellation", "birthday"].includes(logMeta.type) ? "marketing"
     : "utility";
 
-  // Real per-client opt-out status — without this, blockMarketingWithoutOptIn in
-  // Account → WhatsApp Safety has nothing to check against and never actually blocks
-  // anything. undefined (client not found) is treated as "unknown", not opted out,
-  // so marketing sends aren't blocked for phone numbers we can't match to a client.
+  // Real per-client opt-in status — without this, blockMarketingWithoutOptIn in
+  // Account → WhatsApp Safety has nothing to check against. For marketing sends,
+  // unknown phones are treated as not opted-in by the safety layer.
   const matchedClient = getStoredClients().find((c) => c.phone && normalizePhone(c.phone) === phone);
   const recipientOptedIn = matchedClient ? !matchedClient.whatsappOptedOut : undefined;
 

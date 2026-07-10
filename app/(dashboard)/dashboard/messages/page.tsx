@@ -618,7 +618,8 @@ export default function MessagesPage() {
           phone: normalizedPhone, 
           text, 
           messageType: msgType,
-          messageIntent: msgType === "followup" ? "marketing" : "utility" 
+          messageIntent: msgType === "followup" ? "marketing" : "utility",
+          recipientOptedIn: !client.whatsappOptedOut,
         }),
       });
       const data = await res.json() as { ok: boolean; status: number; error?: string; errorReason?: string };

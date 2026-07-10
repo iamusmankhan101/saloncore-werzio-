@@ -152,7 +152,7 @@ export function checkWhatsAppSafety(input: WhatsAppSafetyCheckInput) {
   if (intent === "marketing" && config.quietHoursEnabled && isInQuietHours(config)) {
     return { ok: false, status: 429, error: "Marketing WhatsApp sends are paused during quiet hours." };
   }
-  if (intent === "marketing" && config.blockMarketingWithoutOptIn && input.recipientOptedIn === false) {
+  if (intent === "marketing" && config.blockMarketingWithoutOptIn && input.recipientOptedIn !== true) {
     return { ok: false, status: 403, error: "Marketing WhatsApp send blocked because this client has not opted in." };
   }
   if (!isGroup && (state.byRecipient[recipient] ?? 0) >= config.perRecipientDailyLimit) {
