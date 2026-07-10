@@ -5,10 +5,6 @@
       "schedule": "0 9 * * *"
     },
     {
-      "path": "/api/cron/booking-queue",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/cron/birthday",
       "schedule": "0 4 * * *"
     },
