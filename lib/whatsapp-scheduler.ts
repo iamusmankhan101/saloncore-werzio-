@@ -380,14 +380,14 @@ export async function sendGroupBookingAlert(appt: {
   if (ok && sentKey) markSent(sentKey);
 }
 
-/** Call when a new appointment is booked — sends confirmation after a random 5-7 min delay, not instantly, so every booking's confirmation doesn't land at the same moment. */
-export function enqueueWhatsAppConfirmation(apptId: string) {
+/** Call when a new appointment is booked — queues confirmation in the shared DB queue so it drains even if this browser closes. */
+export async function enqueueWhatsAppConfirmation(apptId: string): Promise<void> {
   if (typeof window === "undefined") return;
   // Master "WhatsApp Automation" toggle — skip queueing entirely while off, so
   // there's nothing sitting around to flush the moment it's re-enabled.
   if ((settingsStore.wasender as { enabled?: boolean }).enabled === false) return;
-  const q = getQueue(CONFIRM_QUEUE_KEY);
   const appt = getStoredAppointments().find(a => a.id === apptId);
+  if (!appt) return;
   // Never queue a confirmation for a booking that was already in the past the
   // moment it was added to the system (backdated/historical entries, bulk
   // imports, etc). This check happens once, here, at enqueue time — it does not
@@ -395,24 +395,20 @@ export function enqueueWhatsAppConfirmation(apptId: string) {
   // delay later nudges it slightly past a genuinely future appointment's start
   // time (see the confirmation drain loop below); that's normal processing
   // drift for a real booking, not a backdated one.
-  if (appt && new Date(`${appt.date}T${appt.startTime}:00`) < new Date()) return;
+  if (new Date(`${appt.date}T${appt.startTime}:00`) < new Date()) return;
   // Snapshot phone/name/service/date/time now so the message can still send with
   // the right details even if the appointment record is deleted before this fires.
   const clients = getStoredClients();
-  const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
+  const client = clients.find(c => c.id === appt.clientId);
   const phone = client?.phone ? normalizePhone(client.phone) : "";
   if (!phone) return;
-  // Scoped to this one booking, not the client overall — a duplicate enqueue call
-  // for the *same* appointment (e.g. a double-click slipping past the form's own
-  // guard) must never queue a second confirmation, but a genuinely separate
-  // booking for the same client is still its own event and gets its own message.
-  if (q.some((item) => item.id === apptId)) return;
-  const delayMs = MESSAGE_JITTER_MIN_MS + Math.random() * (MESSAGE_JITTER_MAX_MS - MESSAGE_JITTER_MIN_MS); // 5-7 minutes
-  setQueue(CONFIRM_QUEUE_KEY, [...q, {
-    id: apptId, retries: 0, sendAfter: Date.now() + delayMs,
-    phone, clientName: appt?.clientName,
-    serviceNames: appt?.serviceNames, date: appt?.date, startTime: appt?.startTime,
-  }]);
+
+  const response = await fetch("/api/whatsapp/queue-confirmation", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ appointment: appt, phone }),
+  });
+  if (!response.ok) throw new Error(`Queue confirmation failed: HTTP ${response.status}`);
 }
 
 /** Call when an appointment is marked completed — sends follow-up after the configured delay. */

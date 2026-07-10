@@ -1056,11 +1056,9 @@ export default function AppointmentsPage() {
             saveClients(updatedClients);
             setClients(updatedClients);
 
-            try {
-              enqueueWhatsAppConfirmation(newAppt.id);
-            } catch (error) {
+            enqueueWhatsAppConfirmation(newAppt.id).catch((error) => {
               console.warn("[appointments] WhatsApp confirmation queue skipped", error);
-            }
+            });
             // sendGroupBookingAlert is async — a bare try/catch around the call site
             // only catches synchronous throws, not a later rejection inside the
             // returned promise, so that rejection must be caught here instead.

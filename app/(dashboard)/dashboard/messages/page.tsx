@@ -450,12 +450,9 @@ export default function MessagesPage() {
     return () => window.removeEventListener("werzio_wa_message_logged", onMessageLogged);
   }, []);
 
-  // Queue counts ("N messages queued" banner) are read straight from localStorage,
-  // which changes from the background scheduler in the dashboard layout — a
-  // different component, so nothing here re-renders when it does. Poll on an
-  // interval (and refresh on every logged send) instead of computing it once per
-  // unrelated render, so the banner can't get stuck showing a stale non-zero count
-  // after the queue has actually drained.
+  // Queue counts change outside this page (background scheduler + server queues).
+  // Poll so the banner cannot get stuck showing a stale non-zero count after the
+  // queue has actually drained.
   const [queueCounts, setQueueCounts] = useState({ confirm: 0, followup: 0, booking: 0, pos: 0, due: 0 });
   useEffect(() => {
     async function refreshQueueCounts() {
@@ -1064,7 +1061,7 @@ export default function MessagesPage() {
                     <Clock size={13} style={{ flexShrink: 0 }} />
                     {totalQueue} message{totalQueue > 1 ? "s" : ""} queued
                     {queueCounts.pos > 0 ? ` · ${queueCounts.pos} POS receipt${queueCounts.pos > 1 ? "s" : ""}` : ""}
-                    {queueCounts.booking > 0 ? ` · ${queueCounts.booking} booking alert${queueCounts.booking > 1 ? "s" : ""}` : ""}
+                    {queueCounts.booking > 0 ? ` · ${queueCounts.booking} booking message${queueCounts.booking > 1 ? "s" : ""}` : ""}
                     {queueCounts.due > 0 ? " · due now" : " · waiting for scheduled time"}
                   </div>
                 )}

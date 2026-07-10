@@ -64,6 +64,18 @@ export async function GET(request: NextRequest) {
       "SELECT COUNT(*) AS count FROM wa_booking_send_queue WHERE user_id = ? AND status = 'pending' AND scheduled_at <= ?",
       [actor.userId, now],
     );
+    const confirmationPending = await count(
+      "SELECT COUNT(*) AS count FROM wa_booking_send_queue WHERE user_id = ? AND kind = 'confirmation' AND status = 'pending'",
+      [actor.userId],
+    );
+    const confirmationDue = await count(
+      "SELECT COUNT(*) AS count FROM wa_booking_send_queue WHERE user_id = ? AND kind = 'confirmation' AND status = 'pending' AND scheduled_at <= ?",
+      [actor.userId, now],
+    );
+    const groupAlertPending = await count(
+      "SELECT COUNT(*) AS count FROM wa_booking_send_queue WHERE user_id = ? AND kind = 'groupalert' AND status = 'pending'",
+      [actor.userId],
+    );
     const posPending = await count(
       "SELECT COUNT(*) AS count FROM wa_pos_receipt_queue WHERE user_id = ? AND status = 'pending'",
       [actor.userId],
@@ -77,6 +89,9 @@ export async function GET(request: NextRequest) {
       ok: true,
       bookingPending,
       bookingDue,
+      confirmationPending,
+      confirmationDue,
+      groupAlertPending,
       posPending,
       posDue,
       totalPending: bookingPending + posPending,
