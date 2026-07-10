@@ -22,9 +22,12 @@ async function ensureTable() {
       phone       TEXT NOT NULL,
       status      TEXT NOT NULL,
       template_id TEXT NOT NULL DEFAULT '',
+      error_message TEXT NOT NULL DEFAULT '',
       PRIMARY KEY (user_id, id)
     )
   `);
+  // Older rows may predate this column — add it if missing (no-op once applied).
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN error_message TEXT NOT NULL DEFAULT ''`).catch(() => {});
 }
 
 export async function GET(req: NextRequest) {
@@ -40,13 +43,14 @@ export async function GET(req: NextRequest) {
     });
 
     const logs = result.rows.map((r) => ({
-      id:         r.id          as string,
-      timestamp:  r.timestamp   as string,
-      type:       r.type        as string,
-      clientName: r.client_name as string,
-      phone:      r.phone       as string,
-      status:     r.status      as string,
-      templateId: r.template_id as string,
+      id:         r.id            as string,
+      timestamp:  r.timestamp     as string,
+      type:       r.type          as string,
+      clientName: r.client_name   as string,
+      phone:      r.phone         as string,
+      status:     r.status        as string,
+      templateId: r.template_id   as string,
+      error:      (r.error_message as string) || undefined,
     }));
 
     return Response.json({ ok: true, logs });
@@ -67,6 +71,7 @@ export async function POST(req: NextRequest) {
       phone: string;
       status: string;
       templateId: string;
+      error?: string;
     };
   };
 
@@ -85,11 +90,11 @@ export async function POST(req: NextRequest) {
     const { entry } = body;
     await db.execute({
       sql: `INSERT OR REPLACE INTO wa_message_logs
-              (id, user_id, timestamp, type, client_name, phone, status, template_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              (id, user_id, timestamp, type, client_name, phone, status, template_id, error_message)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         entry.id, body.userId, entry.timestamp, entry.type,
-        entry.clientName, entry.phone, entry.status, entry.templateId ?? "",
+        entry.clientName, entry.phone, entry.status, entry.templateId ?? "", entry.error ?? "",
       ],
     });
     return Response.json({ ok: true });
