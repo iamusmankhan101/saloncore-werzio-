@@ -9,7 +9,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { activeWhatsAppCredential, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { activeWhatsAppCredential, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 interface ClientPayload {
@@ -50,6 +50,25 @@ async function ensureTable() {
       entity     TEXT PRIMARY KEY,
       data       TEXT NOT NULL,
       updated_at TEXT NOT NULL
+    )
+  `);
+  // Drained by /api/cron/booking-queue — see that route for why this can't just
+  // be sent immediately (a serverless function can't sleep for 5-7 minutes).
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS wa_booking_send_queue (
+      id           TEXT NOT NULL,
+      user_id      TEXT NOT NULL,
+      kind         TEXT NOT NULL,
+      phone        TEXT NOT NULL,
+      text         TEXT NOT NULL,
+      client_name  TEXT NOT NULL,
+      scheduled_at TEXT NOT NULL,
+      status       TEXT NOT NULL DEFAULT 'pending',
+      attempts     INTEGER NOT NULL DEFAULT 0,
+      last_error   TEXT,
+      created_at   TEXT NOT NULL,
+      sent_at      TEXT,
+      PRIMARY KEY (user_id, id)
     )
   `);
 }
@@ -196,6 +215,25 @@ export async function POST(req: NextRequest) {
           return d;
         };
 
+        // Both sends below are queued (not sent immediately) so an online booking
+        // doesn't fire off a burst of WhatsApp traffic the instant it lands — same
+        // 5-7 min jitter floor as every dashboard-triggered send. A serverless
+        // function can't just sleep for 5-7 minutes, so /api/cron/booking-queue
+        // drains this table on its own schedule instead.
+        const jitterMs = () => 5 * 60_000 + Math.random() * 2 * 60_000; // 5-7 min
+        async function queueBookingSend(kind: "confirmation" | "groupalert", targetPhone: string, text: string, clientNameForLog: string) {
+          const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+          await db.execute({
+            sql: `INSERT INTO wa_booking_send_queue
+                    (id, user_id, kind, phone, text, client_name, scheduled_at, status, attempts, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
+            args: [
+              id, salonId, kind, targetPhone, text, clientNameForLog,
+              new Date(Date.now() + jitterMs()).toISOString(), new Date().toISOString(),
+            ],
+          });
+        }
+
         // Confirmation to client
         if (phone && autoConfirmation) {
           const confirmationTpl: string =
@@ -203,13 +241,8 @@ export async function POST(req: NextRequest) {
             "Hi {{name}}, your {{service}} booking on {{date}} at {{time}} is confirmed at {{salon_name}}. We look forward to seeing you! 💜";
           const confirmText = fillTemplate(confirmationTpl, vars);
           const normalizedPhone = normalizePhone(phone);
-          console.log(`[public/booking] Sending confirmation to ${normalizedPhone}`);
-          const confirmResult = await sendWhatsAppMessage(providerConfig, normalizedPhone, confirmText, { messageType: "confirmation" });
-          if (!confirmResult.ok) {
-            console.warn("[public/booking] WhatsApp confirmation failed:", confirmResult.status, confirmResult.errorReason);
-          } else {
-            console.log("[public/booking] WhatsApp confirmation sent ✓");
-          }
+          await queueBookingSend("confirmation", normalizedPhone, confirmText, appointment.clientName);
+          console.log(`[public/booking] Queued confirmation to ${normalizedPhone}`);
         } else if (!phone) {
           console.warn("[public/booking] No phone number — skipping WhatsApp confirmation");
         }
@@ -221,13 +254,8 @@ export async function POST(req: NextRequest) {
             tpl.newBooking ||
             "📅 New Online Booking!\n👤 Name: {{name}}\n💇 Service: {{service}}\n📅 Date: {{date}}\n⏰ Time: {{time}}\n💰 Total: PKR {{amount}}\n\nBooked via {{salon_name}} online booking page.";
           const groupText = fillTemplate(groupTpl, vars);
-          console.log(`[public/booking] Sending group alert to ${bookingGroupJid}`);
-          const groupResult = await sendWhatsAppMessage(providerConfig, bookingGroupJid, groupText, { messageType: "manual" });
-          if (!groupResult.ok) {
-            console.warn("[public/booking] WhatsApp group alert failed:", groupResult.status, groupResult.errorReason);
-          } else {
-            console.log("[public/booking] WhatsApp group alert sent ✓");
-          }
+          await queueBookingSend("groupalert", bookingGroupJid, groupText, "Group");
+          console.log(`[public/booking] Queued group alert to ${bookingGroupJid}`);
         } else if (!autoGroupBooking) {
           console.log("[public/booking] New Booking Group Alert is disabled — skipping group alert");
         } else if (bookingGroupJid) {

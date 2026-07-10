@@ -44,6 +44,13 @@ const LOG_KEY = "werzio_wa_logs";
 const MAX_LOG = 200;
 const LOW_STOCK_SENT_KEY = "werzio_wa_lowstock_sent";
 
+// Shared floor for every automated WhatsApp send — nothing goes out the instant
+// it's triggered. Manual/test sends (Messages page "Send Now") are the one
+// exception: they call /api/whatsapp/send directly and never pass through this
+// file, so they're unaffected by design.
+const MESSAGE_JITTER_MIN_MS = 5 * 60_000;
+const MESSAGE_JITTER_MAX_MS = 7 * 60_000;
+
 export function getWaLogs(): WaLogEntry[] {
   if (typeof window === "undefined") return [];
   try { return JSON.parse(localStorage.getItem(locationUserKey(LOG_KEY)) || "[]"); } catch { return []; }
@@ -89,7 +96,7 @@ function getReminderSendAt(apptId: string): number {
   let map: Record<string, number> = {};
   try { map = JSON.parse(localStorage.getItem(key) || "{}"); } catch { /* reset below */ }
   if (map[apptId] != null) return map[apptId];
-  const sendAt = Date.now() + Math.random() * 10 * 60_000; // 0-10 min from now
+  const sendAt = Date.now() + MESSAGE_JITTER_MIN_MS + Math.random() * (MESSAGE_JITTER_MAX_MS - MESSAGE_JITTER_MIN_MS); // 5-7 min from now
   map[apptId] = sendAt;
   localStorage.setItem(key, JSON.stringify(map));
   return sendAt;
@@ -174,7 +181,7 @@ const SEND_RATE_LIMIT_MS = 60_000;       // WaSender free plan: 1 message per mi
 // queues (e.g. a follow-up and a cancellation due in the same scheduler tick) fire
 // back-to-back with no gap at all.
 //
-// Base pacing is a random 3-7 minutes between every message. On top of that, every
+// Base pacing is a random 5-7 minutes between every message. On top of that, every
 // 10th/50th/100th message gets a longer break before the next one — only the largest
 // matching tier applies (e.g. message #100 gets the 60-90 min break, not all three).
 function randBetween(minMs: number, maxMs: number): number {
@@ -184,7 +191,7 @@ function minNaturalGapMs(sentSoFar: number): number {
   if (sentSoFar > 0 && sentSoFar % 100 === 0) return randBetween(60 * 60_000, 90 * 60_000);
   if (sentSoFar > 0 && sentSoFar % 50  === 0) return randBetween(30 * 60_000, 45 * 60_000);
   if (sentSoFar > 0 && sentSoFar % 10  === 0) return randBetween(10 * 60_000, 20 * 60_000);
-  return randBetween(3 * 60_000, 7 * 60_000);
+  return randBetween(MESSAGE_JITTER_MIN_MS, MESSAGE_JITTER_MAX_MS);
 }
 
 let lastSentAt = 0;
@@ -192,27 +199,19 @@ let sentCount = 0;
 let schedulerRunning = false;
 
 // Booking confirmations and the new-booking group alert are the two most
-// time-sensitive, highest-visibility messages (a client/owner expects them
-// within minutes of booking, not up to ~15 later), so they get their own much
-// shorter 2-3 min random jitter instead of the slower general pacing floor
-// above — tracked on a separate clock so they never wait on an unrelated
-// bulk/marketing send (birthday, cancellation win-back) that happened to fire
-// moments earlier, and vice versa.
+// time-sensitive, highest-visibility messages, so they're tracked on their own
+// clock — never waiting on an unrelated bulk/marketing send (birthday,
+// cancellation win-back) that happened to fire moments earlier, and vice versa.
+// Same 5-7 min floor as everything else (see MESSAGE_JITTER_* above), just
+// isolated from the general pacing clock.
 const FAST_TIER_TYPES = new Set<WaMsgType>(["confirmation", "newbooking"]);
-const FAST_JITTER_MIN_MS = 2 * 60_000;
-const FAST_JITTER_MAX_MS = 3 * 60_000;
+const FAST_JITTER_MIN_MS = MESSAGE_JITTER_MIN_MS;
+const FAST_JITTER_MAX_MS = MESSAGE_JITTER_MAX_MS;
 let lastFastSentAt = 0;
 
-// The POS invoice message (thank-you text + invoice PDF combined into one send,
-// through a separate API route that has no pacing gate of its own) should reach
-// the client within about a minute of the sale completing, with a small random
-// jitter instead of firing the instant the sale completes.
-const POS_JITTER_MIN_MS = 5_000;   // 5 seconds
-const POS_JITTER_MAX_MS = 60_000;  // 60 seconds
-
-/** Random 5-60s delay for the POS invoice send, applied outside this file's own pacing gate (it runs in the invoice PDF API route). */
+/** Random 5-7 min delay for the POS invoice send, applied outside this file's own pacing gate (it runs in the invoice PDF API route). */
 export function posJitterMs(): number {
-  return randBetween(POS_JITTER_MIN_MS, POS_JITTER_MAX_MS);
+  return randBetween(MESSAGE_JITTER_MIN_MS, MESSAGE_JITTER_MAX_MS);
 }
 
 // ── Number warm-up ramp ──────────────────────────────────────────────────────
@@ -328,7 +327,14 @@ export async function sendGroupBookingAlert(appt: {
     zaptickApiKey?: string;
     bookingGroupJid?: string;
     autoGroupBooking?: boolean;
+    enabled?: boolean;
   };
+
+  // Master "WhatsApp Automation" toggle — skip entirely while off, and don't mark
+  // sent, so turning it back on later never flushes a backlog of alerts for
+  // bookings that came in while it was paused. This function only ever fires once
+  // per booking (no queue/retry of its own), so "skip now" means "never sent".
+  if (ws.enabled === false) return;
 
   if (ws.provider === "botsailor") { console.warn("⚠️ New Booking group alert skipped — BotSailor doesn't support sending to groups."); return; }
   if (!ws.autoGroupBooking) { console.warn("⚠️ New Booking group alert disabled — enable \"New Booking Group Alert\" in Account → WhatsApp Settings"); return; }
@@ -349,9 +355,12 @@ export async function sendGroupBookingAlert(appt: {
   await callSendApi(ws.bookingGroupJid, text, { type: "newbooking", clientName: "Group" });
 }
 
-/** Call when a new appointment is booked — sends confirmation after a random 0-5 min delay, not instantly, so every booking's confirmation doesn't land at the same moment. */
+/** Call when a new appointment is booked — sends confirmation after a random 5-7 min delay, not instantly, so every booking's confirmation doesn't land at the same moment. */
 export function enqueueWhatsAppConfirmation(apptId: string) {
   if (typeof window === "undefined") return;
+  // Master "WhatsApp Automation" toggle — skip queueing entirely while off, so
+  // there's nothing sitting around to flush the moment it's re-enabled.
+  if ((settingsStore.wasender as { enabled?: boolean }).enabled === false) return;
   const q = getQueue(CONFIRM_QUEUE_KEY);
   const appt = getStoredAppointments().find(a => a.id === apptId);
   // Never queue a confirmation for a booking that was already in the past the
@@ -373,7 +382,7 @@ export function enqueueWhatsAppConfirmation(apptId: string) {
   // guard) must never queue a second confirmation, but a genuinely separate
   // booking for the same client is still its own event and gets its own message.
   if (q.some((item) => item.id === apptId)) return;
-  const delayMs = Math.random() * 5 * 60_000; // 0-5 minutes
+  const delayMs = MESSAGE_JITTER_MIN_MS + Math.random() * (MESSAGE_JITTER_MAX_MS - MESSAGE_JITTER_MIN_MS); // 5-7 minutes
   setQueue(CONFIRM_QUEUE_KEY, [...q, {
     id: apptId, retries: 0, sendAfter: Date.now() + delayMs,
     phone, clientName: appt?.clientName,
@@ -384,6 +393,9 @@ export function enqueueWhatsAppConfirmation(apptId: string) {
 /** Call when an appointment is marked completed — sends follow-up after the configured delay. */
 export function enqueueWhatsAppFollowup(apptId: string) {
   if (typeof window === "undefined") return;
+  // Master "WhatsApp Automation" toggle — skip queueing entirely while off, so
+  // there's nothing sitting around to flush the moment it's re-enabled.
+  if ((settingsStore.wasender as { enabled?: boolean }).enabled === false) return;
   const delayMinutes = (settingsStore.wasender as { followupDelayMinutes?: number }).followupDelayMinutes ?? 1440;
   const delayMs = delayMinutes * 60 * 1000;
   // On top of the configured base delay (24h by default), add a random 5-30 min
@@ -411,6 +423,9 @@ export function enqueueWhatsAppFollowup(apptId: string) {
 /** Call when an appointment is cancelled — sends a win-back discount message after the configured delay. */
 export function enqueueWhatsAppCancellation(apptId: string) {
   if (typeof window === "undefined") return;
+  // Master "WhatsApp Automation" toggle — skip queueing entirely while off, so
+  // there's nothing sitting around to flush the moment it's re-enabled.
+  if ((settingsStore.wasender as { enabled?: boolean }).enabled === false) return;
   const delayMinutes = (settingsStore.wasender as { cancellationDelayMinutes?: number }).cancellationDelayMinutes ?? 1440;
   const delayMs = delayMinutes * 60 * 1000;
   // On top of the configured base delay (24h by default), add a random 10-30 min
@@ -587,13 +602,17 @@ function birthdaySpreadDelay(index: number, total: number): number {
 export async function checkBirthdayReminders(force = false, queueNewBirthdays = true): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const ws = settingsStore.wasender as { provider?: string; apiKey: string; botSailorApiToken?: string; autoReminder: boolean };
+  const ws = settingsStore.wasender as { provider?: string; apiKey: string; botSailorApiToken?: string; autoReminder: boolean; enabled?: boolean };
   const bd = settingsStore.birthday as {
     autoBirthday: boolean;
     birthdayDiscountEnabled?: boolean;
     birthdayDiscount: string;
   };
 
+  // Master "WhatsApp Automation" toggle — same bypass convention as autoBirthday
+  // below: the "Send Birthday Now" test button (force=true) is an explicit manual
+  // override, so it still works even while automation is paused.
+  if (!force && ws.enabled === false) return;
   if (!force && !bd.autoBirthday) return;
   if (!force && !(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.apiKey)) return;
 
@@ -896,8 +915,12 @@ export async function checkLowStockAlerts(): Promise<void> {
   if (typeof window === "undefined") return;
 
   const ws = settingsStore.wasender as {
-    provider?: string; apiKey: string; botSailorApiToken?: string; autoLowStock: boolean; ownerPhone: string; bookingGroupJid?: string;
+    provider?: string; apiKey: string; botSailorApiToken?: string; autoLowStock: boolean; ownerPhone: string; bookingGroupJid?: string; enabled?: boolean;
   };
+  // Master "WhatsApp Automation" toggle — this function is called directly from
+  // the inventory page too (not just the gated scheduler tick), so it needs its
+  // own check.
+  if (ws.enabled === false) return;
   if (!ws.autoLowStock) { console.warn("⚠️ Low stock alerts disabled — enable in Account → WhatsApp Settings"); return; }
   // BotSailor doesn't support sending to groups (same restriction as the New Booking
   // group alert), so the group target only applies for the WaSender provider.
