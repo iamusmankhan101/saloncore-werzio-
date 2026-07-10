@@ -466,7 +466,7 @@ export default function POSPage() {
       let ok = false;
       let errorReason: string | undefined;
       try {
-        // A random 5-60s delay before the message goes out — this route has no
+        // A random 5-10 min delay before the invoice PDF + thank-you caption goes out — this route has no
         // pacing gate of its own (a blocking sleep inside a serverless function
         // risks its execution timeout), so without this it fired the instant the
         // sale completed with zero jitter at all, a distinctly bot-like pattern.

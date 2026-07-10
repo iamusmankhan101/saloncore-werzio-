@@ -50,6 +50,8 @@ const LOW_STOCK_SENT_KEY = "werzio_wa_lowstock_sent";
 // file, so they're unaffected by design.
 const MESSAGE_JITTER_MIN_MS = 5 * 60_000;
 const MESSAGE_JITTER_MAX_MS = 7 * 60_000;
+const POS_JITTER_MIN_MS = 5 * 60_000;
+const POS_JITTER_MAX_MS = 10 * 60_000;
 
 export function getWaLogs(): WaLogEntry[] {
   if (typeof window === "undefined") return [];
@@ -130,6 +132,8 @@ const BIRTHDAY_QUEUE_KEY = "werzio_wa_birthday_queue";
 // window recalculated on every scheduler tick.
 const BIRTHDAY_SPREAD_MIN_MS = 6 * 60 * 60 * 1000;
 const BIRTHDAY_SPREAD_MAX_MS = 8 * 60 * 60 * 1000;
+const BIRTHDAY_NEXT_SEND_MIN_MS = 10 * 60_000;
+const BIRTHDAY_NEXT_SEND_MAX_MS = 15 * 60_000;
 const BIRTHDAY_SPREAD_CACHE_KEY = "werzio_wa_birthday_spread_window";
 
 function getTodaysBirthdaySpreadWindowMs(): number {
@@ -229,9 +233,9 @@ const newBookingTierGate = makeTierGate(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS, 
 const reminderTierGate = makeTierGate(REMINDER_TIER_MIN_MS, REMINDER_TIER_MAX_MS);
 const followupTierGate = makeTierGate(FOLLOWUP_TIER_MIN_MS, FOLLOWUP_TIER_MAX_MS);
 
-/** Random 5-7 min delay for the POS invoice send, applied outside this file's own pacing gate (it runs in the invoice PDF API route). */
+/** Random 5-10 min delay for POS invoice + thank-you sends, applied per transaction/client. */
 export function posJitterMs(): number {
-  return randBetween(MESSAGE_JITTER_MIN_MS, MESSAGE_JITTER_MAX_MS);
+  return randBetween(POS_JITTER_MIN_MS, POS_JITTER_MAX_MS);
 }
 
 // ── Number warm-up ramp ──────────────────────────────────────────────────────
@@ -697,7 +701,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
     }
 
     if (sentOneThisTick) {
-      remaining.push({ ...item, sendAfter: Date.now() + 10 * 60 * 1000 });
+      remaining.push({ ...item, sendAfter: Date.now() + randBetween(BIRTHDAY_NEXT_SEND_MIN_MS, BIRTHDAY_NEXT_SEND_MAX_MS) });
       continue;
     }
 
