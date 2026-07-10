@@ -13,7 +13,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { activeWhatsAppCredential, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { activeWhatsAppCredential, isFakePlaceholderPhone, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { sendSalonInvoiceWhatsApp } from "@/lib/whatsapp-invoice-send";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
@@ -263,6 +263,11 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       providerConfig, item.phone, item.text,
       { messageType: item.kind === "groupalert" ? "manual" : "confirmation" },
     );
+    if (result.skipped) {
+      await updateItem(item, "expired", "Skipped fake/placeholder recipient.");
+      skipped++;
+      continue;
+    }
     await logMessage(item.userId, item.kind, item.clientName, item.phone, result.ok ? "sent" : "failed", result.errorReason);
 
     if (result.ok) {
@@ -297,6 +302,11 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       posFailed++;
       continue;
     }
+    if (isFakePlaceholderPhone(item.phone)) {
+      await updatePosReceipt(item, "expired", "Skipped fake/placeholder recipient.");
+      skipped++;
+      continue;
+    }
 
     const safety = checkWhatsAppSafety({ phone: item.phone, intent: "utility", config: providerConfig });
     if (!safety.ok) {
@@ -313,6 +323,11 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       providerConfig,
       thankYouText: item.thankYouText,
     });
+    if (result.skipped) {
+      await updatePosReceipt(item, "expired", "Skipped fake/placeholder recipient.");
+      skipped++;
+      continue;
+    }
     await logMessage(item.userId, "invoice", item.clientName, item.phone, result.ok ? "sent" : "failed", result.error);
 
     if (result.ok) {

@@ -16,6 +16,7 @@ export interface WhatsAppProviderConfig {
 export interface WhatsAppSendResult {
   ok: boolean;
   status: number;
+  skipped?: boolean;
   data?: unknown;
   errorReason?: string;
 }
@@ -59,7 +60,7 @@ export async function sendWhatsAppMessage(
 ): Promise<WhatsAppSendResult> {
   // Group JIDs (…@g.us) aren't phone numbers, so the fake-number check doesn't apply.
   if (!phone.endsWith("@g.us") && isFakePlaceholderPhone(phone)) {
-    return { ok: false, status: 400, errorReason: "Skipped: recipient looks like a fake/placeholder phone number." };
+    return { ok: false, skipped: true, status: 200, errorReason: "Recipient looks like a fake/placeholder phone number." };
   }
 
   const provider = config.provider ?? "wasender";

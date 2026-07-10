@@ -50,10 +50,11 @@ async function markSent(userId: string, itemId: string, today: string) {
   });
 }
 
-async function sendMessage(phone: string, providerConfig: WhatsAppProviderConfig, text: string): Promise<boolean> {
+async function sendMessage(phone: string, providerConfig: WhatsAppProviderConfig, text: string): Promise<{ ok: boolean; skipped: boolean }> {
   try {
-    return (await sendWhatsAppMessage(providerConfig, phone, text)).ok;
-  } catch { return false; }
+    const result = await sendWhatsAppMessage(providerConfig, phone, text);
+    return { ok: result.ok, skipped: result.skipped === true };
+  } catch { return { ok: false, skipped: false }; }
 }
 
 async function logMessage(userId: string, phone: string, status: "sent" | "failed") {
@@ -82,7 +83,7 @@ interface InventoryItem {
 
 async function runLowStockCron() {
   const today = new Date().toISOString().slice(0, 10);
-  let alertsSent = 0, alertsFailed = 0, usersChecked = 0;
+  let alertsSent = 0, alertsFailed = 0, alertsSkipped = 0, usersChecked = 0;
 
   const settingsRows = await db.execute(
     "SELECT entity, data FROM salon_data WHERE entity LIKE '%_settings'"
@@ -146,10 +147,14 @@ async function runLowStockCron() {
         salon_name: salonName,
       });
 
-      const ok = await sendMessage(phone, providerConfig, text);
-      await logMessage(userId, phone, ok ? "sent" : "failed");
+      const result = await sendMessage(phone, providerConfig, text);
+      if (result.skipped) {
+        alertsSkipped++;
+        continue;
+      }
+      await logMessage(userId, phone, result.ok ? "sent" : "failed");
 
-      if (ok) {
+      if (result.ok) {
         for (const item of lowItems) await markSent(userId, item.id, today);
         alertsSent++;
         console.log(`[lowstock] ✓ sent → ${userId} (${lowItems.length} items)`);
@@ -162,7 +167,7 @@ async function runLowStockCron() {
     }
   }
 
-  return { usersChecked, alertsSent, alertsFailed };
+  return { usersChecked, alertsSent, alertsFailed, alertsSkipped };
 }
 
 export async function GET(req: NextRequest) {

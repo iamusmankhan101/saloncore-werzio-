@@ -50,10 +50,11 @@ async function markSent(userId: string, apptId: string) {
   });
 }
 
-async function sendMessage(phone: string, providerConfig: WhatsAppProviderConfig, text: string): Promise<boolean> {
+async function sendMessage(phone: string, providerConfig: WhatsAppProviderConfig, text: string): Promise<{ ok: boolean; skipped: boolean }> {
   try {
-    return (await sendWhatsAppMessage(providerConfig, phone, text)).ok;
-  } catch { return false; }
+    const result = await sendWhatsAppMessage(providerConfig, phone, text);
+    return { ok: result.ok, skipped: result.skipped === true };
+  } catch { return { ok: false, skipped: false }; }
 }
 
 async function logMessage(userId: string, clientName: string, phone: string, status: "sent" | "failed") {
@@ -171,9 +172,10 @@ async function runFollowupCron() {
           salon_name: salonName,
         });
 
-        const ok = await sendMessage(phone, providerConfig, text);
-        await logMessage(userId, appt.clientName, phone, ok ? "sent" : "failed");
-        if (ok) { await markSent(userId, appt.id); sent++; }
+        const result = await sendMessage(phone, providerConfig, text);
+        if (result.skipped) { skipped++; continue; }
+        await logMessage(userId, appt.clientName, phone, result.ok ? "sent" : "failed");
+        if (result.ok) { await markSent(userId, appt.id); sent++; }
         else failed++;
       }
     } catch (e) {

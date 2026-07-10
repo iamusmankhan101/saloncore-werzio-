@@ -1,6 +1,6 @@
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { generateSalonInvoicePdf } from "@/lib/salon-invoice-pdf";
-import type { WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 
 export interface SendSalonInvoiceWhatsAppInput {
   invoice: SalonInvoice;
@@ -12,6 +12,7 @@ export interface SendSalonInvoiceWhatsAppInput {
 
 export interface SendSalonInvoiceWhatsAppResult {
   ok: boolean;
+  skipped?: boolean;
   provider: WhatsAppProviderConfig["provider"];
   error?: string;
 }
@@ -27,12 +28,16 @@ export async function sendSalonInvoiceWhatsApp({
   providerConfig,
   thankYouText,
 }: SendSalonInvoiceWhatsAppInput): Promise<SendSalonInvoiceWhatsAppResult> {
+  const provider = providerConfig.provider ?? "wasender";
+  if (isFakePlaceholderPhone(phone)) {
+    return { ok: false, skipped: true, provider, error: "Recipient looks like a fake/placeholder phone number." };
+  }
+
   const pdf = await generateSalonInvoicePdf(invoice, salon);
   const pdfArrayBuffer = Uint8Array.from(pdf).buffer;
   const fileName = `${invoice.number}.pdf`;
   const invoiceLine = `Invoice ${invoice.number} from ${salon.name} — PKR ${invoice.total.toLocaleString("en-PK")}`;
   const caption = thankYouText ? `${thankYouText}\n\n${invoiceLine}` : invoiceLine;
-  const provider = providerConfig.provider ?? "wasender";
 
   if (provider === "botsailor") {
     const apiToken = providerConfig.botSailorApiToken || "";

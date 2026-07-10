@@ -329,7 +329,12 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...ws, phone, text, messageIntent: "internal" }),
       });
-      const data = await res.json() as { ok: boolean };
+      const data = await res.json() as { ok: boolean; skipped?: boolean };
+      if (data.skipped) {
+        setApiResult(null);
+        setSending(false);
+        return;
+      }
       setApiResult(data.ok
         ? { ok: true, msg: `Sent to ${phone}` }
         : { ok: false, msg: `Failed — check your ${ws.provider === "botsailor" ? "BotSailor" : "WaSender"} credentials` });

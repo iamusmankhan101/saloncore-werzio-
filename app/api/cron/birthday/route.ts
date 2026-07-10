@@ -18,7 +18,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { activeWhatsAppCredential, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { activeWhatsAppCredential, isFakePlaceholderPhone, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
 
 const BIRTHDAY_SPREAD_WINDOW_MS = 4 * 60 * 60 * 1000;
@@ -288,16 +288,16 @@ async function sendBirthdayMessage(
   phone: string,
   providerConfig: WhatsAppProviderConfig & WhatsAppSafetyConfig,
   text: string,
-): Promise<boolean> {
-  if (!phone.trim()) return false;
+): Promise<{ ok: boolean; skipped: boolean }> {
+  if (!phone.trim()) return { ok: false, skipped: false };
   try {
     const safety = checkWhatsAppSafety({ phone, intent: "marketing", config: providerConfig });
     if (!safety.ok) throw new Error(safety.error);
     const result = await sendWhatsAppMessage(providerConfig, phone, text, { messageType: "birthday" });
     if (result.ok) recordWhatsAppSafetySend({ phone, config: providerConfig });
-    return result.ok;
+    return { ok: result.ok, skipped: result.skipped === true };
   } catch {
-    return false;
+    return { ok: false, skipped: false };
   }
 }
 
@@ -333,6 +333,10 @@ async function enqueueTodaysBirthdays(): Promise<{ checked: number; queued: numb
       checked++;
       const phone = normalizePhone(client.phone);
       if (!phone) continue;
+      if (isFakePlaceholderPhone(phone)) {
+        skipped++;
+        continue;
+      }
 
       // Skip if already sent this year
       if (await alreadySent(user.userId, client.id, year)) {
@@ -443,10 +447,15 @@ async function processDueBirthdayMessages(): Promise<{ sent: number; failed: num
       continue;
     }
 
-    const ok = await sendBirthdayMessage(item.phone, user.providerConfig, item.text);
-    await logMessage(item.userId, item.clientName, item.phone, "birthday", ok ? "sent" : "failed");
+    const result = await sendBirthdayMessage(item.phone, user.providerConfig, item.text);
+    if (result.skipped) {
+      await updateQueueAttempt({ ...item, ok: true });
+      deferred++;
+      continue;
+    }
+    await logMessage(item.userId, item.clientName, item.phone, "birthday", result.ok ? "sent" : "failed");
 
-    if (ok) {
+    if (result.ok) {
       await markSent(item.userId, item.clientId, item.year);
       await updateQueueAttempt({ ...item, ok: true });
       sent++;

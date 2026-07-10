@@ -38,6 +38,7 @@ export interface WaLogEntry {
   status: WaMsgStatus;
   templateId: string;
   error?: string;
+  apptId?: string;
 }
 
 const LOG_KEY = "werzio_wa_logs";
@@ -517,10 +518,30 @@ async function applyPacingGate(providerConfig: ProviderConfig, msgType?: WaMsgTy
   sentCount += 1;
 }
 
+/**
+ * Confirmations can be queued independently per browser/device (see
+ * enqueueWhatsAppConfirmation) as well as sent directly by other tooling that
+ * talks to the WhatsApp provider without going through this queue. The local
+ * `alreadySent` guard only knows about sends this browser made, so before
+ * actually sending a confirmation, check the shared server-side log too —
+ * otherwise a confirmation sent one way can still get duplicated by the other.
+ */
+async function hasServerSideLog(apptId: string, type: WaMsgType): Promise<boolean> {
+  const user = getCurrentUser();
+  if (!user) return false;
+  try {
+    const res = await fetch(`/api/wa/messages?userId=${encodeURIComponent(user.id)}&apptId=${encodeURIComponent(apptId)}&type=${encodeURIComponent(type)}`);
+    const data = await res.json() as { ok?: boolean; exists?: boolean };
+    return data.ok === true && data.exists === true;
+  } catch {
+    return false;
+  }
+}
+
 async function callSendApi(
   phone: string,
   text: string,
-  logMeta: { type: WaMsgType; clientName: string },
+  logMeta: { type: WaMsgType; clientName: string; apptId?: string },
 ): Promise<boolean> {
   if (!phone.trim()) return false;
   const providerConfig = settingsStore.wasender as WhatsAppSafetyConfig & {
@@ -558,6 +579,7 @@ async function callSendApi(
   const recipientOptedIn = matchedClient ? !matchedClient.whatsappOptedOut : undefined;
 
   let ok = false;
+  let skipped = false;
   let errorReason: string | undefined;
   try {
     const res = await fetch("/api/whatsapp/send", {
@@ -573,14 +595,18 @@ async function callSendApi(
         recipientOptedIn,
       }),
     });
-    const data = await res.json() as { ok?: boolean; errorReason?: string };
+    const data = await res.json() as { ok?: boolean; skipped?: boolean; errorReason?: string };
+    skipped = data.skipped === true;
+    if (skipped) return true;
     ok = data.ok === true;
     if (!ok) errorReason = data.errorReason || `HTTP ${res.status}`;
   } catch (err) {
     ok = false;
     errorReason = String(err);
   }
-  appendLog({ type: logMeta.type, clientName: logMeta.clientName, phone, status: ok ? "sent" : "failed", templateId: "direct", error: errorReason });
+  if (!skipped) {
+    appendLog({ type: logMeta.type, clientName: logMeta.clientName, phone, status: ok ? "sent" : "failed", templateId: "direct", error: errorReason, apptId: logMeta.apptId });
+  }
   return ok;
 }
 
@@ -844,11 +870,15 @@ async function runSchedulerInternal(): Promise<void> {
       }
       const sentKey = `confirm_${item.id}`;
       if (alreadySent(sentKey)) continue;
+      // This browser's own queue only knows about sends it made itself — check
+      // the shared server-side log too, since another device (or a direct,
+      // out-of-band send) may have already confirmed this same booking.
+      if (await hasServerSideLog(item.id, "confirmation")) { markSent(sentKey); continue; }
       const serviceNames = appt.serviceNames;
       const date = appt.date;
       const startTime = appt.startTime;
       const text = fillTemplate(waTpl.confirmation, buildVars({ clientName, serviceNames, date, startTime }, salonName));
-      const ok = await callSendApi(phone, text, { type: "confirmation", clientName });
+      const ok = await callSendApi(phone, text, { type: "confirmation", clientName, apptId: item.id });
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {

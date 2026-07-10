@@ -11,6 +11,7 @@ import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
 import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, checkBirthdayReminders } from "@/lib/whatsapp-scheduler";
+import { isFakePlaceholderPhone } from "@/lib/whatsapp-provider";
 import { getCurrentUser } from "@/lib/auth";
 import { locationUserKey } from "@/lib/locations";
 import { getCurrentPlan } from "@/lib/plan-limits";
@@ -42,6 +43,10 @@ const SAMPLE_VARS: Record<string, string> = {
   discount: "10%",
   amount: "2500",
 };
+
+function isVisibleWaLog(log: WaLogEntry): boolean {
+  return log.phone.endsWith("@g.us") || !isFakePlaceholderPhone(log.phone);
+}
 
 type TplCfg = { key: string; noDiscountKey?: string; label: string; description: string; vars: string[]; noDiscountVars?: string[]; color: string; icon: React.ElementType };
 
@@ -418,7 +423,7 @@ export default function MessagesPage() {
           if (res.ok) {
             const data = await res.json() as { ok: boolean; logs: WaLogEntry[] };
             if (data.ok && Array.isArray(data.logs) && data.logs.length > 0) {
-              setLogs(data.logs);
+              setLogs(data.logs.filter(isVisibleWaLog));
               setLoadingLogs(false);
               setClients(getStoredClients());
               return;
@@ -427,7 +432,7 @@ export default function MessagesPage() {
         } catch { /* fall through to localStorage */ }
       }
       // Fallback: localStorage
-      setLogs(getWaLogs());
+      setLogs(getWaLogs().filter(isVisibleWaLog));
       setClients(getStoredClients());
       setLoadingLogs(false);
     }
@@ -438,6 +443,7 @@ export default function MessagesPage() {
     function onMessageLogged(event: Event) {
       const entry = (event as CustomEvent<WaLogEntry>).detail;
       if (!entry?.id) return;
+      if (!isVisibleWaLog(entry)) return;
       setLogs((current) => current.some((item) => item.id === entry.id) ? current : [entry, ...current]);
     }
     window.addEventListener("werzio_wa_message_logged", onMessageLogged);
@@ -622,7 +628,12 @@ export default function MessagesPage() {
           recipientOptedIn: !client.whatsappOptedOut,
         }),
       });
-      const data = await res.json() as { ok: boolean; status: number; error?: string; errorReason?: string };
+      const data = await res.json() as { ok: boolean; skipped?: boolean; status: number; error?: string; errorReason?: string };
+      if (data.skipped) {
+        setSendResult(null);
+        setSending(false);
+        return;
+      }
       const success = data.ok;
       const providerName = ws.provider === "botsailor" ? "BotSailor" : ws.provider === "zaptick" ? "Zaptick" : "WaSender";
       setSendResult(success
