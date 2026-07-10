@@ -167,7 +167,12 @@ export async function POST(req: NextRequest) {
       const salonName: string = settings?.salon?.name || "the salon";
       const tpl = settings?.whatsapp ?? {};
 
-      if (activeWhatsAppCredential(providerConfig) || process.env.WASENDER_API_KEY || process.env.BOTSAILOR_API_TOKEN) {
+      // Master "WhatsApp Automation" toggle in Account settings — when off, the
+      // online-booking confirmation/group alert must stay silent too, not just
+      // the dashboard scheduler and cron jobs.
+      const automationEnabled = settings?.wasender?.enabled !== false;
+
+      if (automationEnabled && (activeWhatsAppCredential(providerConfig) || process.env.WASENDER_API_KEY || process.env.BOTSAILOR_API_TOKEN)) {
         const to12h = (t: string) => {
           const [h, m] = t.split(":").map(Number);
           return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
@@ -231,6 +236,8 @@ export async function POST(req: NextRequest) {
           console.log("[public/booking] No group JID configured — skipping group alert");
         }
 
+      } else if (!automationEnabled) {
+        console.log("[public/booking] WhatsApp Automation is disabled — skipping confirmation");
       } else {
         console.warn("[public/booking] No active WhatsApp provider credentials — skipping confirmation");
       }

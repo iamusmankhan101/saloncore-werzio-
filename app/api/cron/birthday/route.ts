@@ -163,6 +163,11 @@ async function getAllBirthdayUsers(): Promise<BirthdayUser[]> {
         const discountEnabled = s?.birthday?.birthdayDiscountEnabled !== false;
         const template     = discountEnabled ? s?.whatsapp?.birthday : (s?.whatsapp?.birthdayNoDiscount || s?.whatsapp?.birthday);
 
+        // Master "WhatsApp Automation" toggle in Account settings — when off, all
+        // automated sends (and their log entries) must stop, not just autoBirthday.
+        // Filtering here also excludes the user from processDueBirthdayMessages'
+        // userById lookup, so already-queued birthday messages stop draining too.
+        if (s?.wasender?.enabled === false) continue;
         if (!autoBirthday || !activeWhatsAppCredential(providerConfig) || !template) continue;
 
         users.push({

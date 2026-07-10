@@ -125,6 +125,9 @@ async function runFollowupCron() {
       const template     = s?.whatsapp?.followup;
       const salonName    = s?.salon?.name || "Your Salon";
 
+      // Master "WhatsApp Automation" toggle in Account settings — when off, all
+      // automated sends (and their log entries) must stop, not just autoFollowup.
+      if (s?.wasender?.enabled === false) continue;
       if (!activeWhatsAppCredential(providerConfig) || !autoFollowup || !template) continue;
 
       // Load appointments

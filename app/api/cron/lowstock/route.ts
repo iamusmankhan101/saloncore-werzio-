@@ -104,6 +104,9 @@ async function runLowStockCron() {
       const template     = s?.whatsapp?.lowstock;
       const salonName    = s?.salon?.name || "Your Salon";
 
+      // Master "WhatsApp Automation" toggle in Account settings — when off, all
+      // automated sends (and their log entries) must stop, not just autoLowStock.
+      if (s?.wasender?.enabled === false) continue;
       if (!activeWhatsAppCredential(providerConfig) || !ownerPhone || !autoLowStock || !template) continue;
 
       usersChecked++;
