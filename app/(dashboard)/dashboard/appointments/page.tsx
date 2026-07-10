@@ -334,6 +334,11 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   const [form, setForm] = useState({ clientId: "", staffId: "", serviceIds: [] as string[], date: "", startTime: "", notes: "" });
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // useState updates aren't applied synchronously, so a fast double-click can fire
+  // handleBook twice before React re-renders to disable the button — both calls
+  // would then read the same stale `submitting === false`. A ref flips immediately,
+  // so the second call sees it set within the same tick and bails out.
+  const submittingRef = useRef(false);
   const [newClient, setNewClient] = useState(false);
   const [newClientForm, setNewClientForm] = useState({ name: "", phone: "", email: "", dob: "" });
   const [newClientSaved, setNewClientSaved] = useState(false);
@@ -384,7 +389,11 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
     // Guards against a double-click/double-submit creating two separate
     // appointments (and two separate confirmation messages) for the same booking —
     // canSubmit alone doesn't change just because a submission is already in flight.
-    if (!canSubmit || submitting) return;
+    // Checked via ref (not just the submitting state) because a fast double-click
+    // can fire this handler twice before React commits the re-render that would
+    // disable the button — the ref flips synchronously, the state doesn't.
+    if (!canSubmit || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
 
     let finalClientId = form.clientId;
@@ -441,6 +450,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       console.error("[appointments] Could not create appointment", error);
       // Booking creation must never be blocked by a non-critical side effect
       // such as WhatsApp scheduling. Keep the modal usable and visible.
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -1021,20 +1031,26 @@ export default function AppointmentsPage() {
           staffList={staffList}
           allServices={services}
           onAdd={(newAppt, newClientObj) => {
-            // Computed and persisted directly from the closure's current appointments/clients
-            // (not via setState updater callbacks) so saveClients() has actually run — and
-            // getStoredClients() can see the new client — before enqueueWhatsAppConfirmation
-            // reads it below. React defers calling a setState updater function to its own
-            // batch after this handler returns, so calling saveClients() *inside* a
-            // setClients(prev => ...) updater does not make it available synchronously
-            // to code later in this same function, even placed after it.
-            const updatedAppts = [newAppt, ...appointments];
+            // Computed and persisted directly (not via setState updater callbacks) so
+            // saveClients() has actually run — and getStoredClients() can see the new
+            // client — before enqueueWhatsAppConfirmation reads it below. React defers
+            // calling a setState updater function to its own batch after this handler
+            // returns, so calling saveClients() *inside* a setClients(prev => ...)
+            // updater does not make it available synchronously to code later in this
+            // same function, even placed after it.
+            //
+            // Merged onto a fresh read from storage, not the `appointments`/`clients`
+            // props (captured at this render). Those go stale the instant a second
+            // booking is created before this component re-renders, which would let a
+            // fast double-submit silently overwrite the first booking with the second.
+            const updatedAppts = [newAppt, ...getStoredAppointments()];
             saveAppointments(updatedAppts);
             setAppointments(updatedAppts);
 
+            const storedClients = getStoredClients();
             const updatedClients = newClientObj
-              ? [newClientObj, ...clients]
-              : clients.map((c) => c.id === newAppt.clientId
+              ? [newClientObj, ...storedClients]
+              : storedClients.map((c) => c.id === newAppt.clientId
                   ? { ...c, totalVisits: c.totalVisits + 1, totalSpend: c.totalSpend + newAppt.totalAmount, lastVisitDate: newAppt.date }
                   : c);
             saveClients(updatedClients);
