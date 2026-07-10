@@ -140,14 +140,28 @@ async function updateItem(item: QueueRow, status: "sent" | "pending" | "expired"
   });
 }
 
-async function logMessage(userId: string, kind: string, clientName: string, phone: string, status: "sent" | "failed", error?: string) {
+async function hasSentConfirmation(userId: string, apptId: string): Promise<boolean> {
+  try {
+    await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
+    const result = await db.execute({
+      sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND appt_id = ? AND type = 'confirmation' AND status = 'sent' LIMIT 1",
+      args: [userId, apptId],
+    });
+    return result.rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function logMessage(userId: string, kind: string, clientName: string, phone: string, status: "sent" | "failed", error?: string, apptId = "") {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   try {
+    await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
     await db.execute({
       sql: `INSERT OR REPLACE INTO wa_message_logs
-              (id, user_id, timestamp, type, client_name, phone, status, template_id, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'direct', ?)`,
-      args: [id, userId, new Date().toISOString(), kind === "groupalert" ? "newbooking" : "confirmation", clientName, phone, status, error ?? ""],
+              (id, user_id, timestamp, type, client_name, phone, status, template_id, error_message, appt_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'direct', ?, ?)`,
+      args: [id, userId, new Date().toISOString(), kind === "groupalert" ? "newbooking" : "confirmation", clientName, phone, status, error ?? "", apptId],
     });
   } catch { /* non-critical */ }
 }
@@ -256,6 +270,11 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       skipped++;
       continue;
     }
+    if (item.kind === "confirmation" && await hasSentConfirmation(item.userId, item.id)) {
+      await updateItem(item, "sent");
+      skipped++;
+      continue;
+    }
 
     const providerConfig = providerFromSettings(settings);
 
@@ -268,7 +287,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       skipped++;
       continue;
     }
-    await logMessage(item.userId, item.kind, item.clientName, item.phone, result.ok ? "sent" : "failed", result.errorReason);
+    await logMessage(item.userId, item.kind, item.clientName, item.phone, result.ok ? "sent" : "failed", result.errorReason, item.kind === "confirmation" ? item.id : "");
 
     if (result.ok) {
       await updateItem(item, "sent");

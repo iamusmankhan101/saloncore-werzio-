@@ -44,6 +44,22 @@ async function ensureTable() {
   `);
   await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_date TEXT`).catch(() => {});
   await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_time TEXT`).catch(() => {});
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS wa_message_logs (
+      id            TEXT NOT NULL,
+      user_id       TEXT NOT NULL,
+      timestamp     TEXT NOT NULL,
+      type          TEXT NOT NULL,
+      client_name   TEXT NOT NULL,
+      phone         TEXT NOT NULL,
+      status        TEXT NOT NULL,
+      template_id   TEXT NOT NULL DEFAULT '',
+      error_message TEXT NOT NULL DEFAULT '',
+      appt_id       TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY (user_id, id)
+    )
+  `);
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
 }
 
 function normalizePhone(raw: string): string {
@@ -95,6 +111,14 @@ export async function POST(req: NextRequest) {
 
   try {
     await ensureTable();
+
+    const sentLog = await db.execute({
+      sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND appt_id = ? AND type = 'confirmation' AND status = 'sent' LIMIT 1",
+      args: [actor.userId, appointment.id],
+    });
+    if (sentLog.rows.length > 0) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent" });
+    }
 
     const settingsRow = await db.execute({
       sql: "SELECT data FROM salon_data WHERE entity = ?",
