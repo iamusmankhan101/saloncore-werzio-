@@ -789,6 +789,12 @@ async function runSchedulerInternal(): Promise<void> {
       if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
       const appt = appointments.find((a) => a.id === item.id);
       if (!appt) continue;
+      // A confirmation queued while automation was off (or during a long pacing
+      // backlog) can sit for days — by the time the queue drains, the appointment
+      // date itself may already be in the past. Unlike the few-minutes drift this
+      // queue normally tolerates (see below), a stale-by-calendar-days booking is
+      // no longer useful to "confirm" — drop it instead of sending.
+      if (appt.date < todayKey) continue;
       const phone = clientPhone(appt.clientId);
       const clientName = appt.clientName;
       if (!phone) {
