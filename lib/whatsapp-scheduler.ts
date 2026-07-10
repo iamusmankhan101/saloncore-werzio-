@@ -323,7 +323,34 @@ export function purgeQueuedAppointmentMessages(apptIds: Iterable<string>): void 
   clearReminderSendAts(ids);
 }
 
-/** Send a new-booking alert to the salon WhatsApp group immediately (fire-and-forget). */
+type DbQueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "lowstock" | "manual";
+
+function dbScheduledAt(delayMs = 0): string {
+  return new Date(Date.now() + delayMs).toISOString();
+}
+
+async function queueDbWhatsAppMessage(payload: {
+  kind: DbQueueKind;
+  phone: string;
+  text: string;
+  clientName?: string;
+  apptId?: string;
+  apptDate?: string;
+  apptTime?: string;
+  scheduledAt?: string;
+  dedupeKey?: string;
+}): Promise<boolean> {
+  const response = await fetch("/api/whatsapp/queue-message", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`Queue message failed: HTTP ${response.status}`);
+  const data = await response.json().catch(() => ({})) as { ok?: boolean; queued?: boolean; skipped?: boolean };
+  return data.ok === true && data.queued === true && data.skipped !== true;
+}
+
+/** Queue a new-booking alert to the salon WhatsApp group in the shared DB queue. */
 export async function sendGroupBookingAlert(appt: {
   id?: string;
   clientName: string;
@@ -376,8 +403,18 @@ export async function sendGroupBookingAlert(appt: {
     amount: appt.totalAmount != null ? String(appt.totalAmount) : "",
   });
 
-  const ok = await callSendApi(ws.bookingGroupJid, text, { type: "newbooking", clientName: "Group" });
-  if (ok && sentKey) markSent(sentKey);
+  const queued = await queueDbWhatsAppMessage({
+    kind: "groupalert",
+    phone: ws.bookingGroupJid,
+    text,
+    clientName: "Group",
+    apptId: appt.id,
+    apptDate: appt.date,
+    apptTime: appt.startTime,
+    scheduledAt: dbScheduledAt(MESSAGE_JITTER_MIN_MS + Math.random() * (MESSAGE_JITTER_MAX_MS - MESSAGE_JITTER_MIN_MS)),
+    dedupeKey: sentKey,
+  });
+  if (queued && sentKey) markSent(sentKey);
 }
 
 /** Call when a new appointment is booked — queues confirmation in the shared DB queue so it drains even if this browser closes. */
@@ -423,22 +460,32 @@ export function enqueueWhatsAppFollowup(apptId: string) {
   // jitter so every customer's follow-up lands at a slightly different time instead
   // of everyone getting it at exactly the same clock time 24h later.
   const jitterMs = (5 + Math.random() * 25) * 60_000;
-  const q = getQueue(FOLLOWUP_QUEUE_KEY);
   // Snapshot phone/name/service/date/time now so the message can still send with
   // the right details even if the appointment record is deleted before this fires
   // (this is what caused follow-ups to fail as "Unknown client" with no phone).
   const appt = getStoredAppointments().find(a => a.id === apptId);
+  if (!appt) return;
   const clients = getStoredClients();
-  const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
+  const client = clients.find(c => c.id === appt.clientId);
   const phone = client?.phone ? normalizePhone(client.phone) : "";
   if (!phone) return;
   // Scoped to this one booking, not the client overall — see enqueueWhatsAppConfirmation.
-  if (q.some((item) => item.id === apptId)) return;
-  setQueue(FOLLOWUP_QUEUE_KEY, [...q, {
-    id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs,
-    phone, clientName: appt?.clientName,
-    serviceNames: appt?.serviceNames, date: appt?.date, startTime: appt?.startTime,
-  }]);
+  if (alreadySent(`followup_${apptId}`)) return;
+  const tpl = (settingsStore.whatsapp as { followup?: string }).followup;
+  if (!tpl) return;
+  const salonName = settingsStore.salon.name as string;
+  const text = fillTemplate(tpl, buildVars(appt, salonName));
+  void queueDbWhatsAppMessage({
+    kind: "followup",
+    phone,
+    text,
+    clientName: appt.clientName,
+    apptId,
+    apptDate: appt.date,
+    apptTime: appt.startTime,
+    scheduledAt: dbScheduledAt(delayMs + jitterMs),
+    dedupeKey: `followup_${apptId}`,
+  }).catch((err) => console.warn("⚠️ Follow-up queue failed", err));
 }
 
 /** Call when an appointment is cancelled — sends a win-back discount message after the configured delay. */
@@ -453,16 +500,33 @@ export function enqueueWhatsAppCancellation(apptId: string) {
   // jitter so this win-back offer never lands at exactly the same clock-round
   // interval after every cancellation.
   const jitterMs = (10 + Math.random() * 20) * 60_000;
-  const q = getQueue(CANCEL_QUEUE_KEY);
-  if (!q.some((item) => item.id === apptId)) {
-    // Snapshot phone + name now so the message can fire even if the appointment record is deleted
-    const appt = getStoredAppointments().find(a => a.id === apptId);
-    const clients = getStoredClients();
-    const client = appt ? clients.find(c => c.id === appt.clientId) : undefined;
-    const phone = client?.phone ? normalizePhone(client.phone) : "";
-    if (!phone) return;
-    setQueue(CANCEL_QUEUE_KEY, [...q, { id: apptId, retries: 0, sendAfter: Date.now() + delayMs + jitterMs, phone, clientName: appt?.clientName }]);
-  }
+  if (alreadySent(`cancel_${apptId}`)) return;
+  // Snapshot phone + name now so the message can fire even if the appointment record is deleted
+  const appt = getStoredAppointments().find(a => a.id === apptId);
+  if (!appt) return;
+  const clients = getStoredClients();
+  const client = clients.find(c => c.id === appt.clientId);
+  const phone = client?.phone ? normalizePhone(client.phone) : "";
+  if (!phone) return;
+  const cancelSettings = settingsStore.wasender as { cancelDiscount?: string; cancelDiscountEnabled?: boolean };
+  const cancelTpl = (settingsStore.whatsapp as { cancellation: string; cancellationNoDiscount?: string })[
+    cancelSettings.cancelDiscountEnabled === false ? "cancellationNoDiscount" : "cancellation"
+  ] || (settingsStore.whatsapp as { cancellation: string }).cancellation;
+  if (!cancelTpl) return;
+  const salonName = settingsStore.salon.name as string;
+  const cancelDiscount = cancelSettings.cancelDiscountEnabled === false ? "" : (cancelSettings.cancelDiscount || "10%");
+  const text = fillTemplate(cancelTpl, { ...buildVars(appt, salonName), discount: cancelDiscount });
+  void queueDbWhatsAppMessage({
+    kind: "cancellation",
+    phone,
+    text,
+    clientName: appt.clientName,
+    apptId,
+    apptDate: appt.date,
+    apptTime: appt.startTime,
+    scheduledAt: dbScheduledAt(delayMs + jitterMs),
+    dedupeKey: `cancellation_${apptId}`,
+  }).catch((err) => console.warn("⚠️ Cancellation queue failed", err));
 }
 
 type ProviderConfig = WhatsAppSafetyConfig & {
@@ -837,8 +901,21 @@ async function runSchedulerInternal(): Promise<void> {
         // due) before sending — see getReminderSendAt.
         if (Date.now() < getReminderSendAt(appt.id)) continue;
         const text = fillTemplate(waTpl.reminder, buildVars(appt, salonName));
-        const ok = await callSendApi(phone, text, { type: "reminder", clientName: appt.clientName });
-        if (ok) { markSent(sentKey); clearReminderSendAt(appt.id); } // only mark sent on success so failures are retried
+        const queued = await queueDbWhatsAppMessage({
+          kind: "reminder",
+          phone,
+          text,
+          clientName: appt.clientName,
+          apptId: appt.id,
+          apptDate: appt.date,
+          apptTime: appt.startTime,
+          scheduledAt: dbScheduledAt(MESSAGE_JITTER_MIN_MS + Math.random() * (MESSAGE_JITTER_MAX_MS - MESSAGE_JITTER_MIN_MS)),
+          dedupeKey: sentKey,
+        }).catch((err) => {
+          console.warn("⚠️ Reminder queue failed", err);
+          return false;
+        });
+        if (queued) { markSent(sentKey); clearReminderSendAt(appt.id); }
       }
     }
   }
@@ -996,18 +1073,43 @@ export async function checkLowStockAlerts(): Promise<void> {
 
   // Send to the owner's own number and the linked salon WhatsApp group — either or
   // both, whichever are configured — so the whole team can see it, not just one phone.
+  const stockKey = newlyLow.map((i) => i.id).sort().join("_");
+  let queuedAny = false;
   if (ws.ownerPhone) {
     console.log("📦 Sending low stock alert for:", newlyLow.map((i) => i.name), "→", normalizePhone(ws.ownerPhone));
-    const ok = await callSendApi(normalizePhone(ws.ownerPhone), text, { type: "lowstock", clientName: "Owner" });
-    console.log("📦 Low stock alert (owner) result:", ok ? "sent ✅" : "failed ❌");
+    const queued = await queueDbWhatsAppMessage({
+      kind: "lowstock",
+      phone: normalizePhone(ws.ownerPhone),
+      text,
+      clientName: "Owner",
+      scheduledAt: dbScheduledAt(MESSAGE_JITTER_MIN_MS + Math.random() * (MESSAGE_JITTER_MAX_MS - MESSAGE_JITTER_MIN_MS)),
+      dedupeKey: `lowstock_owner_${today}_${stockKey}`,
+    }).catch((err) => {
+      console.warn("⚠️ Low stock owner queue failed", err);
+      return false;
+    });
+    queuedAny = queuedAny || queued;
+    console.log("📦 Low stock alert (owner) result:", queued ? "queued ✅" : "not queued");
   }
   if (groupJid) {
     console.log("📦 Sending low stock alert for:", newlyLow.map((i) => i.name), "→ linked group");
-    const ok = await callSendApi(groupJid, text, { type: "lowstock", clientName: "Group" });
-    console.log("📦 Low stock alert (group) result:", ok ? "sent ✅" : "failed ❌");
+    const queued = await queueDbWhatsAppMessage({
+      kind: "lowstock",
+      phone: groupJid,
+      text,
+      clientName: "Group",
+      scheduledAt: dbScheduledAt(MESSAGE_JITTER_MIN_MS + Math.random() * (MESSAGE_JITTER_MAX_MS - MESSAGE_JITTER_MIN_MS)),
+      dedupeKey: `lowstock_group_${today}_${stockKey}`,
+    }).catch((err) => {
+      console.warn("⚠️ Low stock group queue failed", err);
+      return false;
+    });
+    queuedAny = queuedAny || queued;
+    console.log("📦 Low stock alert (group) result:", queued ? "queued ✅" : "not queued");
   }
 
-  // Mark attempted regardless of outcome — low stock alerts send once per day only
-  newlyLow.forEach((i) => { sent[i.id] = today; });
-  localStorage.setItem(locationUserKey(LOW_STOCK_SENT_KEY), JSON.stringify(sent));
+  if (queuedAny) {
+    newlyLow.forEach((i) => { sent[i.id] = today; });
+    localStorage.setItem(locationUserKey(LOW_STOCK_SENT_KEY), JSON.stringify(sent));
+  }
 }

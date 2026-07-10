@@ -1,8 +1,8 @@
 /**
  * /api/cron/booking-queue
  *
- * Drains wa_booking_send_queue — the online-booking confirmation and salon
- * group alert, queued by /api/public/booking with a 5-7 min scheduled_at
+ * Drains wa_booking_send_queue — automated appointment/customer WhatsApp sends
+ * queued by the app with a 5-7 min scheduled_at
  * instead of being sent immediately (a serverless function can't just sleep
  * for 5-7 minutes to apply the same jitter every other automated WhatsApp
  * send in this app uses).
@@ -91,10 +91,13 @@ async function ensureTables() {
   `);
 }
 
+type QueueKind = "confirmation" | "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "lowstock" | "manual";
+type LogKind = QueueKind | "invoice";
+
 interface QueueRow {
   id: string;
   userId: string;
-  kind: "confirmation" | "groupalert";
+  kind: QueueKind;
   phone: string;
   text: string;
   clientName: string;
@@ -116,7 +119,7 @@ async function getDueItems(): Promise<QueueRow[]> {
   return result.rows.map((r) => ({
     id: r.id as string,
     userId: r.user_id as string,
-    kind: r.kind as "confirmation" | "groupalert",
+    kind: r.kind as QueueKind,
     phone: r.phone as string,
     text: r.text as string,
     clientName: r.client_name as string,
@@ -153,7 +156,39 @@ async function hasSentConfirmation(userId: string, apptId: string): Promise<bool
   }
 }
 
-async function logMessage(userId: string, kind: string, clientName: string, phone: string, status: "sent" | "failed", error?: string, apptId = "") {
+function logTypeForKind(kind: LogKind): string {
+  if (kind === "groupalert") return "newbooking";
+  return kind;
+}
+
+function messageTypeForKind(kind: QueueKind): "reminder" | "confirmation" | "followup" | "cancellation" | "manual" | "birthday" {
+  if (kind === "groupalert") return "manual";
+  if (kind === "lowstock") return "manual";
+  return kind;
+}
+
+function autoSettingEnabled(settings: Record<string, unknown> | null, kind: QueueKind): boolean {
+  const wasender = settings?.wasender as {
+    autoConfirmation?: boolean;
+    autoGroupBooking?: boolean;
+    autoFollowup?: boolean;
+    autoCancellation?: boolean;
+  } | undefined;
+  if (kind === "confirmation") return wasender?.autoConfirmation !== false;
+  if (kind === "groupalert") return wasender?.autoGroupBooking !== false;
+  if (kind === "followup") return wasender?.autoFollowup !== false;
+  if (kind === "cancellation") return wasender?.autoCancellation !== false;
+  return true;
+}
+
+function apptIdForQueueItem(item: QueueRow): string {
+  if (item.kind === "confirmation") return item.id;
+  if (item.kind === "groupalert" && item.id.startsWith("newbooking_")) return item.id.slice("newbooking_".length);
+  const prefix = `${item.kind}_`;
+  return item.id.startsWith(prefix) ? item.id.slice(prefix.length) : "";
+}
+
+async function logMessage(userId: string, kind: LogKind, clientName: string, phone: string, status: "sent" | "failed", error?: string, apptId = "") {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   try {
     await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
@@ -161,7 +196,7 @@ async function logMessage(userId: string, kind: string, clientName: string, phon
       sql: `INSERT OR REPLACE INTO wa_message_logs
               (id, user_id, timestamp, type, client_name, phone, status, template_id, error_message, appt_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, 'direct', ?, ?)`,
-      args: [id, userId, new Date().toISOString(), kind === "groupalert" ? "newbooking" : "confirmation", clientName, phone, status, error ?? "", apptId],
+      args: [id, userId, new Date().toISOString(), logTypeForKind(kind), clientName, phone, status, error ?? "", apptId],
     });
   } catch { /* non-critical */ }
 }
@@ -270,6 +305,10 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       skipped++;
       continue;
     }
+    if (!autoSettingEnabled(settings, item.kind)) {
+      skipped++;
+      continue;
+    }
     if (item.kind === "confirmation" && await hasSentConfirmation(item.userId, item.id)) {
       await updateItem(item, "sent");
       skipped++;
@@ -280,14 +319,14 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
 
     const result = await sendWhatsAppMessage(
       providerConfig, item.phone, item.text,
-      { messageType: item.kind === "groupalert" ? "manual" : "confirmation" },
+      { messageType: messageTypeForKind(item.kind) },
     );
     if (result.skipped) {
       await updateItem(item, "expired", "Skipped fake/placeholder recipient.");
       skipped++;
       continue;
     }
-    await logMessage(item.userId, item.kind, item.clientName, item.phone, result.ok ? "sent" : "failed", result.errorReason, item.kind === "confirmation" ? item.id : "");
+    await logMessage(item.userId, item.kind, item.clientName, item.phone, result.ok ? "sent" : "failed", result.errorReason, apptIdForQueueItem(item));
 
     if (result.ok) {
       await updateItem(item, "sent");

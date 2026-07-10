@@ -49,6 +49,17 @@ async function count(sql: string, args: string[]) {
   return Number(result.rows[0]?.count ?? 0);
 }
 
+async function countsByKind(userId: string) {
+  const result = await db.execute({
+    sql: `SELECT kind, COUNT(*) AS count
+          FROM wa_booking_send_queue
+          WHERE user_id = ? AND status = 'pending'
+          GROUP BY kind`,
+    args: [userId],
+  });
+  return Object.fromEntries(result.rows.map((row) => [row.kind as string, Number(row.count ?? 0)]));
+}
+
 export async function GET(request: NextRequest) {
   const actor = await resolveActor(request);
   if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
@@ -76,6 +87,11 @@ export async function GET(request: NextRequest) {
       "SELECT COUNT(*) AS count FROM wa_booking_send_queue WHERE user_id = ? AND kind = 'groupalert' AND status = 'pending'",
       [actor.userId],
     );
+    const groupAlertDue = await count(
+      "SELECT COUNT(*) AS count FROM wa_booking_send_queue WHERE user_id = ? AND kind = 'groupalert' AND status = 'pending' AND scheduled_at <= ?",
+      [actor.userId, now],
+    );
+    const pendingByKind = await countsByKind(actor.userId);
     const posPending = await count(
       "SELECT COUNT(*) AS count FROM wa_pos_receipt_queue WHERE user_id = ? AND status = 'pending'",
       [actor.userId],
@@ -92,6 +108,8 @@ export async function GET(request: NextRequest) {
       confirmationPending,
       confirmationDue,
       groupAlertPending,
+      groupAlertDue,
+      pendingByKind,
       posPending,
       posDue,
       totalPending: bookingPending + posPending,
