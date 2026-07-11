@@ -102,6 +102,12 @@ function scheduledAtFor(kind: QueueKind, requested?: string): string {
       return new Date(now + randBetween(10 * MINUTE_MS, 20 * MINUTE_MS)).toISOString();
     }
   }
+  if (kind === "cancellation" || kind === "birthday") {
+    const minimum = now + 20 * MINUTE_MS;
+    if (!Number.isFinite(requestedAt) || requestedAt < minimum) {
+      return new Date(now + randBetween(20 * MINUTE_MS, 30 * MINUTE_MS)).toISOString();
+    }
+  }
   return Number.isFinite(requestedAt) ? new Date(requestedAt).toISOString() : new Date(now).toISOString();
 }
 
