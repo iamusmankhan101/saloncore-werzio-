@@ -945,7 +945,7 @@ export default function POSPage() {
         </div>
 
         {/* ══════════════════════ PANEL 3: CART ══════════════════════ */}
-        <div className={`pos-surface pos-cart-panel ${posTab !== "cart" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+        <div className={`pos-surface pos-cart-panel ${posTab !== "cart" ? "pos-panel-hide" : ""}`} style={{ background: "#fff", borderRadius: 16, border: "1px solid #eaeaf4", display: "flex", flexDirection: "column", minHeight: 0, overflowX: "hidden", overflowY: "auto", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
           {/* Cart header */}
           <div className="pos-panel-heading" style={{ padding: "14px 16px", borderBottom: "1px solid #f4f4fc", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -969,7 +969,7 @@ export default function POSPage() {
           </div>
 
           {/* Cart items */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ flex: cart.length === 0 ? 1 : "0 0 auto", minHeight: 0, overflowY: "visible", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 12 }}>
             {cart.length === 0 ? (
               <div className="pos-cart-empty" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 16px", textAlign: "center" }}>
                 <div className="pos-cart-empty-icon" style={{ width: 64, height: 64, borderRadius: 18, background: "#f4f4fc", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
@@ -1049,7 +1049,7 @@ export default function POSPage() {
 
           {/* ── Cart footer ── */}
           {cart.length > 0 && (
-            <div style={{ borderTop: "1px solid #f4f4fc", padding: "14px 14px 14px", flexShrink: 0, maxHeight: "100%", overflowY: "auto" }}>
+            <div style={{ borderTop: "1px solid #f4f4fc", padding: "14px 14px 14px", flexShrink: 0 }}>
 
               {/* Summary */}
               <div style={{ marginBottom: 10 }}>
