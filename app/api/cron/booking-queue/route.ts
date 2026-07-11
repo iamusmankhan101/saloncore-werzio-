@@ -75,6 +75,7 @@ async function ensureTables() {
   // Older deployments may predate appt_date/appt_time — add them if missing.
   await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_date TEXT`).catch(() => {});
   await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_time TEXT`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN service TEXT`).catch(() => {});
   await db.execute(`
     CREATE TABLE IF NOT EXISTS wa_message_logs (
       id            TEXT NOT NULL,
@@ -89,6 +90,8 @@ async function ensureTables() {
       PRIMARY KEY (user_id, id)
     )
   `);
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_date TEXT NOT NULL DEFAULT ''`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN service TEXT NOT NULL DEFAULT ''`).catch(() => {});
   await db.execute(`
     CREATE TABLE IF NOT EXISTS wa_pos_receipt_queue (
       id             TEXT NOT NULL,
@@ -123,13 +126,14 @@ interface QueueRow {
   clientName: string;
   apptDate: string | null;
   apptTime: string | null;
+  service: string | null;
   scheduledAt: string;
   attempts: number;
 }
 
 async function getDueItems(): Promise<QueueRow[]> {
   const result = await db.execute({
-    sql: `SELECT id, user_id, kind, phone, text, client_name, appt_date, appt_time, scheduled_at, attempts
+    sql: `SELECT id, user_id, kind, phone, text, client_name, appt_date, appt_time, service, scheduled_at, attempts
           FROM wa_booking_send_queue
           WHERE status = 'pending' AND scheduled_at <= ? AND attempts < ?
           ORDER BY scheduled_at ASC
@@ -145,6 +149,7 @@ async function getDueItems(): Promise<QueueRow[]> {
     clientName: r.client_name as string,
     apptDate: (r.appt_date as string) ?? null,
     apptTime: (r.appt_time as string) ?? null,
+    service: (r.service as string) ?? null,
     scheduledAt: r.scheduled_at as string,
     attempts: Number(r.attempts ?? 0),
   }));
@@ -185,6 +190,24 @@ async function hasSentMessage(userId: string, logType: string, apptId: string): 
     const result = await db.execute({
       sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND appt_id = ? AND type = ? AND status = 'sent' LIMIT 1",
       args: [userId, apptId, logType],
+    });
+    return result.rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+// Guards against duplicate appointment records (or a client re-booked twice for
+// the same visit) resulting in two confirmations/reminders/follow-ups for what
+// is really the same client + service + date — the appt_id check above only
+// catches a retry of the *same* appointment record, not a second, distinct one
+// for the same visit.
+async function hasSentForSameVisit(userId: string, logType: string, phone: string, apptDate: string | null, service: string | null): Promise<boolean> {
+  if (!apptDate?.trim() || !service?.trim()) return false;
+  try {
+    const result = await db.execute({
+      sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND phone = ? AND type = ? AND appt_date = ? AND service = ? AND status = 'sent' LIMIT 1",
+      args: [userId, phone, logType, apptDate.trim(), service.trim()],
     });
     return result.rows.length > 0;
   } catch {
@@ -234,15 +257,15 @@ function apptIdForQueueItem(item: QueueRow): string {
   return item.id.startsWith(prefix) ? item.id.slice(prefix.length) : "";
 }
 
-async function logMessage(userId: string, kind: LogKind, clientName: string, phone: string, status: "sent" | "failed", error?: string, apptId = "") {
+async function logMessage(userId: string, kind: LogKind, clientName: string, phone: string, status: "sent" | "failed", error?: string, apptId = "", apptDate = "", service = "") {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   try {
     await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
     await db.execute({
       sql: `INSERT OR REPLACE INTO wa_message_logs
-              (id, user_id, timestamp, type, client_name, phone, status, template_id, error_message, appt_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'direct', ?, ?)`,
-      args: [id, userId, new Date().toISOString(), logTypeForKind(kind), clientName, phone, status, error ?? "", apptId],
+              (id, user_id, timestamp, type, client_name, phone, status, template_id, error_message, appt_id, appt_date, service)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'direct', ?, ?, ?, ?)`,
+      args: [id, userId, new Date().toISOString(), logTypeForKind(kind), clientName, phone, status, error ?? "", apptId, apptDate, service],
     });
   } catch { /* non-critical */ }
 }
@@ -377,6 +400,12 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       skipped++;
       continue;
     }
+    if ((item.kind === "confirmation" || item.kind === "reminder" || item.kind === "followup")
+        && await hasSentForSameVisit(item.userId, logTypeForKind(item.kind), item.phone, item.apptDate, item.service)) {
+      await updateItem(item, "sent");
+      skipped++;
+      continue;
+    }
 
     const providerConfig = providerFromSettings(settings);
     if (sendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
@@ -406,7 +435,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       skipped++;
       continue;
     }
-    await logMessage(item.userId, item.kind, item.clientName, item.phone, result.ok ? "sent" : "failed", result.errorReason, apptId);
+    await logMessage(item.userId, item.kind, item.clientName, item.phone, result.ok ? "sent" : "failed", result.errorReason, apptId, item.apptDate ?? "", item.service ?? "");
 
     if (result.ok) {
       recordWhatsAppSafetySend({ phone: item.phone, config: providerConfig });

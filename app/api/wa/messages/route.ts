@@ -33,6 +33,8 @@ async function ensureTable() {
   // Older rows may predate these columns — add them if missing (no-op once applied).
   await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN error_message TEXT NOT NULL DEFAULT ''`).catch(() => {});
   await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_date TEXT NOT NULL DEFAULT ''`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN service TEXT NOT NULL DEFAULT ''`).catch(() => {});
 }
 
 export async function GET(req: NextRequest) {
@@ -90,6 +92,8 @@ export async function POST(req: NextRequest) {
       templateId: string;
       error?: string;
       apptId?: string;
+      apptDate?: string;
+      service?: string;
     };
   };
 
@@ -108,11 +112,12 @@ export async function POST(req: NextRequest) {
     const { entry } = body;
     await db.execute({
       sql: `INSERT OR REPLACE INTO wa_message_logs
-              (id, user_id, timestamp, type, client_name, phone, status, template_id, error_message, appt_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              (id, user_id, timestamp, type, client_name, phone, status, template_id, error_message, appt_id, appt_date, service)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         entry.id, body.userId, entry.timestamp, entry.type,
         entry.clientName, entry.phone, entry.status, entry.templateId ?? "", entry.error ?? "", entry.apptId ?? "",
+        entry.apptDate ?? "", entry.service ?? "",
       ],
     });
     return Response.json({ ok: true });

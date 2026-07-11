@@ -16,6 +16,7 @@ interface QueueMessageBody {
   apptId?: string;
   apptDate?: string;
   apptTime?: string;
+  service?: string;
   scheduledAt?: string;
   dedupeKey?: string;
 }
@@ -49,6 +50,7 @@ async function ensureTable() {
   `);
   await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_date TEXT`).catch(() => {});
   await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_time TEXT`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN service TEXT`).catch(() => {});
   await db.execute(`
     CREATE TABLE IF NOT EXISTS wa_message_logs (
       id            TEXT NOT NULL,
@@ -65,6 +67,8 @@ async function ensureTable() {
     )
   `);
   await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_date TEXT NOT NULL DEFAULT ''`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN service TEXT NOT NULL DEFAULT ''`).catch(() => {});
 }
 
 function normalizePhone(raw: string): string {
@@ -148,6 +152,19 @@ async function hasSentMessage(userId: string, kind: QueueKind, apptId?: string):
   return result.rows.length > 0;
 }
 
+// Guards against duplicate appointment records (or a client re-booked twice for
+// the same visit) resulting in two reminders/follow-ups for what is really the
+// same client + service + date — the appt_id check above only catches a retry of
+// the *same* appointment record, not a second, distinct one for the same visit.
+async function hasSentForSameVisit(userId: string, kind: QueueKind, phone: string, apptDate?: string, service?: string): Promise<boolean> {
+  if (!apptDate?.trim() || !service?.trim()) return false;
+  const result = await db.execute({
+    sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND phone = ? AND type = ? AND appt_date = ? AND service = ? AND status = 'sent' LIMIT 1",
+    args: [userId, phone, logTypeForKind(kind), apptDate.trim(), service.trim()],
+  });
+  return result.rows.length > 0;
+}
+
 export async function POST(req: NextRequest) {
   const actor = await resolveActor(req);
   if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
@@ -205,6 +222,10 @@ export async function POST(req: NextRequest) {
     if (await hasSentMessage(actor.userId, body.kind, body.apptId)) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent" });
     }
+    if ((body.kind === "reminder" || body.kind === "followup")
+        && await hasSentForSameVisit(actor.userId, body.kind, phone, body.apptDate, body.service)) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent-same-visit" });
+    }
     const existingQueue = await db.execute({
       sql: "SELECT status FROM wa_booking_send_queue WHERE user_id = ? AND id = ? AND status IN ('pending', 'sent') LIMIT 1",
       args: [actor.userId, id],
@@ -216,8 +237,8 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     await db.execute({
       sql: `INSERT OR IGNORE INTO wa_booking_send_queue
-              (id, user_id, kind, phone, text, client_name, appt_date, appt_time, scheduled_at, status, attempts, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
+              (id, user_id, kind, phone, text, client_name, appt_date, appt_time, service, scheduled_at, status, attempts, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
       args: [
         id,
         actor.userId,
@@ -227,6 +248,7 @@ export async function POST(req: NextRequest) {
         body.clientName?.trim() || "Client",
         body.apptDate || null,
         body.apptTime || null,
+        body.service || null,
         scheduledAtFor(body.kind, body.scheduledAt),
         now,
       ],

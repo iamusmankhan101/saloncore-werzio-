@@ -47,6 +47,7 @@ async function ensureTable() {
   `);
   await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_date TEXT`).catch(() => {});
   await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_time TEXT`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN service TEXT`).catch(() => {});
   await db.execute(`
     CREATE TABLE IF NOT EXISTS wa_message_logs (
       id            TEXT NOT NULL,
@@ -63,6 +64,8 @@ async function ensureTable() {
     )
   `);
   await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_date TEXT NOT NULL DEFAULT ''`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN service TEXT NOT NULL DEFAULT ''`).catch(() => {});
 }
 
 function normalizePhone(raw: string): string {
@@ -118,6 +121,18 @@ export async function POST(req: NextRequest) {
     if (sentLog.rows.length > 0) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent" });
     }
+    // Guards against a duplicate appointment record (or a client re-booked twice
+    // for the same visit) resulting in two confirmations for what is really the
+    // same client + service + date — the appt_id check above only catches a retry
+    // of the *same* appointment record, not a second, distinct one for the same visit.
+    const service = appointment.serviceNames.join(", ");
+    const sameVisitLog = await db.execute({
+      sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND phone = ? AND type = 'confirmation' AND appt_date = ? AND service = ? AND status = 'sent' LIMIT 1",
+      args: [actor.userId, phone, appointment.date, service],
+    });
+    if (sameVisitLog.rows.length > 0) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent-same-visit" });
+    }
     const existingQueue = await db.execute({
       sql: "SELECT status FROM wa_booking_send_queue WHERE user_id = ? AND id = ? AND status IN ('pending', 'sent') LIMIT 1",
       args: [actor.userId, appointment.id],
@@ -161,7 +176,7 @@ export async function POST(req: NextRequest) {
       "Hi {{name}}, your {{service}} booking on {{date}} at {{time}} is confirmed at {{salon_name}}. We look forward to seeing you!";
     const text = fillTemplate(template, {
       name: appointment.clientName,
-      service: appointment.serviceNames.join(", "),
+      service,
       date: appointment.date,
       time: to12h(appointment.startTime),
       salon_name: settings?.salon?.name || "the salon",
@@ -171,8 +186,8 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     await db.execute({
       sql: `INSERT OR IGNORE INTO wa_booking_send_queue
-              (id, user_id, kind, phone, text, client_name, appt_date, appt_time, scheduled_at, status, attempts, created_at)
-            VALUES (?, ?, 'confirmation', ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
+              (id, user_id, kind, phone, text, client_name, appt_date, appt_time, service, scheduled_at, status, attempts, created_at)
+            VALUES (?, ?, 'confirmation', ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
       args: [
         appointment.id,
         actor.userId,
@@ -181,6 +196,7 @@ export async function POST(req: NextRequest) {
         appointment.clientName,
         appointment.date,
         appointment.startTime,
+        service,
         jitteredScheduledAt(),
         now,
       ],

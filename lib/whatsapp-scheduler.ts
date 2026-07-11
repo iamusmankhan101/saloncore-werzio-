@@ -40,6 +40,8 @@ export interface WaLogEntry {
   templateId: string;
   error?: string;
   apptId?: string;
+  apptDate?: string;
+  service?: string;
 }
 
 const LOG_KEY = "werzio_wa_logs";
@@ -378,6 +380,7 @@ async function queueDbWhatsAppMessage(payload: {
   apptId?: string;
   apptDate?: string;
   apptTime?: string;
+  service?: string;
   scheduledAt?: string;
   dedupeKey?: string;
 }): Promise<boolean> {
@@ -524,6 +527,7 @@ export function enqueueWhatsAppFollowup(apptId: string) {
     apptId,
     apptDate: appt.date,
     apptTime: appt.startTime,
+    service: appt.serviceNames.join(", "),
     scheduledAt: dbScheduledAt(delayMs + jitterMs),
     dedupeKey: `followup_${apptId}`,
   }).catch((err) => console.warn("⚠️ Follow-up queue failed", err));
@@ -565,6 +569,7 @@ export function enqueueWhatsAppCancellation(apptId: string) {
     apptId,
     apptDate: appt.date,
     apptTime: appt.startTime,
+    service: appt.serviceNames.join(", "),
     scheduledAt: dbScheduledAt(delayMs + jitterMs),
     dedupeKey: `cancellation_${apptId}`,
   }).catch((err) => console.warn("⚠️ Cancellation queue failed", err));
@@ -642,7 +647,7 @@ async function hasServerSideLog(apptId: string, type: WaMsgType): Promise<boolea
 async function callSendApi(
   phone: string,
   text: string,
-  logMeta: { type: WaMsgType; clientName: string; apptId?: string },
+  logMeta: { type: WaMsgType; clientName: string; apptId?: string; apptDate?: string; service?: string },
 ): Promise<boolean> {
   if (!phone.trim()) return false;
   const providerConfig = settingsStore.wasender as WhatsAppSafetyConfig & {
@@ -706,7 +711,7 @@ async function callSendApi(
     errorReason = String(err);
   }
   if (!skipped) {
-    appendLog({ type: logMeta.type, clientName: logMeta.clientName, phone, status: ok ? "sent" : "failed", templateId: "direct", error: errorReason, apptId: logMeta.apptId });
+    appendLog({ type: logMeta.type, clientName: logMeta.clientName, phone, status: ok ? "sent" : "failed", templateId: "direct", error: errorReason, apptId: logMeta.apptId, apptDate: logMeta.apptDate, service: logMeta.service });
   }
   return ok;
 }
@@ -950,6 +955,7 @@ async function runSchedulerInternal(): Promise<void> {
           apptId: appt.id,
           apptDate: appt.date,
           apptTime: appt.startTime,
+          service: appt.serviceNames.join(", "),
           scheduledAt: dbScheduledAt(REMINDER_TIER_MIN_MS + Math.random() * (REMINDER_TIER_MAX_MS - REMINDER_TIER_MIN_MS)),
           dedupeKey: sentKey,
         }).catch((err) => {
@@ -992,7 +998,7 @@ async function runSchedulerInternal(): Promise<void> {
       const date = appt.date;
       const startTime = appt.startTime;
       const text = fillTemplate(waTpl.confirmation, buildVars({ clientName, serviceNames, date, startTime }, salonName));
-      const ok = await callSendApi(phone, text, { type: "confirmation", clientName, apptId: item.id });
+      const ok = await callSendApi(phone, text, { type: "confirmation", clientName, apptId: item.id, apptDate: date, service: serviceNames.join(", ") });
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
