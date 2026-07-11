@@ -122,6 +122,7 @@ export default function CashFlowPage() {
   const [formError, setFormError]     = useState("");
   const [hoveredBar, setHoveredBar]   = useState<number | null>(null);
   const [fileMessage, setFileMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [previewImage, setPreviewImage] = useState<{ src: string; title: string } | null>(null);
   const importInputRef                 = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -1138,8 +1139,8 @@ export default function CashFlowPage() {
               )}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 80px 32px 32px", padding: "10px 20px", background: "#faf9fd", borderBottom: "1px solid #f0f0f5" }}>
-              {["DATE", "CATEGORY", "DESCRIPTION", "AMOUNT", "", ""].map((h, i) => (
+            <div style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 70px 92px 80px 32px 32px", padding: "10px 20px", background: "#faf9fd", borderBottom: "1px solid #f0f0f5" }}>
+              {["DATE", "CATEGORY", "DESCRIPTION", "BILL", "STATUS", "AMOUNT", "", ""].map((h, i) => (
                 <div key={i} style={{ fontSize: 10, fontWeight: 800, color: "#8e89a3", letterSpacing: "0.08em" }}>{h}</div>
               ))}
             </div>
@@ -1155,7 +1156,7 @@ export default function CashFlowPage() {
               const payColor = PAYMENT_COLORS[exp.paymentMethod];
               const status = expensePaymentStatus(exp);
               return (
-                <div key={exp.id} className="hover-bg-row" style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 92px 80px 32px 32px", padding: "12px 20px", borderBottom: i === periodExpenses.length - 1 ? "none" : "1px solid #f8f8fc", alignItems: "center", transition: "background 0.15s" }}>
+                <div key={exp.id} className="hover-bg-row" style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 70px 92px 80px 32px 32px", padding: "12px 20px", borderBottom: i === periodExpenses.length - 1 ? "none" : "1px solid #f8f8fc", alignItems: "center", transition: "background 0.15s" }}>
                   <div style={{ fontSize: 12, color: "#9898b0", fontWeight: 500 }}>{exp.date}</div>
                   <div>
                     <span style={{ fontSize: 10, fontWeight: 750, color: cat?.color ?? "#888", background: `${cat?.color ?? "#888"}15`, padding: "3px 8px", borderRadius: 20, textTransform: "uppercase", letterSpacing: "0.03em" }}>{cat?.label ?? exp.category}</span>
@@ -1164,10 +1165,23 @@ export default function CashFlowPage() {
                     <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{exp.description}</div>
                     {exp.notes && <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>{exp.notes}</div>}
                     {exp.paymentMethod && <div style={{ fontSize: 11, color: payColor ?? "#9898b0", marginTop: 2, fontWeight: 600 }}>{PAYMENT_LABELS[exp.paymentMethod] ?? exp.paymentMethod}</div>}
-                    {exp.billImageDataUrl && (
-                      <a href={exp.billImageDataUrl} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} style={{ display: "inline-flex", marginTop: 3, fontSize: 11, color: "#6b46c1", fontWeight: 800, textDecoration: "none" }}>
-                        Bill image
-                      </a>
+                  </div>
+                  <div>
+                    {exp.billImageDataUrl ? (
+                      <button
+                        type="button"
+                        title={exp.billImageName || "View bill image"}
+                        aria-label={`View bill image for ${exp.description}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setPreviewImage({ src: exp.billImageDataUrl!, title: exp.billImageName || exp.description || "Bill image" });
+                        }}
+                        style={{ width: 44, height: 44, padding: 0, border: "1px solid #e8e8f0", borderRadius: 8, background: "#fff", cursor: "pointer", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}
+                      >
+                        <img src={exp.billImageDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 11, color: "#c8c8d8", fontWeight: 700 }}>—</span>
                     )}
                   </div>
                   <div>
@@ -1189,8 +1203,8 @@ export default function CashFlowPage() {
             })}
 
             {periodExpenses.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 92px 80px 32px 32px", padding: "12px 20px", background: "#faf9fd", borderTop: "1px solid #f0f0f5" }}>
-                <div style={{ gridColumn: "1 / 5", fontSize: 12, fontWeight: 800, color: "#1a1a2e", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total</div>
+              <div style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 70px 92px 80px 32px 32px", padding: "12px 20px", background: "#faf9fd", borderTop: "1px solid #f0f0f5" }}>
+                <div style={{ gridColumn: "1 / 6", fontSize: 12, fontWeight: 800, color: "#1a1a2e", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total</div>
                 <div style={{ fontSize: 14, fontWeight: 850, color: "#ef4444" }}>{fmt(totalExpense)} paid{pendingExpense > 0 ? ` · ${fmt(pendingExpense)} pending` : ""}</div>
                 <div /><div />
               </div>
@@ -1200,6 +1214,26 @@ export default function CashFlowPage() {
         </div>{/* /2-col grid */}
 
       </div>{/* /desktop-only */}
+      {previewImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewImage(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15, 10, 35, 0.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+        >
+          <div onClick={(event) => event.stopPropagation()} style={{ width: "min(92vw, 780px)", maxHeight: "88vh", background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.28)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 14px", borderBottom: "1px solid #f0f0f5" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewImage.title}</div>
+              <button type="button" onClick={() => setPreviewImage(null)} style={{ width: 32, height: 32, border: "none", borderRadius: 8, background: "#faf9fd", color: "#6b6b8a", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Close bill image preview">
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ padding: 14, maxHeight: "calc(88vh - 57px)", overflow: "auto", background: "#faf9fd" }}>
+              <img src={previewImage.src} alt={previewImage.title} style={{ display: "block", maxWidth: "100%", height: "auto", margin: "0 auto", borderRadius: 10, background: "#fff" }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
