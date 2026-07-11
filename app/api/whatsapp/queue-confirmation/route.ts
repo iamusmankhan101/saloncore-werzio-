@@ -3,6 +3,8 @@ import { resolveActor } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 
+const MINUTE_MS = 60 * 1000;
+
 interface QueueConfirmationBody {
   appointment: {
     id: string;
@@ -81,7 +83,7 @@ function fillTemplate(template: string, vars: Record<string, string>) {
 }
 
 function jitteredScheduledAt(): string {
-  const delayMs = 5 * 60_000 + Math.random() * 2 * 60_000;
+  const delayMs = 5 * MINUTE_MS + Math.random() * 2 * MINUTE_MS;
   return new Date(Date.now() + delayMs).toISOString();
 }
 

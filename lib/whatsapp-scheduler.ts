@@ -897,7 +897,7 @@ async function runSchedulerInternal(): Promise<void> {
       const sentKey = `reminder_${appt.id}`;
       const phone = clientPhone(appt.clientId);
       if (phone && !alreadySent(sentKey) && hoursUntil > 0 && hoursUntil <= ws.reminderHours) {
-        // Wait out this reminder's own 0-10 min jitter (from when it first became
+        // Wait out this reminder's own 5-7 min jitter (from when it first became
         // due) before sending — see getReminderSendAt.
         if (Date.now() < getReminderSendAt(appt.id)) continue;
         const text = fillTemplate(waTpl.reminder, buildVars(appt, salonName));
@@ -909,7 +909,7 @@ async function runSchedulerInternal(): Promise<void> {
           apptId: appt.id,
           apptDate: appt.date,
           apptTime: appt.startTime,
-          scheduledAt: dbScheduledAt(MESSAGE_JITTER_MIN_MS + Math.random() * (MESSAGE_JITTER_MAX_MS - MESSAGE_JITTER_MIN_MS)),
+          scheduledAt: dbScheduledAt(REMINDER_TIER_MIN_MS + Math.random() * (REMINDER_TIER_MAX_MS - REMINDER_TIER_MIN_MS)),
           dedupeKey: sentKey,
         }).catch((err) => {
           console.warn("⚠️ Reminder queue failed", err);

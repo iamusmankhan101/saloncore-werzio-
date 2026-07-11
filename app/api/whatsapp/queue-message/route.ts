@@ -5,6 +5,8 @@ import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProvider
 
 type QueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "lowstock" | "manual";
 
+const MINUTE_MS = 60 * 1000;
+
 interface QueueMessageBody {
   kind: QueueKind;
   phone: string;
@@ -85,6 +87,22 @@ function queueIdFor(body: QueueMessageBody): string {
   if (body.dedupeKey?.trim()) return body.dedupeKey.trim();
   if (body.apptId?.trim()) return `${body.kind}_${body.apptId.trim()}`;
   return `${body.kind}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function randBetween(minMs: number, maxMs: number): number {
+  return Math.round(minMs + Math.random() * (maxMs - minMs));
+}
+
+function scheduledAtFor(kind: QueueKind, requested?: string): string {
+  const now = Date.now();
+  const requestedAt = requested ? new Date(requested).getTime() : NaN;
+  if (kind === "reminder") {
+    const minimum = now + 15 * MINUTE_MS;
+    if (!Number.isFinite(requestedAt) || requestedAt < minimum) {
+      return new Date(now + randBetween(15 * MINUTE_MS, 30 * MINUTE_MS)).toISOString();
+    }
+  }
+  return Number.isFinite(requestedAt) ? new Date(requestedAt).toISOString() : new Date(now).toISOString();
 }
 
 function logTypeForKind(kind: QueueKind): string {
@@ -192,7 +210,7 @@ export async function POST(req: NextRequest) {
         body.clientName?.trim() || "Client",
         body.apptDate || null,
         body.apptTime || null,
-        body.scheduledAt || now,
+        scheduledAtFor(body.kind, body.scheduledAt),
         now,
       ],
     });
