@@ -435,9 +435,8 @@ export default function POSPage() {
 
       setLastInvoice(invoice);
       setPrintInvoice(invoice);
+      await sendReceiptWA(invoice, selectedClient);
       setCompleted(true);
-
-      void sendReceiptWA(invoice, selectedClient);
     } finally {
       setCompleting(false);
     }
