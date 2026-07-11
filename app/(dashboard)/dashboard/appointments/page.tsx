@@ -38,6 +38,36 @@ function fmtTime(t: string) {
   return `${hour}:${String(m).padStart(2, "0")}${ampm}`;
 }
 
+function appointmentCreatedAt(appt: Appointment): Date | null {
+  if (appt.createdAt?.includes("T")) {
+    const parsed = new Date(appt.createdAt);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  const idTimestamp = /^a_(\d{13})/.exec(appt.id)?.[1];
+  if (idTimestamp) {
+    const parsed = new Date(Number(idTimestamp));
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  if (appt.createdAt) {
+    const parsed = new Date(appt.createdAt);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
+}
+
+function fmtCreatedAt(appt: Appointment) {
+  const createdAt = appointmentCreatedAt(appt);
+  if (!createdAt) return "—";
+  return createdAt.toLocaleString("en-PK", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Karachi",
+  });
+}
+
 function toMin(t: string) {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
@@ -441,6 +471,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       totalAmount: totalPrice,
       source: newClient ? "walk-in" : (clients.find((c) => c.id === form.clientId)?.source ?? "walk-in"),
       notes: form.notes || undefined,
+      createdAt: new Date().toISOString(),
     };
 
     try {
@@ -1292,7 +1323,7 @@ export default function AppointmentsPage() {
         <div className="desktop-only">
         <div className="table-scroll-inner">
         <div className="appt-table-inner">
-        <div style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 130px 1.5fr 120px 110px 90px 110px", padding: "12px 20px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 130px 120px 1.5fr 120px 110px 90px 110px", padding: "12px 20px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd" }}>
           <div style={{ display: "flex", alignItems: "center" }}>
             <input
               type="checkbox"
@@ -1302,7 +1333,7 @@ export default function AppointmentsPage() {
               style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#7C3AED" }}
             />
           </div>
-          {["CLIENT", "DATE", "SERVICE", "STYLIST", "STATUS", "AMOUNT", ""].map((h) => (
+          {["CLIENT", "DATE", "CREATED", "SERVICE", "STYLIST", "STATUS", "AMOUNT", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#8e89a3", letterSpacing: "0.08em" }}>{h}</div>
           ))}
         </div>
@@ -1320,7 +1351,7 @@ export default function AppointmentsPage() {
               <div
                 key={appt.id}
                 onClick={() => setSelected(appt)}
-                style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 130px 1.5fr 120px 110px 90px 110px", padding: "14px 20px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", alignItems: "center", cursor: "pointer", background: isChecked ? "#F5F3FF" : "transparent", transition: "background 0.2s" }}
+                style={{ display: "grid", gridTemplateColumns: "40px 1.2fr 130px 120px 1.5fr 120px 110px 90px 110px", padding: "14px 20px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", alignItems: "center", cursor: "pointer", background: isChecked ? "#F5F3FF" : "transparent", transition: "background 0.2s" }}
                 className="hover-bg-row"
               >
                 <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center" }}>
@@ -1347,6 +1378,7 @@ export default function AppointmentsPage() {
                     <span>{fmtTime(appt.startTime)}</span>
                   </div>
                 </div>
+                <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 650, whiteSpace: "nowrap" }}>{fmtCreatedAt(appt)}</div>
                 <div style={{ fontSize: 13, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 550 }}>
                   {appt.serviceNames.join(", ")}
                 </div>

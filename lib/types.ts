@@ -138,6 +138,7 @@ export interface Appointment {
   totalAmount: number;
   notes?: string;
   source: "whatsapp" | "walk-in" | "web" | "manual";
+  createdAt?: string;
 }
 
 export interface Payment {

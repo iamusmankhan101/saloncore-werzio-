@@ -43,6 +43,7 @@ interface AppointmentPayload {
   totalAmount: number;
   source: string;
   notes?: string;
+  createdAt?: string;
 }
 
 async function ensureTable() {
@@ -122,7 +123,8 @@ export async function POST(req: NextRequest) {
     // alert even when the row itself collapses to one on write.
     const isDuplicateSubmission = existingAppts.some((a) => a.id === appointment.id);
     if (!isDuplicateSubmission) {
-      const updatedAppts = [appointment, ...existingAppts];
+      const appointmentWithCreatedAt = { ...appointment, createdAt: appointment.createdAt || now };
+      const updatedAppts = [appointmentWithCreatedAt, ...existingAppts];
       await db.execute({
         sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
         args: [apptKey, JSON.stringify(updatedAppts), now],

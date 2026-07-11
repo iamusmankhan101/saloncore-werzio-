@@ -188,6 +188,7 @@ function OnlineBookingInner() {
       totalAmount:  totalPrice,
       source:       "web",
       notes:        notes || undefined,
+      createdAt:    new Date().toISOString(),
     };
 
     if (salonId) {
