@@ -97,9 +97,9 @@ function scheduledAtFor(kind: QueueKind, requested?: string): string {
   const now = Date.now();
   const requestedAt = requested ? new Date(requested).getTime() : NaN;
   if (kind === "reminder") {
-    const minimum = now + 15 * MINUTE_MS;
+    const minimum = now + 10 * MINUTE_MS;
     if (!Number.isFinite(requestedAt) || requestedAt < minimum) {
-      return new Date(now + randBetween(15 * MINUTE_MS, 30 * MINUTE_MS)).toISOString();
+      return new Date(now + randBetween(10 * MINUTE_MS, 20 * MINUTE_MS)).toISOString();
     }
   }
   return Number.isFinite(requestedAt) ? new Date(requestedAt).toISOString() : new Date(now).toISOString();

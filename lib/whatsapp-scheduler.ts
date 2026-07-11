@@ -208,8 +208,8 @@ let schedulerRunning = false;
 // type's spacing.
 const FAST_JITTER_MIN_MS = MESSAGE_JITTER_MIN_MS;       // 5 min
 const FAST_JITTER_MAX_MS = MESSAGE_JITTER_MAX_MS;        // 7 min
-const REMINDER_TIER_MIN_MS = 15 * 60_000;
-const REMINDER_TIER_MAX_MS = 30 * 60_000;
+const REMINDER_TIER_MIN_MS = 10 * 60_000;
+const REMINDER_TIER_MAX_MS = 20 * 60_000;
 const FOLLOWUP_TIER_MIN_MS = 20 * 60_000;
 const FOLLOWUP_TIER_MAX_MS = 35 * 60_000;
 
