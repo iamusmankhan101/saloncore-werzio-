@@ -13,7 +13,7 @@ import { activeWhatsAppCredential, type WhatsAppProviderConfig } from "@/lib/wha
 const MINUTE_MS = 60 * 1000;
 
 function followupSpacingMs() {
-  return Math.round(20 * MINUTE_MS + Math.random() * 15 * MINUTE_MS);
+  return Math.round(25 * MINUTE_MS + Math.random() * 5 * MINUTE_MS);
 }
 
 function authorized(req: NextRequest): boolean {
@@ -143,6 +143,7 @@ interface Appointment {
   serviceNames: string[];
   date: string;
   startTime: string;
+  endTime?: string;
   status: string;
   totalAmount: number;
 }
@@ -150,14 +151,8 @@ interface Appointment {
 interface Client { id: string; phone: string; name: string; }
 
 async function runFollowupCron() {
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
-  // Also catch the day before yesterday in case the cron ran late
-  const twoDaysAgo = new Date(today);
-  twoDaysAgo.setDate(today.getDate() - 2);
-  const twoDaysAgoStr = twoDaysAgo.toISOString().slice(0, 10);
+  const now = new Date();
+  const dueLookbackMs = 36 * 60 * MINUTE_MS;
 
   let queued = 0, skipped = 0;
   let scheduleDelayMs = 0;
@@ -180,6 +175,8 @@ async function runFollowupCron() {
         zaptickApiKey: s?.wasender?.zaptickApiKey,
       };
       const autoFollowup = s?.wasender?.autoFollowup;
+      const rawFollowupDelayMinutes = Number(s?.wasender?.followupDelayMinutes ?? 1440);
+      const followupDelayMinutes = Number.isFinite(rawFollowupDelayMinutes) ? rawFollowupDelayMinutes : 1440;
       const template     = s?.whatsapp?.followup;
       const salonName    = s?.salon?.name || "Your Salon";
 
@@ -204,10 +201,12 @@ async function runFollowupCron() {
         ? JSON.parse(clientsRow.rows[0].data as string)
         : [];
 
-      const eligible = appointments.filter(
-        (a) => a.status === "completed" &&
-          (a.date === yesterdayStr || a.date === twoDaysAgoStr)
-      );
+      const eligible = appointments.filter((appt) => {
+        if (appt.status !== "completed") return false;
+        const completedAt = new Date(`${appt.date}T${appt.endTime || appt.startTime}:00`);
+        const dueAt = new Date(completedAt.getTime() + followupDelayMinutes * MINUTE_MS);
+        return dueAt <= now && now.getTime() - dueAt.getTime() <= dueLookbackMs;
+      });
       const queuedPhones = new Set<string>();
 
       for (const appt of eligible) {
