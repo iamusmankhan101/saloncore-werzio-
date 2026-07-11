@@ -2,6 +2,9 @@ import { locationUserKey } from "./locations";
 
 export type ExpenseCategory =
   | "rent"
+  | "water_bill"
+  | "electricity_bill"
+  | "committee"
   | "salaries"
   | "utilities"
   | "supplies"
@@ -17,6 +20,7 @@ export interface Expense {
   description: string;
   amount: number;
   paymentMethod: string;
+  paymentStatus?: "paid" | "pending";
   notes?: string;
   createdAt: string;   // ISO timestamp
 }

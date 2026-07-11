@@ -26,6 +26,9 @@ const PERIODS: { key: Period; label: string; days: number }[] = [
 
 export const EXPENSE_CATEGORIES: { key: ExpenseCategory; label: string; color: string }[] = [
   { key: "rent",          label: "Rent",                color: "#ef4444" },
+  { key: "water_bill",    label: "Water Bill",          color: "#0ea5e9" },
+  { key: "electricity_bill", label: "Electricity Bill", color: "#f59e0b" },
+  { key: "committee",     label: "Committee",           color: "#14b8a6" },
   { key: "salaries",      label: "Staff Salaries",      color: "#f97316" },
   { key: "utilities",     label: "Utilities",           color: "#eab308" },
   { key: "supplies",      label: "Products & Supplies", color: "#22c55e" },
@@ -44,6 +47,14 @@ const PAYMENT_COLORS: Record<string, string> = {
   cash: "#22c55e", jazzcash: "#f97316", easypaisa: "#10b981",
   bank: "#3b82f6", card: "#6366f1",
 };
+const PAYMENT_STATUSES = [
+  { key: "paid", label: "Paid" },
+  { key: "pending", label: "Pending / unpaid" },
+] as const;
+
+function expensePaymentStatus(expense: Expense): "paid" | "pending" {
+  return expense.paymentStatus === "pending" ? "pending" : "paid";
+}
 
 function toDateStr(d: Date) { return d.toLocaleDateString("en-CA"); }
 
@@ -78,7 +89,7 @@ function monthlyBarsRange(start: string, end: string): { label: string; key: str
   return arr;
 }
 
-const EMPTY_FORM = { date: "", category: "miscellaneous" as ExpenseCategory, description: "", amount: "", paymentMethod: "cash", notes: "" };
+const EMPTY_FORM = { date: "", category: "miscellaneous" as ExpenseCategory, description: "", amount: "", paymentMethod: "cash", paymentStatus: "paid" as "paid" | "pending", notes: "" };
 
 export default function CashFlowPage() {
   const [period, setPeriod]           = useState<Period>("today");
@@ -176,17 +187,22 @@ export default function CashFlowPage() {
     return [...apptRows, ...posRows, ...manualRows].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
   }, [appointments, posInvoices, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
 
-  const totalExpense = periodExpenses.reduce((s, e) => s + e.amount, 0);
+  const paidPeriodExpenses = useMemo(
+    () => periodExpenses.filter(expense => expensePaymentStatus(expense) === "paid"),
+    [periodExpenses],
+  );
+  const pendingExpense = periodExpenses.reduce((s, e) => s + (expensePaymentStatus(e) === "pending" ? e.amount : 0), 0);
+  const totalExpense = paidPeriodExpenses.reduce((s, e) => s + e.amount, 0);
   const netCashFlow  = periodIncome - totalExpense;
 
   const categoryBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
-    periodExpenses.forEach(e => { map[e.category] = (map[e.category] ?? 0) + e.amount; });
+    paidPeriodExpenses.forEach(e => { map[e.category] = (map[e.category] ?? 0) + e.amount; });
     return EXPENSE_CATEGORIES
       .map(c => ({ ...c, amount: map[c.key] ?? 0 }))
       .filter(c => c.amount > 0)
       .sort((a, b) => b.amount - a.amount);
-  }, [periodExpenses]);
+  }, [paidPeriodExpenses]);
 
   // Chart: income vs expense per day (or month for 1y / long custom)
   const chartData = useMemo(() => {
@@ -200,7 +216,7 @@ export default function CashFlowPage() {
             appointments.filter(a => a.status === "completed" && a.date.startsWith(key)).reduce((s, a) => s + a.totalAmount, 0) +
             posInvoices.filter(inv => inv.date.startsWith(key)).reduce((s, inv) => s + inv.total, 0) +
             manualIncome.filter(entry => entry.date.startsWith(key)).reduce((s, entry) => s + entry.amount, 0);
-          const expense = expenses.filter(e => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
+          const expense = expenses.filter(e => e.date.startsWith(key) && expensePaymentStatus(e) === "paid").reduce((s, e) => s + e.amount, 0);
           return { label, income, expense };
         });
       }
@@ -211,7 +227,7 @@ export default function CashFlowPage() {
           appointments.filter(a => a.status === "completed" && a.date === date).reduce((s, a) => s + a.totalAmount, 0) +
           posInvoices.filter(inv => inv.date === date).reduce((s, inv) => s + inv.total, 0) +
           manualIncome.filter(entry => entry.date === date).reduce((s, entry) => s + entry.amount, 0);
-        const expense = expenses.filter(e => e.date === date).reduce((s, e) => s + e.amount, 0);
+        const expense = expenses.filter(e => e.date === date && expensePaymentStatus(e) === "paid").reduce((s, e) => s + e.amount, 0);
         return { label, income, expense };
       });
     }
@@ -223,7 +239,7 @@ export default function CashFlowPage() {
           appointments.filter(a => a.status === "completed" && a.date.startsWith(key)).reduce((s, a) => s + a.totalAmount, 0) +
           posInvoices.filter(inv => inv.date.startsWith(key)).reduce((s, inv) => s + inv.total, 0) +
           manualIncome.filter(entry => entry.date.startsWith(key)).reduce((s, entry) => s + entry.amount, 0);
-        const expense = expenses.filter(e => e.date.startsWith(key)).reduce((s, e) => s + e.amount, 0);
+        const expense = expenses.filter(e => e.date.startsWith(key) && expensePaymentStatus(e) === "paid").reduce((s, e) => s + e.amount, 0);
         return { label: d.toLocaleDateString("en-PK", { month: "short" }), income, expense };
       });
     }
@@ -234,7 +250,7 @@ export default function CashFlowPage() {
         appointments.filter(a => a.status === "completed" && a.date === date).reduce((s, a) => s + a.totalAmount, 0) +
         posInvoices.filter(inv => inv.date === date).reduce((s, inv) => s + inv.total, 0) +
         manualIncome.filter(entry => entry.date === date).reduce((s, entry) => s + entry.amount, 0);
-      const expense = expenses.filter(e => e.date === date).reduce((s, e) => s + e.amount, 0);
+      const expense = expenses.filter(e => e.date === date && expensePaymentStatus(e) === "paid").reduce((s, e) => s + e.amount, 0);
       return { label, income, expense };
     });
   }, [period, today, customStart, customEnd, appointments, posInvoices, manualIncome, expenses, cfg.days]);
@@ -252,7 +268,7 @@ export default function CashFlowPage() {
   function openEdit(exp: Expense) {
     setEditId(exp.id);
     setFormError("");
-    setForm({ date: exp.date, category: exp.category, description: exp.description, amount: String(exp.amount), paymentMethod: exp.paymentMethod, notes: exp.notes ?? "" });
+    setForm({ date: exp.date, category: exp.category, description: exp.description, amount: String(exp.amount), paymentMethod: exp.paymentMethod, paymentStatus: expensePaymentStatus(exp), notes: exp.notes ?? "" });
     setShowForm(true);
   }
 
@@ -273,9 +289,9 @@ export default function CashFlowPage() {
 
     try {
       if (editId) {
-        updateExpense(editId, { date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, notes: form.notes.trim() || undefined });
+        updateExpense(editId, { date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, notes: form.notes.trim() || undefined });
       } else {
-        addExpense({ date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, notes: form.notes.trim() || undefined });
+        addExpense({ date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, notes: form.notes.trim() || undefined });
       }
       setExpenses(getExpenses());
       setFormError("");
@@ -405,7 +421,7 @@ export default function CashFlowPage() {
         if (expenseAmount > 0) {
           importedExpenses.push({
             id: crypto.randomUUID(), date, category: category!, description, amount: expenseAmount,
-            paymentMethod: "cash", notes: "Imported from cash-flow workbook", createdAt,
+            paymentMethod: "cash", paymentStatus: "paid", notes: "Imported from cash-flow workbook", createdAt,
           });
         }
       });
@@ -526,7 +542,7 @@ export default function CashFlowPage() {
         });
 
       // Expenses aggregated per day
-      periodExpenses.forEach(e => {
+      paidPeriodExpenses.forEach(e => {
         if (!dayMap[e.date]) dayMap[e.date] = { card: 0, cash: 0, bank: 0, newAccount: 0, expense: 0 };
         dayMap[e.date].expense += e.amount;
       });
@@ -560,7 +576,8 @@ export default function CashFlowPage() {
         ["Cash Flow Report"],
         ["Period", rangeStart === filterEnd ? rangeStart : `${rangeStart} to ${filterEnd}`],
         ["Total Income (PKR)", periodIncome],
-        ["Total Expenses (PKR)", totalExpense],
+        ["Paid Expenses (PKR)", totalExpense],
+        ["Pending Expenses (PKR)", pendingExpense],
         ["Net Cash Flow (PKR)", netCashFlow],
         ["Exported At", new Date().toISOString()],
       ];
@@ -572,6 +589,7 @@ export default function CashFlowPage() {
         Description: expense.description,
         "Amount (PKR)": expense.amount,
         "Payment Method": PAYMENT_LABELS[expense.paymentMethod] ?? expense.paymentMethod,
+        Status: expensePaymentStatus(expense) === "pending" ? "Pending / unpaid" : "Paid",
         Notes: expense.notes ?? "",
       }));
 
@@ -655,9 +673,9 @@ export default function CashFlowPage() {
       <div class="stat-sub">From appointments & POS</div>
     </div>
     <div class="stat-card" style="background:#fef2f2;border-color:#fecaca">
-      <div class="stat-label">Total Expenses</div>
+      <div class="stat-label">Paid Expenses</div>
       <div class="stat-value" style="color:#ef4444">${fmt(totalExpense)}</div>
-      <div class="stat-sub">${periodExpenses.length} entries logged</div>
+      <div class="stat-sub">${pendingExpense > 0 ? `${fmt(pendingExpense)} pending` : `${periodExpenses.length} entries logged`}</div>
     </div>
     <div class="stat-card" style="background:${netCashFlow >= 0 ? "#f0fdf4" : "#fef2f2"};border-color:${netCashFlow >= 0 ? "#bbf7d0" : "#fecaca"}">
       <div class="stat-label">Net Cash Flow</div>
@@ -710,20 +728,22 @@ export default function CashFlowPage() {
     <div class="section-title">Expense Log</div>
     <div class="section-sub">All entries for this period</div>
     <table>
-      <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Payment</th><th style="text-align:right">Amount</th></tr></thead>
+      <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Payment</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead>
       <tbody>
         ${periodExpenses.map(e => {
           const cat = EXPENSE_CATEGORIES.find(c => c.key === e.category);
+          const status = expensePaymentStatus(e);
           return `<tr>
             <td>${e.date}</td>
             <td><span class="cat-badge" style="background:${cat?.color ?? "#888"}18;color:${cat?.color ?? "#888"}">${cat?.label ?? e.category}</span></td>
             <td>${e.description}</td>
             <td>${PAYMENT_LABELS[e.paymentMethod] ?? e.paymentMethod}</td>
+            <td>${status === "pending" ? "Pending / unpaid" : "Paid"}</td>
             <td style="text-align:right;font-weight:700;color:#ef4444">${fmt(e.amount)}</td>
           </tr>`;
         }).join("")}
         <tr class="total-row">
-          <td colspan="4"><strong>Total Expenses</strong></td>
+          <td colspan="5"><strong>Paid Expenses</strong>${pendingExpense > 0 ? ` · Pending ${fmt(pendingExpense)}` : ""}</td>
           <td style="text-align:right"><strong>${fmt(totalExpense)}</strong></td>
         </tr>
       </tbody>
@@ -839,7 +859,7 @@ export default function CashFlowPage() {
         <div className="stats-grid-3">
           {[
             { label: "Income",    value: fmt(periodIncome),  color: "var(--accent)", bg: "rgba(124, 58, 237, 0.08)", sub: "Appointments & POS",          icon: TrendingUp  },
-            { label: "Expenses",  value: fmt(totalExpense),  color: "#ef4444", bg: "#fef2f2", sub: `${periodExpenses.length} entries logged`, icon: TrendingDown },
+            { label: "Expenses",  value: fmt(totalExpense),  color: "#ef4444", bg: "#fef2f2", sub: pendingExpense > 0 ? `${fmt(pendingExpense)} pending` : `${periodExpenses.length} entries logged`, icon: TrendingDown },
             { label: "Net Flow",  value: (netCashFlow < 0 ? "−" : "+") + fmt(Math.abs(netCashFlow)), color: netCashFlow >= 0 ? "#059669" : "#ef4444", bg: netCashFlow >= 0 ? "#ecfdf5" : "#fef2f2", sub: netCashFlow >= 0 ? "Surplus" : "Deficit", icon: Wallet },
           ].map(({ label, value, color, bg, sub, icon: Icon }) => (
             <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)" }}>
@@ -909,7 +929,7 @@ export default function CashFlowPage() {
               <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1a2e" }}>{editId ? "Edit Expense" : "New Expense"}</span>
               <button onClick={() => { setShowForm(false); setEditId(null); setFormError(""); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0b0c8" }}><X size={16} /></button>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
               <div>
                 <label style={labelSt}>Date</label>
                 <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={inputSt} />
@@ -927,10 +947,16 @@ export default function CashFlowPage() {
                 </select>
               </div>
               <div>
+                <label style={labelSt}>Status</label>
+                <select value={form.paymentStatus} onChange={e => setForm(f => ({ ...f, paymentStatus: e.target.value as "paid" | "pending" }))} style={inputSt}>
+                  {PAYMENT_STATUSES.map(status => <option key={status.key} value={status.key}>{status.label}</option>)}
+                </select>
+              </div>
+              <div>
                 <label style={labelSt}>Amount (PKR)</label>
                 <input type="number" value={form.amount} onChange={e => { setForm(f => ({ ...f, amount: e.target.value })); setFormError(""); }} placeholder="0" min={0.01} step="0.01" style={inputSt} />
               </div>
-              <div style={{ gridColumn: "1 / 4" }}>
+              <div style={{ gridColumn: "1 / -1" }}>
                 <label style={labelSt}>Description <span style={{ fontWeight: 500, textTransform: "none" }}>(optional)</span></label>
                 <input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Shampoo & conditioner restock" style={inputSt} />
               </div>
@@ -1018,7 +1044,7 @@ export default function CashFlowPage() {
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e", letterSpacing: "-0.01em" }}>
                   Expenses
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#9898b0", marginLeft: 8 }}>{periodExpenses.length} entries · {fmt(totalExpense)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#9898b0", marginLeft: 8 }}>{periodExpenses.length} entries · {fmt(totalExpense)} paid{pendingExpense > 0 ? ` · ${fmt(pendingExpense)} pending` : ""}</span>
                 </div>
               </div>
               {!showForm && (
@@ -1043,8 +1069,9 @@ export default function CashFlowPage() {
             ) : periodExpenses.map((exp, i) => {
               const cat = EXPENSE_CATEGORIES.find(c => c.key === exp.category);
               const payColor = PAYMENT_COLORS[exp.paymentMethod];
+              const status = expensePaymentStatus(exp);
               return (
-                <div key={exp.id} className="hover-bg-row" style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 80px 32px 32px", padding: "12px 20px", borderBottom: i === periodExpenses.length - 1 ? "none" : "1px solid #f8f8fc", alignItems: "center", transition: "background 0.15s" }}>
+                <div key={exp.id} className="hover-bg-row" style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 92px 80px 32px 32px", padding: "12px 20px", borderBottom: i === periodExpenses.length - 1 ? "none" : "1px solid #f8f8fc", alignItems: "center", transition: "background 0.15s" }}>
                   <div style={{ fontSize: 12, color: "#9898b0", fontWeight: 500 }}>{exp.date}</div>
                   <div>
                     <span style={{ fontSize: 10, fontWeight: 750, color: cat?.color ?? "#888", background: `${cat?.color ?? "#888"}15`, padding: "3px 8px", borderRadius: 20, textTransform: "uppercase", letterSpacing: "0.03em" }}>{cat?.label ?? exp.category}</span>
@@ -1053,6 +1080,9 @@ export default function CashFlowPage() {
                     <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{exp.description}</div>
                     {exp.notes && <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>{exp.notes}</div>}
                     {exp.paymentMethod && <div style={{ fontSize: 11, color: payColor ?? "#9898b0", marginTop: 2, fontWeight: 600 }}>{PAYMENT_LABELS[exp.paymentMethod] ?? exp.paymentMethod}</div>}
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: status === "pending" ? "#b45309" : "#059669", background: status === "pending" ? "#fef3c7" : "#dcfce7", padding: "3px 8px", borderRadius: 20, textTransform: "uppercase" }}>{status === "pending" ? "Pending" : "Paid"}</span>
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: "#ef4444" }}>{fmt(exp.amount)}</div>
                   <button type="button" aria-label={`Edit expense: ${exp.description}`} title="Edit expense" onClick={() => openEdit(exp)} style={{ background: "none", border: "none", cursor: "pointer", color: "#c8c8d8", padding: 4, display: "flex", alignItems: "center", transition: "color 0.15s" }}
@@ -1070,9 +1100,9 @@ export default function CashFlowPage() {
             })}
 
             {periodExpenses.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 80px 32px 32px", padding: "12px 20px", background: "#faf9fd", borderTop: "1px solid #f0f0f5" }}>
-                <div style={{ gridColumn: "1 / 4", fontSize: 12, fontWeight: 800, color: "#1a1a2e", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total</div>
-                <div style={{ fontSize: 14, fontWeight: 850, color: "#ef4444" }}>{fmt(totalExpense)}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 92px 80px 32px 32px", padding: "12px 20px", background: "#faf9fd", borderTop: "1px solid #f0f0f5" }}>
+                <div style={{ gridColumn: "1 / 5", fontSize: 12, fontWeight: 800, color: "#1a1a2e", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total</div>
+                <div style={{ fontSize: 14, fontWeight: 850, color: "#ef4444" }}>{fmt(totalExpense)} paid{pendingExpense > 0 ? ` · ${fmt(pendingExpense)} pending` : ""}</div>
                 <div /><div />
               </div>
             )}
