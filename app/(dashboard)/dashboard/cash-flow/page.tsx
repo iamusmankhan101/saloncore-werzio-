@@ -53,6 +53,7 @@ const PAYMENT_STATUSES = [
 ] as const;
 const BILL_EXPENSE_CATEGORIES = new Set<ExpenseCategory>(["rent", "water_bill", "electricity_bill", "committee"]);
 const MAX_BILL_IMAGE_BYTES = 2 * 1024 * 1024;
+const VIEWABLE_BILL_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 function expensePaymentStatus(expense: Expense): "paid" | "pending" {
   return expense.paymentStatus === "pending" ? "pending" : "paid";
@@ -305,8 +306,8 @@ export default function CashFlowPage() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setFormError("Please upload an image file for the bill.");
+    if (!VIEWABLE_BILL_IMAGE_TYPES.has(file.type)) {
+      setFormError("Please upload a JPG, PNG, WebP, or GIF bill image.");
       return;
     }
     if (file.size > MAX_BILL_IMAGE_BYTES) {
@@ -1033,7 +1034,7 @@ export default function CashFlowPage() {
                 <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: 10, borderRadius: 10, border: "1px dashed #d8d4e8", background: "#faf9fd" }}>
                   <label style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", color: "#6b46c1", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
                     <Upload size={14} /> Upload bill image
-                    <input type="file" accept="image/*" onChange={handleBillImageChange} style={{ display: "none" }} />
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleBillImageChange} style={{ display: "none" }} />
                   </label>
                   {form.billImageDataUrl ? (
                     <>
@@ -1176,9 +1177,15 @@ export default function CashFlowPage() {
                           event.stopPropagation();
                           setPreviewImage({ src: exp.billImageDataUrl!, title: exp.billImageName || exp.description || "Bill image" });
                         }}
-                        style={{ width: 44, height: 44, padding: 0, border: "1px solid #e8e8f0", borderRadius: 8, background: "#fff", cursor: "pointer", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}
+                        style={{ width: 44, height: 44, padding: 0, border: "1px solid #e8e8f0", borderRadius: 8, background: "#faf9fd", cursor: "pointer", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.04)", position: "relative" }}
                       >
-                        <img src={exp.billImageDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#6b46c1", fontSize: 10, fontWeight: 850 }}>View</span>
+                        <img
+                          src={exp.billImageDataUrl}
+                          alt=""
+                          onError={(event) => { event.currentTarget.style.display = "none"; }}
+                          style={{ position: "relative", zIndex: 1, width: "100%", height: "100%", objectFit: "cover", display: "block", background: "#fff" }}
+                        />
                       </button>
                     ) : (
                       <span style={{ fontSize: 11, color: "#c8c8d8", fontWeight: 700 }}>—</span>
@@ -1229,7 +1236,17 @@ export default function CashFlowPage() {
               </button>
             </div>
             <div style={{ padding: 14, maxHeight: "calc(88vh - 57px)", overflow: "auto", background: "#faf9fd" }}>
-              <img src={previewImage.src} alt={previewImage.title} style={{ display: "block", maxWidth: "100%", height: "auto", margin: "0 auto", borderRadius: 10, background: "#fff" }} />
+              <div style={{ position: "relative", minHeight: 180, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <a href={previewImage.src} target="_blank" rel="noreferrer" style={{ position: "absolute", zIndex: 0, color: "#6b46c1", fontSize: 13, fontWeight: 850, textDecoration: "none" }}>
+                  Open bill image
+                </a>
+                <img
+                  src={previewImage.src}
+                  alt={previewImage.title}
+                  onError={(event) => { event.currentTarget.style.display = "none"; }}
+                  style={{ position: "relative", zIndex: 1, display: "block", maxWidth: "100%", height: "auto", margin: "0 auto", borderRadius: 10, background: "#fff" }}
+                />
+              </div>
             </div>
           </div>
         </div>
