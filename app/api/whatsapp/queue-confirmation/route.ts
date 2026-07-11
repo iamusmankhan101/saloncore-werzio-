@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { resolveActor } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { appointmentStartHasPassed, timezoneFromSettings } from "@/lib/appointment-time";
 
 const MINUTE_MS = 60 * 1000;
 
@@ -107,10 +108,6 @@ export async function POST(req: NextRequest) {
   if (!phone) return Response.json({ ok: true, queued: false, skipped: true, reason: "missing-phone" });
   if (isFakePlaceholderPhone(phone)) return Response.json({ ok: true, queued: false, skipped: true, reason: "fake-placeholder-phone" });
 
-  if (new Date(`${appointment.date}T${appointment.startTime}:00`) < new Date()) {
-    return Response.json({ ok: true, queued: false, skipped: true, reason: "appointment-started" });
-  }
-
   try {
     await ensureTable();
 
@@ -136,6 +133,10 @@ export async function POST(req: NextRequest) {
     const settings = settingsRow.rows.length > 0
       ? JSON.parse(settingsRow.rows[0].data as string)
       : {};
+
+    if (appointmentStartHasPassed(appointment.date, appointment.startTime, timezoneFromSettings(settings))) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: "appointment-started" });
+    }
 
     if (settings?.wasender?.enabled === false) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "automation-disabled" });

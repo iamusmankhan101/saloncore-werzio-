@@ -313,6 +313,46 @@ function setQueue(storageKey: string, items: QueueItem[]) {
   localStorage.setItem(locationUserKey(storageKey), JSON.stringify(items));
 }
 
+export interface PendingQueueItem {
+  type: "confirmation" | "followup" | "cancellation" | "birthday";
+  apptId: string;
+  clientName: string;
+  phone: string;
+  serviceNames?: string[];
+  date?: string;
+  startTime?: string;
+  retries: number;
+  sendAfter?: number;
+}
+
+/**
+ * Snapshot of everything currently sitting in this browser's WhatsApp send
+ * queues — these queues only ever live in localStorage (see QueueItem above),
+ * so this is only ever a view of what THIS device has queued, not a global
+ * view across every device the salon uses.
+ */
+export function getPendingWhatsAppQueue(): PendingQueueItem[] {
+  if (typeof window === "undefined") return [];
+  const fromQueue = (type: PendingQueueItem["type"], key: string): PendingQueueItem[] =>
+    getQueue(key).map((item) => ({
+      type,
+      apptId: item.id,
+      clientName: item.clientName || "",
+      phone: item.phone || "",
+      serviceNames: item.serviceNames,
+      date: item.date,
+      startTime: item.startTime,
+      retries: item.retries,
+      sendAfter: item.sendAfter,
+    }));
+  return [
+    ...fromQueue("confirmation", CONFIRM_QUEUE_KEY),
+    ...fromQueue("followup", FOLLOWUP_QUEUE_KEY),
+    ...fromQueue("cancellation", CANCEL_QUEUE_KEY),
+    ...fromQueue("birthday", BIRTHDAY_QUEUE_KEY),
+  ];
+}
+
 export function purgeQueuedAppointmentMessages(apptIds: Iterable<string>): void {
   if (typeof window === "undefined") return;
   const ids = new Set(Array.from(apptIds).filter(Boolean));

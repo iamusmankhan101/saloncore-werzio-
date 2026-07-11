@@ -17,6 +17,7 @@ import { activeWhatsAppCredential, isFakePlaceholderPhone, sendWhatsAppMessage, 
 import { sendSalonInvoiceWhatsApp } from "@/lib/whatsapp-invoice-send";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppMessageIntent, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
+import { appointmentStartHasPassed, timezoneFromSettings } from "@/lib/appointment-time";
 
 const BATCH_LIMIT = 50;
 const SEND_LIMIT_PER_RUN = 1;
@@ -346,16 +347,16 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       continue;
     }
 
+    const settings = await getSettings(item.userId, settingsCache);
+
     // Confirmation/reminder messages are tied to the appointment start. Once that
-    // time has passed, do not send them later from a backlog.
+    // time has passed in the salon's timezone, do not send them from a backlog.
     if ((item.kind === "confirmation" || item.kind === "reminder") && item.apptDate && item.apptTime
-        && new Date(`${item.apptDate}T${item.apptTime}:00`) < new Date()) {
+        && appointmentStartHasPassed(item.apptDate, item.apptTime, timezoneFromSettings(settings))) {
       await updateItem(item, "expired", "Appointment time already passed — queued message skipped.");
       expired++;
       continue;
     }
-
-    const settings = await getSettings(item.userId, settingsCache);
 
     // If automation or a specific message type is off when a due item is reached,
     // expire it instead of leaving a backlog that fires when the toggle is turned

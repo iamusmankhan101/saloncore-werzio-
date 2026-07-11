@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { resolveActor } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { appointmentStartHasPassed, timezoneFromSettings } from "@/lib/appointment-time";
 
 type QueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "lowstock" | "manual";
 
@@ -183,6 +184,10 @@ export async function POST(req: NextRequest) {
     }
     if (!autoSettingEnabled(settings, body.kind)) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: `${body.kind}-automation-disabled` });
+    }
+    if (body.kind === "reminder" && body.apptDate && body.apptTime
+        && appointmentStartHasPassed(body.apptDate, body.apptTime, timezoneFromSettings(settings))) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: "appointment-started" });
     }
 
     const providerConfig: WhatsAppProviderConfig = {

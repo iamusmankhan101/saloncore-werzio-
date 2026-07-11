@@ -11,6 +11,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { activeWhatsAppCredential, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { appointmentStartHasPassed, timezoneFromSettings } from "@/lib/appointment-time";
 
 interface ClientPayload {
   id: string;
@@ -245,7 +246,7 @@ export async function POST(req: NextRequest) {
         // has already passed (e.g. a same-day/near-term booking whose 5-7 min queue
         // delay pushed it past its own start), same as the dashboard's confirmation
         // queue: confirming a booking that's already happened isn't useful.
-        const apptAlreadyStarted = new Date(`${appointment.date}T${appointment.startTime}:00`) < new Date();
+        const apptAlreadyStarted = appointmentStartHasPassed(appointment.date, appointment.startTime, timezoneFromSettings(settings));
         if (phone && autoConfirmation && !apptAlreadyStarted) {
           const confirmationTpl: string =
             tpl.confirmation ||

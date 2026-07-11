@@ -10,7 +10,7 @@ import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
-import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, checkBirthdayReminders } from "@/lib/whatsapp-scheduler";
+import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, checkBirthdayReminders, getPendingWhatsAppQueue, PendingQueueItem } from "@/lib/whatsapp-scheduler";
 import { isFakePlaceholderPhone } from "@/lib/whatsapp-provider";
 import { getCurrentUser } from "@/lib/auth";
 import { locationUserKey } from "@/lib/locations";
@@ -454,8 +454,10 @@ export default function MessagesPage() {
   // Poll so the banner cannot get stuck showing a stale non-zero count after the
   // queue has actually drained.
   const [queueCounts, setQueueCounts] = useState({ confirm: 0, followup: 0, booking: 0, pos: 0, due: 0 });
+  const [pendingQueue, setPendingQueue] = useState<PendingQueueItem[]>([]);
   useEffect(() => {
     async function refreshQueueCounts() {
+      setPendingQueue(getPendingWhatsAppQueue());
       let booking = 0;
       let pos = 0;
       let due = 0;
@@ -1063,6 +1065,47 @@ export default function MessagesPage() {
                     {queueCounts.pos > 0 ? ` · ${queueCounts.pos} POS receipt${queueCounts.pos > 1 ? "s" : ""}` : ""}
                     {queueCounts.booking > 0 ? ` · ${queueCounts.booking} booking message${queueCounts.booking > 1 ? "s" : ""}` : ""}
                     {queueCounts.due > 0 ? " · due now" : " · waiting for scheduled time"}
+                  </div>
+                )}
+
+                {pendingQueue.length > 0 && (
+                  <div style={{ marginTop: 12, borderTop: "1px solid #f0f0f5", paddingTop: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#7c7c9a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+                      Queued on this device ({pendingQueue.length})
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+                      {pendingQueue.map((item, i) => {
+                        const waitingUntil = item.sendAfter && item.sendAfter > Date.now() ? item.sendAfter : null;
+                        return (
+                          <div key={`${item.type}_${item.apptId}_${i}`}
+                            style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 9, background: "#f8f8fc", border: "1px solid #e8e8f0", fontSize: 12 }}>
+                            <span style={{
+                              flexShrink: 0, fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.03em",
+                              padding: "3px 7px", borderRadius: 6,
+                              color: item.type === "confirmation" ? "#059669" : item.type === "followup" ? "#0284c7" : item.type === "cancellation" ? "#dc2626" : "#db2777",
+                              background: item.type === "confirmation" ? "#ecfdf5" : item.type === "followup" ? "#eff6ff" : item.type === "cancellation" ? "#fef2f2" : "#fdf2f8",
+                            }}>
+                              {item.type}
+                            </span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, color: "#1d1d2f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {item.clientName || "Unknown client"}
+                              </div>
+                              {(item.date || item.serviceNames?.length) && (
+                                <div style={{ color: "#9999b0", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {item.serviceNames?.[0] ? `${item.serviceNames[0]} · ` : ""}{item.date}{item.startTime ? ` ${item.startTime}` : ""}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ flexShrink: 0, textAlign: "right", fontSize: 11, color: item.retries > 0 ? "#dc2626" : "#92400e", fontWeight: 600 }}>
+                              {item.retries > 0
+                                ? (waitingUntil ? `retry ${new Date(waitingUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "retrying")
+                                : (waitingUntil ? new Date(waitingUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "due now")}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
