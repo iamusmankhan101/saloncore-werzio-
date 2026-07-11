@@ -896,6 +896,7 @@ export default function AppointmentsPage() {
   const [statusFilter, setStatusFilter] = useState<AppointmentStatus | "all">("all");
   const [staffFilter, setStaffFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"apptDateDesc" | "apptDateAsc" | "createdDesc" | "createdAsc">("apptDateDesc");
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -936,8 +937,15 @@ export default function AppointmentsPage() {
   const filtered = useMemo(() => {
     return [...appointments]
       .sort((a, b) => {
-        if (b.date !== a.date) return b.date.localeCompare(a.date);
-        return (b.startTime || "").localeCompare(a.startTime || "");
+        if (sortBy === "createdDesc" || sortBy === "createdAsc") {
+          const aMs = appointmentCreatedAt(a)?.getTime() ?? 0;
+          const bMs = appointmentCreatedAt(b)?.getTime() ?? 0;
+          return sortBy === "createdDesc" ? bMs - aMs : aMs - bMs;
+        }
+        if (b.date !== a.date) return sortBy === "apptDateAsc" ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
+        const aTime = a.startTime || "";
+        const bTime = b.startTime || "";
+        return sortBy === "apptDateAsc" ? aTime.localeCompare(bTime) : bTime.localeCompare(aTime);
       })
       .filter((a) => {
         if (statusFilter !== "all" && a.status !== statusFilter) return false;
@@ -949,7 +957,7 @@ export default function AppointmentsPage() {
         }
         return true;
       });
-  }, [appointments, search, statusFilter, staffFilter, dateFilter]);
+  }, [appointments, search, statusFilter, staffFilter, dateFilter, sortBy]);
 
   const totalRevenue = filtered
     .filter((a) => a.status === "completed")
@@ -1284,6 +1292,12 @@ export default function AppointmentsPage() {
             <label style={{ fontSize: 11, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Date</label>
             <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e3e0eb", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }} />
           </div>
+          <FilterSelect label="Sort by" value={sortBy} onChange={(v) => setSortBy(v as typeof sortBy)}>
+            <option value="apptDateDesc">Appointment date (newest first)</option>
+            <option value="apptDateAsc">Appointment date (oldest first)</option>
+            <option value="createdDesc">Created (newest first)</option>
+            <option value="createdAsc">Created (oldest first)</option>
+          </FilterSelect>
           {activeFilters > 0 && (
             <button onClick={() => { setStatusFilter("all"); setStaffFilter("all"); setDateFilter(""); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>
               Clear all
