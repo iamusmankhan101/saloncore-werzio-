@@ -20,6 +20,19 @@ function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-PK", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function fmtCreatedAt(value: string) {
+  const createdAt = new Date(value);
+  if (Number.isNaN(createdAt.getTime())) return "—";
+  return createdAt.toLocaleString("en-PK", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Karachi",
+  });
+}
+
 const STATUS_META = {
   paid:   { label: "Paid",   color: "#059669", bg: "#ecfdf5", icon: CheckCircle },
   unpaid: { label: "Unpaid", color: "#d97706", bg: "#fffbeb", icon: Clock },
@@ -280,8 +293,8 @@ export default function InvoicesPage() {
             <div style={{ background: "#fff" }}>
 
               {/* Column headers */}
-              <div style={{ display: "grid", gridTemplateColumns: "150px 1fr 160px 110px 80px 110px 100px 100px", padding: "12px 24px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd", alignItems: "center" }}>
-                {["Invoice #", "Client", "Staff", "Date", "Items", "Method", "Amount", "Actions"].map((h) => (
+              <div style={{ display: "grid", gridTemplateColumns: "150px 1fr 150px 110px 120px 80px 110px 100px 100px", padding: "12px 24px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd", alignItems: "center" }}>
+                {["Invoice #", "Client", "Staff", "Date", "Created", "Items", "Method", "Amount", "Actions"].map((h) => (
                   <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#8e89a3", letterSpacing: "0.08em", textTransform: "uppercase" }}>{h}</div>
                 ))}
               </div>
@@ -304,7 +317,7 @@ export default function InvoicesPage() {
                     key={inv.id}
                     className="hover-bg-row"
                     style={{
-                      display: "grid", gridTemplateColumns: "150px 1fr 160px 110px 80px 110px 100px 100px",
+                      display: "grid", gridTemplateColumns: "150px 1fr 150px 110px 120px 80px 110px 100px 100px",
                       padding: "16px 24px",
                       borderBottom: i < filtered.length - 1 ? "1px solid #f8f8fc" : "none",
                       alignItems: "center", transition: "background 0.15s",
@@ -324,6 +337,9 @@ export default function InvoicesPage() {
 
                     {/* Date */}
                     <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{fmtDate(inv.date)}</div>
+
+                    {/* Created */}
+                    <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 650, whiteSpace: "nowrap" }}>{fmtCreatedAt(inv.createdAt)}</div>
 
                     {/* Items count */}
                     <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{inv.items.length} item{inv.items.length !== 1 ? "s" : ""}</div>
