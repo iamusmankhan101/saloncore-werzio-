@@ -133,8 +133,8 @@ const BIRTHDAY_QUEUE_KEY = "werzio_wa_birthday_queue";
 // window recalculated on every scheduler tick.
 const BIRTHDAY_SPREAD_MIN_MS = 6 * 60 * 60 * 1000;
 const BIRTHDAY_SPREAD_MAX_MS = 8 * 60 * 60 * 1000;
-const BIRTHDAY_NEXT_SEND_MIN_MS = 10 * 60_000;
-const BIRTHDAY_NEXT_SEND_MAX_MS = 15 * 60_000;
+const BIRTHDAY_NEXT_SEND_MIN_MS = 20 * 60_000;
+const BIRTHDAY_NEXT_SEND_MAX_MS = 30 * 60_000;
 const BIRTHDAY_SPREAD_CACHE_KEY = "werzio_wa_birthday_spread_window";
 
 function getTodaysBirthdaySpreadWindowMs(): number {

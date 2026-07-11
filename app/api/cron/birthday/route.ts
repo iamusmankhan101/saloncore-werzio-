@@ -8,7 +8,7 @@
  * For every salon that has birthday reminders enabled:
  *   1. Loads their clients from Turso (salon_data table)
  *   2. Finds clients whose birthday is today (month+day match)
- *   3. Enqueues each birthday message at a random time across a 4-hour window
+ *   3. Enqueues each birthday message at a random time across a 6-8 hour window
  *   4. Sends only due queued messages, one per cron tick, to avoid back-to-back sends.
  *      Queued messages continue sending even if the salon closes before the spread window ends.
  *   5. Logs to wa_message_logs and records in birthday_sent to prevent duplicates
@@ -21,7 +21,11 @@ import { db } from "@/lib/db";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
 
-const BIRTHDAY_SPREAD_WINDOW_MS = 4 * 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+const BIRTHDAY_SPREAD_MIN_MS = 6 * 60 * MINUTE_MS;
+const BIRTHDAY_SPREAD_MAX_MS = 8 * 60 * MINUTE_MS;
+const BIRTHDAY_RETRY_MIN_MS = 20 * MINUTE_MS;
+const BIRTHDAY_RETRY_MAX_MS = 30 * MINUTE_MS;
 const BIRTHDAY_SEND_BATCH_LIMIT = 1;
 const BIRTHDAY_MAX_ATTEMPTS = 5;
 
@@ -214,9 +218,13 @@ async function markSent(userId: string, clientId: string, year: string) {
   });
 }
 
-function randomScheduledAt(index: number, total: number, baseTime = Date.now()): string {
+function randBetween(minMs: number, maxMs: number): number {
+  return Math.round(minMs + Math.random() * (maxMs - minMs));
+}
+
+function randomScheduledAt(index: number, total: number, spreadWindowMs: number, baseTime = Date.now()): string {
   const safeTotal = Math.max(1, total);
-  const slotMs = BIRTHDAY_SPREAD_WINDOW_MS / safeTotal;
+  const slotMs = spreadWindowMs / safeTotal;
   const offsetMs = Math.floor(index * slotMs + Math.random() * slotMs);
   return new Date(baseTime + offsetMs).toISOString();
 }
@@ -327,6 +335,7 @@ async function enqueueTodaysBirthdays(): Promise<{ checked: number; queued: numb
     const year = salonToday(user).year;
     const clients = await getClients(user.userId);
     const birthdayClients = clients.filter((client) => client.dob && client.phone && isBirthdayToday(client.dob, user));
+    const spreadWindowMs = randBetween(BIRTHDAY_SPREAD_MIN_MS, BIRTHDAY_SPREAD_MAX_MS);
     let scheduleIndex = 0;
 
     for (const client of birthdayClients) {
@@ -361,7 +370,7 @@ async function enqueueTodaysBirthdays(): Promise<{ checked: number; queued: numb
         clientName: client.name,
         phone,
         text,
-        scheduledAt: randomScheduledAt(scheduleIndex, birthdayClients.length),
+        scheduledAt: randomScheduledAt(scheduleIndex, birthdayClients.length, spreadWindowMs),
       });
       scheduleIndex++;
       queued++;
@@ -409,15 +418,20 @@ async function updateQueueAttempt(input: {
   attempts: number;
   error?: string;
 }) {
+  const nextStatus = input.ok ? "sent" : input.attempts + 1 >= BIRTHDAY_MAX_ATTEMPTS ? "failed" : "pending";
+  const nextScheduledAt = nextStatus === "pending"
+    ? new Date(Date.now() + randBetween(BIRTHDAY_RETRY_MIN_MS, BIRTHDAY_RETRY_MAX_MS)).toISOString()
+    : null;
   await db.execute({
     sql: `UPDATE birthday_message_queue
-          SET status = ?, attempts = ?, last_error = ?, sent_at = ?
+          SET status = ?, attempts = ?, last_error = ?, sent_at = ?, scheduled_at = COALESCE(?, scheduled_at)
           WHERE user_id = ? AND client_id = ? AND year = ?`,
     args: [
-      input.ok ? "sent" : input.attempts + 1 >= BIRTHDAY_MAX_ATTEMPTS ? "failed" : "pending",
+      nextStatus,
       input.attempts + 1,
       input.error ?? null,
       input.ok ? new Date().toISOString() : null,
+      nextScheduledAt,
       input.userId,
       input.clientId,
       input.year,
