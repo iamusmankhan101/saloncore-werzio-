@@ -2,10 +2,28 @@ import POSFeaturePage from "../../../components/POSFeaturePage";
 import { pageMetadata } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Point of Sale (POS)",
+  title: "Salon POS Software & Point of Sale System",
   description:
-    "Checkout clients in seconds. Accept cash, JazzCash, EasyPaisa, Raast, card, and bank transfer. Auto-generate invoices and send receipts via WhatsApp.",
+    "Looking for the best salon POS software in Pakistan? Salon Central offers a complete point of sale system for beauty salons, hair salons, and spas with invoicing, inventory, and CRM.",
   path: "/features/pos",
+  keywords: [
+    "salon pos system",
+    "salon pos software",
+    "salon point of sale",
+    "salon point of sale software",
+    "salon point of sale system",
+    "hair salon pos",
+    "hair salon pos software",
+    "hair salon point of sale",
+    "beauty salon pos",
+    "beauty salon pos software",
+    "beauty salon point of sale software",
+    "pos software for beauty salon",
+    "pos system for beauty salon",
+    "pos system for salons",
+    "point of sale software for hair salon",
+    "spa point of sale system",
+  ],
 });
 
 export default function POSPage() {

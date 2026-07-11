@@ -381,8 +381,9 @@ export default function POSFeaturePage() {
               </div>
               <h1>Checkout in seconds, not minutes</h1>
               <p>
-                Salon Central&apos;s POS handles services, products, discounts, six payment methods, auto-numbered invoices,
-                WhatsApp receipts, stock deduction, and client history update — all from one screen.
+                Salon Central&apos;s salon POS software handles services, products, discounts, six payment methods,
+                auto-numbered invoices, WhatsApp receipts, stock deduction, and client history update — all from
+                one screen. A complete point of sale system built for beauty salons, hair salons, and spas.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
