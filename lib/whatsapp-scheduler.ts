@@ -496,10 +496,10 @@ export function enqueueWhatsAppCancellation(apptId: string) {
   if ((settingsStore.wasender as { enabled?: boolean }).enabled === false) return;
   const delayMinutes = (settingsStore.wasender as { cancellationDelayMinutes?: number }).cancellationDelayMinutes ?? 1440;
   const delayMs = delayMinutes * 60 * 1000;
-  // On top of the configured base delay (24h by default), add a random 20-30 min
+  // On top of the configured base delay (24h by default), add a random 15-20 min
   // jitter so this win-back offer never lands at exactly the same clock-round
   // interval after every cancellation.
-  const jitterMs = (20 + Math.random() * 10) * 60_000;
+  const jitterMs = (15 + Math.random() * 5) * 60_000;
   if (alreadySent(`cancel_${apptId}`)) return;
   // Snapshot phone + name now so the message can fire even if the appointment record is deleted
   const appt = getStoredAppointments().find(a => a.id === apptId);
