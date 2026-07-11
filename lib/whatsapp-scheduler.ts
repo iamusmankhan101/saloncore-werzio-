@@ -3,6 +3,7 @@ import { settingsStore } from "./settings-store";
 import { getStoredAppointments, getStoredClients, getStoredInventory } from "./storage";
 import { locationUserKey } from "./locations";
 import { getWhatsAppRandomDelayMs, type WhatsAppSafetyConfig } from "./whatsapp-safety";
+import { appointmentStartHasPassed, appointmentStartMs, timezoneFromSettings } from "./appointment-time";
 
 /**
  * Normalize a phone number to international format required by WhatsApp API.
@@ -472,7 +473,7 @@ export async function enqueueWhatsAppConfirmation(apptId: string): Promise<void>
   // delay later nudges it slightly past a genuinely future appointment's start
   // time (see the confirmation drain loop below); that's normal processing
   // drift for a real booking, not a backdated one.
-  if (new Date(`${appt.date}T${appt.startTime}:00`) < new Date()) return;
+  if (appointmentStartHasPassed(appt.date, appt.startTime, timezoneFromSettings(settingsStore as unknown as Record<string, unknown>))) return;
   // Snapshot phone/name/service/date/time now so the message can still send with
   // the right details even if the appointment record is deleted before this fires.
   const clients = getStoredClients();
@@ -929,8 +930,8 @@ async function runSchedulerInternal(): Promise<void> {
       if (appt.status === "cancelled" || appt.status === "no-show" || appt.status === "completed") continue;
       if (appt.date === todayKey) continue;
       if (ws.autoConfirmation && pendingConfirmIds.has(appt.id)) continue;
-      const apptTime = new Date(`${appt.date}T${appt.startTime}:00`);
-      const hoursUntil = (apptTime.getTime() - now.getTime()) / 3_600_000;
+      const apptTimeMs = appointmentStartMs(appt.date, appt.startTime, timezoneFromSettings(settingsStore as unknown as Record<string, unknown>));
+      const hoursUntil = apptTimeMs == null ? Number.POSITIVE_INFINITY : (apptTimeMs - now.getTime()) / 3_600_000;
       // Scoped to this one appointment, not the client overall — sentKey is keyed by
       // appt.id, so a client with two distinct upcoming appointments both due for a
       // reminder still gets one reminder per appointment, not just one total.
@@ -975,7 +976,7 @@ async function runSchedulerInternal(): Promise<void> {
       // Confirming a booking that's already happened (or been missed) isn't useful
       // — drop it instead of sending, rather than the previous "send it late
       // anyway" behavior.
-      if (new Date(`${appt.date}T${appt.startTime}:00`) < new Date()) continue;
+      if (appointmentStartHasPassed(appt.date, appt.startTime, timezoneFromSettings(settingsStore as unknown as Record<string, unknown>))) continue;
       const phone = clientPhone(appt.clientId);
       const clientName = appt.clientName;
       if (!phone) {

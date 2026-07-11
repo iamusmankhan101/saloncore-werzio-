@@ -9,6 +9,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { activeWhatsAppCredential, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { appointmentStartMs, timezoneFromSettings } from "@/lib/appointment-time";
 
 const MINUTE_MS = 60 * 1000;
 
@@ -179,6 +180,7 @@ async function runFollowupCron() {
       const followupDelayMinutes = Number.isFinite(rawFollowupDelayMinutes) ? rawFollowupDelayMinutes : 1440;
       const template     = s?.whatsapp?.followup;
       const salonName    = s?.salon?.name || "Your Salon";
+      const timezone     = timezoneFromSettings(s);
 
       // Master "WhatsApp Automation" toggle in Account settings — when off, all
       // automated sends (and their log entries) must stop, not just autoFollowup.
@@ -203,9 +205,10 @@ async function runFollowupCron() {
 
       const eligible = appointments.filter((appt) => {
         if (appt.status !== "completed") return false;
-        const completedAt = new Date(`${appt.date}T${appt.endTime || appt.startTime}:00`);
-        const dueAt = new Date(completedAt.getTime() + followupDelayMinutes * MINUTE_MS);
-        return dueAt <= now && now.getTime() - dueAt.getTime() <= dueLookbackMs;
+        const completedAt = appointmentStartMs(appt.date, appt.endTime || appt.startTime, timezone);
+        if (completedAt == null) return false;
+        const dueAt = completedAt + followupDelayMinutes * MINUTE_MS;
+        return dueAt <= now.getTime() && now.getTime() - dueAt <= dueLookbackMs;
       });
       const queuedPhones = new Set<string>();
 
