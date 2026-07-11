@@ -51,9 +51,15 @@ const PAYMENT_STATUSES = [
   { key: "paid", label: "Paid" },
   { key: "pending", label: "Pending / unpaid" },
 ] as const;
+const BILL_EXPENSE_CATEGORIES = new Set<ExpenseCategory>(["rent", "water_bill", "electricity_bill", "committee"]);
+const MAX_BILL_IMAGE_BYTES = 2 * 1024 * 1024;
 
 function expensePaymentStatus(expense: Expense): "paid" | "pending" {
   return expense.paymentStatus === "pending" ? "pending" : "paid";
+}
+
+function isBillExpenseCategory(category: ExpenseCategory) {
+  return BILL_EXPENSE_CATEGORIES.has(category);
 }
 
 function toDateStr(d: Date) { return d.toLocaleDateString("en-CA"); }
@@ -89,7 +95,17 @@ function monthlyBarsRange(start: string, end: string): { label: string; key: str
   return arr;
 }
 
-const EMPTY_FORM = { date: "", category: "miscellaneous" as ExpenseCategory, description: "", amount: "", paymentMethod: "cash", paymentStatus: "paid" as "paid" | "pending", notes: "" };
+const EMPTY_FORM = {
+  date: "",
+  category: "miscellaneous" as ExpenseCategory,
+  description: "",
+  amount: "",
+  paymentMethod: "cash",
+  paymentStatus: "paid" as "paid" | "pending",
+  billImageDataUrl: undefined as string | undefined,
+  billImageName: undefined as string | undefined,
+  notes: "",
+};
 
 export default function CashFlowPage() {
   const [period, setPeriod]           = useState<Period>("today");
@@ -268,8 +284,43 @@ export default function CashFlowPage() {
   function openEdit(exp: Expense) {
     setEditId(exp.id);
     setFormError("");
-    setForm({ date: exp.date, category: exp.category, description: exp.description, amount: String(exp.amount), paymentMethod: exp.paymentMethod, paymentStatus: expensePaymentStatus(exp), notes: exp.notes ?? "" });
+    setForm({
+      date: exp.date,
+      category: exp.category,
+      description: exp.description,
+      amount: String(exp.amount),
+      paymentMethod: exp.paymentMethod,
+      paymentStatus: expensePaymentStatus(exp),
+      billImageDataUrl: exp.billImageDataUrl,
+      billImageName: exp.billImageName,
+      notes: exp.notes ?? "",
+    });
     setShowForm(true);
+  }
+
+  function handleBillImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setFormError("Please upload an image file for the bill.");
+      return;
+    }
+    if (file.size > MAX_BILL_IMAGE_BYTES) {
+      setFormError("Bill image must be smaller than 2 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        setFormError("The bill image could not be read.");
+        return;
+      }
+      setForm(f => ({ ...f, billImageDataUrl: reader.result as string, billImageName: file.name }));
+      setFormError("");
+    };
+    reader.onerror = () => setFormError("The bill image could not be read.");
+    reader.readAsDataURL(file);
   }
 
   function handleSave() {
@@ -286,12 +337,15 @@ export default function CashFlowPage() {
     const description = form.description.trim()
       || EXPENSE_CATEGORIES.find(category => category.key === form.category)?.label
       || "Expense";
+    const billImagePatch = isBillExpenseCategory(form.category)
+      ? { billImageDataUrl: form.billImageDataUrl, billImageName: form.billImageName }
+      : { billImageDataUrl: undefined, billImageName: undefined };
 
     try {
       if (editId) {
-        updateExpense(editId, { date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, notes: form.notes.trim() || undefined });
+        updateExpense(editId, { date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, ...billImagePatch, notes: form.notes.trim() || undefined });
       } else {
-        addExpense({ date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, notes: form.notes.trim() || undefined });
+        addExpense({ date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, ...billImagePatch, notes: form.notes.trim() || undefined });
       }
       setExpenses(getExpenses());
       setFormError("");
@@ -590,6 +644,7 @@ export default function CashFlowPage() {
         "Amount (PKR)": expense.amount,
         "Payment Method": PAYMENT_LABELS[expense.paymentMethod] ?? expense.paymentMethod,
         Status: expensePaymentStatus(expense) === "pending" ? "Pending / unpaid" : "Paid",
+        "Bill Image": expense.billImageName ?? "",
         Notes: expense.notes ?? "",
       }));
 
@@ -936,7 +991,14 @@ export default function CashFlowPage() {
               </div>
               <div>
                 <label style={labelSt}>Category</label>
-                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as ExpenseCategory }))} style={inputSt}>
+                <select value={form.category} onChange={e => {
+                  const category = e.target.value as ExpenseCategory;
+                  setForm(f => ({
+                    ...f,
+                    category,
+                    ...(isBillExpenseCategory(category) ? {} : { billImageDataUrl: undefined, billImageName: undefined }),
+                  }));
+                }} style={inputSt}>
                   {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
                 </select>
               </div>
@@ -964,6 +1026,26 @@ export default function CashFlowPage() {
                 <label style={labelSt}>Notes</label>
                 <input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" style={inputSt} />
               </div>
+              {isBillExpenseCategory(form.category) && (
+                <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: 10, borderRadius: 10, border: "1px dashed #d8d4e8", background: "#faf9fd" }}>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", color: "#6b46c1", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+                    <Upload size={14} /> Upload bill image
+                    <input type="file" accept="image/*" onChange={handleBillImageChange} style={{ display: "none" }} />
+                  </label>
+                  {form.billImageDataUrl ? (
+                    <>
+                      <a href={form.billImageDataUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 700, color: "#059669", textDecoration: "none" }}>
+                        {form.billImageName || "Bill image"}
+                      </a>
+                      <button type="button" onClick={() => setForm(f => ({ ...f, billImageDataUrl: undefined, billImageName: undefined }))} style={{ border: "none", background: "transparent", color: "#dc2626", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+                        Remove
+                      </button>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: 12, color: "#9898b0", fontWeight: 600 }}>Optional for bill records</span>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{ display: "flex", gap: 12, marginTop: 14, alignItems: "center" }}>
               {formError && <div role="alert" style={{ color: "#dc2626", fontSize: 12, fontWeight: 700, marginRight: "auto" }}>{formError}</div>}
@@ -1080,6 +1162,11 @@ export default function CashFlowPage() {
                     <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{exp.description}</div>
                     {exp.notes && <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2 }}>{exp.notes}</div>}
                     {exp.paymentMethod && <div style={{ fontSize: 11, color: payColor ?? "#9898b0", marginTop: 2, fontWeight: 600 }}>{PAYMENT_LABELS[exp.paymentMethod] ?? exp.paymentMethod}</div>}
+                    {exp.billImageDataUrl && (
+                      <a href={exp.billImageDataUrl} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} style={{ display: "inline-flex", marginTop: 3, fontSize: 11, color: "#6b46c1", fontWeight: 800, textDecoration: "none" }}>
+                        Bill image
+                      </a>
+                    )}
                   </div>
                   <div>
                     <span style={{ fontSize: 10, fontWeight: 800, color: status === "pending" ? "#b45309" : "#059669", background: status === "pending" ? "#fef3c7" : "#dcfce7", padding: "3px 8px", borderRadius: 20, textTransform: "uppercase" }}>{status === "pending" ? "Pending" : "Paid"}</span>

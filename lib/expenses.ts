@@ -21,6 +21,8 @@ export interface Expense {
   amount: number;
   paymentMethod: string;
   paymentStatus?: "paid" | "pending";
+  billImageDataUrl?: string;
+  billImageName?: string;
   notes?: string;
   createdAt: string;   // ISO timestamp
 }
