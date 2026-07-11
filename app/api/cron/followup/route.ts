@@ -2,14 +2,19 @@
  * /api/cron/followup
  *
  * Runs daily at 06:00 UTC (11:00 PKT).
- * Sends follow-up WhatsApp messages for appointments completed yesterday.
- * This is the server-side equivalent of the client-side followup queue so
- * messages go out even when the dashboard is not open.
+ * Queues follow-up WhatsApp messages for appointments completed yesterday.
+ * The paced /api/cron/booking-queue drain sends the rows later, one at a time.
  */
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { activeWhatsAppCredential, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { activeWhatsAppCredential, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+
+const MINUTE_MS = 60 * 1000;
+
+function followupSpacingMs() {
+  return Math.round(20 * MINUTE_MS + Math.random() * 15 * MINUTE_MS);
+}
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -33,40 +38,90 @@ async function ensureTables() {
       PRIMARY KEY (user_id, appt_id)
     )
   `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS wa_booking_send_queue (
+      id           TEXT NOT NULL,
+      user_id      TEXT NOT NULL,
+      kind         TEXT NOT NULL,
+      phone        TEXT NOT NULL,
+      text         TEXT NOT NULL,
+      client_name  TEXT NOT NULL,
+      appt_date    TEXT,
+      appt_time    TEXT,
+      scheduled_at TEXT NOT NULL,
+      status       TEXT NOT NULL DEFAULT 'pending',
+      attempts     INTEGER NOT NULL DEFAULT 0,
+      last_error   TEXT,
+      created_at   TEXT NOT NULL,
+      sent_at      TEXT,
+      PRIMARY KEY (user_id, id)
+    )
+  `);
+  await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_date TEXT`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_booking_send_queue ADD COLUMN appt_time TEXT`).catch(() => {});
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS wa_message_logs (
+      id            TEXT NOT NULL,
+      user_id       TEXT NOT NULL,
+      timestamp     TEXT NOT NULL,
+      type          TEXT NOT NULL,
+      client_name   TEXT NOT NULL,
+      phone         TEXT NOT NULL,
+      status        TEXT NOT NULL,
+      template_id   TEXT NOT NULL DEFAULT '',
+      error_message TEXT NOT NULL DEFAULT '',
+      appt_id       TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY (user_id, id)
+    )
+  `);
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
 }
 
 async function alreadySent(userId: string, apptId: string): Promise<boolean> {
-  const result = await db.execute({
+  const legacyResult = await db.execute({
     sql: "SELECT 1 FROM wa_followup_sent WHERE user_id = ? AND appt_id = ?",
     args: [userId, apptId],
+  });
+  if (legacyResult.rows.length > 0) return true;
+  const logResult = await db.execute({
+    sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND appt_id = ? AND type = 'followup' AND status = 'sent' LIMIT 1",
+    args: [userId, apptId],
+  });
+  return logResult.rows.length > 0;
+}
+
+async function alreadyQueued(userId: string, apptId: string): Promise<boolean> {
+  const result = await db.execute({
+    sql: "SELECT 1 FROM wa_booking_send_queue WHERE user_id = ? AND id = ? AND status IN ('pending', 'sent') LIMIT 1",
+    args: [userId, `followup_${apptId}`],
   });
   return result.rows.length > 0;
 }
 
-async function markSent(userId: string, apptId: string) {
+async function queueFollowup(input: {
+  userId: string;
+  appt: Appointment;
+  phone: string;
+  text: string;
+  scheduledAt: string;
+}) {
+  const now = new Date().toISOString();
   await db.execute({
-    sql: "INSERT OR IGNORE INTO wa_followup_sent (user_id, appt_id, sent_at) VALUES (?, ?, ?)",
-    args: [userId, apptId, new Date().toISOString()],
+    sql: `INSERT OR IGNORE INTO wa_booking_send_queue
+            (id, user_id, kind, phone, text, client_name, appt_date, appt_time, scheduled_at, status, attempts, created_at)
+          VALUES (?, ?, 'followup', ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
+    args: [
+      `followup_${input.appt.id}`,
+      input.userId,
+      input.phone,
+      input.text,
+      input.appt.clientName,
+      input.appt.date,
+      input.appt.startTime,
+      input.scheduledAt,
+      now,
+    ],
   });
-}
-
-async function sendMessage(phone: string, providerConfig: WhatsAppProviderConfig, text: string): Promise<{ ok: boolean; skipped: boolean }> {
-  try {
-    const result = await sendWhatsAppMessage(providerConfig, phone, text);
-    return { ok: result.ok, skipped: result.skipped === true };
-  } catch { return { ok: false, skipped: false }; }
-}
-
-async function logMessage(userId: string, clientName: string, phone: string, status: "sent" | "failed") {
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  try {
-    await db.execute({
-      sql: `INSERT OR REPLACE INTO wa_message_logs
-              (id, user_id, timestamp, type, client_name, phone, status, template_id)
-            VALUES (?, ?, ?, 'followup', ?, ?, ?, 'followup')`,
-      args: [id, userId, new Date().toISOString(), clientName, phone, status],
-    });
-  } catch { /* non-critical */ }
 }
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
@@ -104,7 +159,8 @@ async function runFollowupCron() {
   twoDaysAgo.setDate(today.getDate() - 2);
   const twoDaysAgoStr = twoDaysAgo.toISOString().slice(0, 10);
 
-  let sent = 0, failed = 0, skipped = 0;
+  let queued = 0, skipped = 0;
+  let scheduleDelayMs = 0;
 
   // Get all users with followup enabled
   const settingsRows = await db.execute(
@@ -155,6 +211,7 @@ async function runFollowupCron() {
 
       for (const appt of eligible) {
         if (await alreadySent(userId, appt.id)) { skipped++; continue; }
+        if (await alreadyQueued(userId, appt.id)) { skipped++; continue; }
 
         // Resolve phone: try appt.clientPhone first, then look up in clients
         let rawPhone = appt.clientPhone || "";
@@ -172,18 +229,22 @@ async function runFollowupCron() {
           salon_name: salonName,
         });
 
-        const result = await sendMessage(phone, providerConfig, text);
-        if (result.skipped) { skipped++; continue; }
-        await logMessage(userId, appt.clientName, phone, result.ok ? "sent" : "failed");
-        if (result.ok) { await markSent(userId, appt.id); sent++; }
-        else failed++;
+        scheduleDelayMs += followupSpacingMs();
+        await queueFollowup({
+          userId,
+          appt,
+          phone,
+          text,
+          scheduledAt: new Date(Date.now() + scheduleDelayMs).toISOString(),
+        });
+        queued++;
       }
     } catch (e) {
       console.error("[followup] error for row:", row.entity, e);
     }
   }
 
-  return { sent, failed, skipped };
+  return { queued, skipped };
 }
 
 export async function GET(req: NextRequest) {

@@ -16,15 +16,33 @@ import { db } from "@/lib/db";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, sendWhatsAppMessage, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { sendSalonInvoiceWhatsApp } from "@/lib/whatsapp-invoice-send";
 import type { SalonInvoice } from "@/lib/salon-invoices";
-import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
+import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppMessageIntent, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
 
 const BATCH_LIMIT = 50;
+const SEND_LIMIT_PER_RUN = 1;
 const MAX_ATTEMPTS = 5;
 // If the cron hasn't run in a long time (e.g. stuck on Hobby's once-daily
 // schedule), don't fire off a burst of hours-old booking confirmations —
 // mirrors the same "don't send stale automated messages" fix applied to the
 // dashboard's own confirmation queue.
 const EXPIRE_AFTER_MS = 24 * 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+
+function randBetween(minMs: number, maxMs: number): number {
+  return Math.round(minMs + Math.random() * (maxMs - minMs));
+}
+
+function spacingDelayMs(kind: QueueKind): number {
+  if (kind === "followup") return randBetween(20 * MINUTE_MS, 35 * MINUTE_MS);
+  if (kind === "reminder") return randBetween(15 * MINUTE_MS, 30 * MINUTE_MS);
+  if (kind === "cancellation" || kind === "birthday") return randBetween(10 * MINUTE_MS, 20 * MINUTE_MS);
+  return randBetween(5 * MINUTE_MS, 7 * MINUTE_MS);
+}
+
+function retryDelayMs(kind: QueueKind): number {
+  if (kind === "followup") return randBetween(45 * MINUTE_MS, 75 * MINUTE_MS);
+  return randBetween(30 * MINUTE_MS, 60 * MINUTE_MS);
+}
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -130,15 +148,30 @@ async function getDueItems(): Promise<QueueRow[]> {
   }));
 }
 
-async function updateItem(item: QueueRow, status: "sent" | "pending" | "expired", error?: string) {
+async function updateItem(item: QueueRow, status: "sent" | "pending" | "expired", error?: string, nextScheduledAt?: string) {
   await db.execute({
     sql: `UPDATE wa_booking_send_queue
-          SET status = ?, attempts = ?, last_error = ?, sent_at = ?
+          SET status = ?, attempts = ?, last_error = ?, sent_at = ?, scheduled_at = COALESCE(?, scheduled_at)
           WHERE user_id = ? AND id = ?`,
     args: [
       status, item.attempts + 1, error ?? null,
       status === "sent" ? new Date().toISOString() : null,
+      nextScheduledAt ?? null,
       item.userId, item.id,
+    ],
+  });
+}
+
+async function deferItem(item: QueueRow, delayMs: number, reason: string) {
+  await db.execute({
+    sql: `UPDATE wa_booking_send_queue
+          SET scheduled_at = ?, last_error = ?
+          WHERE user_id = ? AND id = ? AND status = 'pending'`,
+    args: [
+      new Date(Date.now() + delayMs).toISOString(),
+      reason,
+      item.userId,
+      item.id,
     ],
   });
 }
@@ -166,6 +199,12 @@ function messageTypeForKind(kind: QueueKind): "reminder" | "confirmation" | "fol
   if (kind === "groupalert") return "manual";
   if (kind === "lowstock") return "manual";
   return kind;
+}
+
+function intentForKind(kind: QueueKind): WhatsAppMessageIntent {
+  if (kind === "lowstock" || kind === "groupalert") return "internal";
+  if (kind === "cancellation" || kind === "birthday") return "marketing";
+  return "utility";
 }
 
 function autoSettingEnabled(settings: Record<string, unknown> | null, kind: QueueKind): boolean {
@@ -255,6 +294,20 @@ async function updatePosReceipt(item: PosReceiptRow, status: "sent" | "pending" 
   });
 }
 
+async function deferPosReceipt(item: PosReceiptRow, delayMs: number, reason: string) {
+  await db.execute({
+    sql: `UPDATE wa_pos_receipt_queue
+          SET scheduled_at = ?, last_error = ?
+          WHERE user_id = ? AND invoice_id = ? AND status = 'pending'`,
+    args: [
+      new Date(Date.now() + delayMs).toISOString(),
+      reason,
+      item.userId,
+      item.invoiceId,
+    ],
+  });
+}
+
 function providerFromSettings(settings: Record<string, unknown> | null): WhatsAppProviderConfig & WhatsAppSafetyConfig {
   const wasender = (settings?.wasender ?? {}) as Record<string, unknown>;
   return {
@@ -281,6 +334,8 @@ async function getSettings(userId: string, cache: Map<string, Record<string, unk
 async function runBookingQueueCron(): Promise<{ sent: number; failed: number; skipped: number; expired: number; posSent: number; posFailed: number; posExpired: number }> {
   const items = await getDueItems();
   let sent = 0, failed = 0, skipped = 0, expired = 0, posSent = 0, posFailed = 0, posExpired = 0;
+  let sendAttemptsThisRun = 0;
+  let deferredDelayMs = 0;
   const settingsCache = new Map<string, Record<string, unknown> | null>();
 
   for (const item of items) {
@@ -322,11 +377,28 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     }
 
     const providerConfig = providerFromSettings(settings);
+    if (sendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
+      deferredDelayMs += spacingDelayMs(item.kind);
+      await deferItem(item, deferredDelayMs, "Deferred to pace automated WhatsApp sends.");
+      skipped++;
+      continue;
+    }
+
+    const safety = checkWhatsAppSafety({ phone: item.phone, intent: intentForKind(item.kind), config: providerConfig });
+    if (!safety.ok) {
+      const retryAfterMs = "retryAfter" in safety && typeof safety.retryAfter === "number"
+        ? safety.retryAfter * 1000
+        : retryDelayMs(item.kind);
+      await deferItem(item, retryAfterMs, safety.error ?? "WhatsApp safety check deferred this send.");
+      skipped++;
+      continue;
+    }
 
     const result = await sendWhatsAppMessage(
       providerConfig, item.phone, item.text,
       { messageType: messageTypeForKind(item.kind) },
     );
+    sendAttemptsThisRun++;
     if (result.skipped) {
       await updateItem(item, "expired", "Skipped fake/placeholder recipient.");
       skipped++;
@@ -335,13 +407,14 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     await logMessage(item.userId, item.kind, item.clientName, item.phone, result.ok ? "sent" : "failed", result.errorReason, apptId);
 
     if (result.ok) {
+      recordWhatsAppSafetySend({ phone: item.phone, config: providerConfig });
       await updateItem(item, "sent");
       sent++;
     } else if (item.attempts + 1 >= MAX_ATTEMPTS) {
       await updateItem(item, "expired", result.errorReason);
       failed++;
     } else {
-      await updateItem(item, "pending", result.errorReason);
+      await updateItem(item, "pending", result.errorReason, new Date(Date.now() + retryDelayMs(item.kind)).toISOString());
       failed++;
     }
   }
@@ -362,7 +435,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
 
     const providerConfig = providerFromSettings(settings);
     if (!activeWhatsAppCredential(providerConfig)) {
-      await updatePosReceipt(item, "pending", "WhatsApp provider credentials are not configured.");
+      await deferPosReceipt(item, retryDelayMs("manual"), "WhatsApp provider credentials are not configured.");
       posFailed++;
       continue;
     }
@@ -374,9 +447,18 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
 
     const safety = checkWhatsAppSafety({ phone: item.phone, intent: "utility", config: providerConfig });
     if (!safety.ok) {
-      await updatePosReceipt(item, item.attempts + 1 >= MAX_ATTEMPTS ? "expired" : "pending", safety.error);
-      await logMessage(item.userId, "invoice", item.clientName, item.phone, "failed", safety.error);
-      posFailed++;
+      const retryAfterMs = "retryAfter" in safety && typeof safety.retryAfter === "number"
+        ? safety.retryAfter * 1000
+        : retryDelayMs("manual");
+      await deferPosReceipt(item, retryAfterMs, safety.error ?? "WhatsApp safety check deferred this send.");
+      skipped++;
+      continue;
+    }
+
+    if (sendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
+      deferredDelayMs += spacingDelayMs("manual");
+      await deferPosReceipt(item, deferredDelayMs, "Deferred to pace automated WhatsApp sends.");
+      skipped++;
       continue;
     }
 
@@ -387,6 +469,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       providerConfig,
       thankYouText: item.thankYouText,
     });
+    sendAttemptsThisRun++;
     if (result.skipped) {
       await updatePosReceipt(item, "expired", "Skipped fake/placeholder recipient.");
       skipped++;
