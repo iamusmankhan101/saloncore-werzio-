@@ -44,7 +44,7 @@ export default function Hero() {
       {/* ── headline + subtitle + buttons ── */}
       <div className={styles.content}>
         <h1 className={styles.title} data-animate data-delay="0.1">
-          Simplify Salon Operations<br />Boost Your Revenue
+          Simplify Salon Operations<br />10x Your Revenue
         </h1>
         <p className={styles.sub} data-animate data-delay="0.25">
           Easily manage bookings, clients, staff and revenue from start to finish.
