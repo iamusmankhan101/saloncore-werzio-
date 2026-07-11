@@ -208,6 +208,7 @@ async function runFollowupCron() {
         (a) => a.status === "completed" &&
           (a.date === yesterdayStr || a.date === twoDaysAgoStr)
       );
+      const queuedPhones = new Set<string>();
 
       for (const appt of eligible) {
         if (await alreadySent(userId, appt.id)) { skipped++; continue; }
@@ -220,6 +221,7 @@ async function runFollowupCron() {
         }
         const phone = normalizePhone(rawPhone);
         if (!phone) { skipped++; continue; }
+        if (queuedPhones.has(phone)) { skipped++; continue; }
 
         const text = fillTemplate(template, {
           name:       appt.clientName,
@@ -237,6 +239,7 @@ async function runFollowupCron() {
           text,
           scheduledAt: new Date(Date.now() + scheduleDelayMs).toISOString(),
         });
+        queuedPhones.add(phone);
         queued++;
       }
     } catch (e) {
