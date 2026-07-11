@@ -539,7 +539,8 @@ export default function Features() {
         <div className="section-label" data-animate data-delay="0">✦ Everything You Need</div>
         <h2 className="section-title" data-animate data-delay="0.1">Powerful Features Built<br />for Pakistan&apos;s Salons</h2>
         <p className="section-sub" data-animate data-delay="0.2">
-          Twelve modules. One dashboard. Everything from booking to cash flow — all connected.
+          Twelve modules, one dashboard — salon POS software, CRM, and booking, built for beauty
+          salons, spas, and hair salons across Pakistan.
         </p>
       </div>
 

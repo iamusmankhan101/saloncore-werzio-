@@ -1,9 +1,13 @@
 import LegalLayout from "../../components/LegalLayout";
 import styles from "../legal.module.css";
+import { pageMetadata } from "../../lib/seo";
 
-export const metadata = {
-  title: "Terms of Service — Salon Central",
-};
+export const metadata = pageMetadata({
+  title: "Terms of Service",
+  description:
+    "The terms and conditions governing your use of the Salon Central salon management platform.",
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

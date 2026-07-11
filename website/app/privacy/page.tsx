@@ -1,9 +1,13 @@
 import LegalLayout from "../../components/LegalLayout";
 import styles from "../legal.module.css";
+import { pageMetadata } from "../../lib/seo";
 
-export const metadata = {
-  title: "Privacy Policy — Salon Central",
-};
+export const metadata = pageMetadata({
+  title: "Privacy Policy",
+  description:
+    "How Salon Central collects, uses, and protects your salon's business and client data.",
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (

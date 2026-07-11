@@ -29,7 +29,7 @@ export default function WhySalonCentral() {
       <div className={styles.header}>
         <h2 className={styles.title} data-animate data-delay="0">Why Salons Choose Salon Central</h2>
         <p className={styles.sub} data-animate data-delay="0.1">
-          Trusted by thousands of salons to manage bookings more efficiently.
+          Trusted beauty salon software for thousands of hair salons, spas, and parlours.
           Designed to help your beauty business do its best work.
         </p>
       </div>
