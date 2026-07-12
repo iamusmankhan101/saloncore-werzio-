@@ -8,7 +8,7 @@ import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import {
   Download, ArrowUpRight, ArrowDownRight,
-  TrendingUp, CalendarDays, CreditCard, ChevronLeft,
+  TrendingUp, CalendarDays, Percent, ChevronLeft,
   ChevronDown, ChevronUp, Receipt, Clock,
 } from "lucide-react";
 
@@ -17,6 +17,18 @@ const fmtK = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
   : n >= 1_000   ? `${Math.round(n / 1_000)}K`
   : String(Math.round(n));
+
+function computeYLabels(maxVal: number): string[] {
+  const step = maxVal <= 10_000 ? 2_500 : maxVal <= 50_000 ? 10_000 : maxVal <= 200_000 ? 50_000 : maxVal <= 1_000_000 ? 250_000 : 500_000;
+  const top = Math.ceil(maxVal / step) * step || step;
+  return [top, top * 0.75, top * 0.5, top * 0.25, 0].map(v => fmtK(v));
+}
+
+function hourLabel(hour: number): string {
+  if (hour === 0) return "12a";
+  if (hour === 12) return "12p";
+  return hour < 12 ? `${hour}a` : `${hour - 12}p`;
+}
 
 type Period = "today" | "7d" | "14d" | "30d" | "1y" | "custom";
 
@@ -325,11 +337,28 @@ export default function RevenuePage() {
 
   const maxChart = Math.max(...chartData.map(d => d.value), 1);
 
-  const yLabels = useMemo(() => {
-    const step = maxChart <= 10_000 ? 2_500 : maxChart <= 50_000 ? 10_000 : maxChart <= 200_000 ? 50_000 : maxChart <= 1_000_000 ? 250_000 : 500_000;
-    const top = Math.ceil(maxChart / step) * step || step;
-    return [top, top * 0.75, top * 0.5, top * 0.25, 0].map(v => fmtK(v));
-  }, [maxChart]);
+  const yLabels = useMemo(() => computeYLabels(maxChart), [maxChart]);
+
+  // ── Hourly breakdown for "today" — a single day of daily bars is just one
+  // bar filling the whole width, which reads as a broken chart rather than a
+  // trend. Break it into hours instead and render as a line, so "today" still
+  // shows a shape even with one day of data.
+  const hourlyChartData = useMemo(() => {
+    if (period !== "today") return [] as { hour: number; label: string; value: number }[];
+    const byHour = Array.from({ length: 24 }, () => 0);
+    currentAppts.forEach(a => {
+      const h = Number(a.startTime.split(":")[0]);
+      if (h >= 0 && h < 24) byHour[h] += a.totalAmount;
+    });
+    currentPos.forEach(inv => {
+      const h = new Date(inv.createdAt).getHours();
+      if (h >= 0 && h < 24) byHour[h] += inv.total;
+    });
+    return byHour.map((value, hour) => ({ hour, label: hourLabel(hour), value }));
+  }, [period, currentAppts, currentPos]);
+
+  const maxHourly = Math.max(...hourlyChartData.map(d => d.value), 1);
+  const hourlyYLabels = useMemo(() => computeYLabels(maxHourly), [maxHourly]);
 
   // Selected month label e.g. "November 2025"
   const selectedMonthLabel = selectedMonth
@@ -761,7 +790,7 @@ export default function RevenuePage() {
         {[
           { label: "Total Revenue", value: fmt(totalRevenue), change: revChange, icon: TrendingUp,   color: "var(--accent)", bg: "rgba(124, 58, 237, 0.08)", showTrend: true  },
           { label: "Appointments",  value: String(totalCount), change: cntChange, icon: CalendarDays, color: "#3b82f6", bg: "#eff6ff", showTrend: true  },
-          { label: "Avg Ticket",    value: fmt(avgTicket),     change: avgChange, icon: CreditCard,   color: "#059669", bg: "#f0fdf4", showTrend: true  },
+          { label: "Revenue Growth", value: `${revChange >= 0 ? "+" : ""}${revChange.toFixed(1)}%`, change: revChange, icon: Percent, color: revChange >= 0 ? "#059669" : "#dc2626", bg: revChange >= 0 ? "#f0fdf4" : "#fef2f2", showTrend: false },
         ].map(({ label, value, change, icon: Icon, color, bg, showTrend }) => (
           <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)", flex: 1 }}>
             <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color }}>
@@ -897,7 +926,7 @@ export default function RevenuePage() {
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a2e" }}>Revenue Trend</div>
             <div style={{ fontSize: 12, color: "#a0a0b8", marginTop: 3 }}>
-              {period === "1y" ? "Monthly breakdown" : "Daily breakdown"} · {rangeStart} → {filterEnd}
+              {period === "1y" ? "Monthly breakdown" : period === "today" ? "Hourly breakdown" : "Daily breakdown"} · {rangeStart} → {filterEnd}
               {period === "1y" && (
                 <span style={{ marginLeft: 8, fontSize: 11, color: "#9333EA", fontWeight: 600 }}>
                   Click a bar to drill into that month
@@ -914,12 +943,93 @@ export default function RevenuePage() {
         <div style={{ display: "flex", gap: 14 }}>
           {/* Y-axis */}
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", paddingBottom: 26, minWidth: 40 }}>
-            {yLabels.map(l => (
-              <div key={l} style={{ fontSize: 10, color: "#c0c0d0", textAlign: "right" }}>{l}</div>
+            {(period === "today" ? hourlyYLabels : yLabels).map((l, i) => (
+              <div key={`${l}-${i}`} style={{ fontSize: 10, color: "#c0c0d0", textAlign: "right" }}>{l}</div>
             ))}
           </div>
 
-          {/* Bars */}
+          {period === "today" ? (
+            /* Hourly line chart — a single daily bar just fills the whole
+               width, so "today" gets an hour-by-hour line instead. */
+            <div style={{ flex: 1 }}>
+              <div style={{ position: "relative", height: 230 }}>
+                {[0, 25, 50, 75, 100].map(pct => (
+                  <div key={pct} style={{ position: "absolute", bottom: `${pct}%`, left: 0, right: 0, height: 1, background: "#f0f0f8" }} />
+                ))}
+
+                <svg viewBox="0 0 1000 230" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+                  <defs>
+                    <linearGradient id="revenueLineFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.28" />
+                      <stop offset="100%" stopColor="#7C3AED" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {(() => {
+                    const pts = hourlyChartData.map((d, i) => {
+                      const x = (i / (hourlyChartData.length - 1)) * 1000;
+                      const y = 230 - Math.max(d.value, 0) / maxHourly * 230;
+                      return [x, y];
+                    });
+                    const line = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x},${y}`).join(" ");
+                    const area = `${line} L1000,230 L0,230 Z`;
+                    return (
+                      <>
+                        <path d={area} fill="url(#revenueLineFill)" stroke="none" />
+                        <path d={line} fill="none" stroke="#7C3AED" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
+                      </>
+                    );
+                  })()}
+                </svg>
+
+                {/* Hover columns + tooltip + hover dot */}
+                <div style={{ position: "absolute", inset: 0, display: "flex" }}>
+                  {hourlyChartData.map((pt, i) => {
+                    const isHovered = hoveredBar === i;
+                    const bottomPct = Math.max(pt.value, 0) / maxHourly * 100;
+                    return (
+                      <div
+                        key={i}
+                        style={{ flex: 1, position: "relative", cursor: "default" }}
+                        onMouseEnter={() => setHoveredBar(i)}
+                        onMouseLeave={() => setHoveredBar(null)}
+                      >
+                        {isHovered && (
+                          <>
+                            <div style={{
+                              position: "absolute", bottom: `${bottomPct}%`, left: "50%",
+                              transform: "translate(-50%, 50%)",
+                              width: 9, height: 9, borderRadius: "50%",
+                              background: "#7C3AED", border: "2px solid #fff",
+                              boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                            }} />
+                            <div style={{
+                              position: "absolute", bottom: `${bottomPct + 4}%`, left: "50%", transform: "translateX(-50%)",
+                              background: "#1a1a2e", color: "#fff", fontSize: 11, fontWeight: 700,
+                              padding: "5px 9px", borderRadius: 7, whiteSpace: "nowrap", zIndex: 10,
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                              pointerEvents: "none",
+                            }}>
+                              {fmt(pt.value)}
+                              <div style={{ fontSize: 9, fontWeight: 500, color: "#a78bfa", textAlign: "center", marginTop: 1 }}>{pt.label}</div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* X-axis labels — every 3rd hour to avoid crowding 24 labels */}
+              <div style={{ display: "flex", paddingTop: 8 }}>
+                {hourlyChartData.map((pt, i) => (
+                  <div key={i} style={{ flex: 1, textAlign: "center", fontSize: 10, color: "#c0c0d0" }}>
+                    {i % 3 === 0 ? pt.label : ""}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+          /* Bars */
           <div style={{ flex: 1 }}>
             <div style={{ position: "relative", height: 230 }}>
               {[0, 25, 50, 75, 100].map(pct => (
@@ -1001,6 +1111,7 @@ export default function RevenuePage() {
               })}
             </div>
           </div>
+          )}
         </div>
       </div>
 
