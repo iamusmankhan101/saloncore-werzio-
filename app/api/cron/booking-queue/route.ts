@@ -415,7 +415,15 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       continue;
     }
 
-    const safety = checkWhatsAppSafety({ phone: item.phone, intent: intentForKind(item.kind), config: providerConfig });
+    const safety = checkWhatsAppSafety({
+      phone: item.phone,
+      intent: intentForKind(item.kind),
+      // Follow-ups have no time pressure (they go out days after the visit), so
+      // they respect quiet hours even though their intent is "utility" — unlike
+      // confirmations/reminders, which stay exempt since they're time-critical.
+      respectQuietHours: item.kind === "followup" ? true : undefined,
+      config: providerConfig,
+    });
     if (!safety.ok) {
       const retryAfterMs = "retryAfter" in safety && typeof safety.retryAfter === "number"
         ? safety.retryAfter * 1000

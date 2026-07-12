@@ -19,6 +19,10 @@ export interface WhatsAppSafetyCheckInput {
   phone: string;
   intent?: WhatsAppMessageIntent;
   recipientOptedIn?: boolean;
+  /** Overrides the intent-based default (only "marketing" respects quiet hours by
+   * default) for message types that aren't time-critical, e.g. follow-ups. Leave
+   * unset for confirmations/reminders — holding those back defeats their purpose. */
+  respectQuietHours?: boolean;
   config?: WhatsAppSafetyConfig;
 }
 
@@ -87,6 +91,16 @@ function isInQuietHours(config: Required<WhatsAppSafetyConfig>) {
   return now >= start || now < end;
 }
 
+// Seconds from now until the next occurrence of quietHoursEnd, so a deferred
+// send lands right after quiet hours lift instead of retrying blindly every
+// 30-60s. Small random buffer so a backlog doesn't all fire in the same minute.
+function secondsUntilQuietHoursEnd(config: Required<WhatsAppSafetyConfig>): number {
+  const end = minutesFromTime(config.quietHoursEnd);
+  const now = currentMinutes(config.quietHoursTimezone);
+  const minutesUntilEnd = now < end ? end - now : (24 * 60 - now) + end;
+  return (minutesUntilEnd + Math.round(Math.random() * 10)) * 60;
+}
+
 function normalizeRecipient(phone: string) {
   return phone.endsWith("@g.us") ? phone : phone.replace(/\D/g, "");
 }
@@ -145,12 +159,25 @@ export function checkWhatsAppSafety(input: WhatsAppSafetyCheckInput) {
     return { ok: false, status: 429, error: `Daily WhatsApp send limit reached (${config.dailySendLimit}).` };
   }
 
+  // Quiet hours has its own toggle in Account settings, separate from the general
+  // Safety switch below — so it must not be silently neutered when that switch is
+  // off. Applies by default to marketing sends (cancellations, birthdays); other
+  // kinds opt in per-call via respectQuietHours (e.g. follow-ups, which have no
+  // time pressure). Confirmations/reminders never opt in — holding those back
+  // defeats their purpose.
+  const quietHoursApply = input.respectQuietHours ?? (intent === "marketing");
+  if (quietHoursApply && config.quietHoursEnabled && isInQuietHours(config)) {
+    return {
+      ok: false,
+      status: 429,
+      error: `WhatsApp sends are paused during quiet hours (${config.quietHoursStart}-${config.quietHoursEnd} ${config.quietHoursTimezone}).`,
+      retryAfter: secondsUntilQuietHoursEnd(config),
+    };
+  }
+
   if (!config.safetyEnabled) return { ok: true };
   if (config.emergencyPause) {
     return { ok: false, status: 423, error: "WhatsApp sending is paused from Account → WhatsApp Safety." };
-  }
-  if (intent === "marketing" && config.quietHoursEnabled && isInQuietHours(config)) {
-    return { ok: false, status: 429, error: "Marketing WhatsApp sends are paused during quiet hours." };
   }
   if (intent === "marketing" && config.blockMarketingWithoutOptIn && input.recipientOptedIn !== true) {
     return { ok: false, status: 403, error: "Marketing WhatsApp send blocked because this client has not opted in." };
