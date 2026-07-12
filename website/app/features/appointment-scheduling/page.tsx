@@ -7,7 +7,7 @@ export const metadata = pageMetadata({
     "Salon Central's salon appointment software lets beauty salons manage bookings, scheduling, online appointments, staff calendars, and client reminders from one platform.",
   path: "/features/appointment-scheduling",
   keywords: [
-    "salon appointment software",
+    "salon appointment software pakistan",
     "salon scheduling software",
     "salon booking software",
     "beauty salon appointment software",
