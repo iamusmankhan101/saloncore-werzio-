@@ -34,7 +34,7 @@ function randBetween(minMs: number, maxMs: number): number {
 }
 
 function spacingDelayMs(kind: QueueKind): number {
-  if (kind === "followup") return randBetween(25 * MINUTE_MS, 30 * MINUTE_MS);
+  if (kind === "followup") return randBetween(30 * MINUTE_MS, 120 * MINUTE_MS);
   if (kind === "reminder") return randBetween(10 * MINUTE_MS, 20 * MINUTE_MS);
   if (kind === "cancellation") return randBetween(15 * MINUTE_MS, 20 * MINUTE_MS);
   if (kind === "birthday") return randBetween(20 * MINUTE_MS, 30 * MINUTE_MS);

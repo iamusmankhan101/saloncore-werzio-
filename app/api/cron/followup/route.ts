@@ -14,7 +14,7 @@ import { appointmentStartMs, timezoneFromSettings } from "@/lib/appointment-time
 const MINUTE_MS = 60 * 1000;
 
 function followupSpacingMs() {
-  return Math.round(25 * MINUTE_MS + Math.random() * 5 * MINUTE_MS);
+  return Math.round(30 * MINUTE_MS + Math.random() * 90 * MINUTE_MS);
 }
 
 function authorized(req: NextRequest): boolean {

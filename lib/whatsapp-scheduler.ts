@@ -500,10 +500,11 @@ export function enqueueWhatsAppFollowup(apptId: string) {
   if ((settingsStore.wasender as { enabled?: boolean }).enabled === false) return;
   const delayMinutes = (settingsStore.wasender as { followupDelayMinutes?: number }).followupDelayMinutes ?? 1440;
   const delayMs = delayMinutes * 60 * 1000;
-  // On top of the configured base delay (24h by default), add a random 25-30 min
-  // jitter so every customer's follow-up lands at a slightly different time instead
-  // of everyone getting it at exactly the same clock time 24h later.
-  const jitterMs = (25 + Math.random() * 5) * 60_000;
+  // On top of the configured base delay (24h by default), add a random 30-120 min
+  // jitter so every customer's follow-up lands at a clearly different time instead
+  // of clustering within minutes of each other when appointments are completed
+  // close together (a tight cluster of automated sends looks bot-like to WhatsApp).
+  const jitterMs = (30 + Math.random() * 90) * 60_000;
   // Snapshot phone/name/service/date/time now so the message can still send with
   // the right details even if the appointment record is deleted before this fires
   // (this is what caused follow-ups to fail as "Unknown client" with no phone).
