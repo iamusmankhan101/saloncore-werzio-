@@ -56,8 +56,8 @@ const MESSAGE_JITTER_MIN_MS = 5 * 60_000;
 const MESSAGE_JITTER_MAX_MS = 7 * 60_000;
 const MINUTE_MS = 60_000;
 const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
-const POS_JITTER_MIN_MS = 5 * 60_000;
-const POS_JITTER_MAX_MS = 10 * 60_000;
+const POS_JITTER_MIN_MS = 10 * 60_000;
+const POS_JITTER_MAX_MS = 15 * 60_000;
 
 export function getWaLogs(): WaLogEntry[] {
   if (typeof window === "undefined") return [];
@@ -239,7 +239,7 @@ const newBookingTierGate = makeTierGate(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS);
 const reminderTierGate = makeTierGate(REMINDER_TIER_MIN_MS, REMINDER_TIER_MAX_MS);
 const followupTierGate = makeTierGate(FOLLOWUP_TIER_MIN_MS, FOLLOWUP_TIER_MAX_MS);
 
-/** Random 5-10 min delay for POS invoice + thank-you sends, applied per transaction/client. */
+/** Random 10-15 min delay for POS invoice + thank-you sends, applied per transaction/client. */
 export function posJitterMs(): number {
   return randBetween(POS_JITTER_MIN_MS, POS_JITTER_MAX_MS);
 }

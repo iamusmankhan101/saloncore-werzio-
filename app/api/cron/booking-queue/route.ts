@@ -42,6 +42,10 @@ function spacingDelayMs(kind: QueueKind): number {
   return randBetween(5 * MINUTE_MS, 7 * MINUTE_MS);
 }
 
+function invoiceSpacingDelayMs(): number {
+  return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
+}
+
 function retryDelayMs(kind: QueueKind): number {
   if (kind === "followup") return randBetween(45 * MINUTE_MS, 75 * MINUTE_MS);
   return randBetween(30 * MINUTE_MS, 60 * MINUTE_MS);
@@ -511,7 +515,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     }
 
     if (sendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
-      deferredDelayMs += spacingDelayMs("manual");
+      deferredDelayMs += invoiceSpacingDelayMs();
       await deferPosReceipt(item, deferredDelayMs, "Deferred to pace automated WhatsApp sends.");
       skipped++;
       continue;

@@ -14,7 +14,7 @@ interface RequestBody {
 }
 
 function posReceiptDelayMs() {
-  return 5 * 60_000 + Math.floor(Math.random() * 5 * 60_000);
+  return 10 * 60_000 + Math.floor(Math.random() * 5 * 60_000);
 }
 
 async function ensureTable() {
