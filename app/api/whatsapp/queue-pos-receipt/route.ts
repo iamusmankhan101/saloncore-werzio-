@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { resolveActor } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import type { SalonInvoice } from "@/lib/salon-invoices";
-import type { WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import type { WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
 
 interface RequestBody {
@@ -47,6 +47,9 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as RequestBody | null;
   if (!body?.invoice || !body.phone || !body.providerConfig) {
     return Response.json({ ok: false, error: "Invoice, phone, and provider configuration are required." }, { status: 400 });
+  }
+  if (isFakePlaceholderPhone(body.phone)) {
+    return Response.json({ ok: true, queued: false, skipped: true, reason: "fake-placeholder-phone" });
   }
 
   const scheduledAt = new Date(Date.now() + posReceiptDelayMs()).toISOString();
