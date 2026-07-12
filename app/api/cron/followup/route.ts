@@ -99,6 +99,21 @@ async function alreadyQueued(userId: string, apptId: string): Promise<boolean> {
   return result.rows.length > 0;
 }
 
+// A client can have several appointment records on the same day (e.g. two
+// services back-to-back with different staff) — only the first completed
+// service of the day should queue a follow-up, not one per service. This is
+// the authoritative cross-run check; `queuedPhones` below only catches
+// duplicates within a single cron invocation.
+async function hasFollowupForSameDay(userId: string, phone: string, apptDate: string): Promise<boolean> {
+  const result = await db.execute({
+    sql: `SELECT 1 FROM wa_booking_send_queue
+          WHERE user_id = ? AND phone = ? AND kind = 'followup' AND appt_date = ? AND status IN ('pending', 'sent')
+          LIMIT 1`,
+    args: [userId, phone, apptDate],
+  });
+  return result.rows.length > 0;
+}
+
 async function queueFollowup(input: {
   userId: string;
   appt: Appointment;
@@ -224,6 +239,7 @@ async function runFollowupCron() {
         const phone = normalizePhone(rawPhone);
         if (!phone) { skipped++; continue; }
         if (queuedPhones.has(phone)) { skipped++; continue; }
+        if (await hasFollowupForSameDay(userId, phone, appt.date)) { skipped++; continue; }
 
         const text = fillTemplate(template, {
           name:       appt.clientName,

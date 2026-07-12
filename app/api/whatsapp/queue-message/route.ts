@@ -69,6 +69,8 @@ async function ensureTable() {
   await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_id TEXT NOT NULL DEFAULT ''`).catch(() => {});
   await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_date TEXT NOT NULL DEFAULT ''`).catch(() => {});
   await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN service TEXT NOT NULL DEFAULT ''`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN appt_date TEXT NOT NULL DEFAULT ''`).catch(() => {});
+  await db.execute(`ALTER TABLE wa_message_logs ADD COLUMN service TEXT NOT NULL DEFAULT ''`).catch(() => {});
 }
 
 function normalizePhone(raw: string): string {
@@ -165,6 +167,25 @@ async function hasSentForSameVisit(userId: string, kind: QueueKind, phone: strin
   return result.rows.length > 0;
 }
 
+// A client can have several appointment records on the same day (e.g. two
+// services back-to-back with different staff). Follow-ups are one-per-visit,
+// not one-per-service — three "how was your visit" texts within minutes of
+// each other reads as spam, not care — so only the first completed service
+// of the day should queue one, regardless of which specific service it was.
+async function hasFollowupForSameDay(userId: string, phone: string, apptDate?: string): Promise<boolean> {
+  if (!apptDate?.trim()) return false;
+  const sent = await db.execute({
+    sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND phone = ? AND type = 'followup' AND appt_date = ? AND status = 'sent' LIMIT 1",
+    args: [userId, phone, apptDate.trim()],
+  });
+  if (sent.rows.length > 0) return true;
+  const pending = await db.execute({
+    sql: "SELECT 1 FROM wa_booking_send_queue WHERE user_id = ? AND phone = ? AND kind = 'followup' AND appt_date = ? AND status = 'pending' LIMIT 1",
+    args: [userId, phone, apptDate.trim()],
+  });
+  return pending.rows.length > 0;
+}
+
 export async function POST(req: NextRequest) {
   const actor = await resolveActor(req);
   if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
@@ -222,9 +243,12 @@ export async function POST(req: NextRequest) {
     if (await hasSentMessage(actor.userId, body.kind, body.apptId)) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent" });
     }
-    if ((body.kind === "reminder" || body.kind === "followup")
+    if (body.kind === "reminder"
         && await hasSentForSameVisit(actor.userId, body.kind, phone, body.apptDate, body.service)) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent-same-visit" });
+    }
+    if (body.kind === "followup" && await hasFollowupForSameDay(actor.userId, phone, body.apptDate)) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: "followup-already-queued-same-day" });
     }
     const existingQueue = await db.execute({
       sql: "SELECT status FROM wa_booking_send_queue WHERE user_id = ? AND id = ? AND status IN ('pending', 'sent') LIMIT 1",
