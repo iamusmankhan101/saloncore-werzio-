@@ -90,6 +90,15 @@ function pkr(n: number) {
   return "PKR " + Math.round(n).toLocaleString("en-PK");
 }
 
+function wholePkr(n: number): number {
+  return Number.isFinite(n) ? Math.round(n) : 0;
+}
+
+function parseDiscountValue(value: string): number {
+  const next = Number(value);
+  return Number.isFinite(next) ? Math.max(0, next) : 0;
+}
+
 function initials(name: string) {
   return name.split(" ").map(w => w[0] || "").join("").toUpperCase().slice(0, 2) || "?";
 }
@@ -229,10 +238,11 @@ export default function POSPage() {
   // ── Totals ────────────────────────────────────────────────────────────────
   const cartLineItems: SalonInvoiceItem[] = cart.map(e => ({
     id: e.cartId, type: e.type, description: e.name,
-    qty: e.qty, unitPrice: e.unitPrice, total: e.total,
+    qty: e.qty, unitPrice: wholePkr(e.unitPrice), total: wholePkr(e.total),
   }));
-  const rawSubtotal    = cartLineItems.reduce((s, i) => s + i.total, 0);
-  const discountAmount = discType === "pct" ? Math.round(rawSubtotal * discount / 100) : discount;
+  const rawSubtotal    = wholePkr(cartLineItems.reduce((s, i) => s + i.total, 0));
+  const baseDiscountAmount = discType === "pct" ? wholePkr(rawSubtotal * discount / 100) : wholePkr(discount);
+  const discountAmount = Math.min(baseDiscountAmount, rawSubtotal);
 
   const loyaltySettings       = settingsStore.loyalty as LoyaltySettings;
   const availableLoyaltyPts   = selectedClient?.id ? (selectedClient.loyaltyPoints ?? 0) : 0;
@@ -240,7 +250,7 @@ export default function POSPage() {
   const loyaltyDiscount       = loyaltySettings.enabled && cappedLoyaltyRedeem > 0
     ? Math.min(Math.floor(cappedLoyaltyRedeem * loyaltySettings.rupeePerPoint), Math.max(0, rawSubtotal - discountAmount))
     : 0;
-  const totalDiscountAmount   = discountAmount + loyaltyDiscount;
+  const totalDiscountAmount   = Math.min(rawSubtotal, wholePkr(discountAmount + loyaltyDiscount));
 
   const { subtotal, taxAmount, total } = calcTotals(cartLineItems, totalDiscountAmount);
   const totalQty = cart.reduce((s, e) => s + e.qty, 0);
@@ -1063,7 +1073,7 @@ export default function POSPage() {
                   <Tag size={12} color="#d97706" style={{ flexShrink: 0 }} />
                   <span style={{ fontSize: 11, fontWeight: 600, color: "#9999b0" }}>Discount</span>
                   <div style={{ marginLeft: "auto", display: "flex", gap: 5, alignItems: "center" }}>
-                    <input type="number" min={0} value={discount || ""} onChange={e => setDiscount(Math.max(0, Number(e.target.value)))}
+                    <input type="number" min={0} value={discount || ""} onChange={e => setDiscount(parseDiscountValue(e.target.value))}
                       placeholder="0"
                       style={{ width: 72, height: 30, padding: "0 8px", borderRadius: 8, border: "1.5px solid #e8e8f4", fontSize: 12, textAlign: "right", outline: "none", background: "#fff", fontWeight: 700 }} />
                     <select value={discType} onChange={e => setDiscType(e.target.value as DiscountType)}

@@ -135,9 +135,10 @@ export function calcTotals(
   discountAmount: number,
   taxRate = 0
 ): { subtotal: number; taxAmount: number; total: number } {
-  const subtotal = items.reduce((s, i) => s + i.total, 0);
-  const taxAmount = Math.round((subtotal - discountAmount) * taxRate);
-  const total = Math.max(0, subtotal - discountAmount + taxAmount);
+  const subtotal = Math.round(items.reduce((s, i) => s + i.total, 0));
+  const discount = Math.min(Math.max(0, Math.round(discountAmount)), subtotal);
+  const taxAmount = Math.round((subtotal - discount) * taxRate);
+  const total = Math.max(0, Math.round(subtotal - discount + taxAmount));
   return { subtotal, taxAmount, total };
 }
 
