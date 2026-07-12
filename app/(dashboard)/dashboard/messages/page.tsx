@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw,
   Zap, Bell, ThumbsUp, Package, ChevronRight, Phone, Copy, Check,
-  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, CalendarDays, AlertCircle, Cake, CalendarX, Heart,
+  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, CalendarDays, AlertCircle, Cake, CalendarX, Heart, X, ListChecks,
 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -15,6 +15,7 @@ import { isFakePlaceholderPhone } from "@/lib/whatsapp-provider";
 import { getCurrentUser } from "@/lib/auth";
 import { locationUserKey } from "@/lib/locations";
 import { getCurrentPlan } from "@/lib/plan-limits";
+import type { QueueDetailItem } from "@/app/api/whatsapp/queue-details/route";
 import type { Client } from "@/lib/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -455,6 +456,24 @@ export default function MessagesPage() {
   // queue has actually drained.
   const [queueCounts, setQueueCounts] = useState({ confirm: 0, followup: 0, booking: 0, pos: 0, due: 0 });
   const [pendingQueue, setPendingQueue] = useState<PendingQueueItem[]>([]);
+  const [showQueueModal, setShowQueueModal] = useState(false);
+  const [queueDetails, setQueueDetails] = useState<QueueDetailItem[]>([]);
+  const [queueDetailsLoading, setQueueDetailsLoading] = useState(false);
+
+  async function openQueueDetails() {
+    setShowQueueModal(true);
+    setQueueDetailsLoading(true);
+    try {
+      const res = await fetch("/api/whatsapp/queue-details", { cache: "no-store" });
+      const data = await res.json() as { ok?: boolean; items?: QueueDetailItem[] };
+      setQueueDetails(data.ok && data.items ? data.items : []);
+    } catch {
+      setQueueDetails([]);
+    } finally {
+      setQueueDetailsLoading(false);
+    }
+  }
+
   useEffect(() => {
     async function refreshQueueCounts() {
       setPendingQueue(getPendingWhatsAppQueue());
@@ -1059,12 +1078,18 @@ export default function MessagesPage() {
                 </div>
 
                 {totalQueue > 0 && (
-                  <div style={{ marginTop: 12, padding: "10px 13px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 12, color: "#92400e", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ marginTop: 12, padding: "10px 13px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 12, color: "#92400e", fontWeight: 600, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <Clock size={13} style={{ flexShrink: 0 }} />
-                    {totalQueue} message{totalQueue > 1 ? "s" : ""} queued
-                    {queueCounts.pos > 0 ? ` · ${queueCounts.pos} POS receipt${queueCounts.pos > 1 ? "s" : ""}` : ""}
-                    {queueCounts.booking > 0 ? ` · ${queueCounts.booking} booking message${queueCounts.booking > 1 ? "s" : ""}` : ""}
-                    {queueCounts.due > 0 ? " · due now" : " · waiting for scheduled time"}
+                    <span style={{ flex: 1 }}>
+                      {totalQueue} message{totalQueue > 1 ? "s" : ""} queued
+                      {queueCounts.pos > 0 ? ` · ${queueCounts.pos} POS receipt${queueCounts.pos > 1 ? "s" : ""}` : ""}
+                      {queueCounts.booking > 0 ? ` · ${queueCounts.booking} booking message${queueCounts.booking > 1 ? "s" : ""}` : ""}
+                      {queueCounts.due > 0 ? " · due now" : " · waiting for scheduled time"}
+                    </span>
+                    <button type="button" onClick={openQueueDetails}
+                      style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 5, border: "1px solid #fde68a", background: "#fff", borderRadius: 7, padding: "4px 9px", fontSize: 11, fontWeight: 700, color: "#92400e", cursor: "pointer" }}>
+                      <ListChecks size={12} /> View details
+                    </button>
                   </div>
                 )}
 
@@ -1184,6 +1209,112 @@ export default function MessagesPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {showQueueModal && (
+        <QueueDetailsModal
+          items={queueDetails}
+          loading={queueDetailsLoading}
+          onClose={() => setShowQueueModal(false)}
+          onRefresh={openQueueDetails}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Queue Details Modal ────────────────────────────────────────────────────
+
+function badgeTypeForKind(kind: string): string {
+  return kind === "groupalert" ? "newbooking" : kind;
+}
+
+function formatWhen(iso: string): { absolute: string; relative: string; overdue: boolean } {
+  const target = new Date(iso).getTime();
+  const diffMs = target - Date.now();
+  const overdue = diffMs <= 0;
+  const absolute = new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  const abs = Math.abs(diffMs);
+  const minutes = Math.round(abs / 60_000);
+  const hours = Math.round(abs / 3_600_000);
+  const days = Math.round(abs / 86_400_000);
+
+  let relative: string;
+  if (minutes < 1) relative = "now";
+  else if (minutes < 60) relative = `${minutes}m`;
+  else if (hours < 24) relative = `${hours}h`;
+  else relative = `${days}d`;
+
+  return { absolute, relative: overdue ? `${relative} overdue` : `in ${relative}`, overdue };
+}
+
+function QueueDetailsModal({ items, loading, onClose, onRefresh }: {
+  items: QueueDetailItem[];
+  loading: boolean;
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 640, maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,0.22)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 20px", borderBottom: "1px solid #f0f0f5", flexShrink: 0 }}>
+          <ListChecks size={18} color="#92400e" />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: "#1d1d2f" }}>Queued Messages</div>
+            <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>{items.length} pending — booking confirmations, reminders, follow-ups &amp; POS receipts</div>
+          </div>
+          <button type="button" onClick={onRefresh} title="Refresh"
+            style={{ border: "1px solid #e8e8f0", background: "#fafafd", borderRadius: 8, padding: 7, cursor: "pointer", display: "flex" }}>
+            <RefreshCw size={14} color="#6b6b8a" />
+          </button>
+          <button type="button" onClick={onClose} title="Close"
+            style={{ border: "none", background: "rgba(0,0,0,0.06)", borderRadius: 8, padding: 7, cursor: "pointer", display: "flex" }}>
+            <X size={14} color="#6b6b8a" />
+          </button>
+        </div>
+
+        <div style={{ overflowY: "auto", padding: "10px 14px 16px" }}>
+          {loading ? (
+            <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: "#9999b0" }}>Loading…</div>
+          ) : items.length === 0 ? (
+            <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: "#9999b0" }}>Nothing queued right now.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {items.map((item) => {
+                const when = formatWhen(item.scheduledAt);
+                return (
+                  <div key={`${item.source}_${item.id}`}
+                    style={{ padding: "10px 12px", borderRadius: 12, background: "#f8f8fc", border: "1px solid #e8e8f0" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <Badge type={badgeTypeForKind(item.kind)} />
+                      {item.source === "pos" && item.invoiceNumber && (
+                        <span style={{ fontSize: 11, color: "#9999b0", fontWeight: 600 }}>#{item.invoiceNumber}</span>
+                      )}
+                      <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 800, color: when.overdue ? "#dc2626" : "#92400e", whiteSpace: "nowrap" }}>
+                        {when.relative}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d2f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {item.clientName || "Unknown client"}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#9999b0", flexShrink: 0 }}>{item.phone}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 2 }}>
+                      Scheduled {when.absolute}
+                      {item.apptDate ? ` · appointment ${item.apptDate}${item.apptTime ? ` ${item.apptTime}` : ""}` : ""}
+                      {item.attempts > 0 ? ` · attempt ${item.attempts + 1}` : ""}
+                    </div>
+                    {item.lastError && (
+                      <div style={{ fontSize: 11, color: "#a16207", marginTop: 4, fontStyle: "italic" }}>{item.lastError}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
