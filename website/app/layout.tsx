@@ -67,7 +67,10 @@ export const metadata: Metadata = {
     images: [siteConfig.ogImage],
   },
   icons: {
-    icon: [{ url: "/salon-central-favicon.png", type: "image/png", sizes: "1254x1254" }],
+    icon: [
+      { url: "/favicon-48x48.png", type: "image/png", sizes: "48x48" },
+      { url: "/favicon-96x96.png", type: "image/png", sizes: "96x96" },
+    ],
     apple: { url: "/salon-central-favicon.png", sizes: "1254x1254", type: "image/png" },
   },
 };
