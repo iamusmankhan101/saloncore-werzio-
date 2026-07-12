@@ -4,7 +4,7 @@ export const siteConfig = {
   name: "Salon Central",
   url: "https://saloncentral.xyz",
   description:
-    "Salon Central is an all-in-one beauty salon software with POS, appointment booking, CRM, invoicing, inventory, payroll, and WhatsApp automation for salons in Pakistan.",
+    "Salon Central is an all-in-one hair and beauty salon management software in Pakistan with POS, appointment booking, CRM, invoicing, inventory, payroll, and WhatsApp automation.",
   ogImage: "/calendar-hero.png",
   ogImageWidth: 2856,
   ogImageHeight: 1610,
