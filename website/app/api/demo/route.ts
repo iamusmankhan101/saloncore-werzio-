@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       from: "Salon Central Demo <demo@werzio.com>",
       to: ["iamusmankhan101@gmail.com"],
       replyTo: email,
-      subject: `New Demo Request — ${name}`,
+      subject: `New Demo Request: ${name}`,
       html: `
         <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; background: #f9f9fb; border-radius: 12px;">
           <div style="text-align: center; margin-bottom: 28px;">
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
             </table>
           </div>
           <p style="text-align: center; color: #9ca3af; font-size: 0.8rem; margin-top: 24px;">
-            Sent from saloncentral.com — Book a Demo form
+            Sent from saloncentral.com's Book a Demo form
           </p>
         </div>
       `,

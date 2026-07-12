@@ -64,7 +64,7 @@ function HeroBooking() {
         </div>
         <div style={{ padding: "9px 12px", borderRadius: 10, background: "#dcfce7", border: "1px solid #bbf7d0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: "0.72rem", fontWeight: 900, color: "#166534" }}>
-            <div>Open 09:00 – 20:00</div>
+            <div>Open 09:00 to 20:00</div>
             <div style={{ opacity: 0.7 }}>Wed 28 May 2026</div>
           </div>
           <div style={{ fontSize: "0.82rem", fontWeight: 900, color: "#166534" }}>PKR 4,500</div>
@@ -134,10 +134,10 @@ function ServicesPanel() {
 
 function BusinessHoursPanel() {
   const days = [
-    { day: "Monday",    open: true,  hours: "09:00 – 20:00" },
-    { day: "Tuesday",   open: true,  hours: "09:00 – 20:00" },
-    { day: "Wednesday", open: true,  hours: "09:00 – 20:00" },
-    { day: "Saturday",  open: true,  hours: "10:00 – 18:00" },
+    { day: "Monday",    open: true,  hours: "09:00 to 20:00" },
+    { day: "Tuesday",   open: true,  hours: "09:00 to 20:00" },
+    { day: "Wednesday", open: true,  hours: "09:00 to 20:00" },
+    { day: "Saturday",  open: true,  hours: "10:00 to 18:00" },
     { day: "Sunday",    open: false, hours: "Closed" },
   ];
   return (
@@ -238,7 +238,7 @@ function SummaryPanel() {
         { label: "Total duration",    value: "90 min" },
         { label: "Total price",       value: "PKR 4,500", purple: true },
         { label: "Date",              value: "Wed 28 May 2026" },
-        { label: "Salon hours",       value: "Open 09:00 – 20:00", green: true },
+        { label: "Salon hours",       value: "Open 09:00 to 20:00", green: true },
       ].map((row) => (
         <div key={row.label} className={styles.checkoutBody}>
           <div>
@@ -259,13 +259,13 @@ const rows = [
   {
     eyebrow: "Shareable booking link",
     title: "One link. Share it anywhere clients find you",
-    body: "Every Salon Central salon gets a public booking page. Add the link to your Instagram bio, WhatsApp status, Google Maps website field, or Facebook Book Now button — clients book directly without calling or DMing.",
+    body: "Every Salon Central salon gets a public booking page. Add the link to your Instagram bio, WhatsApp status, Google Maps website field, or Facebook Book Now button. Clients book directly without calling or DMing.",
     visual: <SharePanel />,
   },
   {
     eyebrow: "Service catalogue",
     title: "Clients browse and select exactly what they want",
-    body: "Your full service menu is displayed with names, durations, and prices. Clients tick multiple services in a single booking — the total duration and price calculate automatically so there are no surprises.",
+    body: "Your full service menu is displayed with names, durations, and prices. Clients tick multiple services in a single booking, and the total duration and price calculate automatically so there are no surprises.",
     visual: <ServicesPanel />,
   },
   {
@@ -277,19 +277,19 @@ const rows = [
   {
     eyebrow: "Booking summary",
     title: "Duration and price totals calculated before confirming",
-    body: "As the client selects services and a date, a live summary card shows total duration, total price, and salon hours for that day. No guessing — clients see exactly what they are booking before they submit.",
+    body: "As the client selects services and a date, a live summary card shows total duration, total price, and salon hours for that day. No guessing: clients see exactly what they are booking before they submit.",
     visual: <SummaryPanel />,
   },
   {
     eyebrow: "Client auto-creation",
     title: "New clients are added to your system on their first booking",
-    body: "When a client books online, Salon Central checks their phone number. If they are new, a client profile is created automatically — tagged as New, source set to Web, with visit count and spend tracked from day one.",
+    body: "When a client books online, Salon Central checks their phone number. If they are new, a client profile is created automatically: tagged as New, source set to Web, with visit count and spend tracked from day one.",
     visual: <ClientAutoPanel />,
   },
   {
     eyebrow: "Dashboard integration",
     title: "Web bookings appear in your calendar and appointments instantly",
-    body: "Every online booking lands immediately in your dashboard — visible in the appointments list, the calendar, and the client's profile. Staff see the source as Web so they know it came through the booking page.",
+    body: "Every online booking lands immediately in your dashboard: visible in the appointments list, the calendar, and the client's profile. Staff see the source as Web so they know it came through the booking page.",
     visual: <DashboardPanel />,
   },
 ];
@@ -312,7 +312,7 @@ export default function OnlineBookingFeaturePage() {
               </div>
               <h1>Let clients book while you focus on the salon</h1>
               <p>
-                Salon Central gives your salon a public booking page where clients browse services, pick a date, and confirm their appointment — without a single DM or phone call from your team.
+                Salon Central gives your salon a public booking page where clients browse services, pick a date, and confirm their appointment, all without a single DM or phone call from your team.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -367,7 +367,7 @@ export default function OnlineBookingFeaturePage() {
           <div>
             <Smartphone size={19} />
             <strong>Share anywhere</strong>
-            <span>Instagram, WhatsApp, Google Maps, Facebook — one link works everywhere.</span>
+            <span>Instagram, WhatsApp, Google Maps, Facebook: one link works everywhere.</span>
           </div>
           <div>
             <Scissors size={19} />
@@ -377,7 +377,7 @@ export default function OnlineBookingFeaturePage() {
           <div>
             <CalendarDays size={19} />
             <strong>Hours enforced</strong>
-            <span>Closed days block bookings automatically — no accidental out-of-hours requests.</span>
+            <span>Closed days block bookings automatically: no accidental out-of-hours requests.</span>
           </div>
           <div>
             <Users size={19} />

@@ -249,7 +249,7 @@ function PDFExportPanel() {
         <div>
           <div style={{ fontSize: "0.68rem", fontWeight: 900, color: "#746b83" }}>REVENUE REPORT</div>
           <div style={{ fontSize: "0.9rem", fontWeight: 900, color: "#17112a" }}>Glow Studio</div>
-          <div style={{ fontSize: "0.68rem", color: "#746b83" }}>1 May – 31 May 2026</div>
+          <div style={{ fontSize: "0.68rem", color: "#746b83" }}>1 May to 31 May 2026</div>
         </div>
         <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#db2777)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 900, color: "#fff" }}>GS</div>
       </div>
@@ -281,7 +281,7 @@ const rows = [
   {
     eyebrow: "Period comparison",
     title: "Compare any period against the previous one automatically",
-    body: "Switch between 7 days, 14 days, 1 month, or 1 year. Every metric — total revenue, appointment count, average ticket — shows its percentage change against the equivalent previous period, with a green up or red down indicator.",
+    body: "Switch between 7 days, 14 days, 1 month, or 1 year. Every metric, including total revenue, appointment count, and average ticket, shows its percentage change against the equivalent previous period, with a green up or red down indicator.",
     visual: <PeriodComparisonPanel />,
   },
   {
@@ -293,13 +293,13 @@ const rows = [
   {
     eyebrow: "Payment method breakdown",
     title: "Know exactly how clients are paying you",
-    body: "Every paid invoice's payment method is tracked and aggregated. Cash, JazzCash, EasyPaisa, Raast, Card, and Bank Transfer — each with a percentage of total revenue and a proportional bar so you can spot which channels dominate.",
+    body: "Every paid invoice's payment method is tracked and aggregated. Cash, JazzCash, EasyPaisa, Raast, Card, and Bank Transfer: each with a percentage of total revenue and a proportional bar so you can spot which channels dominate.",
     visual: <PaymentBreakdownPanel />,
   },
   {
     eyebrow: "Top services",
     title: "See which services generate the most revenue",
-    body: "Salon Central ranks your top 6 services by total revenue earned in the selected period. Each shows the number of times performed and the total PKR generated — so you always know your highest-value offerings.",
+    body: "Salon Central ranks your top 6 services by total revenue earned in the selected period. Each shows the number of times performed and the total PKR generated, so you always know your highest-value offerings.",
     visual: <TopServicesPanel />,
   },
   {
@@ -311,7 +311,7 @@ const rows = [
   {
     eyebrow: "PDF export",
     title: "Export a complete revenue report with one click",
-    body: "Hit Export PDF and Salon Central generates a branded A4 report — stats, trend chart, payment method breakdown, top services, and the full daily table — all formatted for print or email. Monthly drill-down views export their own detailed report.",
+    body: "Hit Export PDF and Salon Central generates a branded A4 report with stats, trend chart, payment method breakdown, top services, and the full daily table, all formatted for print or email. Monthly drill-down views export their own detailed report.",
     visual: <PDFExportPanel />,
   },
 ];
@@ -334,7 +334,7 @@ export default function RevenueFeaturePage() {
               </div>
               <h1>Every rupee your salon earns, tracked in real time</h1>
               <p>
-                Salon Central gives you a live revenue dashboard with period-over-period comparisons, payment method breakdowns, top service rankings, daily tables, and one-click PDF export — no spreadsheet needed.
+                Salon Central gives you a live revenue dashboard with period-over-period comparisons, payment method breakdowns, top service rankings, daily tables, and one-click PDF export. No spreadsheet needed.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -399,7 +399,7 @@ export default function RevenueFeaturePage() {
           <div>
             <Scissors size={19} />
             <strong>Top services</strong>
-            <span>Top 6 services ranked by revenue — know your highest-value offerings instantly.</span>
+            <span>Top 6 services ranked by revenue: know your highest-value offerings instantly.</span>
           </div>
           <div>
             <Download size={19} />

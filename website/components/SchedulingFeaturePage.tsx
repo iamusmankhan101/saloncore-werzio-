@@ -57,7 +57,7 @@ function StaffSchedulePanel() {
   ];
   return (
     <div className={styles.staffPanel}>
-      <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#17112a", marginBottom: 10 }}>Today — Staff Schedule</div>
+      <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#17112a", marginBottom: 10 }}>Today&apos;s Staff Schedule</div>
       {staff.map((s) => (
         <div key={s.name} className={styles.staffRow}>
           <div className={styles.avatarSmall} style={{ background: s.color + "22", color: s.color }}>{s.name.charAt(0)}</div>
@@ -107,28 +107,28 @@ const rows = [
     eyebrow: "Online booking",
     title: "Let clients book from your branded booking page, 24/7",
     body:
-      "Salon Central's online salon software gives clients a branded booking page to pick their service, choose a stylist, and confirm a time — without calling the salon. As salon booking software built for Pakistan, bookings land directly in your dashboard with source, services, and total already filled in, and business hours and closed days are respected automatically.",
+      "Salon Central's online salon software gives clients a branded booking page to pick their service, choose a stylist, and confirm a time, without calling the salon. As salon booking software built for Pakistan, bookings land directly in your dashboard with source, services, and total already filled in, and business hours and closed days are respected automatically.",
     visual: <PhoneBookingPanel />,
   },
   {
     eyebrow: "Staff scheduling",
     title: "Schedule every stylist's day without conflicts or guesswork",
     body:
-      "Salon Central's salon scheduling software assigns appointments to specific staff members and shows each stylist's workload side by side on the weekly calendar — true beauty salon scheduling software with stylist and service pre-linked on every new booking. No double-bookings: Salon Central shows only the available slots for each team member.",
+      "Salon Central's salon scheduling software assigns appointments to specific staff members and shows each stylist's workload side by side on the weekly calendar. It's true beauty salon scheduling software, with stylist and service pre-linked on every new booking. No double-bookings: Salon Central shows only the available slots for each team member.",
     visual: <StaffSchedulePanel />,
   },
   {
     eyebrow: "Automatic reminders",
     title: "Send confirmations, reminders, and follow-ups automatically",
     body:
-      "As beauty salon appointment software, Salon Central sends a booking confirmation the moment an appointment is created, a 24-hour reminder the day before, a 2-hour reminder on the day, and a post-visit follow-up — all via WhatsApp, with zero manual effort from your team.",
+      "As beauty salon appointment software, Salon Central sends a booking confirmation the moment an appointment is created, a 24-hour reminder the day before, a 2-hour reminder on the day, and a post-visit follow-up. All via WhatsApp, with zero manual effort from your team.",
     visual: <MessagesPanel />,
   },
   {
     eyebrow: "Cancellation management",
     title: "Handle cancellations and no-shows without losing track",
     body:
-      "As the best salon booking software — and hair salon booking software — for beauty salons across Pakistan, Salon Central lets you mark appointments as cancelled or no-show in one tap. Cancelled slots free up immediately for new bookings, and both statuses are tracked in client history and daily reports so you can see your no-show rate and follow up with a reschedule message.",
+      "Salon Central is the best salon booking software and hair salon booking software for beauty salons across Pakistan. Mark appointments as cancelled or no-show in one tap, and cancelled slots free up immediately for new bookings. Both statuses are tracked in client history and daily reports so you can see your no-show rate and follow up with a reschedule message.",
     visual: <CancellationPanel />,
   },
 ];
@@ -223,7 +223,7 @@ export default function SchedulingFeaturePage() {
               </div>
               <h1>Take control of your salon schedule</h1>
               <p>
-                Salon Central is salon appointment software Pakistan salons trust — manage bookings, client details, stylist assignments, WhatsApp reminders, online booking, and checkout handoff, all in one dashboard built for the beauty industry.
+                Salon Central is salon appointment software Pakistan salons trust. Manage bookings, client details, stylist assignments, WhatsApp reminders, online booking, and checkout handoff, all in one dashboard built for the beauty industry.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>

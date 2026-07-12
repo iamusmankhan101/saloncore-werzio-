@@ -118,7 +118,7 @@ function PerformancePanel() {
   ];
   return (
     <div className={styles.staffPanel}>
-      <div style={{ fontSize: "0.78rem", fontWeight: 900, color: "#17112a", marginBottom: 14 }}>Revenue by stylist — This month</div>
+      <div style={{ fontSize: "0.78rem", fontWeight: 900, color: "#17112a", marginBottom: 14 }}>Revenue by stylist: This month</div>
       {staff.map((s) => (
         <div key={s.name} className={styles.staffRow}>
           <div className={styles.avatarSmall} style={{ background: s.color + "22", color: s.color, fontSize: "0.6rem", fontWeight: 900 }}>
@@ -207,13 +207,13 @@ const rows = [
   {
     eyebrow: "6 staff roles",
     title: "Assign the right role to every team member",
-    body: "Choose from Owner, Manager, Senior Stylist, Junior Stylist, Receptionist, and Trainee. Each role has a distinct colour badge that appears on appointment cards, calendars, and performance reports — so your front desk always knows who is doing what.",
+    body: "Choose from Owner, Manager, Senior Stylist, Junior Stylist, Receptionist, and Trainee. Each role has a distinct colour badge that appears on appointment cards, calendars, and performance reports, so your front desk always knows who is doing what.",
     visual: <RolesPanel />,
   },
   {
     eyebrow: "Service assignment",
     title: "Control which services each staff member can perform",
-    body: "Open any staff profile and tick the services they are trained for. Only those services appear when booking an appointment for that stylist. Price, duration, and service name all carry through automatically — no repeated data entry.",
+    body: "Open any staff profile and tick the services they are trained for. Only those services appear when booking an appointment for that stylist. Price, duration, and service name all carry through automatically. No repeated data entry.",
     visual: <ServiceAssignPanel />,
   },
   {
@@ -225,7 +225,7 @@ const rows = [
   {
     eyebrow: "Plan limits",
     title: "Start free, scale your team as you grow",
-    body: "The Free plan supports up to 5 staff members. Upgrade to Salon Central Pro or Premium for unlimited team size. Adding a staff member takes under 30 seconds — name, phone, role, and services — and they are live in the system immediately.",
+    body: "The Free plan supports up to 5 staff members. Upgrade to Salon Central Pro or Premium for unlimited team size. Adding a staff member takes under 30 seconds: name, phone, role, and services, then they are live in the system immediately.",
     visual: <PlanLimitPanel />,
   },
 ];
@@ -246,7 +246,7 @@ export default function StaffFeaturePage() {
               </div>
               <h1>Your whole team, managed from one screen</h1>
               <p>
-                Salon Central gives every team member a profile with their role, specialties, assigned services, and live performance stats — so your salon runs with clarity from the moment the doors open.
+                Salon Central gives every team member a profile with their role, specialties, assigned services, and live performance stats, so your salon runs with clarity from the moment the doors open.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>

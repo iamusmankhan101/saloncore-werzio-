@@ -87,7 +87,7 @@ export default function Navbar() {
                   <div className={styles.featuredCard}>
                     <span className={styles.featuredBadge}>Salon Central Pro</span>
                     <strong className={styles.featuredTitle}>Everything your salon needs, in one place</strong>
-                    <p className={styles.featuredBody}>Appointments, POS, inventory, staff, clients &amp; reports — no integrations needed.</p>
+                    <p className={styles.featuredBody}>Appointments, POS, inventory, staff, clients &amp; reports. No integrations needed.</p>
                     <div className={styles.featuredStats}>
                       <div><strong>11</strong><span>Features</span></div>
                       

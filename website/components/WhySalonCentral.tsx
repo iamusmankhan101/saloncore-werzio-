@@ -8,7 +8,7 @@ const stats = [
   },
   {
     value: "3×",
-    desc: "Faster Bookings — clients self-book in 60 seconds with no back-and-forth DMs.",
+    desc: "Faster Bookings: clients self-book in 60 seconds with no back-and-forth DMs.",
     highlight: false,
   },
   {
@@ -18,7 +18,7 @@ const stats = [
   },
   {
     value: "10K+",
-    desc: "Active Salons — home studios, startups, and growing multi-branch chains.",
+    desc: "Active Salons: home studios, startups, and growing multi-branch chains.",
     highlight: false,
   },
 ];

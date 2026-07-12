@@ -45,7 +45,7 @@ function HeroInventory() {
       {/* alert banner */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 10, background: "#fef3c7", border: "1px solid #fcd34d", marginBottom: 12 }}>
         <AlertTriangle size={14} color="#d97706" />
-        <span style={{ fontSize: "0.75rem", fontWeight: 900, color: "#92400e" }}>5 items need attention — 2 out of stock, 3 low</span>
+        <span style={{ fontSize: "0.75rem", fontWeight: 900, color: "#92400e" }}>5 items need attention: 2 out of stock, 3 low</span>
       </div>
 
       {items.map((it) => {
@@ -205,10 +205,10 @@ function LowStockAlertPanel() {
         <span>Glow Studio · Low stock alert</span>
       </div>
       <div className={styles.chatBubble}>
-        ⚠️ <strong>Low Stock Alert</strong> — Glow Studio:<br /><br />
-        • Loreal Hair Color 7.3 — <strong>3 pcs left</strong> (min: 10) · Supplier: Loreal Distributor<br />
-        • Skin Serum SPF50 — <strong>4 bottles left</strong> (min: 8) · Supplier: Skin First PK<br />
-        • OPI Nail Polish Set — <strong>Out of stock</strong> (min: 5)<br /><br />
+        ⚠️ <strong>Low Stock Alert</strong> for Glow Studio:<br /><br />
+        • Loreal Hair Color 7.3: <strong>3 pcs left</strong> (min: 10) · Supplier: Loreal Distributor<br />
+        • Skin Serum SPF50: <strong>4 bottles left</strong> (min: 8) · Supplier: Skin First PK<br />
+        • OPI Nail Polish Set: <strong>Out of stock</strong> (min: 5)<br /><br />
         Please restock soon.
       </div>
       <div style={{ display: "grid", gap: 6 }}>
@@ -290,13 +290,13 @@ const rows = [
   {
     eyebrow: "Stock tracking",
     title: "See every product's live stock level against its minimum",
-    body: "Each inventory item has a current stock and a minimum stock threshold you define. Salon Central colour-codes every item as In Stock (green), Low Stock (orange), or Out of Stock (red) — instantly visible across the inventory list.",
+    body: "Each inventory item has a current stock and a minimum stock threshold you define. Salon Central colour-codes every item as In Stock (green), Low Stock (orange), or Out of Stock (red), instantly visible across the inventory list.",
     visual: <StockTrackingPanel />,
   },
   {
     eyebrow: "6 categories · 6 units",
     title: "Organise every product by category and unit of measurement",
-    body: "Assign each product to one of six categories — Hair Color, Skin Care, Nail, Tools, Consumables, or Retail — and track it in the right unit (ml, g, pcs, box, bottle, or tube). Category badges appear everywhere for instant visual recognition.",
+    body: "Assign each product to one of six categories: Hair Color, Skin Care, Nail, Tools, Consumables, or Retail, and track it in the right unit (ml, g, pcs, box, bottle, or tube). Category badges appear everywhere for instant visual recognition.",
     visual: <CategoriesPanel />,
   },
   {
@@ -320,13 +320,13 @@ const rows = [
   {
     eyebrow: "Search and filter",
     title: "Find any product by name, brand, category, or stock status",
-    body: "Search across all inventory by product name, brand, or supplier. Filter by category or stock status — or combine both to see only Low Stock Hair Color items, for example. The overview cards always show total value, low-stock count, and out-of-stock count.",
+    body: "Search across all inventory by product name, brand, or supplier. Filter by category or stock status, or combine both to see only Low Stock Hair Color items, for example. The overview cards always show total value, low-stock count, and out-of-stock count.",
     visual: <SearchFilterPanel />,
   },
   {
     eyebrow: "Stock overview",
     title: "Total inventory value, low stock count, and retail value at a glance",
-    body: "The inventory dashboard shows total product count, total cost value (cost × stock), how many items are low or out of stock, and total retail value of listed products — updated the moment any sale or restock is recorded.",
+    body: "The inventory dashboard shows total product count, total cost value (cost × stock), how many items are low or out of stock, and total retail value of listed products, updated the moment any sale or restock is recorded.",
     visual: <StockOverviewPanel />,
   },
 ];
@@ -347,7 +347,7 @@ export default function InventoryFeaturePage() {
               </div>
               <h1>Never run out of stock mid-appointment again</h1>
               <p>
-                Salon Central tracks every product in your salon — stock levels, minimum thresholds, cost and retail prices, auto-deduction on sales, and WhatsApp alerts when anything runs low.
+                Salon Central tracks every product in your salon: stock levels, minimum thresholds, cost and retail prices, auto-deduction on sales, and WhatsApp alerts when anything runs low.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -383,7 +383,7 @@ export default function InventoryFeaturePage() {
         <section className={styles.ctaBand}>
           <div>
             <span>Available on Salon Central Pro and Premium</span>
-            <h2>Stop guessing your stock — track it live</h2>
+            <h2>Stop guessing your stock. Track it live</h2>
           </div>
           <div className={styles.ctaActions}>
             <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>

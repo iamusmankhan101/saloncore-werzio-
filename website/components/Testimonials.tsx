@@ -38,7 +38,7 @@ const testimonials = [
   },
   {
     stars: 5,
-    text: "Staff commission used to be a headache every month — I'd spend 3 hours on spreadsheets. Salon Central calculates everything automatically. My stylists trust the numbers and morale has improved massively.",
+    text: "Staff commission used to be a headache every month. I'd spend 3 hours on spreadsheets. Salon Central calculates everything automatically. My stylists trust the numbers and morale has improved massively.",
     initials: "HB",
     name: "Hina Baig",
     role: "Owner, Velvet Touch Salon Lahore",

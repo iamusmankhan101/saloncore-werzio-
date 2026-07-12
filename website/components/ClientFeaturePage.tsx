@@ -105,7 +105,7 @@ function SearchFilterPanel() {
 function BeautyProfilePanel() {
   return (
     <div className={styles.checkoutPanel}>
-      <div style={{ fontSize: "0.78rem", fontWeight: 900, color: "#7c3aed", marginBottom: 12 }}>Beauty Profile — Sana Nawaz</div>
+      <div style={{ fontSize: "0.78rem", fontWeight: 900, color: "#7c3aed", marginBottom: 12 }}>Sana Nawaz&apos;s Beauty Profile</div>
       {[
         { label: "Skin Type",        value: "Oily Combination",           c: "#0284c7" },
         { label: "Nail Preference",  value: "Gel, medium length, nudes"  },
@@ -122,7 +122,7 @@ function BeautyProfilePanel() {
         <AlertTriangle size={15} color="#dc2626" />
         <div>
           <div style={{ fontSize: "0.76rem", fontWeight: 900, color: "#dc2626" }}>Allergy Alert</div>
-          <div style={{ fontSize: "0.7rem", color: "#991b1b" }}>PPD Dye — do not use</div>
+          <div style={{ fontSize: "0.7rem", color: "#991b1b" }}>PPD Dye: do not use</div>
         </div>
       </div>
       {/* hair formula */}
@@ -252,12 +252,12 @@ function NotesPreferencesPanel() {
   return (
     <div className={styles.checkoutPanel}>
       <div style={{ fontSize: "0.78rem", fontWeight: 900, color: "#17112a", marginBottom: 12 }}>
-        Notes &amp; Preferences — Sana Nawaz
+        Sana Nawaz&apos;s Notes &amp; Preferences
       </div>
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: "0.62rem", fontWeight: 900, color: "#7c3aed", textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 6 }}>Staff Notes</div>
         <div style={{ background: "#f5f3ff", border: "1px solid #ede9fe", borderRadius: 8, padding: "9px 10px", fontSize: "0.72rem", color: "#374151", lineHeight: 1.55 }}>
-          Prefers Zara for all colour services. Sensitive scalp — use cool water during rinse. Always offer green tea on arrival.
+          Prefers Zara for all colour services. Sensitive scalp: use cool water during rinse. Always offer green tea on arrival.
         </div>
       </div>
       <div style={{ fontSize: "0.62rem", fontWeight: 900, color: "#7c3aed", textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 6 }}>Preferences</div>
@@ -341,7 +341,7 @@ function ExportPanel() {
       </div>
       <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
         <div style={{ background: "#7c3aed", padding: "10px 14px" }}>
-          <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#fff" }}>Sana Nawaz — Client Report</div>
+          <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "#fff" }}>Sana Nawaz&apos;s Client Report</div>
           <div style={{ fontSize: "0.6rem", color: "#c4b5fd" }}>Generated 18 Jun 2026</div>
         </div>
         <div style={{ padding: "10px 14px" }}>
@@ -368,7 +368,7 @@ const rows = [
   {
     eyebrow: "Client profiles",
     title: "Every client's full profile in one place",
-    body: "Each client has a profile with name, phone, email, date of birth, preferred stylist, and source. Visit count, total spend, average ticket, and last visit date calculate automatically from their appointment history — no manual entry required.",
+    body: "Each client has a profile with name, phone, email, date of birth, preferred stylist, and source. Visit count, total spend, average ticket, and last visit date calculate automatically from their appointment history: no manual entry required.",
     visual: <LifetimeValuePanel />,
   },
   {
@@ -386,7 +386,7 @@ const rows = [
   {
     eyebrow: "Notes & preferences",
     title: "Keep private notes and service preferences for every client",
-    body: "Add free-text staff notes to any client profile — record sensitivities, personal preferences, special instructions, and anything your team needs before the appointment. Notes are visible at booking and checkout so nothing gets missed across shift changes.",
+    body: "Add free-text staff notes to any client profile: record sensitivities, personal preferences, special instructions, and anything your team needs before the appointment. Notes are visible at booking and checkout so nothing gets missed across shift changes.",
     visual: <NotesPreferencesPanel />,
   },
   {
@@ -398,19 +398,19 @@ const rows = [
   {
     eyebrow: "Visit history",
     title: "See every past appointment, service, stylist, and amount",
-    body: "The visit history panel shows the last 8 completed appointments for each client — service name, attending stylist, date, and amount paid. Upcoming appointments are listed separately so your front desk sees the full picture before a client arrives.",
+    body: "The visit history panel shows the last 8 completed appointments for each client: service name, attending stylist, date, and amount paid. Upcoming appointments are listed separately so your front desk sees the full picture before a client arrives.",
     visual: <VisitHistoryPanel />,
   },
   {
     eyebrow: "Before & after photos",
     title: "Attach before & after photos to every single visit",
-    body: "Each visit in a client's history has its own before & after photo slot. Upload photos from any device during or after the appointment — they are saved against that specific visit, service, and stylist. Switch between visits to compare results over time, and use them for consultations, portfolio building, or WhatsApp promotions.",
+    body: "Each visit in a client's history has its own before & after photo slot. Upload photos from any device during or after the appointment. They are saved against that specific visit, service, and stylist. Switch between visits to compare results over time, and use them for consultations, portfolio building, or WhatsApp promotions.",
     visual: <BeforeAfterPanel />,
   },
   {
     eyebrow: "PDF export",
     title: "Export any client's full profile as a polished PDF report",
-    body: "Generate a one-click PDF report for any client — including visit history, lifetime spend, beauty profile, allergy alerts, service breakdown, and before/after photo count. Share it with the client, use it for VIP outreach, or keep it for your records.",
+    body: "Generate a one-click PDF report for any client: including visit history, lifetime spend, beauty profile, allergy alerts, service breakdown, and before/after photo count. Share it with the client, use it for VIP outreach, or keep it for your records.",
     visual: <ExportPanel />,
   },
 ];
@@ -431,7 +431,7 @@ export default function ClientFeaturePage() {
               </div>
               <h1>Know every client before they walk through the door</h1>
               <p>
-                Salon Central builds a rich profile for every client — visit history, lifetime spend, hair formulas, allergy alerts, skin type, and tags — so your team delivers a personalised experience every single time.
+                Salon Central builds a rich profile for every client: visit history, lifetime spend, hair formulas, allergy alerts, skin type, and tags, so your team delivers a personalised experience every single time.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -501,7 +501,7 @@ export default function ClientFeaturePage() {
           <div>
             <Tag size={19} />
             <strong>5 client tags</strong>
-            <span>VIP, Regular, Bridal, New, At-Risk — filter and segment your whole list.</span>
+            <span>VIP, Regular, Bridal, New, At-Risk: filter and segment your whole list.</span>
           </div>
           <div>
             <Globe size={19} />

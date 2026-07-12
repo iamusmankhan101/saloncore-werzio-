@@ -97,13 +97,13 @@ function CalculationPanel() {
 
 function PayoutHistoryPanel() {
   const history = [
-    { period: "Jun 1 – 30", amount: "PKR 17,400", status: "Paid" },
-    { period: "May 1 – 31", amount: "PKR 15,900", status: "Paid" },
-    { period: "Jul 1 – 2",  amount: "PKR 18,200", status: "Pending" },
+    { period: "Jun 1 to 30", amount: "PKR 17,400", status: "Paid" },
+    { period: "May 1 to 31", amount: "PKR 15,900", status: "Paid" },
+    { period: "Jul 1 to 2",  amount: "PKR 18,200", status: "Pending" },
   ];
   return (
     <div className={styles.staffPanel}>
-      <div style={{ fontSize: "0.78rem", fontWeight: 900, color: "#17112a", marginBottom: 14 }}>Payout history — Ayesha Khan</div>
+      <div style={{ fontSize: "0.78rem", fontWeight: 900, color: "#17112a", marginBottom: 14 }}>Ayesha Khan&apos;s payout history</div>
       {history.map((h) => (
         <div key={h.period} className={styles.staffRow}>
           <div style={{ flex: 1 }}>
@@ -134,7 +134,7 @@ function OneClickPanel() {
           <div style={{ fontSize: "0.88rem", fontWeight: 900, color: "#17112a" }}>PKR 18,200 due to Ayesha Khan</div>
         </div>
         <div style={{ padding: 12, borderRadius: 12, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: "0.74rem", fontWeight: 800, color: "#166534" }}>
-          ✓ Pick a payment method and date — status flips to Paid instantly
+          ✓ Pick a payment method and date. Status flips to Paid instantly
         </div>
       </div>
     </div>
@@ -145,7 +145,7 @@ function OneClickPanel() {
 const rows = [
   {
     eyebrow: "Flexible pay types",
-    title: "Commission or fixed salary — set per staff member",
+    title: "Commission or fixed salary: set per staff member",
     body: "Every team member can be paid a commission percentage of the revenue they generate, or a fixed salary per pay period. Set it once on their profile and every future payout follows it automatically.",
     visual: <PayTypePanel />,
   },
@@ -158,7 +158,7 @@ const rows = [
   {
     eyebrow: "Payout history",
     title: "A full paper trail for every payout, per staff member",
-    body: "Every payout — commission or salary — is logged with its period, base amount, any adjustment, payment method, and paid date. Filter by pending or paid to see exactly who's owed what.",
+    body: "Every payout, commission or salary, is logged with its period, base amount, any adjustment, payment method, and paid date. Filter by pending or paid to see exactly who's owed what.",
     visual: <PayoutHistoryPanel />,
   },
   {
@@ -185,7 +185,7 @@ export default function PayrollFeaturePage() {
               </div>
               <h1>Pay your team accurately, every time</h1>
               <p>
-                Set each stylist up on commission or a fixed salary, let Salon Central calculate what they&apos;re owed from real revenue, and keep a full pending-to-paid history — no spreadsheets, no manual math.
+                Set each stylist up on commission or a fixed salary, let Salon Central calculate what they&apos;re owed from real revenue, and keep a full pending-to-paid history: no spreadsheets, no manual math.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -220,7 +220,7 @@ export default function PayrollFeaturePage() {
 
         <section className={styles.ctaBand}>
           <div>
-            <span>Commission or salary — payroll included on every plan</span>
+            <span>Commission or salary: payroll included on every plan</span>
             <h2>Get your team&apos;s payroll under control</h2>
           </div>
           <div className={styles.ctaActions}>

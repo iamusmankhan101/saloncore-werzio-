@@ -23,6 +23,11 @@ export const metadata = pageMetadata({
     "pos system for salons",
     "point of sale software for hair salon",
     "spa point of sale system",
+    "pos software pakistan",
+    "best pos software in pakistan",
+    "point of sale pakistan",
+    "pos pakistan",
+    "pos software price in pakistan",
   ],
 });
 

@@ -234,7 +234,7 @@ function PayrollPreview() {
 function ServiceMenuPreview() {
   const services = [
     { name: "Haircut & Style", price: "₨2,500",        tag: null },
-    { name: "Hair Color",      price: "₨4,000–7,000",  tag: "Variable" },
+    { name: "Hair Color",      price: "₨4,000 to 7,000",  tag: "Variable" },
     { name: "Bridal Combo",    price: "₨15,000",        tag: "Deal" },
     { name: "Manicure",        price: "₨1,200",        tag: null },
   ];
@@ -366,7 +366,7 @@ const features = [
     icon: Users,
     color: "#7c3aed",
     title: "Client Management",
-    desc: "Every client profile in one place — from first visit to VIP loyalty.",
+    desc: "Every client profile in one place: from first visit to VIP loyalty.",
     bullets: ["Customer database", "Visit history", "Notes and preferences", "Before/after photos"],
     preview: <ClientPreview />,
   },
@@ -382,7 +382,7 @@ const features = [
     icon: Scissors,
     color: "#4f46e5",
     title: "Service Management",
-    desc: "Build your service menu — fixed or variable pricing, custom categories, and bundled deals.",
+    desc: "Build your service menu: fixed or variable pricing, custom categories, and bundled deals.",
     bullets: ["Fixed or variable/range pricing", "Custom service categories", "Deals & multi-service packages", "Per-service staff assignment"],
     preview: <ServiceMenuPreview />,
   },
@@ -398,7 +398,7 @@ const features = [
     icon: Wallet,
     color: "#059669",
     title: "Billing & Payments",
-    desc: "Invoicing, payment tracking, and daily sales reports — all automated.",
+    desc: "Invoicing, payment tracking, and daily sales reports: all automated.",
     bullets: ["Invoices", "Payment tracking", "Daily sales reports"],
     preview: <BillingPreview />,
   },
@@ -496,8 +496,8 @@ export default function Features() {
       raf = requestAnimationFrame(() => {
         const first = cardRefs.current[0];
         if (!scroller || !first) return;
-        // Snap to the last dot once we've hit (or nearly hit) the scroll end —
-        // the last card's step often doesn't divide evenly into scrollLeft.
+        // Snap to the last dot once we've hit (or nearly hit) the scroll end.
+        // The last card's step often doesn't divide evenly into scrollLeft.
         const atEnd = scroller.scrollLeft + scroller.clientWidth >= scroller.scrollWidth - 4;
         if (atEnd) { setActiveIndex(features.length - 1); return; }
         const gap = 20;
@@ -522,7 +522,7 @@ export default function Features() {
   }
 
   // Prev/Next move relative to the current scroll position (not to a specific
-  // card's absolute offset) — near the end of the carousel, several trailing
+  // card's absolute offset). Near the end of the carousel, several trailing
   // cards can share the same clamped max scrollLeft, which made goTo(index-1)
   // resolve to the exact same position and made "Previous" look stuck.
   function step(direction: 1 | -1) {
@@ -539,7 +539,7 @@ export default function Features() {
         <div className="section-label" data-animate data-delay="0">✦ Everything You Need</div>
         <h2 className="section-title" data-animate data-delay="0.1">Powerful Features Built<br />for Pakistan&apos;s Salons</h2>
         <p className="section-sub" data-animate data-delay="0.2">
-          Twelve modules, one dashboard — salon POS software, CRM, and booking, built for beauty
+          Twelve modules, one dashboard: salon POS software, CRM, and booking, built for beauty
           salons, spas, and hair salons across Pakistan.
         </p>
       </div>

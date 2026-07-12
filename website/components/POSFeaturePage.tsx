@@ -142,7 +142,7 @@ function CartPanel() {
         <div key={item.name} className={styles.checkoutBody}>
           <div>
             <span>{item.name}</span>
-            <strong>× {item.qty} — {item.price}</strong>
+            <strong>× {item.qty} · {item.price}</strong>
           </div>
         </div>
       ))}
@@ -244,11 +244,11 @@ function InvoicePanel() {
       {[
         { item: "Hair Color", amt: "PKR 4,500" },
         { item: "Keratin Treatment", amt: "PKR 6,000" },
-        { item: "Discount 10%", amt: "– PKR 1,050" },
+        { item: "Discount 10%", amt: "-PKR 1,050" },
       ].map((row) => (
         <div key={row.item} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #f5f3ff", fontSize: "0.8rem" }}>
           <span style={{ color: "#312a3d" }}>{row.item}</span>
-          <strong style={{ color: row.amt.includes("–") ? "#059669" : "#17112a" }}>{row.amt}</strong>
+          <strong style={{ color: row.amt.includes("-") ? "#059669" : "#17112a" }}>{row.amt}</strong>
         </div>
       ))}
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: "0.9rem", fontWeight: 900, color: "#17112a" }}>
@@ -322,25 +322,25 @@ const rows = [
   {
     eyebrow: "Smart catalog",
     title: "Browse services and products in one unified catalog",
-    body: "Salon Central is a salon point of sale built for every kind of salon — a true POS system for salons and hair salon POS combined. Switch between All, Services, and Products tabs to see real-time stock levels on every product, category color badges, and out-of-stock indicators, all from the POS screen without leaving checkout.",
+    body: "Whether you're searching for POS software Pakistan trusts or point of sale Pakistan relies on, Salon Central is a salon point of sale built for every kind of salon: a true POS system for salons and hair salon POS combined. Switch between All, Services, and Products tabs to see real-time stock levels on every product, category color badges, and out-of-stock indicators, all from the POS screen without leaving checkout.",
     visual: <CatalogPanel />,
   },
   {
     eyebrow: "Instant checkout",
     title: "Build a cart, apply discounts, and collect payment in seconds",
-    body: "Salon Central's salon point of sale software lets you add any mix of services and products to the cart. Apply a flat PKR or percentage discount on the fly — the total recalculates instantly, ready to charge the moment the client is done.",
+    body: "As POS Pakistan salons expect, Salon Central's salon point of sale software lets you add any mix of services and products to the cart. Apply a flat PKR or percentage discount on the fly. The total recalculates instantly, ready to charge the moment the client is done.",
     visual: <CartPanel />,
   },
   {
     eyebrow: "6 payment methods",
     title: "Accept cash, JazzCash, EasyPaisa, Raast, card, and bank transfer",
-    body: "This salon POS system doubles as a spa point of sale system, with Pakistan-first payment options built in — cash, JazzCash, EasyPaisa, Raast, card, and bank transfer. Select the method the client prefers and the sale is recorded with full payment context, no manual note-taking or separate payment tracking needed.",
+    body: "This salon POS system doubles as a spa point of sale system, with Pakistan-first payment options built in: cash, JazzCash, EasyPaisa, Raast, card, and bank transfer. Select the method the client prefers and the sale is recorded with full payment context, no manual note-taking or separate payment tracking needed.",
     visual: <PaymentPanel />,
   },
   {
     eyebrow: "Client history",
     title: "Every sale builds a richer client profile automatically",
-    body: "Every sale through this beauty salon POS — beauty salon point of sale software from check-in to checkout — updates visit count, lifetime spend, last visit date, and loyalty points automatically. Your team sees the client's full context every time they walk in, no manual updates required.",
+    body: "Every sale through this beauty salon POS, beauty salon point of sale software from check-in to checkout, updates visit count, lifetime spend, last visit date, and loyalty points automatically. Your team sees the client's full context every time they walk in, no manual updates required.",
     visual: <ClientPanel />,
   },
   {
@@ -358,7 +358,7 @@ const rows = [
   {
     eyebrow: "Appointment handoff",
     title: "Move a completed appointment straight to POS checkout",
-    body: "Salon Central is point of sale software for hair salon and hair salon point of sale needs alike: when an appointment is marked completed, a single tap opens POS with the client, stylist, and services pre-filled. No re-entry, no delay — the front desk keeps moving.",
+    body: "Salon Central is point of sale software for hair salon and hair salon point of sale needs alike: when an appointment is marked completed, a single tap opens POS with the client, stylist, and services pre-filled. No re-entry, no delay. The front desk keeps moving.",
     visual: <AppointmentHandoffPanel />,
   },
 ];
@@ -382,8 +382,9 @@ export default function POSFeaturePage() {
               <h1>Checkout in seconds, not minutes</h1>
               <p>
                 Salon Central&apos;s salon POS software handles services, products, discounts, six payment methods,
-                auto-numbered invoices, WhatsApp receipts, stock deduction, and client history update — all from
-                one screen. A complete point of sale system built for beauty salons, hair salons, and spas.
+                auto-numbered invoices, WhatsApp receipts, stock deduction, and client history update, all from
+                one screen. As the best POS software in Pakistan, it&apos;s a complete point of sale system built
+                for beauty salons, hair salons, and spas.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -427,6 +428,9 @@ export default function POSFeaturePage() {
           <div>
             <span>Ready to upgrade your checkout?</span>
             <h2>See how fast Salon Central POS really is</h2>
+            <p style={{ margin: "10px 0 0", color: "rgba(255,255,255,0.78)", fontSize: "0.95rem" }}>
+              Transparent POS software price in Pakistan, no hidden fees.
+            </p>
           </div>
           <div className={styles.ctaActions}>
             <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -443,7 +447,7 @@ export default function POSFeaturePage() {
           <div>
             <Banknote size={19} />
             <strong>6 payment methods</strong>
-            <span>Cash, JazzCash, EasyPaisa, Raast, card, and bank transfer — all built in.</span>
+            <span>Cash, JazzCash, EasyPaisa, Raast, card, and bank transfer, all built in.</span>
           </div>
           <div>
             <Receipt size={19} />

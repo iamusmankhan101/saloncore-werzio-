@@ -73,7 +73,7 @@ function HeroInvoice() {
       <div style={{ display: "grid", gap: 4 }}>
         {[
           { label: "Subtotal", value: "PKR 13,700", muted: true },
-          { label: "Discount", value: "– PKR 1,370", green: true },
+          { label: "Discount", value: "-PKR 1,370", green: true },
           { label: "Total", value: "PKR 12,330", bold: true },
         ].map((r) => (
           <div key={r.label} style={{ display: "flex", justifyContent: "space-between", fontSize: r.bold ? "0.92rem" : "0.78rem", fontWeight: r.bold ? 900 : 700, color: r.green ? "#059669" : r.muted ? "#746b83" : "#17112a" }}>
@@ -119,7 +119,7 @@ function InvoiceBuilderPanel() {
       <div className={styles.checkoutBody}>
         <div>
           <span>Discount (10%)</span>
-          <strong style={{ color: "#059669" }}>– PKR 770</strong>
+          <strong style={{ color: "#059669" }}>-PKR 770</strong>
         </div>
       </div>
       <button type="button">Save Invoice</button>
@@ -201,7 +201,7 @@ function PrintPanel() {
       </div>
       <div style={{ fontSize: "0.72rem", color: "#312a3d", lineHeight: 1.6 }}>
         <div><strong>Sana Nawaz</strong> · 0300 1234567</div>
-        <div style={{ color: "#746b83" }}>Hair Color, Keratin Treatment — Zara K.</div>
+        <div style={{ color: "#746b83" }}>Hair Color, Keratin Treatment by Zara K.</div>
         <div style={{ color: "#746b83" }}>28 May 2026 · Cash</div>
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", fontSize: "0.95rem", fontWeight: 900, color: "#17112a", marginTop: 12 }}>
@@ -283,7 +283,7 @@ function AppointmentLinkPanel() {
         </div>
       </div>
       {[
-        { label: "Linked appointment", value: "#108 — Bridal Trial", purple: true },
+        { label: "Linked appointment", value: "#108: Bridal Trial", purple: true },
         { label: "Stylist",            value: "Ayesha M." },
         { label: "Services",           value: "Bridal Makeup, Hairstyle" },
         { label: "Invoice status",     value: "Paid", green: true },
@@ -312,25 +312,25 @@ const rows = [
   {
     eyebrow: "Auto-numbered",
     title: "Every invoice gets a unique SI-YYYY-NNNN number automatically",
-    body: "Salon Central assigns a sequential invoice number (SI-2026-0001, SI-2026-0042...) to every invoice the moment it is created. The counter increments automatically — no manual numbering, no duplicates, no gaps.",
+    body: "Salon Central assigns a sequential invoice number (SI-2026-0001, SI-2026-0042...) to every invoice the moment it is created. The counter increments automatically: no manual numbering, no duplicates, no gaps.",
     visual: <NumberingPanel />,
   },
   {
     eyebrow: "6 payment methods",
-    title: "Record how the client paid — Cash, JazzCash, EasyPaisa and more",
+    title: "Record how the client paid: Cash, JazzCash, EasyPaisa and more",
     body: "Select the payment method on each invoice: Cash, JazzCash, EasyPaisa, Raast, Card, or Bank Transfer. The method is printed on the invoice and stored with the record for accurate revenue reporting.",
     visual: <PaymentMethodPanel />,
   },
   {
     eyebrow: "Branded PDF",
     title: "Print a professional A4 invoice or save it as PDF",
-    body: "Every invoice renders as a branded A4 document — salon name, logo initials, client details, itemised table, discount, total, payment method, and a PAID/UNPAID status badge. One click sends it to the print dialog to save as PDF.",
+    body: "Every invoice renders as a branded A4 document: salon name, logo initials, client details, itemised table, discount, total, payment method, and a PAID/UNPAID status badge. One click sends it to the print dialog to save as PDF.",
     visual: <PrintPanel />,
   },
   {
     eyebrow: "Revenue overview",
     title: "Track total invoiced, collected, and outstanding in one view",
-    body: "The invoices dashboard shows total invoice count, total revenue collected, outstanding balance, and invoices paid this month — always up to date as you create and mark invoices paid.",
+    body: "The invoices dashboard shows total invoice count, total revenue collected, outstanding balance, and invoices paid this month: always up to date as you create and mark invoices paid.",
     visual: <StatsPanel />,
   },
   {
@@ -365,7 +365,7 @@ export default function InvoicingFeaturePage() {
               </div>
               <h1>Professional invoices, created in seconds</h1>
               <p>
-                Salon Central generates auto-numbered invoices for every sale — mix services and products, apply discounts, record payment method, and print or save as PDF without leaving the dashboard.
+                Salon Central generates auto-numbered invoices for every sale: mix services and products, apply discounts, record payment method, and print or save as PDF without leaving the dashboard.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -425,12 +425,12 @@ export default function InvoicingFeaturePage() {
           <div>
             <Tag size={19} />
             <strong>Discounts</strong>
-            <span>Apply a flat PKR discount per invoice — total recalculates instantly.</span>
+            <span>Apply a flat PKR discount per invoice. Total recalculates instantly.</span>
           </div>
           <div>
             <Printer size={19} />
             <strong>PDF ready</strong>
-            <span>Branded A4 invoice — print or save as PDF with one click.</span>
+            <span>Branded A4 invoice: print or save as PDF with one click.</span>
           </div>
           <div>
             <BarChart2 size={19} />

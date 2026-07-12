@@ -127,7 +127,7 @@ function WalletCardPanel() {
       </div>
       <div className={styles.blockArea} style={{ marginTop: 12 }}>
         <div style={{ padding: 12, borderRadius: 12, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: "0.74rem", fontWeight: 800, color: "#166534" }}>
-          ✓ Adds to Apple &amp; Google Wallet — no app download needed
+          ✓ Adds to Apple &amp; Google Wallet: no app download needed
         </div>
       </div>
     </div>
@@ -138,13 +138,13 @@ function WalletCardPanel() {
 const rows = [
   {
     eyebrow: "Automatic points",
-    title: "Every sale earns points automatically — no manual entry",
+    title: "Every sale earns points automatically: no manual entry",
     body: "Points are calculated and credited the moment a sale completes at POS or an appointment is marked paid. Set your own points-per-rupee rate once and every client's balance updates itself from then on.",
     visual: <PointsEarnPanel />,
   },
   {
     eyebrow: "4 membership tiers",
-    title: "Bronze, Silver, Gold, and Platinum — with configurable thresholds",
+    title: "Bronze, Silver, Gold, and Platinum, with configurable thresholds",
     body: "Clients climb tiers automatically as their lifetime points grow. Each tier gets a colour-coded badge on their profile, so your front desk can recognise your best clients at a glance.",
     visual: <TiersPanel />,
   },
@@ -157,7 +157,7 @@ const rows = [
   {
     eyebrow: "Digital & Google Wallet cards",
     title: "A shareable loyalty card clients keep on their phone",
-    body: "Every client gets a digital loyalty card showing their tier and points balance, with one-tap add to Apple and Google Wallet — no separate app to install, no plastic cards to print.",
+    body: "Every client gets a digital loyalty card showing their tier and points balance, with one-tap add to Apple and Google Wallet: no separate app to install, no plastic cards to print.",
     visual: <WalletCardPanel />,
   },
 ];
@@ -178,7 +178,7 @@ export default function LoyaltyFeaturePage() {
               </div>
               <h1>Turn every visit into a reason to come back</h1>
               <p>
-                Salon Central awards points automatically on every sale, ranks clients through Bronze-to-Platinum tiers, and lets them redeem points for discounts — with a digital card they can add straight to their phone&apos;s wallet.
+                Salon Central awards points automatically on every sale, ranks clients through Bronze-to-Platinum tiers, and lets them redeem points for discounts, with a digital card they can add straight to their phone&apos;s wallet.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -213,7 +213,7 @@ export default function LoyaltyFeaturePage() {
 
         <section className={styles.ctaBand}>
           <div>
-            <span>Points, tiers, and wallet cards — included on every plan</span>
+            <span>Points, tiers, and wallet cards: included on every plan</span>
             <h2>Start rewarding your clients today</h2>
           </div>
           <div className={styles.ctaActions}>

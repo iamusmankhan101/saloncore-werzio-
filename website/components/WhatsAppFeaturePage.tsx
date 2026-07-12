@@ -150,7 +150,7 @@ function ReminderPanel() {
       <div className={styles.blockArea}>
         <div className={styles.openSlot}>
           <div style={{ fontWeight: 900, fontSize: "0.88rem" }}>24 hours before</div>
-          <span>Default reminder window — configurable in settings</span>
+          <span>Default reminder window: configurable in settings</span>
         </div>
         <div
           style={{
@@ -271,7 +271,7 @@ function LowStockPanel() {
         <span>Glow Studio · Low stock alert</span>
       </div>
       <div className={styles.chatBubble}>
-        ⚠️ <strong>Low Stock Alert</strong> from Glow Studio: 2 item(s) running low —
+        ⚠️ <strong>Low Stock Alert</strong> from Glow Studio: 2 item(s) running low:
         Loreal Hair Color (2 left), Skin Serum SPF50 (1 left). Please restock soon.
       </div>
       <div
@@ -382,19 +382,19 @@ const rows = [
   {
     eyebrow: "Booking confirmation",
     title: "Confirm every appointment the moment it is booked",
-    body: "As soon as a booking is created — by staff or via online booking — Salon Central queues a WhatsApp confirmation with the client name, service, date, time, and salon name. No manual step needed.",
+    body: "As soon as a booking is created, by staff or via online booking, Salon Central queues a WhatsApp confirmation with the client name, service, date, time, and salon name. No manual step needed.",
     visual: <ConfirmationPanel />,
   },
   {
     eyebrow: "Appointment reminders",
     title: "Send reminders 24 hours before, automatically",
-    body: "Salon Central's scheduler runs every 60 seconds and sends each client a WhatsApp reminder within your configured window (default 24 hours). Only appointments with booked or confirmed status receive reminders — cancelled and completed ones are skipped.",
+    body: "Salon Central's scheduler runs every 60 seconds and sends each client a WhatsApp reminder within your configured window (default 24 hours). Only appointments with booked or confirmed status receive reminders. Cancelled and completed ones are skipped.",
     visual: <ReminderPanel />,
   },
   {
     eyebrow: "Post-visit follow-up",
     title: "Follow up after every completed appointment",
-    body: "Mark an appointment as completed and Salon Central queues a personalised follow-up message. It thanks the client by name, mentions the service, and keeps your salon top-of-mind for the next visit — all without lifting a finger.",
+    body: "Mark an appointment as completed and Salon Central queues a personalised follow-up message. It thanks the client by name, mentions the service, and keeps your salon top-of-mind for the next visit, all without lifting a finger.",
     visual: <FollowUpPanel />,
   },
   {
@@ -406,7 +406,7 @@ const rows = [
   {
     eyebrow: "Low stock alerts",
     title: "Get a WhatsApp alert when products run low",
-    body: "When any product drops to or below its minimum stock level, Salon Central sends a single daily low-stock alert directly to the salon owner's WhatsApp — listing every item and quantity left. No checking required.",
+    body: "When any product drops to or below its minimum stock level, Salon Central sends a single daily low-stock alert directly to the salon owner's WhatsApp, listing every item and quantity left. No checking required.",
     visual: <LowStockPanel />,
   },
   {
@@ -418,7 +418,7 @@ const rows = [
   {
     eyebrow: "Manual sends",
     title: "Send on-demand messages to any client from the dashboard",
-    body: "Select a client, choose a message type, fill in the service and time, and send directly via the WhatsApp Business API — or open WhatsApp Web for personal account sending. Useful for follow-ups, custom promotions, and rescheduling.",
+    body: "Select a client, choose a message type, fill in the service and time, and send directly via the WhatsApp Business API, or open WhatsApp Web for personal account sending. Useful for follow-ups, custom promotions, and rescheduling.",
     visual: <ManualSendPanel />,
   },
 ];
@@ -442,7 +442,7 @@ export default function WhatsAppFeaturePage() {
               <h1>Your salon stays in touch, automatically</h1>
               <p>
                 Salon Central sends booking confirmations, 24-hour reminders, post-visit follow-ups, and low-stock alerts via
-                WhatsApp — all triggered automatically so your team handles zero manual messages.
+                WhatsApp, all triggered automatically so your team handles zero manual messages.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -502,7 +502,7 @@ export default function WhatsAppFeaturePage() {
           <div>
             <CheckCircle2 size={19} />
             <strong>Booking confirmations</strong>
-            <span>Sent the moment a booking is created — no manual step from your team.</span>
+            <span>Sent the moment a booking is created: no manual step from your team.</span>
           </div>
           <div>
             <Bell size={19} />

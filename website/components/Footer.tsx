@@ -43,7 +43,7 @@ export default function Footer() {
           </div>
           <p className={styles.tagline}>
             The all-in-one operating system for Pakistan&apos;s beauty industry.
-            Manage bookings, staff, and revenue — all from one dashboard.
+            Manage bookings, staff, and revenue, all from one dashboard.
           </p>
         </div>
 

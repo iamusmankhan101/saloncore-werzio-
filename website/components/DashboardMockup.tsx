@@ -33,7 +33,7 @@ export default function DashboardMockup() {
         <span className={`${styles.dot} ${styles.green}`} />
         <div className={styles.urlBar}>
           <Lock size={10} color="#bbb" />
-          app.saloncentral.pk — Dashboard
+          app.saloncentral.pk/dashboard
         </div>
       </div>
 

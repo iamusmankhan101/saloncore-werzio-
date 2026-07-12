@@ -47,8 +47,8 @@ export default function Hero() {
           Simplify Salon Operations<br />10x Your Revenue
         </h1>
         <p className={styles.sub} data-animate data-delay="0.25">
-          All-in-one salon management software with a built-in salon POS system and CRM —
-          manage bookings, clients, staff and revenue from start to finish.
+          All-in-one salon management software with a built-in salon POS system and CRM.
+          Manage bookings, clients, staff and revenue from start to finish.
         </p>
         <div className={styles.btns}>
           <Link href="/#pricing" className={styles.btnPrimary}>View Pricing</Link>

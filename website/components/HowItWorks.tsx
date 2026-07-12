@@ -6,12 +6,12 @@ const steps = [
   {
     n: "01",
     title: "Simple And Fast Setup",
-    desc: "Create your salon profile, add your services and staff — fully live in under 3 minutes.",
+    desc: "Create your salon profile, add your services and staff. Fully live in under 3 minutes.",
   },
   {
     n: "02",
     title: "Connect WhatsApp & Go Live",
-    desc: "Link your WhatsApp Business number and your booking bot activates instantly — no code needed.",
+    desc: "Link your WhatsApp Business number and your booking bot activates instantly. No code needed.",
   },
   {
     n: "03",
