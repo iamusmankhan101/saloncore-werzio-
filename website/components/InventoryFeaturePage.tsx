@@ -289,43 +289,43 @@ function StockOverviewPanel() {
 const rows = [
   {
     eyebrow: "Stock tracking",
-    title: "See every product's live stock level against its minimum",
+    title: "Best inventory management software for live stock tracking",
     body: "Each inventory item has a current stock and a minimum stock threshold you define. Salon Central colour-codes every item as In Stock (green), Low Stock (orange), or Out of Stock (red), instantly visible across the inventory list.",
     visual: <StockTrackingPanel />,
   },
   {
     eyebrow: "6 categories · 6 units",
-    title: "Organise every product by category and unit of measurement",
+    title: "Beauty salon stock management by category and unit",
     body: "Assign each product to one of six categories: Hair Color, Skin Care, Nail, Tools, Consumables, or Retail, and track it in the right unit (ml, g, pcs, box, bottle, or tube). Category badges appear everywhere for instant visual recognition.",
     visual: <CategoriesPanel />,
   },
   {
     eyebrow: "POS auto-deduction",
-    title: "Product stock drops automatically when sold at checkout",
-    body: "When a product is added to a POS sale and the client checks out, Salon Central reduces its inventory count immediately. Stock can never go below zero. The low-stock alert check runs automatically after every sale.",
+    title: "POS inventory management software connected to checkout",
+    body: "When a product is added to a POS sale and the client checks out, Salon Central reduces its inventory count immediately. For salons comparing the best software for billing and inventory management, POS sales, stock updates, and product revenue stay connected.",
     visual: <POSDeductPanel />,
   },
   {
     eyebrow: "Retail pricing",
-    title: "Set retail prices and list products directly in POS",
+    title: "Accounting and inventory management software for retail products",
     body: "Add a retail price to any inventory item and toggle it live in the POS catalog. The retail tab shows your cost price, retail price, and profit margin per item. Products without a retail price stay in stock management only and never appear at checkout.",
     visual: <RetailPricingPanel />,
   },
   {
     eyebrow: "WhatsApp low-stock alerts",
-    title: "Get a WhatsApp message when products run low",
+    title: "Low-stock alert software for salon products",
     body: "When any item's stock falls to or below its minimum threshold, Salon Central sends a single daily WhatsApp alert to the salon owner. The message lists every low or out-of-stock item with its current quantity, minimum, and supplier name.",
     visual: <LowStockAlertPanel />,
   },
   {
     eyebrow: "Search and filter",
-    title: "Find any product by name, brand, category, or stock status",
+    title: "Supplier and product inventory search for salons",
     body: "Search across all inventory by product name, brand, or supplier. Filter by category or stock status, or combine both to see only Low Stock Hair Color items, for example. The overview cards always show total value, low-stock count, and out-of-stock count.",
     visual: <SearchFilterPanel />,
   },
   {
     eyebrow: "Stock overview",
-    title: "Total inventory value, low stock count, and retail value at a glance",
+    title: "Cloud based inventory management software with reports",
     body: "The inventory dashboard shows total product count, total cost value (cost × stock), how many items are low or out of stock, and total retail value of listed products, updated the moment any sale or restock is recorded.",
     visual: <StockOverviewPanel />,
   },
@@ -343,11 +343,11 @@ export default function InventoryFeaturePage() {
             <div className={styles.heroCopy}>
               <div className={styles.kicker}>
                 <Package size={16} />
-                Inventory management
+                Inventory management software Pakistan
               </div>
-              <h1>Never run out of stock mid-appointment again</h1>
+              <h1>Best inventory management software for salon businesses</h1>
               <p>
-                Salon Central tracks every product in your salon: stock levels, minimum thresholds, cost and retail prices, auto-deduction on sales, and WhatsApp alerts when anything runs low.
+                Salon Central is salon inventory software and spa inventory management software for beauty salons, hair salons, and spas in Pakistan. It works like the best inventory management software for small businesses, tracking product stock, supplier details, minimum thresholds, cost and retail prices, POS auto-deduction, and WhatsApp alerts when anything runs low.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -382,8 +382,8 @@ export default function InventoryFeaturePage() {
 
         <section className={styles.ctaBand}>
           <div>
-            <span>Available on Salon Central Pro and Premium</span>
-            <h2>Stop guessing your stock. Track it live</h2>
+            <span>Cloud inventory, billing, accounting, suppliers, and reports in one dashboard</span>
+            <h2>Use inventory management software Pakistan salons and small businesses can run daily</h2>
           </div>
           <div className={styles.ctaActions}>
             <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -401,17 +401,17 @@ export default function InventoryFeaturePage() {
           </div>
           <div>
             <ShoppingCart size={19} />
-            <strong>POS auto-deduction</strong>
+            <strong>Salon POS inventory</strong>
             <span>Stock drops automatically the moment a product is sold at checkout.</span>
           </div>
           <div>
             <Tag size={19} />
-            <strong>Retail pricing</strong>
-            <span>Set retail prices, view margins, and list products directly in POS.</span>
+            <strong>Retail stock control</strong>
+            <span>Set retail prices, view margins, and connect billing with inventory.</span>
           </div>
           <div>
             <BarChart2 size={19} />
-            <strong>Total value tracking</strong>
+            <strong>Inventory reports</strong>
             <span>Cost value and retail value of your full inventory, always up to date.</span>
           </div>
         </section>

@@ -2,8 +2,8 @@ import InventoryFeaturePage from "../../../components/InventoryFeaturePage";
 import { pageMetadata } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Inventory Management",
-  description: "Track stock levels, set low-stock alerts, auto-deduct products on POS sales, and manage retail pricing, all from your salon dashboard.",
+  title: "Best Inventory Management Software for Salons in Pakistan",
+  description: "Best inventory management software for small businesses, salons, and spas in Pakistan. Salon Central combines cloud based inventory management software, accounting and inventory management software, and the best software for billing and inventory management.",
   path: "/features/inventory-management",
 });
 
