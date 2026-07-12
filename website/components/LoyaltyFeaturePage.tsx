@@ -138,25 +138,25 @@ function WalletCardPanel() {
 const rows = [
   {
     eyebrow: "Automatic points",
-    title: "Every sale earns points automatically: no manual entry",
+    title: "Loyalty points program that rewards every salon sale",
     body: "Points are calculated and credited the moment a sale completes at POS or an appointment is marked paid. Set your own points-per-rupee rate once and every client's balance updates itself from then on.",
     visual: <PointsEarnPanel />,
   },
   {
     eyebrow: "4 membership tiers",
-    title: "Bronze, Silver, Gold, and Platinum, with configurable thresholds",
+    title: "Salon customer loyalty program with membership tiers",
     body: "Clients climb tiers automatically as their lifetime points grow. Each tier gets a colour-coded badge on their profile, so your front desk can recognise your best clients at a glance.",
     visual: <TiersPanel />,
   },
   {
     eyebrow: "Redeemable discounts",
-    title: "Points convert straight into a discount at checkout",
+    title: "Loyalty points calculator for checkout discounts",
     body: "At POS, apply any amount of a client's available points as a discount on their current sale. The redeemable value and remaining balance are shown live before you confirm the payment.",
     visual: <RedeemPanel />,
   },
   {
     eyebrow: "Digital & Google Wallet cards",
-    title: "A shareable loyalty card clients keep on their phone",
+    title: "Digital salon loyalty cards clients keep on their phone",
     body: "Every client gets a digital loyalty card showing their tier and points balance, with one-tap add to Apple and Google Wallet: no separate app to install, no plastic cards to print.",
     visual: <WalletCardPanel />,
   },
@@ -174,11 +174,11 @@ export default function LoyaltyFeaturePage() {
             <div className={styles.heroCopy}>
               <div className={styles.kicker}>
                 <Gift size={16} />
-                Loyalty &amp; rewards
+                Loyalty points program
               </div>
-              <h1>Turn every visit into a reason to come back</h1>
+              <h1>Loyalty points program for salons</h1>
               <p>
-                Salon Central awards points automatically on every sale, ranks clients through Bronze-to-Platinum tiers, and lets them redeem points for discounts, with a digital card they can add straight to their phone&apos;s wallet.
+                Salon Central awards points automatically on every sale, works as a loyalty points calculator at checkout, ranks clients through Bronze-to-Platinum tiers, and lets them redeem points for discounts with a digital card they can add straight to their phone&apos;s wallet.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -213,8 +213,8 @@ export default function LoyaltyFeaturePage() {
 
         <section className={styles.ctaBand}>
           <div>
-            <span>Points, tiers, and wallet cards: included on every plan</span>
-            <h2>Start rewarding your clients today</h2>
+            <span>Points, tiers, wallet cards, and POS reward tracking</span>
+            <h2>Launch a salon rewards program clients remember</h2>
           </div>
           <div className={styles.ctaActions}>
             <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -227,7 +227,7 @@ export default function LoyaltyFeaturePage() {
         <section className={styles.miniStats} aria-label="Loyalty program advantages">
           <div>
             <Sparkles size={19} />
-            <strong>Auto-earn at POS</strong>
+            <strong>POS reward points</strong>
             <span>Points are credited the moment a sale or appointment is marked paid.</span>
           </div>
           <div>
@@ -237,7 +237,7 @@ export default function LoyaltyFeaturePage() {
           </div>
           <div>
             <CheckCircle2 size={19} />
-            <strong>Redeemable discounts</strong>
+            <strong>Points calculator</strong>
             <span>Apply points as a discount directly at checkout.</span>
           </div>
           <div>

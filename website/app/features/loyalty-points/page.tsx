@@ -2,8 +2,8 @@ import LoyaltyFeaturePage from "../../../components/LoyaltyFeaturePage";
 import { pageMetadata } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Loyalty Points",
-  description: "Reward every visit automatically: points earned at POS, Bronze-to-Platinum membership tiers, redeemable discounts, and digital Google Wallet cards.",
+  title: "Loyalty Points Program for Salons",
+  description: "Loyalty points program for salons with a loyalty points calculator, client rewards, redeemable discounts, membership tiers, digital loyalty cards, and POS reward points from Salon Central.",
   path: "/features/loyalty-points",
 });
 
