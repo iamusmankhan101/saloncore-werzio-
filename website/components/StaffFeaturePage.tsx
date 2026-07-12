@@ -200,13 +200,13 @@ function PlanLimitPanel() {
 const rows = [
   {
     eyebrow: "Staff profiles",
-    title: "One profile per team member with role, specialties, and contact",
+    title: "Staff management software with one profile per team member",
     body: "Create a profile for each team member with their name, phone, and role. Specialties are populated automatically from the services you assign them. Every profile gets a colour-coded role badge so the team is instantly recognisable across the dashboard.",
     visual: <StaffDetailPanel />,
   },
   {
     eyebrow: "6 staff roles",
-    title: "Assign the right role to every team member",
+    title: "A staff management system for salon roles",
     body: "Choose from Owner, Manager, Senior Stylist, Junior Stylist, Receptionist, and Trainee. Each role has a distinct colour badge that appears on appointment cards, calendars, and performance reports, so your front desk always knows who is doing what.",
     visual: <RolesPanel />,
   },
@@ -218,7 +218,7 @@ const rows = [
   },
   {
     eyebrow: "Performance stats",
-    title: "See appointments and revenue per stylist in one view",
+    title: "Staff managing software with performance stats",
     body: "Every staff card shows their total appointments and revenue earned in the current period. The performance panel ranks all active team members by revenue with a proportional bar, so you can spot top performers and who needs support at a glance.",
     visual: <PerformancePanel />,
   },
@@ -242,11 +242,11 @@ export default function StaffFeaturePage() {
             <div className={styles.heroCopy}>
               <div className={styles.kicker}>
                 <UserCog size={16} />
-                Staff management
+                Staff management software
               </div>
-              <h1>Your whole team, managed from one screen</h1>
+              <h1>Staff management system for salon teams</h1>
               <p>
-                Salon Central gives every team member a profile with their role, specialties, assigned services, and live performance stats, so your salon runs with clarity from the moment the doors open.
+                Salon Central is staff managing software for beauty salons, hair salons, and spas. Give every team member a profile with their role, specialties, assigned services, and live performance stats, so your salon runs with clarity from the moment the doors open.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -282,7 +282,7 @@ export default function StaffFeaturePage() {
         <section className={styles.ctaBand}>
           <div>
             <span>Free plan includes up to 5 staff</span>
-            <h2>Build your team in Salon Central today</h2>
+            <h2>Run your team with salon staff management software</h2>
           </div>
           <div className={styles.ctaActions}>
             <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -295,7 +295,7 @@ export default function StaffFeaturePage() {
         <section className={styles.miniStats} aria-label="Staff management advantages">
           <div>
             <Shield size={19} />
-            <strong>6 roles</strong>
+            <strong>Staff roles</strong>
             <span>Owner, Manager, Senior Stylist, Junior Stylist, Receptionist, Trainee.</span>
           </div>
           <div>
@@ -305,7 +305,7 @@ export default function StaffFeaturePage() {
           </div>
           <div>
             <BarChart2 size={19} />
-            <strong>Performance stats</strong>
+            <strong>Team performance</strong>
             <span>Live appointments count and revenue per stylist, updated in real time.</span>
           </div>
           <div>
