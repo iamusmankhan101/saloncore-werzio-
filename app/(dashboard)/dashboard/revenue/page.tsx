@@ -25,9 +25,9 @@ function computeYLabels(maxVal: number): string[] {
 }
 
 function hourLabel(hour: number): string {
-  if (hour === 0) return "12a";
-  if (hour === 12) return "12p";
-  return hour < 12 ? `${hour}a` : `${hour - 12}p`;
+  if (hour === 0) return "12 AM";
+  if (hour === 12) return "12 PM";
+  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
 }
 
 type Period = "today" | "7d" | "14d" | "30d" | "1y" | "custom";
@@ -993,26 +993,26 @@ export default function RevenuePage() {
                         onMouseEnter={() => setHoveredBar(i)}
                         onMouseLeave={() => setHoveredBar(null)}
                       >
+                        {/* Always-visible point on the line for this hour */}
+                        <div style={{
+                          position: "absolute", bottom: `${bottomPct}%`, left: "50%",
+                          transform: "translate(-50%, 50%)",
+                          width: isHovered ? 9 : 6, height: isHovered ? 9 : 6, borderRadius: "50%",
+                          background: "#7C3AED", border: "2px solid #fff",
+                          boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                          transition: "width 0.15s, height 0.15s",
+                        }} />
                         {isHovered && (
-                          <>
-                            <div style={{
-                              position: "absolute", bottom: `${bottomPct}%`, left: "50%",
-                              transform: "translate(-50%, 50%)",
-                              width: 9, height: 9, borderRadius: "50%",
-                              background: "#7C3AED", border: "2px solid #fff",
-                              boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
-                            }} />
-                            <div style={{
-                              position: "absolute", bottom: `${bottomPct + 4}%`, left: "50%", transform: "translateX(-50%)",
-                              background: "#1a1a2e", color: "#fff", fontSize: 11, fontWeight: 700,
-                              padding: "5px 9px", borderRadius: 7, whiteSpace: "nowrap", zIndex: 10,
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-                              pointerEvents: "none",
-                            }}>
-                              {fmt(pt.value)}
-                              <div style={{ fontSize: 9, fontWeight: 500, color: "#a78bfa", textAlign: "center", marginTop: 1 }}>{pt.label}</div>
-                            </div>
-                          </>
+                          <div style={{
+                            position: "absolute", bottom: `${bottomPct + 4}%`, left: "50%", transform: "translateX(-50%)",
+                            background: "#1a1a2e", color: "#fff", fontSize: 11, fontWeight: 700,
+                            padding: "5px 9px", borderRadius: 7, whiteSpace: "nowrap", zIndex: 10,
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                            pointerEvents: "none",
+                          }}>
+                            {fmt(pt.value)}
+                            <div style={{ fontSize: 9, fontWeight: 500, color: "#a78bfa", textAlign: "center", marginTop: 1 }}>{pt.label}</div>
+                          </div>
                         )}
                       </div>
                     );

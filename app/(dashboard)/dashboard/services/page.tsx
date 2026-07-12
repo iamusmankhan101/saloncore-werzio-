@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
 import type { Service, Staff } from "@/lib/types";
-import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon } from "lucide-react";
+import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search } from "lucide-react";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -394,6 +394,7 @@ export default function ServicesPage() {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     setServices(getStoredServices());
@@ -424,7 +425,9 @@ export default function ServicesPage() {
     setDeleteTarget(null);
   };
 
-  const filteredServices = filter === "all" ? services : services.filter(s => s.category === filter);
+  const filteredServices = services
+    .filter(s => filter === "all" || s.category === filter)
+    .filter(s => !search.trim() || s.name.toLowerCase().includes(search.trim().toLowerCase()));
   const customCategories = Array.from(new Set(services.map(s => s.category))).filter(c => !PRESET_CATEGORIES.includes(c));
   const tabCategories = ["all", ...PRESET_CATEGORIES, ...customCategories];
 
@@ -500,6 +503,14 @@ export default function ServicesPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Search */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e3e0eb", borderRadius: 12, padding: "10px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.01)" }}>
+        <Search size={15} color="#b0b0c8" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search services by name…"
+          style={{ flex: 1, border: "none", outline: "none", fontSize: 13, color: "#1a1a2e", background: "transparent" }} />
+        {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}><X size={14} color="#b0b0c8" /></button>}
       </div>
 
       {/* Category filter */}
