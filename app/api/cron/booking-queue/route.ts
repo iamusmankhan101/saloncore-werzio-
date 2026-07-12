@@ -17,7 +17,7 @@ import { activeWhatsAppCredential, isFakePlaceholderPhone, sendWhatsAppMessage, 
 import { sendSalonInvoiceWhatsApp } from "@/lib/whatsapp-invoice-send";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppMessageIntent, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
-import { appointmentStartHasPassed, timezoneFromSettings } from "@/lib/appointment-time";
+import { appointmentStartHasPassed, appointmentStartMs, timezoneFromSettings } from "@/lib/appointment-time";
 
 const BATCH_LIMIT = 50;
 const SEND_LIMIT_PER_RUN = 1;
@@ -28,6 +28,7 @@ const MAX_ATTEMPTS = 5;
 // dashboard's own confirmation queue.
 const EXPIRE_AFTER_MS = 24 * 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
+const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
 
 function randBetween(minMs: number, maxMs: number): number {
   return Math.round(minMs + Math.random() * (maxMs - minMs));
@@ -44,6 +45,16 @@ function spacingDelayMs(kind: QueueKind): number {
 function retryDelayMs(kind: QueueKind): number {
   if (kind === "followup") return randBetween(45 * MINUTE_MS, 75 * MINUTE_MS);
   return randBetween(30 * MINUTE_MS, 60 * MINUTE_MS);
+}
+
+function followupWindowExpired(item: Pick<QueueRow, "apptDate" | "apptTime">, settings: Record<string, unknown> | null): boolean {
+  if (!item.apptDate?.trim() || !item.apptTime?.trim()) return false;
+  const wasender = settings?.wasender as { followupDelayMinutes?: number } | undefined;
+  const rawDelayMinutes = Number(wasender?.followupDelayMinutes ?? 1440);
+  const delayMinutes = Number.isFinite(rawDelayMinutes) ? rawDelayMinutes : 1440;
+  const startMs = appointmentStartMs(item.apptDate, item.apptTime, timezoneFromSettings(settings));
+  if (startMs == null) return false;
+  return Date.now() > startMs + delayMinutes * MINUTE_MS + FOLLOWUP_STALE_GRACE_MS;
 }
 
 function authorized(req: NextRequest): boolean {
@@ -377,6 +388,11 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     if ((item.kind === "confirmation" || item.kind === "reminder") && item.apptDate && item.apptTime
         && appointmentStartHasPassed(item.apptDate, item.apptTime, timezoneFromSettings(settings))) {
       await updateItem(item, "expired", "Appointment time already passed — queued message skipped.");
+      expired++;
+      continue;
+    }
+    if (item.kind === "followup" && followupWindowExpired(item, settings)) {
+      await updateItem(item, "expired", "Follow-up window already passed — queued message skipped.");
       expired++;
       continue;
     }

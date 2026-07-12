@@ -2,11 +2,12 @@ import { NextRequest } from "next/server";
 import { resolveActor } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
-import { appointmentStartHasPassed, timezoneFromSettings } from "@/lib/appointment-time";
+import { appointmentStartHasPassed, appointmentStartMs, timezoneFromSettings } from "@/lib/appointment-time";
 
 type QueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "lowstock" | "manual";
 
 const MINUTE_MS = 60 * 1000;
+const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
 
 interface QueueMessageBody {
   kind: QueueKind;
@@ -124,6 +125,16 @@ function scheduledAtFor(kind: QueueKind, requested?: string): string {
   return Number.isFinite(requestedAt) ? new Date(requestedAt).toISOString() : new Date(now).toISOString();
 }
 
+function followupWindowExpired(settings: Record<string, unknown>, apptDate?: string, apptTime?: string): boolean {
+  if (!apptDate?.trim() || !apptTime?.trim()) return false;
+  const wasender = settings.wasender as { followupDelayMinutes?: number } | undefined;
+  const rawDelayMinutes = Number(wasender?.followupDelayMinutes ?? 1440);
+  const delayMinutes = Number.isFinite(rawDelayMinutes) ? rawDelayMinutes : 1440;
+  const startMs = appointmentStartMs(apptDate, apptTime, timezoneFromSettings(settings));
+  if (startMs == null) return false;
+  return Date.now() > startMs + delayMinutes * MINUTE_MS + FOLLOWUP_STALE_GRACE_MS;
+}
+
 function logTypeForKind(kind: QueueKind): string {
   if (kind === "groupalert") return "newbooking";
   return kind;
@@ -226,6 +237,9 @@ export async function POST(req: NextRequest) {
     if (body.kind === "reminder" && body.apptDate && body.apptTime
         && appointmentStartHasPassed(body.apptDate, body.apptTime, timezoneFromSettings(settings))) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "appointment-started" });
+    }
+    if (body.kind === "followup" && followupWindowExpired(settings, body.apptDate, body.apptTime)) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: "followup-window-expired" });
     }
 
     const providerConfig: WhatsAppProviderConfig = {

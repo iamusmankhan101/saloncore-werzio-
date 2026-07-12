@@ -54,6 +54,8 @@ const LOW_STOCK_SENT_KEY = "werzio_wa_lowstock_sent";
 // file, so they're unaffected by design.
 const MESSAGE_JITTER_MIN_MS = 5 * 60_000;
 const MESSAGE_JITTER_MAX_MS = 7 * 60_000;
+const MINUTE_MS = 60_000;
+const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
 const POS_JITTER_MIN_MS = 5 * 60_000;
 const POS_JITTER_MAX_MS = 10 * 60_000;
 
@@ -370,6 +372,15 @@ type DbQueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "bi
 
 function dbScheduledAt(delayMs = 0): string {
   return new Date(Date.now() + delayMs).toISOString();
+}
+
+function followupWindowExpired(appt: { date: string; startTime: string }): boolean {
+  const wasender = settingsStore.wasender as { followupDelayMinutes?: number };
+  const rawDelayMinutes = Number(wasender.followupDelayMinutes ?? 1440);
+  const delayMinutes = Number.isFinite(rawDelayMinutes) ? rawDelayMinutes : 1440;
+  const startMs = appointmentStartMs(appt.date, appt.startTime, timezoneFromSettings(settingsStore as unknown as Record<string, unknown>));
+  if (startMs == null) return false;
+  return Date.now() > startMs + delayMinutes * MINUTE_MS + FOLLOWUP_STALE_GRACE_MS;
 }
 
 async function queueDbWhatsAppMessage(payload: {
@@ -1022,6 +1033,7 @@ async function runSchedulerInternal(): Promise<void> {
       if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
       const appt = appointments.find((a) => a.id === item.id);
       if (!appt) continue;
+      if (followupWindowExpired(appt)) continue;
       const phone = clientPhone(appt.clientId);
       const clientName = appt.clientName;
       if (!phone) {
