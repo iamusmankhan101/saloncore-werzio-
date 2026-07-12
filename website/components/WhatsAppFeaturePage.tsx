@@ -381,25 +381,25 @@ function ManualSendPanel() {
 const rows = [
   {
     eyebrow: "Booking confirmation",
-    title: "Confirm every appointment the moment it is booked",
+    title: "Salon WhatsApp automated messages for every new booking",
     body: "As soon as a booking is created, by staff or via online booking, Salon Central queues a WhatsApp confirmation with the client name, service, date, time, and salon name. No manual step needed.",
     visual: <ConfirmationPanel />,
   },
   {
     eyebrow: "Appointment reminders",
-    title: "Send reminders 24 hours before, automatically",
-    body: "Salon Central's scheduler runs every 60 seconds and sends each client a WhatsApp reminder within your configured window (default 24 hours). Only appointments with booked or confirmed status receive reminders. Cancelled and completed ones are skipped.",
+    title: "WhatsApp automated reminders for salon appointments",
+    body: "Salon Central's scheduler runs every 60 seconds and sends each client a WhatsApp reminder within your configured window. Only appointments with booked or confirmed status receive reminders. Cancelled and completed ones are skipped.",
     visual: <ReminderPanel />,
   },
   {
     eyebrow: "Post-visit follow-up",
-    title: "Follow up after every completed appointment",
+    title: "Salon WhatsApp marketing after every completed appointment",
     body: "Mark an appointment as completed and Salon Central queues a personalised follow-up message. It thanks the client by name, mentions the service, and keeps your salon top-of-mind for the next visit, all without lifting a finger.",
     visual: <FollowUpPanel />,
   },
   {
     eyebrow: "Custom templates",
-    title: "Edit every message template with live variable chips",
+    title: "Custom WhatsApp message templates for salons",
     body: "Open the template editor and write messages exactly how you want them. Click {{name}}, {{service}}, {{date}}, {{time}}, or {{salon_name}} chips to insert variables. Preview with real client data before saving.",
     visual: <TemplatePanel />,
   },
@@ -411,14 +411,14 @@ const rows = [
   },
   {
     eyebrow: "Message history",
-    title: "Track every message sent with full delivery history",
+    title: "Track every WhatsApp automated message in one log",
     body: "Every confirmation, reminder, follow-up, and alert is logged with client name, phone, message type, timestamp, and send status. Filter by type, check success rate, and spot failed messages at a glance from the dashboard.",
     visual: <MessageLogPanel />,
   },
   {
     eyebrow: "Manual sends",
-    title: "Send on-demand messages to any client from the dashboard",
-    body: "Select a client, choose a message type, fill in the service and time, and send directly via the WhatsApp Business API, or open WhatsApp Web for personal account sending. Useful for follow-ups, custom promotions, and rescheduling.",
+    title: "WhatsApp marketing for salons, campaigns, and promotions",
+    body: "Select a client, choose a message type, fill in the service and time, and send directly via the WhatsApp Business API, or open WhatsApp Web for personal account sending. Useful for follow-ups, custom promotions, rebooking campaigns, and rescheduling.",
     visual: <ManualSendPanel />,
   },
 ];
@@ -437,12 +437,11 @@ export default function WhatsAppFeaturePage() {
             <div className={styles.heroCopy}>
               <div className={styles.kicker}>
                 <MessageCircle size={16} />
-                WhatsApp reminders and automation
+                WhatsApp marketing for salons
               </div>
-              <h1>Your salon stays in touch, automatically</h1>
+              <h1>Salon WhatsApp marketing and automated reminders</h1>
               <p>
-                Salon Central sends booking confirmations, 24-hour reminders, post-visit follow-ups, and low-stock alerts via
-                WhatsApp, all triggered automatically so your team handles zero manual messages.
+                Salon Central sends salon WhatsApp automated messages for booking confirmations, appointment reminders, post-visit follow-ups, promotions, birthday messages, and low-stock alerts, all triggered automatically so your team handles zero manual messages.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -484,8 +483,8 @@ export default function WhatsAppFeaturePage() {
         {/* ── cta band ── */}
         <section className={styles.ctaBand}>
           <div>
-            <span>Available on Salon Central Pro and Premium</span>
-            <h2>Let WhatsApp work for your salon 24/7</h2>
+            <span>Confirmations, reminders, follow-ups, promotions, and alerts</span>
+            <h2>Let salon WhatsApp marketing work 24/7</h2>
           </div>
           <div className={styles.ctaActions}>
             <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -506,12 +505,12 @@ export default function WhatsAppFeaturePage() {
           </div>
           <div>
             <Bell size={19} />
-            <strong>24-hour reminders</strong>
+            <strong>Automated reminders</strong>
             <span>Configurable reminder window keeps no-show rates low without any effort.</span>
           </div>
           <div>
             <Send size={19} />
-            <strong>Follow-up on complete</strong>
+            <strong>WhatsApp follow-ups</strong>
             <span>Thank clients and invite them back automatically after every visit.</span>
           </div>
           <div>
