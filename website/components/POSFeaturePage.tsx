@@ -379,7 +379,7 @@ export default function POSFeaturePage() {
                 <ShoppingCart size={16} />
                 Point of Sale
               </div>
-              <h1>Checkout in seconds, not minutes</h1>
+              <h1>The Best POS Software in Pakistan</h1>
               <p>
                 Salon Central&apos;s salon POS software handles services, products, discounts, six payment methods,
                 auto-numbered invoices, WhatsApp receipts, stock deduction, and client history update, all from

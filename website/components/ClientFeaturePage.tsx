@@ -368,13 +368,13 @@ const rows = [
   {
     eyebrow: "Client profiles",
     title: "Every client's full profile in one place",
-    body: "Each client has a profile with name, phone, email, date of birth, preferred stylist, and source. Visit count, total spend, average ticket, and last visit date calculate automatically from their appointment history: no manual entry required.",
+    body: "As client relationship management software, Salon Central gives each client a profile with name, phone, email, date of birth, preferred stylist, and source. Visit count, total spend, average ticket, and last visit date calculate automatically from their appointment history: no manual entry required.",
     visual: <LifetimeValuePanel />,
   },
   {
     eyebrow: "Search and filter",
     title: "Find any client in seconds by name, phone, or email",
-    body: "Type any part of a client's name, phone number, or email and the list filters in real time. Narrow further by tag (VIP, Bridal, New, At-Risk) or booking source (WhatsApp, walk-in, web, manual) to find exactly who you need.",
+    body: "This client management system software lets you type any part of a client's name, phone number, or email, and the list filters in real time. Narrow further by tag (VIP, Bridal, New, At-Risk) or booking source (WhatsApp, walk-in, web, manual) to find exactly who you need.",
     visual: <SearchFilterPanel />,
   },
   {
@@ -386,19 +386,19 @@ const rows = [
   {
     eyebrow: "Notes & preferences",
     title: "Keep private notes and service preferences for every client",
-    body: "Add free-text staff notes to any client profile: record sensitivities, personal preferences, special instructions, and anything your team needs before the appointment. Notes are visible at booking and checkout so nothing gets missed across shift changes.",
+    body: "Salon Central is client management software CRM at its core: add free-text staff notes to any client profile, record sensitivities, personal preferences, special instructions, and anything your team needs before the appointment. Notes are visible at booking and checkout so nothing gets missed across shift changes.",
     visual: <NotesPreferencesPanel />,
   },
   {
     eyebrow: "Tags and sources",
     title: "Segment clients by value, status, and how they found you",
-    body: "Tag every client as VIP, Regular, Bridal, New, or At-Risk. Track their booking source as WhatsApp, walk-in, web, or manual. Filter the full client list by any combination of tag and source to spot patterns and prioritise outreach.",
+    body: "As salon CRM software, Salon Central lets you tag every client as VIP, Regular, Bridal, New, or At-Risk. Track their booking source as WhatsApp, walk-in, web, or manual. Filter the full client list by any combination of tag and source to spot patterns and prioritise outreach.",
     visual: <TagsSourcePanel />,
   },
   {
     eyebrow: "Visit history",
     title: "See every past appointment, service, stylist, and amount",
-    body: "The visit history panel shows the last 8 completed appointments for each client: service name, attending stylist, date, and amount paid. Upcoming appointments are listed separately so your front desk sees the full picture before a client arrives.",
+    body: "This beauty salon CRM software shows the last 8 completed appointments for each client: service name, attending stylist, date, and amount paid. Upcoming appointments are listed separately so your front desk sees the full picture before a client arrives.",
     visual: <VisitHistoryPanel />,
   },
   {
@@ -410,7 +410,7 @@ const rows = [
   {
     eyebrow: "PDF export",
     title: "Export any client's full profile as a polished PDF report",
-    body: "Generate a one-click PDF report for any client: including visit history, lifetime spend, beauty profile, allergy alerts, service breakdown, and before/after photo count. Share it with the client, use it for VIP outreach, or keep it for your records.",
+    body: "As salon customer management software and salon invoice and customer management software in one, Salon Central generates a one-click PDF report for any client, including visit history, lifetime spend, beauty profile, allergy alerts, service breakdown, and before/after photo count. Share it with the client, use it for VIP outreach, or keep it for your records.",
     visual: <ExportPanel />,
   },
 ];
@@ -431,7 +431,8 @@ export default function ClientFeaturePage() {
               </div>
               <h1>Know every client before they walk through the door</h1>
               <p>
-                Salon Central builds a rich profile for every client: visit history, lifetime spend, hair formulas, allergy alerts, skin type, and tags, so your team delivers a personalised experience every single time.
+                Salon Central is client management software built for salons: visit history, lifetime spend, hair formulas, allergy alerts, skin type, and tags, so your team delivers a personalised experience every single time.
+                It&apos;s the best client management software for beauty salons that want it all in one place.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
