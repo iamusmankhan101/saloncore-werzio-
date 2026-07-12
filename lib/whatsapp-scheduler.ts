@@ -1009,7 +1009,12 @@ async function runSchedulerInternal(): Promise<void> {
     setQueue(CONFIRM_QUEUE_KEY, remaining);
   }
 
-  // 3. Follow-up messages — sendAfter controls initial delay; retries once after a 30-60 min delay on failure.
+  // 3. Legacy local follow-up queue migration.
+  // New follow-ups are queued directly in the shared DB queue by
+  // enqueueWhatsAppFollowup(). Older browsers may still have follow-ups sitting
+  // in localStorage from before that migration. Do not send those directly from
+  // this browser, or they will appear in the message log without ever appearing
+  // in the DB queue details. Move due legacy items into the DB queue instead.
   if (ws.autoFollowup && waTpl.followup) {
     const queue = getQueue(FOLLOWUP_QUEUE_KEY);
     const remaining: QueueItem[] = [];
@@ -1024,12 +1029,27 @@ async function runSchedulerInternal(): Promise<void> {
       }
       const sentKey = `followup_${item.id}`;
       if (alreadySent(sentKey)) continue;
+      if (await hasServerSideLog(item.id, "followup")) { markSent(sentKey); continue; }
       const serviceNames = appt.serviceNames;
       const date = appt.date;
       const startTime = appt.startTime;
       const text = fillTemplate(waTpl.followup, buildVars({ clientName, serviceNames, date, startTime }, salonName));
-      const ok = await callSendApi(phone, text, { type: "followup", clientName });
-      if (ok) {
+      const queued = await queueDbWhatsAppMessage({
+        kind: "followup",
+        phone,
+        text,
+        clientName,
+        apptId: item.id,
+        apptDate: date,
+        apptTime: startTime,
+        service: serviceNames.join(", "),
+        scheduledAt: dbScheduledAt(30 * 60_000 + Math.random() * 90 * 60_000),
+        dedupeKey: sentKey,
+      }).catch((err) => {
+        console.warn("⚠️ Legacy follow-up queue migration failed", err);
+        return false;
+      });
+      if (queued) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {
         remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
