@@ -145,26 +145,26 @@ function OneClickPanel() {
 const rows = [
   {
     eyebrow: "Flexible pay types",
-    title: "Commission or fixed salary: set per staff member",
-    body: "Every team member can be paid a commission percentage of the revenue they generate, or a fixed salary per pay period. Set it once on their profile and every future payout follows it automatically.",
+    title: "Salon payroll software for commission or fixed salary",
+    body: "Every team member can be paid a commission percentage of the revenue they generate, or a fixed salary per pay period. Set it once in Salon Central's HR and payroll software and every future payout follows it automatically.",
     visual: <PayTypePanel />,
   },
   {
     eyebrow: "Auto-calculated amounts",
-    title: "Commission is calculated straight from real revenue",
+    title: "Commission payroll software connected to real revenue",
     body: "Pick a pay period and Salon Central totals the completed appointment revenue for that stylist and applies their commission rate automatically. Add a manual bonus or deduction before you finalise the amount.",
     visual: <CalculationPanel />,
   },
   {
     eyebrow: "Payout history",
-    title: "A full paper trail for every payout, per staff member",
-    body: "Every payout, commission or salary, is logged with its period, base amount, any adjustment, payment method, and paid date. Filter by pending or paid to see exactly who's owed what.",
+    title: "Employee payroll reports for every staff payout",
+    body: "Every payout, commission or salary, is logged with its period, base amount, any adjustment, payment method, and paid date. Filter by pending or paid to see exactly who's owed what across your salon team.",
     visual: <PayoutHistoryPanel />,
   },
   {
     eyebrow: "One-click mark as paid",
-    title: "Move a payout from pending to paid in seconds",
-    body: "Process a payout as pending, then confirm the payment method and date once you actually pay your team. One click flips its status and keeps the books accurate.",
+    title: "Staff salary management software with pending payouts",
+    body: "Process a payout as pending, then confirm the payment method and date once you actually pay your team. One click flips its status and keeps salary records and salon books accurate.",
     visual: <OneClickPanel />,
   },
 ];
@@ -181,11 +181,11 @@ export default function PayrollFeaturePage() {
             <div className={styles.heroCopy}>
               <div className={styles.kicker}>
                 <Coins size={16} />
-                Payroll management
+                Payroll software in Pakistan
               </div>
-              <h1>Pay your team accurately, every time</h1>
+              <h1>HR and payroll software for salon teams</h1>
               <p>
-                Set each stylist up on commission or a fixed salary, let Salon Central calculate what they&apos;re owed from real revenue, and keep a full pending-to-paid history: no spreadsheets, no manual math.
+                Salon Central is payroll software in Pakistan for beauty salons and hair salons. Set each stylist up on commission or a fixed salary, calculate payouts from real revenue, and keep a full pending-to-paid history: no spreadsheets, no manual math.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -220,8 +220,8 @@ export default function PayrollFeaturePage() {
 
         <section className={styles.ctaBand}>
           <div>
-            <span>Commission or salary: payroll included on every plan</span>
-            <h2>Get your team&apos;s payroll under control</h2>
+            <span>Commission, salary, and payout tracking included on every plan</span>
+            <h2>Run salon payroll without spreadsheet work</h2>
           </div>
           <div className={styles.ctaActions}>
             <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -234,17 +234,17 @@ export default function PayrollFeaturePage() {
         <section className={styles.miniStats} aria-label="Payroll management advantages">
           <div>
             <Percent size={19} />
-            <strong>Commission or salary</strong>
+            <strong>HR and payroll software</strong>
             <span>Choose the pay type that fits each team member.</span>
           </div>
           <div>
             <Coins size={19} />
-            <strong>Auto-calculated</strong>
+            <strong>Salary management</strong>
             <span>Commission is computed straight from completed revenue.</span>
           </div>
           <div>
             <History size={19} />
-            <strong>Full payout history</strong>
+            <strong>Payroll reports</strong>
             <span>Every payout logged with period, amount, and status.</span>
           </div>
           <div>
