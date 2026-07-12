@@ -1,72 +1,72 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://saloncentral.xyz</loc>
+    <loc>https://www.saloncentral.xyz</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/appointment-scheduling</loc>
+    <loc>https://www.saloncentral.xyz/features/appointment-scheduling</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/client-management</loc>
+    <loc>https://www.saloncentral.xyz/features/client-management</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/inventory-management</loc>
+    <loc>https://www.saloncentral.xyz/features/inventory-management</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/invoicing</loc>
+    <loc>https://www.saloncentral.xyz/features/invoicing</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/loyalty-points</loc>
+    <loc>https://www.saloncentral.xyz/features/loyalty-points</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/online-booking</loc>
+    <loc>https://www.saloncentral.xyz/features/online-booking</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/payroll-management</loc>
+    <loc>https://www.saloncentral.xyz/features/payroll-management</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/pos</loc>
+    <loc>https://www.saloncentral.xyz/features/pos</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/revenue-management</loc>
+    <loc>https://www.saloncentral.xyz/features/revenue-management</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/staff-management</loc>
+    <loc>https://www.saloncentral.xyz/features/staff-management</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/features/whatsapp-reminders</loc>
+    <loc>https://www.saloncentral.xyz/features/whatsapp-reminders</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/privacy</loc>
+    <loc>https://www.saloncentral.xyz/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://saloncentral.xyz/terms</loc>
+    <loc>https://www.saloncentral.xyz/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

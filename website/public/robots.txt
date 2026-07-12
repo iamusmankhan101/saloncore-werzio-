@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://saloncentral.xyz/sitemap.xml
+Sitemap: https://www.saloncentral.xyz/sitemap.xml
