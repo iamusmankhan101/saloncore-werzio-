@@ -1459,8 +1459,8 @@ function WhatsAppSection() {
           onToggle={() => set("emergencyPause", !(form.emergencyPause === true))}
         />
         <AutoRow
-          label="Quiet Hours for Marketing"
-          hint="Marketing broadcasts wait outside these hours; utility invoices and appointment updates can still send"
+          label="Quiet Hours"
+          hint="Marketing broadcasts and follow-ups wait outside these hours; time-critical sends (booking confirmations, appointment reminders, POS receipts) still go out immediately. Applies regardless of the Safety Guard toggle above."
           enabled={isEnabled && form.quietHoursEnabled !== false}
           disabled={!isEnabled}
           onToggle={() => set("quietHoursEnabled", !(form.quietHoursEnabled !== false))}
