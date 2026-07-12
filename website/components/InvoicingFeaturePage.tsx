@@ -305,8 +305,8 @@ function AppointmentLinkPanel() {
 const rows = [
   {
     eyebrow: "Invoice builder",
-    title: "Mix services and products in one invoice",
-    body: "Add services from your catalogue and products from inventory to the same invoice. Each item shows its type badge (Service or Product), quantity, unit price, and line total. Pick a client from the dropdown and their name and phone fill in automatically.",
+    title: "Invoice software for salons in Pakistan",
+    body: "Add services from your catalogue and products from inventory to the same invoice. Each item shows its type badge, quantity, unit price, and line total, making Salon Central practical accounting software in Pakistan for beauty salons and hair salons.",
     visual: <InvoiceBuilderPanel />,
   },
   {
@@ -317,8 +317,8 @@ const rows = [
   },
   {
     eyebrow: "6 payment methods",
-    title: "Record how the client paid: Cash, JazzCash, EasyPaisa and more",
-    body: "Select the payment method on each invoice: Cash, JazzCash, EasyPaisa, Raast, Card, or Bank Transfer. The method is printed on the invoice and stored with the record for accurate revenue reporting.",
+    title: "Salon billing software for Cash, JazzCash, EasyPaisa and more",
+    body: "Select the payment method on each invoice: Cash, JazzCash, EasyPaisa, Raast, Card, or Bank Transfer. The method is printed on the invoice and stored with the record for accurate revenue reporting and salon cash-flow management.",
     visual: <PaymentMethodPanel />,
   },
   {
@@ -329,8 +329,8 @@ const rows = [
   },
   {
     eyebrow: "Revenue overview",
-    title: "Track total invoiced, collected, and outstanding in one view",
-    body: "The invoices dashboard shows total invoice count, total revenue collected, outstanding balance, and invoices paid this month: always up to date as you create and mark invoices paid.",
+    title: "Track total invoiced, collected, outstanding, and expenses in one view",
+    body: "The invoices dashboard shows total invoice count, total revenue collected, outstanding balance, and invoices paid this month. Pair it with expenses, payroll, and inventory reports for salon accounting software that fits Pakistan's beauty businesses.",
     visual: <StatsPanel />,
   },
   {
@@ -361,11 +361,11 @@ export default function InvoicingFeaturePage() {
             <div className={styles.heroCopy}>
               <div className={styles.kicker}>
                 <FileText size={16} />
-                Invoicing
+                Accounting software in Lahore
               </div>
-              <h1>Professional invoices, created in seconds</h1>
+              <h1>Salon invoicing and accounting software in Pakistan</h1>
               <p>
-                Salon Central generates auto-numbered invoices for every sale: mix services and products, apply discounts, record payment method, and print or save as PDF without leaving the dashboard.
+                Salon Central generates auto-numbered invoices for every sale: mix services and products, apply discounts, record payment method, track unpaid bills, and print or save as PDF. A simple invoicing and revenue management system for salons in Lahore and across Pakistan.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -404,8 +404,8 @@ export default function InvoicingFeaturePage() {
         {/* ── cta band ── */}
         <section className={styles.ctaBand}>
           <div>
-            <span>Included in all plans including Free</span>
-            <h2>Start invoicing your clients professionally today</h2>
+            <span>Salon invoice software for Pakistan</span>
+            <h2>Start invoicing clients and tracking salon revenue professionally today</h2>
           </div>
           <div className={styles.ctaActions}>
             <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -419,8 +419,8 @@ export default function InvoicingFeaturePage() {
         <section className={styles.miniStats} aria-label="Invoicing advantages">
           <div>
             <Receipt size={19} />
-            <strong>Auto-numbered</strong>
-            <span>SI-YYYY-NNNN format, sequential counter, no gaps or duplicates.</span>
+            <strong>Auto-numbered invoices</strong>
+            <span>SI-YYYY-NNNN format for salon billing records with no gaps or duplicates.</span>
           </div>
           <div>
             <Tag size={19} />
@@ -434,8 +434,8 @@ export default function InvoicingFeaturePage() {
           </div>
           <div>
             <BarChart2 size={19} />
-            <strong>Revenue tracking</strong>
-            <span>Collected revenue and outstanding balance always up to date.</span>
+            <strong>Revenue and accounting</strong>
+            <span>Collected revenue, outstanding balance, and invoice reports always up to date.</span>
           </div>
         </section>
 

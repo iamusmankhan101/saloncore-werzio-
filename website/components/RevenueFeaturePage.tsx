@@ -280,8 +280,8 @@ function PDFExportPanel() {
 const rows = [
   {
     eyebrow: "Period comparison",
-    title: "Compare any period against the previous one automatically",
-    body: "Switch between 7 days, 14 days, 1 month, or 1 year. Every metric, including total revenue, appointment count, and average ticket, shows its percentage change against the equivalent previous period, with a green up or red down indicator.",
+    title: "Accounting software in Pakistan for salon revenue reports",
+    body: "Switch between 7 days, 14 days, 1 month, or 1 year. Every metric, including total revenue, appointment count, and average ticket, shows its percentage change against the equivalent previous period, giving beauty salons and hair salons a simple accounting dashboard without spreadsheets.",
     visual: <PeriodComparisonPanel />,
   },
   {
@@ -292,8 +292,8 @@ const rows = [
   },
   {
     eyebrow: "Payment method breakdown",
-    title: "Know exactly how clients are paying you",
-    body: "Every paid invoice's payment method is tracked and aggregated. Cash, JazzCash, EasyPaisa, Raast, Card, and Bank Transfer: each with a percentage of total revenue and a proportional bar so you can spot which channels dominate.",
+    title: "Salon cash flow management by payment method",
+    body: "Every paid invoice's payment method is tracked and aggregated. Cash, JazzCash, EasyPaisa, Raast, Card, and Bank Transfer: each with a percentage of total revenue and a proportional bar, useful for salon accounting software in Lahore and across Pakistan.",
     visual: <PaymentBreakdownPanel />,
   },
   {
@@ -304,8 +304,8 @@ const rows = [
   },
   {
     eyebrow: "Daily breakdown table",
-    title: "Every day's appointments, revenue, and average ticket in one table",
-    body: "The daily table lists each day with appointment count, total revenue, and average ticket. Today is highlighted in purple. The totals row at the bottom aggregates the full period. Scroll back up to 60 days.",
+    title: "Daily revenue, expenses, invoices, and average ticket in one table",
+    body: "The daily table lists each day with appointment count, total revenue, and average ticket. Combined with expense tracking and invoice records, Salon Central works as low-cost accounting software for Pakistani salons that need clear cash-flow reporting.",
     visual: <DailyTablePanel />,
   },
   {
@@ -330,11 +330,11 @@ export default function RevenueFeaturePage() {
             <div className={styles.heroCopy}>
               <div className={styles.kicker}>
                 <TrendingUp size={16} />
-                Revenue management
+                Accounting software in Pakistan
               </div>
-              <h1>Every rupee your salon earns, tracked in real time</h1>
+              <h1>Revenue management software for salons in Pakistan</h1>
               <p>
-                Salon Central gives you a live revenue dashboard with period-over-period comparisons, payment method breakdowns, top service rankings, daily tables, and one-click PDF export. No spreadsheet needed.
+                Salon Central gives beauty salons and hair salons a live revenue dashboard with invoices, expenses, cash-flow reports, payment method breakdowns, top service rankings, and one-click PDF export. Built for salon owners in Lahore and across Pakistan who want the best accounting software for daily business control.
               </p>
               <div className={styles.heroActions}>
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -373,8 +373,8 @@ export default function RevenueFeaturePage() {
         {/* ── cta band ── */}
         <section className={styles.ctaBand}>
           <div>
-            <span>Available on Salon Central Pro and Premium</span>
-            <h2>Know your numbers without opening a spreadsheet</h2>
+            <span>Salon accounting software for Lahore and Pakistan</span>
+            <h2>Know your revenue, expenses, and cash flow without opening a spreadsheet</h2>
           </div>
           <div className={styles.ctaActions}>
             <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
@@ -388,8 +388,8 @@ export default function RevenueFeaturePage() {
         <section className={styles.miniStats} aria-label="Revenue management advantages">
           <div>
             <CalendarDays size={19} />
-            <strong>4 time periods</strong>
-            <span>7-day, 14-day, monthly, and yearly views with automatic comparisons.</span>
+            <strong>Business reports</strong>
+            <span>7-day, 14-day, monthly, and yearly views for salon revenue reporting.</span>
           </div>
           <div>
             <BarChart2 size={19} />
@@ -403,8 +403,8 @@ export default function RevenueFeaturePage() {
           </div>
           <div>
             <Download size={19} />
-            <strong>PDF export</strong>
-            <span>Full branded report with stats, chart, payment methods, and daily table.</span>
+            <strong>Accounting reports</strong>
+            <span>Full branded report with revenue, payment methods, invoices, and daily table.</span>
           </div>
         </section>
 
