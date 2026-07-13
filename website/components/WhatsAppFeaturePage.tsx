@@ -12,6 +12,7 @@ import {
   Package,
   FileText,
   Send,
+  ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -423,11 +424,138 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What are WhatsApp automated reminders for salons?",
+    a: "WhatsApp automated reminders help beauty salons, hair salons, spas, and barber shops automatically send appointment confirmations, reminders, follow-ups, and notifications to clients. With Salon Central, you can reduce no-shows and improve customer communication without sending messages manually.",
+  },
+  {
+    q: "How does Salon Central's WhatsApp reminder system work?",
+    a: "Salon Central automatically sends WhatsApp booking confirmations, appointment reminders, cancellation updates, and post-visit follow-ups based on your salon schedule. Our salon WhatsApp automated messages are triggered at the right time, helping your team save time while keeping clients informed.",
+  },
+  {
+    q: "Can Salon Central send automated WhatsApp appointment reminders?",
+    a: "Yes. Salon Central's WhatsApp automated reminders notify clients before their appointments, helping reduce missed bookings and improving attendance. You can customize reminder timings to match your salon's workflow.",
+  },
+  {
+    q: "What types of WhatsApp messages can Salon Central send?",
+    a: "Our salon WhatsApp automated messages include appointment confirmations, appointment reminders, rescheduled appointment notifications, cancellation updates, post-visit thank-you messages, birthday wishes, loyalty rewards, and other customer notifications to improve client engagement.",
+  },
+  {
+    q: "Can I use WhatsApp marketing for salons with Salon Central?",
+    a: "Yes. WhatsApp marketing for salons allows you to reconnect with existing clients by sending personalized promotions, seasonal offers, loyalty rewards, and service recommendations. Salon Central helps you engage customers responsibly while supporting automated customer communication.",
+  },
+  {
+    q: "How does salon WhatsApp marketing help grow my business?",
+    a: "Salon WhatsApp marketing helps increase repeat visits by keeping clients engaged with personalized offers, loyalty rewards, appointment reminders, and important updates. Combined with Salon Central's WhatsApp automated reminders, it helps improve customer retention and salon revenue.",
+  },
+  {
+    q: "Can WhatsApp reminders reduce appointment no-shows?",
+    a: "Absolutely. WhatsApp automated reminders ensure clients receive timely notifications before their appointments, making them less likely to forget or miss bookings. This helps beauty salons, hair salons, and spas reduce no-shows and improve daily scheduling.",
+  },
+  {
+    q: "Are WhatsApp messages sent automatically after every booking?",
+    a: "Yes. Every appointment created in Salon Central can automatically trigger salon WhatsApp automated messages, including booking confirmations, reminders, and follow-up messages, without requiring any manual effort from your staff.",
+  },
+  {
+    q: "Can I personalize WhatsApp messages for my salon?",
+    a: "Yes. Salon Central allows you to personalize WhatsApp automated reminders with your salon name, client name, appointment details, and other information. This creates a more professional and personalized experience for every customer.",
+  },
+  {
+    q: "Why choose Salon Central for WhatsApp automation in Pakistan?",
+    a: "Salon Central combines WhatsApp automated reminders, salon WhatsApp marketing, appointment scheduling, salon POS, client management, inventory, invoicing, payroll, and loyalty programs into one platform. If you're looking for an all-in-one salon management software with powerful WhatsApp automation in Pakistan, Salon Central helps you save time, reduce no-shows, and strengthen customer relationships.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="WhatsApp automation FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>WhatsApp Reminders &amp; Automation: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 /* ─── page ──────────────────────────────────────────────── */
 export default function WhatsAppFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
 
@@ -520,6 +648,7 @@ export default function WhatsAppFeaturePage() {
           </div>
         </section>
 
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

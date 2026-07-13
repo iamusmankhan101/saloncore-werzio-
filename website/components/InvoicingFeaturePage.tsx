@@ -12,6 +12,7 @@ import {
   Search,
   Printer,
   BarChart2,
+  ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -347,11 +348,138 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What is salon invoicing software?",
+    a: "Salon invoicing software helps beauty salons, hair salons, spas, and barber shops create professional invoices, record payments, apply discounts, and manage billing from one platform. Salon Central's salon invoice software simplifies invoicing while automatically syncing payments with your salon's revenue and financial reports.",
+  },
+  {
+    q: "How does Salon Central's salon invoicing software work?",
+    a: "Salon Central's salon invoicing software automatically generates invoices for every service or product sold through your salon. You can add services, retail products, discounts, taxes, and payment methods in seconds, making it a complete invoice software for salons.",
+  },
+  {
+    q: "Can I create professional invoices for my clients?",
+    a: "Yes. Salon Central's salon billing software creates branded, auto-numbered invoices that include services, products, discounts, taxes, payment details, and customer information. You can print invoices or share them digitally with clients.",
+  },
+  {
+    q: "Can I manage invoices and payments from one system?",
+    a: "Absolutely. Our invoice management software allows you to create invoices, record full or partial payments, track outstanding balances, and manage your salon's billing history from one dashboard. Every payment is automatically linked to your revenue reports.",
+  },
+  {
+    q: "Is Salon Central suitable for beauty salons and hair salons?",
+    a: "Yes. Salon Central is built specifically for beauty salons, hair salons, spas, nail salons, and barber shops. Whether you need beauty salon invoicing software or hair salon invoicing software, our platform makes invoicing and billing fast, accurate, and easy to manage.",
+  },
+  {
+    q: "Can I apply discounts and different payment methods on invoices?",
+    a: "Yes. Salon Central's salon invoice software lets you apply discounts, accept multiple payment methods including cash, cards, JazzCash, EasyPaisa, Raast, and bank transfers, and automatically update invoice totals before completing the sale.",
+  },
+  {
+    q: "Is Salon Central an accounting software for salons?",
+    a: "Yes. Salon Central combines salon accounting software, invoicing, POS, revenue tracking, inventory management, payroll, and reporting in one platform. It helps salon owners manage their finances without needing multiple software solutions.",
+  },
+  {
+    q: "Is Salon Central an accounting software in Pakistan?",
+    a: "If you're looking for accounting software in Pakistan designed specifically for salons, Salon Central provides invoicing, billing, payment tracking, revenue reports, and financial insights in one cloud-based platform. It is built for salon businesses across Pakistan.",
+  },
+  {
+    q: "Can salons in Lahore use Salon Central?",
+    a: "Absolutely. Whether you're searching for accounting software in Lahore or managing salons anywhere in Pakistan, Salon Central helps you manage invoices, payments, financial records, and business performance from one centralized dashboard.",
+  },
+  {
+    q: "Why choose Salon Central as your salon invoicing and accounting software?",
+    a: "Salon Central combines salon invoicing software, salon billing software, accounting software for salons, and advanced business management tools in one platform. If you're looking for the best accounting software in Pakistan, beauty salon accounting software, or hair salon accounting software, Salon Central helps you manage invoicing, payments, POS, inventory, payroll, and financial reporting, all from one easy-to-use system.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="Salon invoicing FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>Salon Invoicing Software: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 /* ── page ────────────────────────────────────────────────── */
 export default function InvoicingFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
 
@@ -439,6 +567,7 @@ export default function InvoicingFeaturePage() {
           </div>
         </section>
 
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

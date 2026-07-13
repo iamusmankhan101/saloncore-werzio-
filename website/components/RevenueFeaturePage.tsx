@@ -12,6 +12,7 @@ import {
   Download,
   BarChart2,
   Scissors,
+  ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -316,11 +317,138 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What is salon revenue management software?",
+    a: "Salon revenue management software helps beauty salons, hair salons, and spas track daily income, monitor business performance, analyze sales, and generate financial reports. Salon Central combines revenue tracking, invoicing, payment reporting, and analytics to help salon owners make smarter business decisions.",
+  },
+  {
+    q: "How does Salon Central's revenue management software work?",
+    a: "Salon Central's revenue management software automatically records every transaction processed through your salon. It generates real-time revenue reports, tracks daily sales, analyzes payment methods, highlights top-performing services, and provides business insights, all from one easy-to-use dashboard.",
+  },
+  {
+    q: "Can I track my salon's daily and monthly revenue?",
+    a: "Yes. Salon Central lets you monitor daily, weekly, monthly, and yearly revenue from one dashboard. You can compare business performance over different time periods, identify growth trends, and make data-driven decisions to improve your salon's profitability.",
+  },
+  {
+    q: "Can I see which services generate the most revenue?",
+    a: "Absolutely. Our salon revenue management software provides detailed reports showing your highest-performing services, top-selling retail products, and overall sales trends. This helps you understand which services contribute the most to your salon's revenue.",
+  },
+  {
+    q: "Does Salon Central track different payment methods?",
+    a: "Yes. Salon Central tracks payments made through cash, cards, JazzCash, EasyPaisa, Raast, bank transfers, and other payment methods. You can view payment method breakdowns in your revenue reports for accurate financial tracking.",
+  },
+  {
+    q: "Can I export revenue and financial reports?",
+    a: "Yes. Salon Central allows you to generate and export detailed revenue reports with a single click. These reports help salon owners monitor business performance, review financial data, and simplify record keeping.",
+  },
+  {
+    q: "Is Salon Central an accounting software in Pakistan?",
+    a: "Salon Central includes accounting features specifically designed for beauty salons, hair salons, and spas. If you're looking for accounting software in Pakistan that combines invoicing, revenue tracking, POS, inventory, payroll, and financial reporting, Salon Central provides everything in one platform.",
+  },
+  {
+    q: "Is Salon Central suitable for salon owners in Lahore and across Pakistan?",
+    a: "Yes. Whether you're searching for accounting software in Lahore or managing salons anywhere in Pakistan, Salon Central helps you track revenue, manage finances, generate reports, and monitor business performance from one cloud-based system.",
+  },
+  {
+    q: "How does Salon Central help increase salon profitability?",
+    a: "By providing real-time revenue insights, payment reports, top service analytics, inventory tracking, and financial reporting, Salon Central's salon revenue management software helps salon owners identify growth opportunities, reduce losses, and improve overall business performance.",
+  },
+  {
+    q: "Why choose Salon Central for revenue management and accounting in Pakistan?",
+    a: "Salon Central is an all-in-one salon management platform that combines salon revenue management software, POS, appointment scheduling, client management, inventory, invoicing, payroll, loyalty programs, and WhatsApp automation. If you're looking for the best accounting software in Pakistan for beauty salons and hair salons, Salon Central gives you all the tools needed to manage and grow your business from a single dashboard.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="Revenue management FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>Salon Revenue Management Software: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 /* ─── page ───────────────────────────────────────────────── */
 export default function RevenueFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
 
@@ -408,6 +536,7 @@ export default function RevenueFeaturePage() {
           </div>
         </section>
 
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

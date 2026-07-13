@@ -12,6 +12,7 @@ import {
   Sparkles,
   CalendarDays,
   Tag,
+  ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -363,11 +364,138 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What is salon POS software?",
+    a: "Salon Central's salon POS software is a complete best salon POS system that helps beauty salons, hair salons, spas, and nail salons manage sales, payments, invoicing, inventory, and customer records from one platform. Salon Central's salon point of sale software makes it easy to process transactions, track products, and run your salon more efficiently.",
+  },
+  {
+    q: "How does Salon Central's salon POS system work?",
+    a: "Salon Central's salon point of sale system allows you to bill services and retail products in seconds. Every transaction automatically updates inventory, client history, revenue reports, and payment records. Whether you need a POS system for salons, POS system for beauty salons, or a hair salon POS system, Salon Central keeps everything connected.",
+  },
+  {
+    q: "What payment methods does Salon Central's POS support?",
+    a: "Our salon POS software supports cash, debit and credit cards, bank transfers, JazzCash, EasyPaisa, and Raast payments. Every payment is securely recorded, making Salon Central a reliable point of sale software for hair salons, beauty salons, and spas.",
+  },
+  {
+    q: "Can I sell salon services and retail products from the same POS?",
+    a: "Yes. Salon Central's salon point of sale software lets you sell salon services and retail products within a single transaction. Whether it's a haircut, hair color, manicure, facial, shampoo, or skincare product, everything is managed through one beauty salon POS software system.",
+  },
+  {
+    q: "Does the salon POS system automatically update inventory?",
+    a: "Yes. Every sale made through Salon Central's salon POS system automatically updates your stock levels. Our salon POS system software helps you track inventory, monitor product usage, receive low-stock alerts, and manage purchases without manual calculations.",
+  },
+  {
+    q: "Can I generate invoices and receipts from the POS?",
+    a: "Absolutely. Salon Central's salon point of sale system automatically generates professional invoices and receipts for every transaction. You can print receipts or share digital invoices with clients, making it a complete point of sale software for salons and POS software for beauty salons.",
+  },
+  {
+    q: "Can I manage staff performance through the POS system?",
+    a: "Yes. Every transaction processed through Salon Central's salon POS software is linked to the staff member who performed the service. This allows you to monitor sales, commissions, productivity, and revenue for each employee, making it an ideal POS system for salons with multiple staff members.",
+  },
+  {
+    q: "Is Salon Central suitable for beauty salons, hair salons, nail salons, and spas?",
+    a: "Yes. Salon Central is built for beauty salons, hair salons, nail salons, barber shops, and spas. Whether you need a beauty salon point of sale software, hair salon POS software, nail salon POS system, or a spa point of sale system, our cloud-based platform adapts to your business needs.",
+  },
+  {
+    q: "Can I access my salon POS system from anywhere?",
+    a: "Yes. Salon Central is a cloud-based point of sale solution that lets you access your salon POS system from anywhere using your computer, tablet, or mobile device. You can monitor sales, inventory, customers, and reports in real time, whether you're at the salon or away.",
+  },
+  {
+    q: "Why choose Salon Central as your salon POS software in Pakistan?",
+    a: "Salon Central is one of the best salon POS software solutions in Pakistan, combining a powerful salon point of sale system with appointment scheduling, client management, inventory management, invoicing, payroll, loyalty programs, and business analytics. Whether you're looking for POS software in Pakistan, beauty salon POS software, hair salon POS software, or a complete POS system for salons, Salon Central provides everything you need to manage and grow your salon from one platform.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="Salon POS software FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>Salon POS Software: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 /* ─── page ──────────────────────────────────────────────── */
 export default function POSFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
 
@@ -466,6 +594,7 @@ export default function POSFeaturePage() {
           </div>
         </section>
 
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
