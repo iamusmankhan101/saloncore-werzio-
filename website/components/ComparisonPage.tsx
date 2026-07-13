@@ -85,7 +85,7 @@ export default function ComparisonPage({
         {/* ── centered hero ── */}
         <section className={compareStyles.hero}>
           <div className={compareStyles.heroInner}>
-            <h1>Upgrade from {competitorName} to Salon Central</h1>
+            <h1>Upgrade from {competitorName} to <span className={compareStyles.heroHighlight}>Salon Central</span></h1>
             <p className={compareStyles.heroTagline}>Salon software built to run your whole business, not just checkout.</p>
             <p className={compareStyles.heroDesc}>
               Salon Central is a salon POS system covering appointment scheduling, client beauty profiles, staff

@@ -26,6 +26,13 @@
   letter-spacing: -0.01em;
 }
 
+.heroHighlight {
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .heroTagline {
   margin-top: 14px;
   font-size: 1.05rem;
