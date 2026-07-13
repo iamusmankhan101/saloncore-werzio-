@@ -4,7 +4,7 @@ import { pageMetadata } from "../../../lib/seo";
 export const metadata = pageMetadata({
   title: "Spa POS & Booking Software",
   description:
-    "Spa POS software with appointment scheduling, multi-branch support, loyalty tiers, and WhatsApp automation, all in one spa point of sale system built for salons and spas.",
+    "Spa management software with appointment scheduling, POS, client management, payroll, inventory, and reports.",
   path: "/solutions/spa",
   keywords: [
     "pos system for salon and spa",

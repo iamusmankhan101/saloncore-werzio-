@@ -4,7 +4,7 @@ import { pageMetadata } from "../../../lib/seo";
 export const metadata = pageMetadata({
   title: "Beauty Salon POS & Management Software",
   description:
-    "Beauty salon POS software with appointment scheduling, detailed beauty client profiles, loyalty tiers, and WhatsApp automation, all in one beauty salon point of sale system.",
+    "Beauty salon management software with booking, POS, CRM, payroll, invoicing, inventory, and reports by Salon Central.",
   path: "/solutions/beauty-salon",
   keywords: [
     "beauty salon pos",

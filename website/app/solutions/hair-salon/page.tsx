@@ -4,7 +4,7 @@ import { pageMetadata } from "../../../lib/seo";
 export const metadata = pageMetadata({
   title: "Hair Salon POS & Booking Software",
   description:
-    "Hair salon POS software with appointment scheduling, hair formula tracking, AI virtual try-on, and WhatsApp automation, all in one hair salon point of sale system.",
+    "Hair salon management software with appointment booking, POS, CRM, inventory, payroll, invoicing, and WhatsApp automation.",
   path: "/solutions/hair-salon",
   keywords: [
     "hair salon pos",
