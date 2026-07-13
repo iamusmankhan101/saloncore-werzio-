@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users, Package, Gift, Coins } from "lucide-react";
+import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users, Package, Gift, Coins, Scissors, Sparkles, Flower2 } from "lucide-react";
 import styles from "./Navbar.module.css";
 import DemoModal from "./DemoModal";
 
@@ -22,6 +22,12 @@ const featureLinks = [
   { label: "Payroll Management",    desc: "Commission, salary & payout tracking", href: "/features/payroll-management",   Icon: Coins },
 ];
 
+const solutionLinks = [
+  { label: "Hair Salons",   desc: "Hair formulas, try-on & scheduling", href: "/solutions/hair-salon",   Icon: Scissors },
+  { label: "Beauty Salons", desc: "Beauty profiles, loyalty & POS",     href: "/solutions/beauty-salon", Icon: Sparkles },
+  { label: "Spas",          desc: "Multi-branch, packages & POS",       href: "/solutions/spa",          Icon: Flower2 },
+];
+
 const links = [
   { label: "How It Works", href: "/#how" },
   { label: "Why Salon Central",   href: "/#why" },
@@ -33,12 +39,17 @@ export default function Navbar({ forceSolid = false }: { forceSolid?: boolean })
   const [scrolled, setScrolled]       = useState(false);
   const [open, setOpen]               = useState(false);
   const [dropOpen, setDropOpen]       = useState(false);
+  const [solutionsDropOpen, setSolutionsDropOpen] = useState(false);
   const [mobileFeatures, setMobileFeatures] = useState(false);
+  const [mobileSolutions, setMobileSolutions] = useState(false);
   const [demoOpen, setDemoOpen]       = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const solutionsCloseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const openDrop  = () => { clearTimeout(closeTimer.current); setDropOpen(true); };
   const closeDrop = () => { closeTimer.current = setTimeout(() => setDropOpen(false), 180); };
+  const openSolutionsDrop  = () => { clearTimeout(solutionsCloseTimer.current); setSolutionsDropOpen(true); };
+  const closeSolutionsDrop = () => { solutionsCloseTimer.current = setTimeout(() => setSolutionsDropOpen(false), 180); };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -108,6 +119,29 @@ export default function Navbar({ forceSolid = false }: { forceSolid?: boolean })
             </div>
           </li>
 
+          {/* Solutions dropdown */}
+          <li
+            className={styles.dropParent}
+            onMouseEnter={openSolutionsDrop}
+            onMouseLeave={closeSolutionsDrop}
+          >
+            <Link href="/solutions/hair-salon" className={`${styles.link} ${styles.dropTrigger}`}>
+              Solutions <ChevronDown size={13} className={`${styles.chevron} ${solutionsDropOpen ? styles.chevronOpen : ""}`} />
+            </Link>
+            <div className={`${styles.dropdownSmall} ${solutionsDropOpen ? styles.dropdownSmallOpen : ""}`} onMouseEnter={openSolutionsDrop} onMouseLeave={closeSolutionsDrop}>
+              <div className={styles.megaHeader}>Solutions by business type</div>
+              {solutionLinks.map(({ label, desc, href, Icon }) => (
+                <Link key={href} href={href} className={styles.dropItem} onClick={() => setSolutionsDropOpen(false)}>
+                  <div className={styles.dropIcon}><Icon size={15} /></div>
+                  <div>
+                    <div className={styles.dropLabel}>{label}</div>
+                    <div className={styles.dropDesc}>{desc}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </li>
+
           {/* Regular links */}
           {links.map((l) => (
             <li key={l.href}>
@@ -144,6 +178,35 @@ export default function Navbar({ forceSolid = false }: { forceSolid?: boolean })
             {mobileFeatures && (
               <ul style={{ listStyle: "none", paddingLeft: 16, marginBottom: 8 }}>
                 {featureLinks.map(({ label, href }) => (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      className={styles.drawerLink}
+                      style={{ fontSize: "0.9rem", color: "var(--purple)", borderBottom: "none", paddingTop: 8, paddingBottom: 8 }}
+                      onClick={() => setOpen(false)}
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+
+          {/* Solutions accordion */}
+          <li>
+            <button
+              type="button"
+              className={styles.drawerLink}
+              style={{ width: "100%", background: "none", border: "none", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+              onClick={() => setMobileSolutions(!mobileSolutions)}
+            >
+              Solutions
+              <ChevronDown size={15} style={{ transform: mobileSolutions ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+            </button>
+            {mobileSolutions && (
+              <ul style={{ listStyle: "none", paddingLeft: 16, marginBottom: 8 }}>
+                {solutionLinks.map(({ label, href }) => (
                   <li key={href}>
                     <Link
                       href={href}
