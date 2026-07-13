@@ -348,7 +348,7 @@
 }
 
 .rowCopy h2 {
-  max-width: 430px;
+  max-width: 560px;
   margin-bottom: 16px;
   color: #191238;
   font-size: clamp(1.75rem, 3.5vw, 2.8rem);
@@ -356,7 +356,7 @@
 }
 
 .rowCopy p {
-  max-width: 440px;
+  max-width: 520px;
   color: #2d263b;
   font-size: 0.98rem;
   line-height: 1.75;
