@@ -12,6 +12,7 @@ import {
   Globe,
   UserCog,
   CalendarX2,
+  ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -133,6 +134,49 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What is salon appointment scheduling software?",
+    a: "Salon appointment scheduling software is a digital system that replaces a paper diary or spreadsheet, letting salons manage bookings, staff calendars, and client reminders from one dashboard. Salon Central is salon appointment scheduling software built specifically for beauty and hair salons in Pakistan, combining online booking, staff scheduling, and automated WhatsApp reminders in one platform.",
+  },
+  {
+    q: "How does Salon Central's appointment scheduling software work?",
+    a: "Salon Central's appointment scheduling software centralizes every booking, whether it's a walk-in, phone call, or online request, on one calendar. When you create an appointment, you assign a client, service, and stylist, and the software automatically checks staff availability, sends a WhatsApp confirmation, and schedules reminders ahead of the appointment time.",
+  },
+  {
+    q: "Can clients book appointments online?",
+    a: "Yes. Salon Central gives every salon a branded online booking page that clients can access from Instagram, WhatsApp, or Google Maps. Clients pick a service, choose a stylist, and confirm a time slot themselves, and the appointment lands directly in your dashboard with the source, service, and total already filled in.",
+  },
+  {
+    q: "Does the software prevent double bookings?",
+    a: "Yes. Salon Central's salon scheduling software only shows time slots where a stylist is actually free, so two clients can never be booked with the same staff member at the same time. Every new appointment checks the weekly calendar in real time before it's confirmed.",
+  },
+  {
+    q: "Can I reschedule or cancel appointments easily?",
+    a: "Yes. Appointments can be marked as cancelled, no-show, or rescheduled in one tap. Cancelled slots free up immediately for new bookings, and both cancellations and no-shows are tracked in client history and daily reports so you can follow up with a reschedule message.",
+  },
+  {
+    q: "Does Salon Central send automated WhatsApp appointment reminders?",
+    a: "Yes. Salon Central sends a booking confirmation the moment an appointment is created, a 24-hour reminder the day before, a 2-hour reminder on the day, and a post-visit follow-up, all automatically via WhatsApp with zero manual effort from your team.",
+  },
+  {
+    q: "Can I assign appointments to specific staff members?",
+    a: "Yes. Every appointment is assigned to a specific staff member, and Salon Central shows each stylist's workload side by side on the weekly calendar. Staff and service are pre-linked on every new booking, so your front desk always knows who is doing what.",
+  },
+  {
+    q: "Can I manage multiple staff schedules from one calendar?",
+    a: "Yes. As staff scheduling software, Salon Central displays every stylist's calendar in one view, so you can see availability, appointments, and workload for your whole team without switching screens or checking separate diaries.",
+  },
+  {
+    q: "Can I manage walk-in and advance appointments in one system?",
+    a: "Yes. Salon Central handles walk-ins and advance bookings side by side. Walk-in appointments can be added directly at the front desk, while advance bookings come in through the calendar or the online booking page, and both flow into the same dashboard, client history, and reports.",
+  },
+  {
+    q: "Why choose Salon Central as your salon appointment scheduling software in Pakistan?",
+    a: "Salon Central is built specifically for Pakistan's beauty industry: WhatsApp-based reminders instead of SMS or email, Pakistan-first payment methods, and pricing suited to local salons. It combines appointment scheduling, staff scheduling, online booking, and automated reminders in one dashboard, making it a complete salon appointment scheduling software choice for beauty and hair salons in Pakistan.",
+  },
+];
+
 function HeroCalendar() {
   return (
     <div className={styles.heroCard} aria-label="Salon Central scheduling preview">
@@ -207,11 +251,95 @@ function PhoneBookingPanel() {
   );
 }
 
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="Appointment scheduling FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>Salon Appointment Scheduling Software: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
 
 export default function SchedulingFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
         <section className={styles.hero}>
@@ -293,6 +421,8 @@ export default function SchedulingFeaturePage() {
             <span>One-tap cancel or no-show, tracked in history with reschedule prompts.</span>
           </div>
         </section>
+
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
