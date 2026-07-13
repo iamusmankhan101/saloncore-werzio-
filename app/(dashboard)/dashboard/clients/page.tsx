@@ -6,7 +6,7 @@ import { BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
-import { Search, X, Plus, Phone, Mail, Calendar, Heart, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Search, X, Plus, Phone, Mail, Calendar, Heart, Tag, MapPin, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
@@ -458,11 +458,11 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
           ) : (
             <PanelSection title="Contact & Info">
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <InfoLine icon={<Phone size={13} color="#9898b0" />} label={displayPhone} />
+                <InfoLine icon={<Phone size={13} color="#9898b0" />} label={formatPhoneDisplay(displayPhone)} />
                 {displayEmail && <InfoLine icon={<Mail size={13} color="#9898b0" />} label={displayEmail} />}
                 {displayDob && <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`DOB: ${fmtDate(displayDob)}`} />}
-                <InfoLine icon={<Heart size={13} color="#9898b0" />} label={`Source: ${displaySource}`} />
-                <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`Location: ${locationName(displayLocationId)}`} />
+                <InfoLine icon={<Tag size={13} color="#9898b0" />} label={`Source: ${displaySource}`} />
+                <InfoLine icon={<MapPin size={13} color="#9898b0" />} label={`Location: ${locationName(displayLocationId)}`} />
                 <InfoLine icon={<Calendar size={13} color="#9898b0" />} label={`Last visit: ${fmtDate(liveLastVisit ?? client.lastVisitDate)}`} />
                 {displayNotes && (
                   <div style={{ marginTop: 4, padding: "9px 11px", borderRadius: 8, background: "#f9f9fb", color: "#6b6b8a", fontSize: 12, lineHeight: 1.55 }}>
@@ -538,6 +538,15 @@ function PanelSection({ title, children }: { title: string; children: React.Reac
       {children}
     </div>
   );
+}
+
+/** "923234233372" → "+92 323 4233372" — purely cosmetic, doesn't touch the stored value. */
+function formatPhoneDisplay(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("92") && digits.length === 12) {
+    return `+92 ${digits.slice(2, 5)} ${digits.slice(5)}`;
+  }
+  return phone;
 }
 
 function InfoLine({ icon, label }: { icon: React.ReactNode; label: string }) {

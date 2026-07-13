@@ -10,7 +10,7 @@ import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
-import { getWaLogs, appendLog, WaLogEntry, WaMsgType, normalizePhone, checkBirthdayReminders, getPendingWhatsAppQueue, PendingQueueItem } from "@/lib/whatsapp-scheduler";
+import { getWaLogs, WaLogEntry, WaMsgType, checkBirthdayReminders, getPendingWhatsAppQueue, PendingQueueItem } from "@/lib/whatsapp-scheduler";
 import { isFakePlaceholderPhone } from "@/lib/whatsapp-provider";
 import { getCurrentUser } from "@/lib/auth";
 import { locationUserKey } from "@/lib/locations";
@@ -404,15 +404,6 @@ export default function MessagesPage() {
     setRefreshKey((k) => k + 1);
   }
 
-  // Manual send state
-  const [selClientId, setSelClientId] = useState("");
-  const [msgType, setMsgType]         = useState<"reminder" | "confirmation" | "followup">("confirmation");
-  const [manualService, setManualService] = useState("");
-  const [manualTime, setManualTime]       = useState("");
-  const [manualDate, setManualDate]       = useState(new Date().toISOString().slice(0, 10));
-  const [sending, setSending]             = useState(false);
-  const [sendResult, setSendResult]       = useState<{ ok: boolean; msg: string } | null>(null);
-
   // Load logs: try Turso first, fall back to localStorage
   useEffect(() => {
     async function load() {
@@ -518,7 +509,6 @@ export default function MessagesPage() {
     autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean;
     autoCancellation: boolean; autoLowStock: boolean;
   };
-  const waTpl = settingsStore.whatsapp as { reminder: string; confirmation: string; followup: string };
   const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey;
   const isConfigured = !!activeCredential
     && (ws.provider !== "botsailor" || !!ws.botSailorPhoneNumberId);
@@ -583,109 +573,10 @@ export default function MessagesPage() {
     return groups;
   }, [filtered]);
 
-  async function sendManual() {
-    if (!selClientId) return;
-    
-    // Check if WhatsApp is enabled
-    if (ws.enabled === false) {
-      setSendResult({ ok: false, msg: "WhatsApp automation is currently disabled. Enable it in Account → WhatsApp Settings to send messages." });
-      return;
-    }
-    
-    const client = clients.find((c) => c.id === selClientId);
-    if (!client) return;
-    setSending(true);
-    setSendResult(null);
-    try {
-      const rawTemplate = msgType === "reminder" ? waTpl.reminder : msgType === "confirmation" ? waTpl.confirmation : waTpl.followup;
-      if (!rawTemplate) {
-        setSendResult({ ok: false, msg: `No template set for "${msgType}" — edit it in the Messages → Templates tab.` });
-        setSending(false);
-        return;
-      }
-      const dateLabel = new Date(manualDate).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" });
-      const salonName = settingsStore.salon.name as string;
-      const text = rawTemplate
-        .replace(/\{\{name\}\}/g, client.name)
-        .replace(/\{\{service\}\}/g, manualService.trim() || "your service")
-        .replace(/\{\{date\}\}/g, dateLabel)
-        .replace(/\{\{time\}\}/g, manualTime.trim() || "your appointment time")
-        .replace(/\{\{salon_name\}\}/g, salonName);
-      
-      const normalizedPhone = normalizePhone(client.phone);
-      if (!normalizedPhone) {
-        setSendResult({ ok: false, msg: `${client.name} has no phone number, so the message was skipped.` });
-        setSending(false);
-        return;
-      }
-      const isGroup = normalizedPhone.endsWith("@g.us");
-      
-      // If sending to a group and provider is BotSailor, switch to WaSender
-      const provider = isGroup && ws.provider === "botsailor" ? "wasender" : ws.provider;
-      
-      // Show warning if BotSailor is configured but sending to group and no WaSender key
-      if (isGroup && ws.provider === "botsailor" && !ws.apiKey) {
-        setSendResult({ 
-          ok: false, 
-          msg: "Cannot send to WhatsApp group: BotSailor doesn't support groups. Please configure WaSender API key in Account → WhatsApp Settings." 
-        });
-        setSending(false);
-        return;
-      }
-      
-      const res = await fetch("/api/whatsapp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          ...ws, 
-          provider, 
-          phone: normalizedPhone, 
-          text, 
-          messageType: msgType,
-          messageIntent: msgType === "followup" ? "marketing" : "utility",
-          recipientOptedIn: !client.whatsappOptedOut,
-        }),
-      });
-      const data = await res.json() as { ok: boolean; skipped?: boolean; status: number; error?: string; errorReason?: string };
-      if (data.skipped) {
-        setSendResult(null);
-        setSending(false);
-        return;
-      }
-      const success = data.ok;
-      const providerName = ws.provider === "botsailor" ? "BotSailor" : ws.provider === "zaptick" ? "Zaptick" : "WaSender";
-      setSendResult(success
-        ? { ok: true, msg: `✓ Sent to ${client.name} (${normalizedPhone})${isGroup ? " (WhatsApp group)" : ""}` }
-        : { ok: false, msg: `Failed (${data.status ?? ""}): ${data.errorReason || data.error || `Check your ${providerName} credentials`}` },
-      );
-      if (success) {
-        appendLog({ type: "manual", clientName: client.name, phone: normalizedPhone, status: "sent", templateId: "direct" });
-        setTimeout(() => setRefreshKey((k) => k + 1), 600);
-      }
-    } catch (err) { setSendResult({ ok: false, msg: String(err) }); }
-    setSending(false);
-  }
-
   function openWa(phone: string, message?: string) {
     const num = phone.replace(/\D/g, "");
     window.open(message ? `https://wa.me/${num}?text=${encodeURIComponent(message)}` : `https://wa.me/${num}`, "_blank");
   }
-
-  function openWaPreview() {
-    const c = clients.find((cl) => cl.id === selClientId);
-    if (!c) return;
-    const wa = settingsStore.whatsapp as Record<string, string>;
-    const tpl = msgType === "reminder" ? wa.reminder : msgType === "confirmation" ? wa.confirmation : wa.followup;
-    const dateLabel = new Date(manualDate).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" });
-    const msg = tpl?.replace(/\{{1,2}(\w+)\}{1,2}/g, (_: string, key: string) => ({
-      name: c.name, service: manualService.trim() || "your service",
-      salon_name: (settingsStore.salon.name as string).trim(),
-      date: dateLabel, time: manualTime.trim() || "your appointment time",
-    } as Record<string, string>)[key] ?? _);
-    openWa(c.phone, msg);
-  }
-
-  const inputSt: React.CSSProperties = { width: "100%", height: 38, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", background: "#fff", outline: "none", boxSizing: "border-box" };
 
   return (
     <div className="dashboard-polish" style={{ minHeight: "100vh", background: "#f5f6f9" }}>
@@ -914,25 +805,25 @@ export default function MessagesPage() {
             <div style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
 
               {/* Log header */}
-              <div style={{ padding: "16px 20px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fafafd" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: "#1d1d2f" }}>Message Log</div>
-                  {loadingLogs && <div style={{ fontSize: 11, color: "#9999b0" }}>Loading…</div>}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {/* Filter pills */}
-                  <div style={{ display: "flex", gap: 3, background: "#f0f0f8", borderRadius: 9, padding: "3px" }}>
-                    {FILTERS.map((f) => (
-                      <button key={f.value} type="button" onClick={() => setFilter(f.value)}
-                        style={{ border: "none", borderRadius: 7, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", background: filter === f.value ? "#fff" : "transparent", color: filter === f.value ? "#1d1d2f" : "#9999b0", boxShadow: filter === f.value ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.12s" }}>
-                        {f.label}
-                      </button>
-                    ))}
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid #f0f0f8", background: "#fafafd" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 900, color: "#1d1d2f", flexShrink: 0 }}>Message Log</div>
+                    {loadingLogs && <div style={{ fontSize: 11, color: "#9999b0" }}>Loading…</div>}
                   </div>
                   <button type="button" onClick={() => setRefreshKey((k) => k + 1)} title="Refresh"
-                    style={{ border: "1px solid #e8e8f0", background: "#fff", borderRadius: 8, padding: "6px 8px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                    style={{ border: "1px solid #e8e8f0", background: "#fff", borderRadius: 8, padding: "6px 8px", cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>
                     <RefreshCw size={13} color="#9999b0" />
                   </button>
+                </div>
+                {/* Filter pills — horizontally scrollable so they never clip on narrow panels */}
+                <div style={{ display: "flex", gap: 3, background: "#f0f0f8", borderRadius: 9, padding: "3px", overflowX: "auto", scrollbarWidth: "none" }}>
+                  {FILTERS.map((f) => (
+                    <button key={f.value} type="button" onClick={() => setFilter(f.value)}
+                      style={{ border: "none", borderRadius: 7, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", background: filter === f.value ? "#fff" : "transparent", color: filter === f.value ? "#1d1d2f" : "#9999b0", boxShadow: filter === f.value ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.12s", whiteSpace: "nowrap", flexShrink: 0 }}>
+                      {f.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -998,72 +889,6 @@ export default function MessagesPage() {
 
             {/* ── Right column ── */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-              {/* Send Message Panel */}
-              <div style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 18, padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 18 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Send size={14} color="#fff" />
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: "#1d1d2f" }}>Send Message</div>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Client</label>
-                    <select value={selClientId} onChange={(e) => setSelClientId(e.target.value)} style={{ ...inputSt }}>
-                      <option value="">Select client…</option>
-                      {clients.filter((c) => normalizePhone(c.phone)).map((c) => <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Message Type</label>
-                    <select value={msgType} onChange={(e) => setMsgType(e.target.value as typeof msgType)} style={{ ...inputSt }}>
-                      <option value="confirmation">Booking Confirmation</option>
-                      <option value="reminder">Appointment Reminder</option>
-                      <option value="followup">Follow-up Message</option>
-                    </select>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Service</label>
-                      <input value={manualService} onChange={(e) => setManualService(e.target.value)} placeholder="e.g. Haircut" style={{ ...inputSt }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Time</label>
-                      <input value={manualTime} onChange={(e) => setManualTime(e.target.value)} placeholder="e.g. 3:00 PM" style={{ ...inputSt }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: "#7c7c9a", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      <Calendar size={10} style={{ display: "inline", marginRight: 4 }} />Date
-                    </label>
-                    <input type="date" value={manualDate} onChange={(e) => setManualDate(e.target.value)} style={{ ...inputSt }} />
-                  </div>
-
-                  {/* Action buttons */}
-                  <button type="button" onClick={sendManual} disabled={!selClientId || !isConnected || sending}
-                    style={{ width: "100%", border: "none", borderRadius: 10, padding: "11px 0", fontSize: 13, fontWeight: 800, cursor: (!selClientId || !isConnected || sending) ? "not-allowed" : "pointer", background: (!selClientId || !isConnected || sending) ? "#e8e8f0" : "linear-gradient(135deg,#5B21B6,#9333EA)", color: (!selClientId || !isConnected || sending) ? "#aaaabc" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: (!selClientId || !isConnected || sending) ? "none" : "0 3px 12px rgba(91,33,182,0.35)" }}>
-                    <Send size={14} /> {sending ? "Sending…" : "Send via API"}
-                  </button>
-
-                  {selClientId && (
-                    <button type="button" onClick={openWaPreview}
-                      style={{ width: "100%", border: "1px solid #e8e8f0", background: "#fafafd", borderRadius: 10, padding: "9px 0", fontSize: 12, fontWeight: 700, color: "#5a5a78", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-                      <Phone size={12} /> Open in WhatsApp Web
-                    </button>
-                  )}
-
-                  {sendResult && (
-                    <div style={{ fontSize: 12, fontWeight: 600, color: sendResult.ok ? "#059669" : "#dc2626", padding: "9px 12px", borderRadius: 9, background: sendResult.ok ? "#ecfdf5" : "#fef2f2", border: `1px solid ${sendResult.ok ? "#bbf7d0" : "#fecaca"}`, lineHeight: 1.5 }}>
-                      {sendResult.msg}
-                    </div>
-                  )}
-                </div>
-              </div>
 
               {/* Automation Status */}
               <div style={{ background: "#fff", border: "1px solid #e8e8f0", borderRadius: 18, padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
