@@ -1,0 +1,25 @@
+# Salon Central
+
+> Salon Central is an all-in-one hair and beauty salon management software in Pakistan with POS, appointment booking, CRM, invoicing, inventory, payroll, and WhatsApp automation.
+
+Salon Central helps beauty salons, hair salons, and spas in Pakistan run their entire business from one dashboard: bookings, staff, clients, point of sale, inventory, payroll, and automated WhatsApp communication.
+
+## Features
+
+- [Appointment Scheduling & Booking Software](https://www.saloncentral.xyz/features/appointment-scheduling): Manage bookings, scheduling, online appointments, staff calendars, and client reminders from one platform.
+- [Client Management Software & CRM](https://www.saloncentral.xyz/features/client-management): Manage customer profiles, visit history, appointments, invoices, loyalty, and CRM from one platform.
+- [Inventory Management Software](https://www.saloncentral.xyz/features/inventory-management): Track stock levels, set low-stock alerts, auto-deduct products on POS sales, and manage retail pricing.
+- [Accounting Software for Salon Invoicing](https://www.saloncentral.xyz/features/invoicing): Create branded, auto-numbered invoices, apply discounts, mark payments, and export as PDF.
+- [Loyalty Points Program](https://www.saloncentral.xyz/features/loyalty-points): Loyalty points calculator, client rewards, redeemable discounts, membership tiers, and digital loyalty cards.
+- [Online Booking Page](https://www.saloncentral.xyz/features/online-booking): A branded booking page clients can access from Instagram, WhatsApp, or Google Maps, with appointments landing directly in the dashboard.
+- [Payroll Software for Salons](https://www.saloncentral.xyz/features/payroll-management): Manage staff salaries, commissions, payouts, attendance, and payroll reports.
+- [Salon POS Software & Point of Sale System](https://www.saloncentral.xyz/features/pos): A complete point of sale system with invoicing, inventory, and CRM built in.
+- [Revenue Management Software](https://www.saloncentral.xyz/features/revenue-management): Track daily revenue, average ticket, payment method breakdown, top services, and one-click PDF reports.
+- [Staff Management Software](https://www.saloncentral.xyz/features/staff-management): Manage roles, service assignments, performance stats, and team revenue tracking.
+- [WhatsApp Marketing & Automated Reminders](https://www.saloncentral.xyz/features/whatsapp-reminders): Automated booking confirmations, appointment reminders, follow-ups, birthday messages, and low-stock alerts.
+
+## Company
+
+- [Pricing](https://www.saloncentral.xyz/#pricing)
+- [Privacy Policy](https://www.saloncentral.xyz/privacy)
+- [Terms of Service](https://www.saloncentral.xyz/terms)
