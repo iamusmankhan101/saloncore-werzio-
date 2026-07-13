@@ -45,7 +45,7 @@ const PLANS = [
   },
 ] as const;
 
-const CONTACT_SALES_URL = "https://wa.me/923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
+const CONTACT_SALES_URL = "https://wa.me/+923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
 
 type PlanId = typeof PLANS[number]["id"];
 

@@ -6,7 +6,7 @@ import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe,
 import styles from "./Navbar.module.css";
 import DemoModal from "./DemoModal";
 
-const CONTACT_SALES_URL = "https://wa.me/923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
+const CONTACT_SALES_URL = "https://wa.me/+923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
 
 const featureLinks = [
   { label: "Appointment Scheduling", desc: "Calendar, bookings & reminders", href: "/features/appointment-scheduling", Icon: CalendarDays },

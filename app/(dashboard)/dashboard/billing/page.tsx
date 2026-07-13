@@ -21,7 +21,7 @@ import {
 
 const EP_DETAILS  = { name: "Muhammad Usman Khan", phone: "03058562523" };
 const BANK_DETAILS = { name: "TAREEZ TECH", account: "02291011176553", iban: "PK90ALFH0229001011176553" };
-const CONTACT_SALES_URL = "https://wa.me/923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
+const CONTACT_SALES_URL = "https://wa.me/+923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
 
 const STATUS_META: Record<InvoiceStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   paid:    { label: "Paid",    color: "#059669", bg: "#ecfdf5", icon: CheckCircle },
