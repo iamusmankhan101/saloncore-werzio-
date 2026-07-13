@@ -2,9 +2,9 @@ import RevenueFeaturePage from "../../../components/RevenueFeaturePage";
 import { pageMetadata } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Salon Revenue Management Software in Pakistan",
+  title: "Salon Revenue Management Software Pakistan",
   description:
-    "Accounting software in Pakistan for salon revenue management: track daily revenue, average ticket, payment method breakdown, top services, and one-click PDF reports with Salon Central.",
+    "Salon revenue management software with revenue tracking, financial reports, payment insights, and business analytics for beauty salons by Salon Central.",
   path: "/features/revenue-management",
 });
 

@@ -71,7 +71,7 @@ export const metadata: Metadata = {
       { url: "/favicon-48x48.png", type: "image/png", sizes: "48x48" },
       { url: "/favicon-96x96.png", type: "image/png", sizes: "96x96" },
     ],
-    apple: { url: "/salon-central-favicon.png", sizes: "1254x1254", type: "image/png" },
+    apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
   },
 };
 

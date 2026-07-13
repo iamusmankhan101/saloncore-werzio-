@@ -2,9 +2,9 @@ import InvoicingFeaturePage from "../../../components/InvoicingFeaturePage";
 import { pageMetadata } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Accounting Software in Pakistan for Salon Invoicing",
+  title: "Accounting Software for Salon Pakistan",
   description:
-    "Accounting software in Pakistan for salon invoicing: create branded, auto-numbered invoices, apply discounts, mark payments, and export as PDF, all from Salon Central.",
+    "Accounting software in Pakistan for salons with branded invoicing, payment tracking, discounts, PDF invoices, and financial reporting by Salon Central.",
   path: "/features/invoicing",
 });
 

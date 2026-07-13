@@ -10,7 +10,10 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Salon Central — Salon Management",
+  title: {
+    default: "Salon Central — Salon Management",
+    template: "%s | Salon Central",
+  },
   description: "WhatsApp-native salon booking & client management platform",
   icons: {
     icon: [{ url: "/salon-central-favicon.png", type: "image/png", sizes: "1254x1254" }],

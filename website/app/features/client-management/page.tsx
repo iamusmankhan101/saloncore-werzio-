@@ -4,7 +4,7 @@ import { pageMetadata } from "../../../lib/seo";
 export const metadata = pageMetadata({
   title: "Client Management Software & CRM",
   description:
-    "Salon Central's client management software helps salons manage customer profiles, visit history, appointments, invoices, loyalty, and CRM from one powerful platform.",
+    "Client management software for salons with CRM, customer profiles, visit history, invoices, loyalty programs, and appointment tracking.",
   path: "/features/client-management",
   keywords: [
     "client management software",

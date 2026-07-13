@@ -20,7 +20,7 @@ export default function PrivacyPage() {
         <p>
           Salon Central ("<strong>we</strong>," "<strong>us</strong>," or "<strong>our</strong>") is committed to protecting
           your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when
-          you use our salon management platform at <a href="https://saloncentral.xyz">saloncentral.xyz</a> and{" "}
+          you use our salon management platform at <a href="https://www.saloncentral.xyz">saloncentral.xyz</a> and{" "}
           <a href="https://app.saloncentral.xyz">app.saloncentral.xyz</a>.
         </p>
         <p>
@@ -155,7 +155,7 @@ export default function PrivacyPage() {
         </p>
         <ul>
           <li>Email: <a href="mailto:privacy@saloncentral.xyz">privacy@saloncentral.xyz</a></li>
-          <li>Website: <a href="https://saloncentral.xyz">saloncentral.xyz</a></li>
+          <li>Website: <a href="https://www.saloncentral.xyz">saloncentral.xyz</a></li>
           <li>Location: Lahore, Pakistan</li>
         </ul>
       </div>

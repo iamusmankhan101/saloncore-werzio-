@@ -378,7 +378,7 @@ export default function InvoicingFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <Image src="/salon-central-logo.png" alt="Salon Central logo" width={96} height={96} />
                 <span>Salon Central Invoicing</span>
               </div>
               <HeroInvoice />

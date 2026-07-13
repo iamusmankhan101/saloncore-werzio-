@@ -4,7 +4,7 @@ import { pageMetadata } from "../../../lib/seo";
 export const metadata = pageMetadata({
   title: "Salon POS Software & Point of Sale System",
   description:
-    "Looking for the best salon POS software in Pakistan? Salon Central offers a complete point of sale system for beauty salons, hair salons, and spas with invoicing, inventory, and CRM.",
+    "Salon POS software for beauty salons, hair salons, and spas with point of sale, invoicing, inventory management, payments, and CRM by Salon Central.",
   path: "/features/pos",
   keywords: [
     "salon pos system",

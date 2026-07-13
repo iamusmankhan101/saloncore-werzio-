@@ -2,9 +2,9 @@ import WhatsAppFeaturePage from "../../../components/WhatsAppFeaturePage";
 import { pageMetadata } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
-  title: "WhatsApp Marketing for Salons & Automated Reminders",
+  title: "WhatsApp Marketing & Reminders for Salons",
   description:
-    "WhatsApp marketing for salons with salon WhatsApp marketing, WhatsApp automated reminders, and salon WhatsApp automated messages. Send booking confirmations, appointment reminders, follow-ups, birthday messages, promotions, and low-stock alerts with Salon Central.",
+    "WhatsApp marketing for salons: automated confirmations, reminders, follow-ups, birthday messages, promotions, and low-stock alerts from Salon Central.",
   path: "/features/whatsapp-reminders",
 });
 

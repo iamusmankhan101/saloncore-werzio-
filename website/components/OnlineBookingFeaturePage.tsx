@@ -325,7 +325,7 @@ export default function OnlineBookingFeaturePage() {
             </div>
             <div className={styles.heroVisual}>
               <div className={styles.imageChip}>
-                <Image src="/salon-central-logo.png" alt="" width={96} height={96} />
+                <Image src="/salon-central-logo.png" alt="Salon Central logo" width={96} height={96} />
                 <span>Salon Central OS</span>
               </div>
               <HeroBooking />
