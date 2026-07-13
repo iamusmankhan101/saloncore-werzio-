@@ -85,7 +85,7 @@ export default function ComparisonPage({
         {/* ── centered hero ── */}
         <section className={compareStyles.hero}>
           <div className={compareStyles.heroInner}>
-            <h1>Salon Central vs. {competitorName}</h1>
+            <h1>Upgrade from {competitorName} to Salon Central</h1>
             <p className={compareStyles.heroTagline}>Salon software built to run your whole business, not just checkout.</p>
             <p className={compareStyles.heroDesc}>
               Salon Central is a salon POS system covering appointment scheduling, client beauty profiles, staff
@@ -100,7 +100,7 @@ export default function ComparisonPage({
         {/* ── comparison table ── */}
         <section className={compareStyles.tableSection} aria-label={`Salon Central vs ${competitorName} feature comparison`}>
           <h2 className={compareStyles.tableTitle}>
-            How does Salon Central compare to {competitorName}?
+            Why Salon Central Clearly Stands Out from {competitorName}
           </h2>
           <p className={compareStyles.tableSubtitle}>Both can run a checkout. Here&apos;s where they actually differ.</p>
 
