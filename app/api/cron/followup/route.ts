@@ -9,12 +9,16 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { activeWhatsAppCredential, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
-import { appointmentStartMs, timezoneFromSettings } from "@/lib/appointment-time";
+import { appointmentStartMs, isWithinSalonHours, nextSalonOpenMs, timezoneFromSettings, type SalonHoursDay } from "@/lib/appointment-time";
 
 const MINUTE_MS = 60 * 1000;
 
 function followupSpacingMs() {
   return Math.round(30 * MINUTE_MS + Math.random() * 90 * MINUTE_MS);
+}
+
+function followupClosedDayJitterMs() {
+  return Math.round(25 * MINUTE_MS + Math.random() * 5 * MINUTE_MS);
 }
 
 function authorized(req: NextRequest): boolean {
@@ -166,6 +170,15 @@ interface Appointment {
 
 interface Client { id: string; phone: string; name: string; }
 
+function followupScheduledAt(baseMs: number, settings: Record<string, unknown>, spacingMs: number): string {
+  const hours = settings.hours as SalonHoursDay[] | undefined;
+  const timezone = timezoneFromSettings(settings);
+  if (isWithinSalonHours(hours, timezone, baseMs)) return new Date(baseMs).toISOString();
+  const nextOpenMs = nextSalonOpenMs(hours, timezone, baseMs);
+  if (nextOpenMs == null) return new Date(baseMs).toISOString();
+  return new Date(nextOpenMs + spacingMs + followupClosedDayJitterMs()).toISOString();
+}
+
 async function runFollowupCron() {
   const now = new Date();
   const dueLookbackMs = 36 * 60 * MINUTE_MS;
@@ -255,7 +268,7 @@ async function runFollowupCron() {
           appt,
           phone,
           text,
-          scheduledAt: new Date(Date.now() + scheduleDelayMs).toISOString(),
+          scheduledAt: followupScheduledAt(Date.now() + scheduleDelayMs, s, scheduleDelayMs),
         });
         queuedPhones.add(phone);
         queued++;

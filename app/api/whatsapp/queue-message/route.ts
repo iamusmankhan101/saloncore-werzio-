@@ -2,12 +2,13 @@ import { NextRequest } from "next/server";
 import { resolveActor } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
-import { appointmentStartHasPassed, appointmentStartMs, timezoneFromSettings } from "@/lib/appointment-time";
+import { appointmentStartHasPassed, appointmentStartMs, isWithinSalonHours, nextSalonOpenMs, timezoneFromSettings, type SalonHoursDay } from "@/lib/appointment-time";
 
 type QueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "lowstock" | "manual";
 
 const MINUTE_MS = 60 * 1000;
 const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
+const SALON_HOURS_GATED_KINDS = new Set<QueueKind>(["reminder", "followup", "cancellation", "birthday", "lowstock"]);
 
 interface QueueMessageBody {
   kind: QueueKind;
@@ -101,28 +102,45 @@ function randBetween(minMs: number, maxMs: number): number {
   return Math.round(minMs + Math.random() * (maxMs - minMs));
 }
 
-function scheduledAtFor(kind: QueueKind, requested?: string): string {
+function salonHoursAdjustedScheduledAt(kind: QueueKind, scheduledAt: string, settings: Record<string, unknown>): string {
+  if (!SALON_HOURS_GATED_KINDS.has(kind)) return scheduledAt;
+  const scheduledMs = new Date(scheduledAt).getTime();
+  if (!Number.isFinite(scheduledMs)) return scheduledAt;
+  const hours = settings.hours as SalonHoursDay[] | undefined;
+  const timezone = timezoneFromSettings(settings);
+  if (isWithinSalonHours(hours, timezone, scheduledMs)) return scheduledAt;
+  const nextOpenMs = nextSalonOpenMs(hours, timezone, scheduledMs);
+  if (nextOpenMs == null) return scheduledAt;
+  return new Date(nextOpenMs + randBetween(5 * MINUTE_MS, 15 * MINUTE_MS)).toISOString();
+}
+
+function scheduledAtFor(kind: QueueKind, settings: Record<string, unknown>, requested?: string): string {
   const now = Date.now();
   const requestedAt = requested ? new Date(requested).getTime() : NaN;
+  let scheduledAt: string;
   if (kind === "reminder") {
     const minimum = now + 10 * MINUTE_MS;
     if (!Number.isFinite(requestedAt) || requestedAt < minimum) {
-      return new Date(now + randBetween(10 * MINUTE_MS, 20 * MINUTE_MS)).toISOString();
+      scheduledAt = new Date(now + randBetween(10 * MINUTE_MS, 20 * MINUTE_MS)).toISOString();
+      return salonHoursAdjustedScheduledAt(kind, scheduledAt, settings);
     }
   }
   if (kind === "cancellation") {
     const minimum = now + 15 * MINUTE_MS;
     if (!Number.isFinite(requestedAt) || requestedAt < minimum) {
-      return new Date(now + randBetween(15 * MINUTE_MS, 20 * MINUTE_MS)).toISOString();
+      scheduledAt = new Date(now + randBetween(15 * MINUTE_MS, 20 * MINUTE_MS)).toISOString();
+      return salonHoursAdjustedScheduledAt(kind, scheduledAt, settings);
     }
   }
   if (kind === "birthday") {
     const minimum = now + 20 * MINUTE_MS;
     if (!Number.isFinite(requestedAt) || requestedAt < minimum) {
-      return new Date(now + randBetween(20 * MINUTE_MS, 30 * MINUTE_MS)).toISOString();
+      scheduledAt = new Date(now + randBetween(20 * MINUTE_MS, 30 * MINUTE_MS)).toISOString();
+      return salonHoursAdjustedScheduledAt(kind, scheduledAt, settings);
     }
   }
-  return Number.isFinite(requestedAt) ? new Date(requestedAt).toISOString() : new Date(now).toISOString();
+  scheduledAt = Number.isFinite(requestedAt) ? new Date(requestedAt).toISOString() : new Date(now).toISOString();
+  return salonHoursAdjustedScheduledAt(kind, scheduledAt, settings);
 }
 
 function followupWindowExpired(settings: Record<string, unknown>, apptDate?: string, apptTime?: string): boolean {
@@ -287,7 +305,7 @@ export async function POST(req: NextRequest) {
         body.apptDate || null,
         body.apptTime || null,
         body.service || null,
-        scheduledAtFor(body.kind, body.scheduledAt),
+        scheduledAtFor(body.kind, settings, body.scheduledAt),
         now,
       ],
     });
