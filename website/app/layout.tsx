@@ -77,12 +77,11 @@ export const metadata: Metadata = {
 
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
+  "@type": "Organization",
   name: siteConfig.name,
   url: siteConfig.url,
   description,
-  applicationCategory: "BusinessApplication",
-  operatingSystem: "Web",
+  logo: `${siteConfig.url}/salon-central-logo.png`,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
