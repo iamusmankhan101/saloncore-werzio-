@@ -83,15 +83,17 @@ export default function ComparisonPage({
       <main className={compareStyles.page}>
         {/* ── centered hero ── */}
         <section className={compareStyles.hero}>
-          <h1>Salon Central vs. {competitorName}</h1>
-          <p className={compareStyles.heroTagline}>Salon software built to run your whole business, not just checkout.</p>
-          <p className={compareStyles.heroDesc}>
-            Salon Central covers appointment scheduling, client beauty profiles, staff commission payroll, loyalty
-            programs, and WhatsApp automation in one platform. {competitorSummary}
-          </p>
-          <button type="button" onClick={() => setDemoOpen(true)} className={compareStyles.heroCta}>
-            Try Salon Central Free <ArrowRight size={17} />
-          </button>
+          <div className={compareStyles.heroInner}>
+            <h1>Salon Central vs. {competitorName}</h1>
+            <p className={compareStyles.heroTagline}>Salon software built to run your whole business, not just checkout.</p>
+            <p className={compareStyles.heroDesc}>
+              Salon Central covers appointment scheduling, client beauty profiles, staff commission payroll, loyalty
+              programs, and WhatsApp automation in one platform. {competitorSummary}
+            </p>
+            <button type="button" onClick={() => setDemoOpen(true)} className={compareStyles.heroCta}>
+              Book a Demo <ArrowRight size={17} />
+            </button>
+          </div>
         </section>
 
         {/* ── comparison table ── */}
@@ -181,7 +183,7 @@ export default function ComparisonPage({
           <h2>See why salons choose Salon Central over {competitorName}</h2>
           <div className={compareStyles.ctaActions}>
             <button type="button" onClick={() => setDemoOpen(true)} className={compareStyles.heroCta}>
-              Get started <ArrowRight size={17} />
+              Book a Demo <ArrowRight size={17} />
             </button>
             <Link href="/#pricing" className={compareStyles.ctaSecondary}>View pricing</Link>
           </div>
