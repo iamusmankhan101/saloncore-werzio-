@@ -35,6 +35,7 @@ export default function SalonCentralVsWebsolPage() {
             { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
             { feature: "Online client booking page", salonCentral: true, competitor: false },
             { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
+            { feature: "AI virtual try-on (hair color, hairstyle, makeup preview)", salonCentral: true, competitor: false },
           ],
         },
         {
@@ -77,16 +78,16 @@ export default function SalonCentralVsWebsolPage() {
       verdict="Websol is a capable general-purpose POS and ERP system if you need broad FBR tax compliance across a multi-industry business. But it isn't built around how a salon actually runs day to day: it has no appointment calendar, no client beauty profiles, and no automated WhatsApp confirmations or reminders. If your salon's daily work is bookings, staff schedules, and keeping clients coming back, Salon Central is purpose-built for that; if FBR tax integration across a non-salon business is your priority, Websol may fit better."
       faqs={[
         {
-          q: "Is Websol designed specifically for salons?",
-          a: "No. Websol is a general POS and ERP system built for retail stores, restaurants, pharmacies, and manufacturing businesses, with salons listed as one of many supported industries. It doesn't include salon-specific features like appointment scheduling or client beauty profiles.",
+          q: "What does Salon Central offer that Websol doesn't?",
+          a: "Salon Central includes appointment scheduling with staff calendars, an online client booking page, client beauty profiles, AI virtual try-on for hair color and makeup, staff commission payroll, and automated WhatsApp confirmations, reminders, and follow-ups, none of which are part of Websol's general retail POS.",
         },
         {
-          q: "Does Websol offer WhatsApp appointment reminders?",
-          a: "Websol lists WhatsApp only as a customer support contact channel on its website, not as an automated messaging feature for sending booking confirmations, reminders, or follow-ups to clients.",
+          q: "Is Salon Central built specifically for salons, unlike Websol?",
+          a: "Yes. Salon Central is purpose-built for beauty salons and hair salons. Websol is a general POS and ERP system built for retail stores, restaurants, pharmacies, and manufacturing businesses, with salons listed as one of many supported industries rather than its core focus.",
         },
         {
-          q: "Which is better for a beauty salon: Salon Central or Websol?",
-          a: "Salon Central is purpose-built for beauty salons and hair salons, with appointment scheduling, staff calendars, client beauty profiles, and automated WhatsApp reminders. Websol is a stronger fit if you need broad FBR tax compliance across a multi-industry retail business and don't need salon-specific booking or client management tools.",
+          q: "Does Salon Central send automated WhatsApp appointment reminders?",
+          a: "Yes, Salon Central automates WhatsApp booking confirmations, reminders, and follow-ups for clients. Websol lists WhatsApp only as a customer support contact channel on its website, not as an automated messaging feature.",
         },
         {
           q: "Does Salon Central have FBR tax integration like Websol?",

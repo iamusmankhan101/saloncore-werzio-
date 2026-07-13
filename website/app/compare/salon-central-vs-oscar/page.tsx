@@ -35,6 +35,7 @@ export default function SalonCentralVsOscarPage() {
             { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
             { feature: "Online client booking page", salonCentral: true, competitor: false },
             { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
+            { feature: "AI virtual try-on (hair color, hairstyle, makeup preview)", salonCentral: true, competitor: false },
           ],
         },
         {
@@ -66,16 +67,16 @@ export default function SalonCentralVsOscarPage() {
       verdict="Oscar is a broad, multi-industry POS platform that happens to list beauty salons among the many business types it supports, alongside restaurants, gyms, and clinics. That breadth means it has no salon-specific appointment calendar, client beauty profiles, or automated WhatsApp reminders. Salon Central is built around exactly those workflows: bookings, staff schedules, client history, and WhatsApp automation designed specifically for how a salon operates day to day."
       faqs={[
         {
-          q: "Is Oscar designed specifically for salons?",
-          a: "No. Oscar is a general POS platform that supports many business types, including restaurants, gyms, clinics, and salons, but it doesn't include salon-specific features like appointment scheduling or client beauty profiles.",
-        },
-        {
-          q: "Does Oscar send automated WhatsApp appointment reminders?",
-          a: "Oscar lists WhatsApp only as a customer support contact channel on its website, not as a feature for sending automated booking confirmations or reminders.",
-        },
-        {
           q: "What does Salon Central offer that Oscar doesn't?",
-          a: "Salon Central includes appointment scheduling with staff calendars, an online client booking page, client beauty profiles, staff commission payroll, and automated WhatsApp confirmations, reminders, and follow-ups, built specifically for salons rather than as one of many supported industries.",
+          a: "Salon Central includes appointment scheduling with staff calendars, an online client booking page, client beauty profiles, AI virtual try-on for hair color and makeup, staff commission payroll, and automated WhatsApp confirmations, reminders, and follow-ups, built specifically for salons rather than as one of many supported industries.",
+        },
+        {
+          q: "Is Salon Central designed specifically for salons, unlike Oscar?",
+          a: "Yes. Salon Central is purpose-built for salons and beauty businesses. Oscar is a general POS platform that supports many business types, including restaurants, gyms, and clinics, and doesn't include salon-specific features like appointment scheduling or client beauty profiles.",
+        },
+        {
+          q: "Does Salon Central send automated WhatsApp appointment reminders?",
+          a: "Yes, Salon Central automates WhatsApp booking confirmations, reminders, and follow-ups. Oscar lists WhatsApp only as a customer support contact channel on its website, not as a feature for sending automated messages.",
         },
         {
           q: "Is Oscar's pricing public?",

@@ -1,6 +1,5 @@
 "use client";
 import { Fragment, useState } from "react";
-import Link from "next/link";
 import { ArrowRight, Check, X, ChevronDown, Minus } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -175,17 +174,6 @@ export default function ComparisonPage({
                 </div>
               );
             })}
-          </div>
-        </section>
-
-        {/* ── final cta ── */}
-        <section className={compareStyles.ctaBand}>
-          <h2>See why salons choose Salon Central over {competitorName}</h2>
-          <div className={compareStyles.ctaActions}>
-            <button type="button" onClick={() => setDemoOpen(true)} className={compareStyles.heroCta}>
-              Book a Demo <ArrowRight size={17} />
-            </button>
-            <Link href="/#pricing" className={compareStyles.ctaSecondary}>View pricing</Link>
           </div>
         </section>
       </main>

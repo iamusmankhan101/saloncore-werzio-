@@ -35,6 +35,7 @@ export default function SalonCentralVsOneClickPage() {
             { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
             { feature: "Online client booking page", salonCentral: true, competitor: false },
             { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
+            { feature: "AI virtual try-on (hair color, hairstyle, makeup preview)", salonCentral: true, competitor: false },
           ],
         },
         {
@@ -75,16 +76,16 @@ export default function SalonCentralVsOneClickPage() {
       verdict="OneClick is a general FBR-compliant retail POS with an Urdu interface, which can matter if that's a priority for your team. But it has no appointment scheduling, no client beauty profiles, and no automated WhatsApp messaging, because it's built for shops and restaurants, not salons. If running bookings, staff schedules, and client relationships is central to your business, Salon Central is built specifically for that; if Urdu-language retail billing and FBR compliance matter more than salon-specific workflows, OneClick may be worth a look."
       faqs={[
         {
-          q: "Does OneClick have appointment scheduling for salons?",
-          a: "No. OneClick is a general retail POS system for stores, restaurants, pharmacies, and garment shops. It does not include appointment scheduling, staff calendars, or client beauty profiles.",
-        },
-        {
-          q: "Does OneClick offer an Urdu-language interface?",
-          a: "Yes, OneClick advertises a full Urdu-language interface as one of its features. Salon Central's interface is currently English-only.",
-        },
-        {
           q: "What does Salon Central offer that OneClick doesn't?",
-          a: "Salon Central includes appointment scheduling with staff calendars, an online client booking page, client beauty profiles, staff commission payroll, a loyalty points program, and automated WhatsApp confirmations, reminders, and follow-ups, none of which are part of OneClick's general retail POS.",
+          a: "Salon Central includes appointment scheduling with staff calendars, an online client booking page, client beauty profiles, AI virtual try-on for hair color and makeup, staff commission payroll, a loyalty points program, and automated WhatsApp confirmations, reminders, and follow-ups, none of which are part of OneClick's general retail POS.",
+        },
+        {
+          q: "Does Salon Central have appointment scheduling for salons, unlike OneClick?",
+          a: "Yes. Salon Central includes appointment scheduling, staff calendars, and client beauty profiles built specifically for salons. OneClick is a general retail POS system for stores, restaurants, pharmacies, and garment shops without these features.",
+        },
+        {
+          q: "Does Salon Central offer an Urdu-language interface like OneClick?",
+          a: "Not currently. Salon Central's interface is English-only today. OneClick advertises a full Urdu-language interface as one of its features.",
         },
         {
           q: "Is OneClick's pricing public?",

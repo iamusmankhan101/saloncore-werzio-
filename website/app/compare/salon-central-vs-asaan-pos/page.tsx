@@ -52,6 +52,7 @@ export default function SalonCentralVsAsaanPosPage() {
             { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
             { feature: "Online client booking page", salonCentral: true, competitor: false },
             { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
+            { feature: "AI virtual try-on (hair color, hairstyle, makeup preview)", salonCentral: true, competitor: false },
           ],
         },
         {
@@ -80,16 +81,16 @@ export default function SalonCentralVsAsaanPosPage() {
       verdict="This one is straightforward: Asaan POS's own website says it has been discontinued and is no longer available for new customers, so it isn't really an option to evaluate against for a new salon. If you're comparing salon software today, Salon Central is an actively developed, purpose-built platform for beauty salons, hair salons, and spas, with appointment scheduling, client profiles, staff payroll, and WhatsApp automation that a general discontinued retail POS never offered in the first place."
       faqs={[
         {
+          q: "Why should a salon use Salon Central instead of Asaan POS?",
+          a: "Salon Central is built specifically for beauty salons, hair salons, and spas, with appointment scheduling, an online booking page, client beauty profiles, AI virtual try-on, staff commission payroll, loyalty programs, and automated WhatsApp confirmations and reminders, an actively supported alternative to a discontinued general retail POS.",
+        },
+        {
+          q: "Is Salon Central built for salons, unlike Asaan POS?",
+          a: "Yes. Salon Central includes salon-specific features like appointment scheduling, staff calendars, and client beauty profiles. Asaan POS was a general retail POS system for stores, restaurants, and pharmacies, with no salon-specific features.",
+        },
+        {
           q: "Is Asaan POS still available to buy?",
-          a: "No. Asaan POS's own website states it is being discontinued and is not available for new sale. Existing customers can continue using it, but new salons cannot sign up for it.",
-        },
-        {
-          q: "Was Asaan POS designed for salons?",
-          a: "No. Asaan POS was a general retail POS system for stores, restaurants, and pharmacies. It did not include salon-specific features like appointment scheduling, staff calendars, or client beauty profiles.",
-        },
-        {
-          q: "What should a salon use instead of Asaan POS?",
-          a: "Salon Central is built specifically for beauty salons, hair salons, and spas, with appointment scheduling, an online booking page, client beauty profiles, staff commission payroll, loyalty programs, and automated WhatsApp confirmations and reminders, an actively supported alternative to a discontinued general retail POS.",
+          a: "No. Asaan POS's own website states it is being discontinued and is not available for new sale. Existing customers can continue using it, but new salons cannot sign up for it, which makes Salon Central the actively supported option for salons evaluating software today.",
         },
       ]}
     />

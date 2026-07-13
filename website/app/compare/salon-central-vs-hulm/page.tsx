@@ -35,6 +35,7 @@ export default function SalonCentralVsHulmPage() {
             { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
             { feature: "Online client booking page", salonCentral: true, competitor: false },
             { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
+            { feature: "AI virtual try-on (hair color, hairstyle, makeup preview)", salonCentral: true, competitor: false },
           ],
         },
         {
@@ -77,16 +78,16 @@ export default function SalonCentralVsHulmPage() {
       verdict="Hulm is a broad business operations suite aimed at retail, restaurants, and distribution-style businesses that need logistics, vendor, and FBR-compliant invoicing tools. It has no appointment calendar, client beauty profiles, or automated WhatsApp messaging, because it isn't built for salons specifically. Salon Central covers exactly what a salon needs day to day: bookings, staff schedules, client history, and automated WhatsApp confirmations and reminders, without the overhead of logistics or vendor-management tools a salon will never use."
       faqs={[
         {
-          q: "Is Hulm built for salons and spas?",
-          a: "Hulm is a general business operations platform for restaurants, retail stores, bakeries, and other industries. Salons and spas are listed as one supported category, but the platform doesn't include salon-specific features like appointment scheduling or client beauty profiles.",
-        },
-        {
-          q: "Does Hulm send automated WhatsApp appointment reminders?",
-          a: "No. Hulm lists a WhatsApp number only as a support contact on its website, not as a feature for sending automated booking confirmations or reminders to clients.",
-        },
-        {
           q: "What does Salon Central offer that Hulm doesn't?",
-          a: "Salon Central includes appointment scheduling with staff calendars, an online client booking page, client beauty profiles, staff commission-based payroll, a loyalty points program, and automated WhatsApp confirmations, reminders, and follow-ups, none of which are part of Hulm's general business platform.",
+          a: "Salon Central includes appointment scheduling with staff calendars, an online client booking page, client beauty profiles, AI virtual try-on for hair color and makeup, staff commission-based payroll, a loyalty points program, and automated WhatsApp confirmations, reminders, and follow-ups, none of which are part of Hulm's general business platform.",
+        },
+        {
+          q: "Is Salon Central built specifically for salons, unlike Hulm?",
+          a: "Yes. Salon Central is purpose-built for beauty salons and hair salons. Hulm is a general business operations platform for restaurants, retail stores, bakeries, and other industries, with salons and spas listed as one supported category rather than its core focus.",
+        },
+        {
+          q: "Does Salon Central send automated WhatsApp appointment reminders?",
+          a: "Yes, Salon Central automates WhatsApp booking confirmations, reminders, and follow-ups. Hulm lists a WhatsApp number only as a support contact on its website, not as a feature for sending automated messages to clients.",
         },
         {
           q: "Which is cheaper, Salon Central or Hulm?",
