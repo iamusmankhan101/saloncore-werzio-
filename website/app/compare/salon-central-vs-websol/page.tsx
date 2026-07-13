@@ -12,6 +12,15 @@ export const metadata = pageMetadata({
     "salon pos software pakistan",
     "best salon software pakistan",
     "websol pos software",
+    "salon pos",
+    "salon pos system",
+    "salon pos software",
+    "salon pos system software",
+    "salon pos app",
+    "salon point of sale",
+    "salon point of sale system",
+    "salon point of sale systems",
+    "salon point of sale software",
   ],
 });
 
@@ -93,6 +102,10 @@ export default function SalonCentralVsWebsolPage() {
         {
           q: "Does Salon Central have FBR tax integration like Websol?",
           a: "Not currently. Websol advertises FBR, GST, and other tax authority integrations as a core feature. Salon Central focuses on salon operations: bookings, staff, client management, POS, and WhatsApp automation.",
+        },
+        {
+          q: "Is Salon Central a full salon POS system?",
+          a: "Yes. Salon Central is salon POS software built as a complete salon point of sale system: appointment scheduling, staff calendars, client profiles, and WhatsApp automation together in one salon POS app, not just checkout like Websol's general retail POS.",
         },
       ]}
     />

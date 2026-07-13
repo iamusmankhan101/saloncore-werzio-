@@ -12,6 +12,13 @@ export const metadata = pageMetadata({
     "asaan pos discontinued",
     "salon pos software pakistan",
     "best salon software pakistan",
+    "hair salon pos",
+    "hair salon pos software",
+    "hair salon pos systems",
+    "hair salon point of sale",
+    "hair salon point of sale systems",
+    "point of sale software for hair salon",
+    "point of sale software hair salon",
   ],
 });
 
@@ -92,6 +99,10 @@ export default function SalonCentralVsAsaanPosPage() {
         {
           q: "Is Asaan POS still available to buy?",
           a: "No. Asaan POS's own website states it is being discontinued and is not available for new sale. Existing customers can continue using it, but new salons cannot sign up for it, which makes Salon Central the actively supported option for salons evaluating software today.",
+        },
+        {
+          q: "Does Salon Central work as hair salon POS software?",
+          a: "Yes. Salon Central is hair salon POS software with appointment scheduling, staff calendars, and client beauty profiles, a true point of sale system for hair salons, unlike Asaan POS which was a general retail system with no hair-salon-specific tools.",
         },
       ]}
     />

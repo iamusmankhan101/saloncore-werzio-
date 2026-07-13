@@ -12,6 +12,18 @@ export const metadata = pageMetadata({
     "salon pos software pakistan",
     "best salon software pakistan",
     "oscar pos pakistan",
+    "pos beauty salon",
+    "pos software for beauty salon",
+    "pos system for beauty salon",
+    "pos & booking system for beauty salon",
+    "pos system for salon and spa",
+    "salon spa pos system",
+    "spa pos software",
+    "spa point of sale",
+    "spa point of sale system",
+    "spa point of sale systems",
+    "spa point of sale software",
+    "pos software for spa",
   ],
 });
 
@@ -82,6 +94,10 @@ export default function SalonCentralVsOscarPage() {
         {
           q: "Is Oscar's pricing public?",
           a: "No, Oscar does not publish pricing tiers on its website; it promotes a free trial and demo instead. Salon Central's pricing is also available on request.",
+        },
+        {
+          q: "Is Salon Central a good POS system for salons and spas?",
+          a: "Yes. Salon Central is a salon spa POS system built for beauty salons, hair salons, and spas, with spa point of sale features like appointment scheduling, staff calendars, and client profiles, unlike Oscar's general multi-industry POS.",
         },
       ]}
     />

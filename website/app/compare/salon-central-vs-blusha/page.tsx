@@ -12,6 +12,12 @@ export const metadata = pageMetadata({
     "salon software pakistan",
     "best salon software pakistan",
     "blusha salon app",
+    "nail salon pos",
+    "nail salon pos system",
+    "nail salon pos software",
+    "nail salon pos software for ipad",
+    "ipad pos system for nail salon",
+    "best pos system for nail salon",
   ],
 });
 
@@ -115,6 +121,10 @@ export default function SalonCentralVsBlushaPage() {
         {
           q: "Does Salon Central collect client feedback like Blusha does?",
           a: "Yes. Salon Central's automated WhatsApp follow-up message includes a link where clients rate their visit and leave an optional comment, collected in the dashboard, similar to Blusha's feedback requests.",
+        },
+        {
+          q: "Does Salon Central work as a nail salon POS system on iPad?",
+          a: "Yes. Salon Central is nail salon POS software that runs in any browser, including Safari on iPad, making it usable as an iPad POS system for nail salons without extra hardware, alongside the same appointment scheduling and client profile tools it offers hair and beauty salons. Blusha also offers a native staff app.",
         },
       ]}
     />

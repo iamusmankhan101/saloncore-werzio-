@@ -88,8 +88,8 @@ export default function ComparisonPage({
             <h1>Salon Central vs. {competitorName}</h1>
             <p className={compareStyles.heroTagline}>Salon software built to run your whole business, not just checkout.</p>
             <p className={compareStyles.heroDesc}>
-              Salon Central covers appointment scheduling, client beauty profiles, staff commission payroll, loyalty
-              programs, and WhatsApp automation in one platform. {competitorSummary}
+              Salon Central is a salon POS system covering appointment scheduling, client beauty profiles, staff
+              commission payroll, loyalty programs, and WhatsApp automation in one platform. {competitorSummary}
             </p>
             <button type="button" onClick={() => setDemoOpen(true)} className={compareStyles.heroCta}>
               Book a Demo <ArrowRight size={17} />
