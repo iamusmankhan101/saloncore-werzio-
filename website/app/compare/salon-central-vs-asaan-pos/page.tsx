@@ -21,40 +21,61 @@ export default function SalonCentralVsAsaanPosPage() {
       competitorName="Asaan POS"
       competitorUrl="https://www.asaanpos.pk"
       competitorSummary="Asaan POS is a general Windows/Android retail POS system for retail stores, restaurants, and pharmacies. Its own website states it has been discontinued and is not available for new customers, though existing users can continue using it."
-      rows={[
+      dataAsOf="July 2026"
+      categories={[
         {
-          feature: "Currently available for new customers",
-          salonCentral: true,
-          competitor: false,
-          note: "Asaan POS's own website states it \"is being discontinued\" and is \"not available for new sale.\"",
+          title: "Availability",
+          rows: [
+            {
+              feature: "Currently available for new customers",
+              salonCentral: true,
+              competitor: false,
+              note: "Asaan POS's own website states it \"is being discontinued\" and is \"not available for new sale.\"",
+            },
+            {
+              feature: "Cloud-based access",
+              salonCentral: true,
+              competitor: "partial",
+              note: "Asaan POS is primarily a Windows/Android desktop application with an optional cloud add-on.",
+            },
+          ],
         },
         {
-          feature: "Built specifically for salons & beauty businesses",
-          salonCentral: true,
-          competitor: false,
-          note: "Asaan POS serves general retail, restaurants, and pharmacies, with no salon-specific features.",
-        },
-        { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
-        { feature: "Online client booking page", salonCentral: true, competitor: false },
-        { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
-        {
-          feature: "WhatsApp automation (confirmations, reminders, follow-ups)",
-          salonCentral: true,
-          competitor: false,
-        },
-        {
-          feature: "Cloud-based access",
-          salonCentral: true,
-          competitor: "partial",
-          note: "Asaan POS is primarily a Windows/Android desktop application with an optional cloud add-on.",
+          title: "Built for salons",
+          rows: [
+            {
+              feature: "Built specifically for salons & beauty businesses",
+              salonCentral: true,
+              competitor: false,
+              note: "Asaan POS serves general retail, restaurants, and pharmacies, with no salon-specific features.",
+            },
+            { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
+            { feature: "Online client booking page", salonCentral: true, competitor: false },
+            { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
+          ],
         },
         {
-          feature: "FBR tax integration",
-          salonCentral: false,
-          competitor: true,
-          note: "Asaan POS advertised FBR integration before being discontinued.",
+          title: "WhatsApp & operations",
+          rows: [
+            {
+              feature: "WhatsApp automation (confirmations, reminders, follow-ups)",
+              salonCentral: true,
+              competitor: false,
+            },
+            {
+              feature: "FBR tax integration",
+              salonCentral: false,
+              competitor: true,
+              note: "Asaan POS advertised FBR integration before being discontinued.",
+            },
+          ],
         },
-        { feature: "Published starting price", salonCentral: "Contact for pricing", competitor: "Rs. 5,000 (license, discontinued)" },
+        {
+          title: "Pricing",
+          rows: [
+            { feature: "Published starting price", salonCentral: "Contact for pricing", competitor: "Rs. 5,000 (license, discontinued)" },
+          ],
+        },
       ]}
       verdict="This one is straightforward: Asaan POS's own website says it has been discontinued and is no longer available for new customers, so it isn't really an option to evaluate against for a new salon. If you're comparing salon software today, Salon Central is an actively developed, purpose-built platform for beauty salons, hair salons, and spas, with appointment scheduling, client profiles, staff payroll, and WhatsApp automation that a general discontinued retail POS never offered in the first place."
       faqs={[

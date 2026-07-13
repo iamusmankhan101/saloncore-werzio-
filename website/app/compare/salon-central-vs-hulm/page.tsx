@@ -21,37 +21,58 @@ export default function SalonCentralVsHulmPage() {
       competitorName="Hulm"
       competitorUrl="https://hulmsolutions.com"
       competitorSummary="Hulm markets itself as a complete business operations platform starting with POS and expanding into logistics, vendor management, and accounting, serving restaurants, retail stores, and other industries with salons and spas listed as one supported category."
-      rows={[
+      dataAsOf="July 2026"
+      categories={[
         {
-          feature: "Built specifically for salons & beauty businesses",
-          salonCentral: true,
-          competitor: false,
-          note: "Hulm serves restaurants, retail, bakeries, pharmacies, and manufacturing, with salons/spas as one option among many.",
-        },
-        { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
-        { feature: "Online client booking page", salonCentral: true, competitor: false },
-        { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
-        {
-          feature: "WhatsApp automation (confirmations, reminders, follow-ups)",
-          salonCentral: true,
-          competitor: false,
-          note: "Hulm lists WhatsApp only as a support contact number, not an automated messaging feature.",
-        },
-        { feature: "Staff commission tracking", salonCentral: true, competitor: false },
-        { feature: "Loyalty / rewards program", salonCentral: true, competitor: false },
-        {
-          feature: "FBR-compliant invoicing",
-          salonCentral: false,
-          competitor: true,
-          note: "Hulm advertises FBR-compliant billing as a core feature.",
+          title: "Built for salons",
+          rows: [
+            {
+              feature: "Built specifically for salons & beauty businesses",
+              salonCentral: true,
+              competitor: false,
+              note: "Hulm serves restaurants, retail, bakeries, pharmacies, and manufacturing, with salons/spas as one option among many.",
+            },
+            { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
+            { feature: "Online client booking page", salonCentral: true, competitor: false },
+            { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
+          ],
         },
         {
-          feature: "Logistics & vendor management",
-          salonCentral: false,
-          competitor: true,
-          note: "Relevant for retail/distribution businesses, not typically needed by a salon.",
+          title: "WhatsApp & client communication",
+          rows: [
+            {
+              feature: "WhatsApp automation (confirmations, reminders, follow-ups)",
+              salonCentral: true,
+              competitor: false,
+              note: "Hulm lists WhatsApp only as a support contact number, not an automated messaging feature.",
+            },
+            { feature: "Loyalty / rewards program", salonCentral: true, competitor: false },
+          ],
         },
-        { feature: "Published starting price", salonCentral: "Contact for pricing", competitor: "PKR 2,500/month" },
+        {
+          title: "Staff & operations",
+          rows: [
+            { feature: "Staff commission tracking", salonCentral: true, competitor: false },
+            {
+              feature: "FBR-compliant invoicing",
+              salonCentral: false,
+              competitor: true,
+              note: "Hulm advertises FBR-compliant billing as a core feature.",
+            },
+            {
+              feature: "Logistics & vendor management",
+              salonCentral: false,
+              competitor: true,
+              note: "Relevant for retail/distribution businesses, not typically needed by a salon.",
+            },
+          ],
+        },
+        {
+          title: "Pricing",
+          rows: [
+            { feature: "Published starting price", salonCentral: "Contact for pricing", competitor: "PKR 2,500/month" },
+          ],
+        },
       ]}
       verdict="Hulm is a broad business operations suite aimed at retail, restaurants, and distribution-style businesses that need logistics, vendor, and FBR-compliant invoicing tools. It has no appointment calendar, client beauty profiles, or automated WhatsApp messaging, because it isn't built for salons specifically. Salon Central covers exactly what a salon needs day to day: bookings, staff schedules, client history, and automated WhatsApp confirmations and reminders, without the overhead of logistics or vendor-management tools a salon will never use."
       faqs={[

@@ -20,6 +20,7 @@ Salon Central helps beauty salons, hair salons, and spas in Pakistan run their e
 
 ## Comparisons
 
+- [Salon Central vs Blusha](https://www.saloncentral.xyz/compare/salon-central-vs-blusha): A feature-by-feature comparison with Blusha, another salon-specific platform with WhatsApp automation and loyalty tools.
 - [Salon Central vs Websol](https://www.saloncentral.xyz/compare/salon-central-vs-websol): How Salon Central compares to Websol, a general POS/ERP system for retail, restaurants, and pharmacies.
 - [Salon Central vs Hulm](https://www.saloncentral.xyz/compare/salon-central-vs-hulm): How Salon Central compares to Hulm, a general business operations platform for retail and restaurants.
 - [Salon Central vs Asaan POS](https://www.saloncentral.xyz/compare/salon-central-vs-asaan-pos): Asaan POS has been discontinued and is not available for new customers.

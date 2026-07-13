@@ -21,26 +21,47 @@ export default function SalonCentralVsOscarPage() {
       competitorName="Oscar"
       competitorUrl="https://oscar.pk"
       competitorSummary="Oscar is a general POS and business management platform serving restaurants, retail stores, fitness centers, clinics, and beauty salons among many other business types, rather than focusing specifically on salons."
-      rows={[
+      dataAsOf="July 2026"
+      categories={[
         {
-          feature: "Built specifically for salons & beauty businesses",
-          salonCentral: true,
-          competitor: false,
-          note: "Oscar lists beauty salons, hair salons, and spas alongside restaurants, gyms, clinics, and vape shops as supported business types.",
+          title: "Built for salons",
+          rows: [
+            {
+              feature: "Built specifically for salons & beauty businesses",
+              salonCentral: true,
+              competitor: false,
+              note: "Oscar lists beauty salons, hair salons, and spas alongside restaurants, gyms, clinics, and vape shops as supported business types.",
+            },
+            { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
+            { feature: "Online client booking page", salonCentral: true, competitor: false },
+            { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
+          ],
         },
-        { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
-        { feature: "Online client booking page", salonCentral: true, competitor: false },
-        { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
         {
-          feature: "WhatsApp automation (confirmations, reminders, follow-ups)",
-          salonCentral: true,
-          competitor: false,
-          note: "Oscar lists WhatsApp only as a contact channel, not an automated messaging feature.",
+          title: "WhatsApp & client communication",
+          rows: [
+            {
+              feature: "WhatsApp automation (confirmations, reminders, follow-ups)",
+              salonCentral: true,
+              competitor: false,
+              note: "Oscar lists WhatsApp only as a contact channel, not an automated messaging feature.",
+            },
+            { feature: "Loyalty / rewards program", salonCentral: true, competitor: true },
+          ],
         },
-        { feature: "Loyalty / rewards program", salonCentral: true, competitor: true },
-        { feature: "Employee management", salonCentral: true, competitor: true },
-        { feature: "Multi-location / franchise support", salonCentral: true, competitor: true },
-        { feature: "Published starting price", salonCentral: "Contact for pricing", competitor: "Not published — free trial only" },
+        {
+          title: "Staff & operations",
+          rows: [
+            { feature: "Employee management", salonCentral: true, competitor: true },
+            { feature: "Multi-location / franchise support", salonCentral: true, competitor: true },
+          ],
+        },
+        {
+          title: "Pricing",
+          rows: [
+            { feature: "Published starting price", salonCentral: "Contact for pricing", competitor: "Not published — free trial only" },
+          ],
+        },
       ]}
       verdict="Oscar is a broad, multi-industry POS platform that happens to list beauty salons among the many business types it supports, alongside restaurants, gyms, and clinics. That breadth means it has no salon-specific appointment calendar, client beauty profiles, or automated WhatsApp reminders. Salon Central is built around exactly those workflows: bookings, staff schedules, client history, and WhatsApp automation designed specifically for how a salon operates day to day."
       faqs={[

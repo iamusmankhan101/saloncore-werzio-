@@ -21,37 +21,58 @@ export default function SalonCentralVsWebsolPage() {
       competitorName="Websol"
       competitorUrl="https://www.pointofsale.pk"
       competitorSummary="Websol is a general POS and ERP system for retail stores, restaurants, pharmacies, and other businesses, with salons listed as one of many supported industries rather than its core focus."
-      rows={[
+      dataAsOf="July 2026"
+      categories={[
         {
-          feature: "Built specifically for salons & beauty businesses",
-          salonCentral: true,
-          competitor: false,
-          note: "Websol serves retail, restaurants, pharmacies, manufacturing, and more, with salons as one option among many.",
+          title: "Built for salons",
+          rows: [
+            {
+              feature: "Built specifically for salons & beauty businesses",
+              salonCentral: true,
+              competitor: false,
+              note: "Websol serves retail, restaurants, pharmacies, manufacturing, and more, with salons as one option among many.",
+            },
+            { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
+            { feature: "Online client booking page", salonCentral: true, competitor: false },
+            { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
+          ],
         },
-        { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
-        { feature: "Online client booking page", salonCentral: true, competitor: false },
-        { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
         {
-          feature: "Staff commission tracking",
-          salonCentral: true,
-          competitor: true,
-          note: "Websol advertises commission agent tracking as a general POS feature.",
+          title: "WhatsApp & client communication",
+          rows: [
+            {
+              feature: "WhatsApp automation (confirmations, reminders, follow-ups)",
+              salonCentral: true,
+              competitor: false,
+              note: "Websol lists WhatsApp only as a customer support contact channel, not an automated messaging feature.",
+            },
+            { feature: "Loyalty / rewards program", salonCentral: true, competitor: true, note: "Websol offers CRM with loyalty cards." },
+          ],
         },
         {
-          feature: "WhatsApp automation (confirmations, reminders, follow-ups)",
-          salonCentral: true,
-          competitor: false,
-          note: "Websol lists WhatsApp only as a customer support contact channel, not an automated messaging feature.",
+          title: "Staff & operations",
+          rows: [
+            {
+              feature: "Staff commission tracking",
+              salonCentral: true,
+              competitor: true,
+              note: "Websol advertises commission agent tracking as a general POS feature.",
+            },
+            { feature: "Multi-branch / location support", salonCentral: true, competitor: true },
+            {
+              feature: "FBR tax integration",
+              salonCentral: false,
+              competitor: true,
+              note: "Websol advertises FBR, GST, VAT, SRB, PRA, KPRA, and BRA tax integrations.",
+            },
+          ],
         },
-        { feature: "Loyalty / rewards program", salonCentral: true, competitor: true, note: "Websol offers CRM with loyalty cards." },
         {
-          feature: "FBR tax integration",
-          salonCentral: false,
-          competitor: true,
-          note: "Websol advertises FBR, GST, VAT, SRB, PRA, KPRA, and BRA tax integrations.",
+          title: "Pricing",
+          rows: [
+            { feature: "Published starting price", salonCentral: "Contact for pricing", competitor: "Rs. 1,500/month" },
+          ],
         },
-        { feature: "Multi-branch / location support", salonCentral: true, competitor: true },
-        { feature: "Published starting price", salonCentral: "Contact for pricing", competitor: "Rs. 1,500/month" },
       ]}
       verdict="Websol is a capable general-purpose POS and ERP system if you need broad FBR tax compliance across a multi-industry business. But it isn't built around how a salon actually runs day to day: it has no appointment calendar, no client beauty profiles, and no automated WhatsApp confirmations or reminders. If your salon's daily work is bookings, staff schedules, and keeping clients coming back, Salon Central is purpose-built for that; if FBR tax integration across a non-salon business is your priority, Websol may fit better."
       faqs={[

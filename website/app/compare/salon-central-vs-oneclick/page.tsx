@@ -21,35 +21,56 @@ export default function SalonCentralVsOneClickPage() {
       competitorName="OneClick"
       competitorUrl="https://oneclickpos.pk"
       competitorSummary="OneClick is a general FBR-integrated POS system for retail stores, restaurants, pharmacies, and garment shops, with an Urdu-language interface, but no salon-specific booking or client management tools."
-      rows={[
+      dataAsOf="July 2026"
+      categories={[
         {
-          feature: "Built specifically for salons & beauty businesses",
-          salonCentral: true,
-          competitor: false,
-          note: "OneClick targets general retail, restaurants, pharmacies, and garment shops.",
-        },
-        { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
-        { feature: "Online client booking page", salonCentral: true, competitor: false },
-        { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
-        {
-          feature: "WhatsApp automation (confirmations, reminders, follow-ups)",
-          salonCentral: true,
-          competitor: false,
-        },
-        { feature: "Loyalty / rewards program", salonCentral: true, competitor: true },
-        {
-          feature: "Urdu language interface",
-          salonCentral: false,
-          competitor: true,
-          note: "OneClick advertises a full Urdu-language interface; Salon Central is currently English-only.",
+          title: "Built for salons",
+          rows: [
+            {
+              feature: "Built specifically for salons & beauty businesses",
+              salonCentral: true,
+              competitor: false,
+              note: "OneClick targets general retail, restaurants, pharmacies, and garment shops.",
+            },
+            { feature: "Appointment scheduling & staff calendars", salonCentral: true, competitor: false },
+            { feature: "Online client booking page", salonCentral: true, competitor: false },
+            { feature: "Client beauty profiles (hair formulas, allergy alerts, skin type)", salonCentral: true, competitor: false },
+          ],
         },
         {
-          feature: "FBR tax integration",
-          salonCentral: false,
-          competitor: true,
-          note: "OneClick markets itself as \"FBR Integrated POS Software.\"",
+          title: "WhatsApp & client communication",
+          rows: [
+            {
+              feature: "WhatsApp automation (confirmations, reminders, follow-ups)",
+              salonCentral: true,
+              competitor: false,
+            },
+            { feature: "Loyalty / rewards program", salonCentral: true, competitor: true },
+          ],
         },
-        { feature: "Published starting price", salonCentral: "Contact for pricing", competitor: "Not published — demo only" },
+        {
+          title: "Localisation & compliance",
+          rows: [
+            {
+              feature: "Urdu language interface",
+              salonCentral: false,
+              competitor: true,
+              note: "OneClick advertises a full Urdu-language interface; Salon Central is currently English-only.",
+            },
+            {
+              feature: "FBR tax integration",
+              salonCentral: false,
+              competitor: true,
+              note: "OneClick markets itself as \"FBR Integrated POS Software.\"",
+            },
+          ],
+        },
+        {
+          title: "Pricing",
+          rows: [
+            { feature: "Published starting price", salonCentral: "Contact for pricing", competitor: "Not published — demo only" },
+          ],
+        },
       ]}
       verdict="OneClick is a general FBR-compliant retail POS with an Urdu interface, which can matter if that's a priority for your team. But it has no appointment scheduling, no client beauty profiles, and no automated WhatsApp messaging, because it's built for shops and restaurants, not salons. If running bookings, staff schedules, and client relationships is central to your business, Salon Central is built specifically for that; if Urdu-language retail billing and FBR compliance matter more than salon-specific workflows, OneClick may be worth a look."
       faqs={[

@@ -25,6 +25,7 @@ const linkCols: { heading: string; items: { label: string; href: string; externa
   {
     heading: "Compare",
     items: [
+      { label: "vs Blusha",   href: "/compare/salon-central-vs-blusha" },
       { label: "vs Websol",   href: "/compare/salon-central-vs-websol" },
       { label: "vs Hulm",     href: "/compare/salon-central-vs-hulm" },
       { label: "vs Asaan POS", href: "/compare/salon-central-vs-asaan-pos" },
