@@ -137,43 +137,43 @@ const rows = [
 const faqs = [
   {
     q: "What is salon appointment scheduling software?",
-    a: "Salon appointment scheduling software is a digital system that replaces a paper diary or spreadsheet, letting salons manage bookings, staff calendars, and client reminders from one dashboard. Salon Central is salon appointment scheduling software built specifically for beauty and hair salons in Pakistan, combining online booking, staff scheduling, and automated WhatsApp reminders in one platform.",
+    a: "Salon appointment scheduling software helps beauty salons, hair salons, spas, and barber shops manage appointments from one platform. Salon Central's salon appointment software allows you to schedule bookings, manage walk-ins, organize staff calendars, reduce no-shows, and accept online bookings, making it one of the best salon booking software solutions for growing salons.",
   },
   {
     q: "How does Salon Central's appointment scheduling software work?",
-    a: "Salon Central's appointment scheduling software centralizes every booking, whether it's a walk-in, phone call, or online request, on one calendar. When you create an appointment, you assign a client, service, and stylist, and the software automatically checks staff availability, sends a WhatsApp confirmation, and schedules reminders ahead of the appointment time.",
+    a: "Salon Central's salon appointment scheduling software provides an interactive calendar where you can create, edit, reschedule, or cancel appointments in seconds. Every booking is linked to a client profile, assigned staff member, selected service, and payment status. Whether you run a beauty salon, hair salon, or spa, our salon scheduling software keeps your daily operations organized.",
   },
   {
     q: "Can clients book appointments online?",
-    a: "Yes. Salon Central gives every salon a branded online booking page that clients can access from Instagram, WhatsApp, or Google Maps. Clients pick a service, choose a stylist, and confirm a time slot themselves, and the appointment lands directly in your dashboard with the source, service, and total already filled in.",
+    a: "Yes. Salon Central's online salon booking software allows clients to book appointments 24/7 through your branded booking page. Customers can choose their preferred service, staff member, date, and time, and appointments are instantly added to your salon calendar. This makes Salon Central an excellent online salon software for beauty salons and hair salons.",
   },
   {
     q: "Does the software prevent double bookings?",
-    a: "Yes. Salon Central's salon scheduling software only shows time slots where a stylist is actually free, so two clients can never be booked with the same staff member at the same time. Every new appointment checks the weekly calendar in real time before it's confirmed.",
+    a: "Yes. Our salon scheduling software automatically checks staff availability before confirming appointments. This prevents double bookings, scheduling conflicts, and overlapping appointments, helping beauty salons, hair salons, and spas deliver a smooth customer experience.",
   },
   {
     q: "Can I reschedule or cancel appointments easily?",
-    a: "Yes. Appointments can be marked as cancelled, no-show, or rescheduled in one tap. Cancelled slots free up immediately for new bookings, and both cancellations and no-shows are tracked in client history and daily reports so you can follow up with a reschedule message.",
+    a: "Absolutely. Salon Central's salon appointment software lets you reschedule, cancel, or update appointments with just a few clicks. Changes are reflected instantly across your calendar, helping you manage both advance bookings and walk-in clients without confusion.",
   },
   {
     q: "Does Salon Central send automated WhatsApp appointment reminders?",
-    a: "Yes. Salon Central sends a booking confirmation the moment an appointment is created, a 24-hour reminder the day before, a 2-hour reminder on the day, and a post-visit follow-up, all automatically via WhatsApp with zero manual effort from your team.",
+    a: "Yes. Our salon appointment scheduling software automatically sends WhatsApp booking confirmations, appointment reminders, and follow-up messages. These automated reminders help reduce missed appointments, improve client communication, and increase repeat visits for beauty salons, hair salons, and spas.",
   },
   {
     q: "Can I assign appointments to specific staff members?",
-    a: "Yes. Every appointment is assigned to a specific staff member, and Salon Central shows each stylist's workload side by side on the weekly calendar. Staff and service are pre-linked on every new booking, so your front desk always knows who is doing what.",
+    a: "Yes. Salon Central's salon booking software lets you assign appointments to individual stylists, beauticians, therapists, or barbers. Each staff member has their own schedule, making it easy to manage availability, workloads, and service assignments from a single dashboard.",
   },
   {
     q: "Can I manage multiple staff schedules from one calendar?",
-    a: "Yes. As staff scheduling software, Salon Central displays every stylist's calendar in one view, so you can see availability, appointments, and workload for your whole team without switching screens or checking separate diaries.",
+    a: "Yes. Salon Central's appointment scheduling software includes a centralized calendar where you can view and manage schedules for your entire team. This feature is ideal for salons with multiple employees and supports employee shift scheduling for hair salons and spas, helping you optimize staff availability.",
   },
   {
     q: "Can I manage walk-in and advance appointments in one system?",
-    a: "Yes. Salon Central handles walk-ins and advance bookings side by side. Walk-in appointments can be added directly at the front desk, while advance bookings come in through the calendar or the online booking page, and both flow into the same dashboard, client history, and reports.",
+    a: "Yes. Salon Central's salon management software allows you to manage walk-in customers, phone bookings, and online appointments from one calendar. Whether you're running a beauty salon, hair salon, nail salon, spa, bridal salon, or barber shop, every booking is tracked in one place for better efficiency.",
   },
   {
     q: "Why choose Salon Central as your salon appointment scheduling software in Pakistan?",
-    a: "Salon Central is built specifically for Pakistan's beauty industry: WhatsApp-based reminders instead of SMS or email, Pakistan-first payment methods, and pricing suited to local salons. It combines appointment scheduling, staff scheduling, online booking, and automated reminders in one dashboard, making it a complete salon appointment scheduling software choice for beauty and hair salons in Pakistan.",
+    a: "Salon Central is built specifically for beauty salons, hair salons, spas, nail salons, bridal salons, and barber shops in Pakistan. Our salon appointment scheduling software includes online booking, salon POS, client management, inventory management, invoicing, payroll, revenue reporting, loyalty programs, and WhatsApp automation in one cloud-based platform. If you're looking for the best salon booking software, best appointment scheduling software for salons, or a complete online salon software solution in Pakistan, Salon Central helps you streamline operations and grow your business.",
   },
 ];
 
