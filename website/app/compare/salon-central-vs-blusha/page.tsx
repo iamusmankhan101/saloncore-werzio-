@@ -18,6 +18,24 @@ export const metadata = pageMetadata({
     "nail salon pos software for ipad",
     "ipad pos system for nail salon",
     "best pos system for nail salon",
+    "hair salon pos",
+    "hair salon pos software",
+    "hair salon pos systems",
+    "hair salon point of sale",
+    "hair salon point of sale systems",
+    "point of sale software for hair salon",
+    "point of sale software hair salon",
+    "beauty salon pos",
+    "beauty salon pos software",
+    "beauty salon pos system",
+    "beauty salon point of sale",
+    "beauty salon point of sale system",
+    "beauty salon point of sale software",
+    "beauty salon software point of sale",
+    "pos beauty salon",
+    "pos software for beauty salon",
+    "pos system for beauty salon",
+    "pos & booking system for beauty salon",
   ],
 });
 
@@ -125,6 +143,10 @@ export default function SalonCentralVsBlushaPage() {
         {
           q: "Does Salon Central work as a nail salon POS system on iPad?",
           a: "Yes. Salon Central is nail salon POS software that runs in any browser, including Safari on iPad, making it usable as an iPad POS system for nail salons without extra hardware, alongside the same appointment scheduling and client profile tools it offers hair and beauty salons. Blusha also offers a native staff app.",
+        },
+        {
+          q: "Is Salon Central good POS software for hair salons and beauty salons too?",
+          a: "Yes. Salon Central is hair salon POS software and beauty salon POS software in one platform, covering appointment scheduling, client beauty profiles, staff commission, and WhatsApp automation, the same scope Blusha covers for salons broadly.",
         },
       ]}
     />
