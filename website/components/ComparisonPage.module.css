@@ -1,0 +1,84 @@
+.tableSection {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 60px 5% 20px;
+}
+
+.tableTitle {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid #e8e8f0;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  min-width: 560px;
+}
+
+.table th {
+  text-align: left;
+  padding: 16px 20px;
+  background: #f8f7ff;
+  color: #17112a;
+  font-weight: 800;
+  border-bottom: 1px solid #e8e8f0;
+}
+
+.table th:not(:first-child),
+.table td:not(:first-child) {
+  text-align: center;
+  width: 180px;
+}
+
+.table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0f0f5;
+  color: #17112a;
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.rowNote {
+  font-size: 0.78rem;
+  color: #9898b0;
+  margin-top: 3px;
+  font-weight: 400;
+}
+
+.disclaimer {
+  max-width: 760px;
+  margin: 20px auto 0;
+  font-size: 0.78rem;
+  color: #9898b0;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.disclaimer a {
+  color: #7c3aed;
+  text-decoration: underline;
+}
+
+.verdictSection {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 5% 0;
+  text-align: center;
+}
+
+.verdictSection p {
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: #4b4459;
+}

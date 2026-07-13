@@ -22,6 +22,16 @@ const linkCols: { heading: string; items: { label: string; href: string; externa
       { label: "Get Started",       href: CONTACT_SALES_URL, external: true },
     ],
   },
+  {
+    heading: "Compare",
+    items: [
+      { label: "vs Websol",   href: "/compare/salon-central-vs-websol" },
+      { label: "vs Hulm",     href: "/compare/salon-central-vs-hulm" },
+      { label: "vs Asaan POS", href: "/compare/salon-central-vs-asaan-pos" },
+      { label: "vs OneClick", href: "/compare/salon-central-vs-oneclick" },
+      { label: "vs Oscar",    href: "/compare/salon-central-vs-oscar" },
+    ],
+  },
 ];
 
 export default function Footer() {

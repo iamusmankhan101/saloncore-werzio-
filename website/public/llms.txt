@@ -18,6 +18,14 @@ Salon Central helps beauty salons, hair salons, and spas in Pakistan run their e
 - [Staff Management Software](https://www.saloncentral.xyz/features/staff-management): Manage roles, service assignments, performance stats, and team revenue tracking.
 - [WhatsApp Marketing & Automated Reminders](https://www.saloncentral.xyz/features/whatsapp-reminders): Automated booking confirmations, appointment reminders, follow-ups, birthday messages, and low-stock alerts.
 
+## Comparisons
+
+- [Salon Central vs Websol](https://www.saloncentral.xyz/compare/salon-central-vs-websol): How Salon Central compares to Websol, a general POS/ERP system for retail, restaurants, and pharmacies.
+- [Salon Central vs Hulm](https://www.saloncentral.xyz/compare/salon-central-vs-hulm): How Salon Central compares to Hulm, a general business operations platform for retail and restaurants.
+- [Salon Central vs Asaan POS](https://www.saloncentral.xyz/compare/salon-central-vs-asaan-pos): Asaan POS has been discontinued and is not available for new customers.
+- [Salon Central vs OneClick](https://www.saloncentral.xyz/compare/salon-central-vs-oneclick): How Salon Central compares to OneClick, a general FBR-integrated retail POS system.
+- [Salon Central vs Oscar](https://www.saloncentral.xyz/compare/salon-central-vs-oscar): How Salon Central compares to Oscar, a general multi-industry POS platform.
+
 ## Company
 
 - [Pricing](https://www.saloncentral.xyz/#pricing)

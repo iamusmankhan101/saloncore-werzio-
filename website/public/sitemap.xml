@@ -61,6 +61,31 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://www.saloncentral.xyz/compare/salon-central-vs-websol</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.saloncentral.xyz/compare/salon-central-vs-hulm</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.saloncentral.xyz/compare/salon-central-vs-asaan-pos</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.saloncentral.xyz/compare/salon-central-vs-oneclick</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.saloncentral.xyz/compare/salon-central-vs-oscar</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://www.saloncentral.xyz/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
