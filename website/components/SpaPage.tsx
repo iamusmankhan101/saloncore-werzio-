@@ -115,7 +115,7 @@ const rows: VerticalFeatureRow[] = [
   {
     eyebrow: "Loyalty & packages",
     title: "Reward repeat clients with points and membership tiers",
-    body: "Spa POS software from Salon Central includes a loyalty points program with Bronze, Silver, and Gold membership tiers, so packages and repeat visits keep clients coming back.",
+    body: "Salon Central doubles as spa membership software, with a loyalty points program and Bronze, Silver, and Gold membership tiers, so packages and repeat visits keep clients coming back.",
     visual: <LoyaltyVisual />,
   },
   {
@@ -177,6 +177,18 @@ const faqs: VerticalFaq[] = [
   {
     q: "Why choose Salon Central as spa POS software?",
     a: "Salon Central combines spa POS software, appointment scheduling, multi-branch support, loyalty points, staff commission payroll, and WhatsApp automation in one platform, built for spas rather than adapted from a general retail POS system.",
+  },
+  {
+    q: "Is Salon Central salon and spa software, or just for one or the other?",
+    a: "Salon Central is salon and spa software built to work for both: the same appointment scheduling, POS, client profiles, and WhatsApp automation apply whether you run a hair salon, a beauty salon, a spa, or a combined salon spa software setup.",
+  },
+  {
+    q: "Can medical spas use Salon Central?",
+    a: "Yes. Salon Central works as medical spa management software for the operational side of the business, appointment scheduling, staff calendars, client records, POS checkout, and WhatsApp automation, the same tools it offers day spas and wellness spas.",
+  },
+  {
+    q: "Does Salon Central offer spa membership software?",
+    a: "Yes. Salon Central includes a loyalty points program with Bronze, Silver, and Gold membership tiers, working as spa membership software to reward repeat clients and encourage rebooking for packages and treatments.",
   },
 ];
 

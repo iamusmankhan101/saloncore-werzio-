@@ -17,6 +17,13 @@ export const metadata = pageMetadata({
     "salon pos",
     "salon pos system",
     "salon pos software",
+    "hair salon software",
+    "hair salon management software",
+    "best hair salon software",
+    "hair salon booking software",
+    "hair salon online booking software",
+    "hair salon accounting software",
+    "hair salon invoicing software",
   ],
 });
 

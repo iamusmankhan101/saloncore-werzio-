@@ -1,5 +1,5 @@
 "use client";
-import { Scissors, Palette, Wand2, MessageCircle, ShoppingCart } from "lucide-react";
+import { Scissors, Palette, Wand2, MessageCircle, ShoppingCart, Globe, Receipt } from "lucide-react";
 import VerticalPage, { type VerticalFeatureRow, type VerticalFaq, type VerticalStat } from "./VerticalPage";
 import styles from "./SchedulingFeaturePage.module.css";
 
@@ -106,6 +106,50 @@ function CatalogVisual() {
   );
 }
 
+function OnlineBookingVisual() {
+  return (
+    <div className={styles.blockPanel}>
+      <div className={styles.blockHeader}>
+        <Globe size={17} />
+        <span>Online Booking Page</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+        {[
+          { label: "New booking", value: "Sana N. · Hair Color · 3:00pm" },
+          { label: "New booking", value: "Maria K. · Balayage · 5:30pm" },
+        ].map((b, i) => (
+          <div key={i} style={{ padding: "10px 12px", borderRadius: 12, background: "#f5f3ff", fontSize: "0.78rem" }}>
+            <div style={{ fontWeight: 800, color: "#7c3aed", fontSize: "0.68rem", textTransform: "uppercase", marginBottom: 2 }}>{b.label}</div>
+            <div style={{ color: "#17112a", fontWeight: 700 }}>{b.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InvoiceVisual() {
+  return (
+    <div className={styles.checkoutPanel}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <div style={{ fontSize: "0.65rem", fontWeight: 900, color: "#746b83" }}>INVOICE</div>
+          <div style={{ fontSize: "1rem", fontWeight: 900, color: "#17112a" }}>SI-2026-0091</div>
+        </div>
+        <span style={{ background: "#dcfce7", color: "#166534", padding: "3px 9px", borderRadius: 999, fontSize: "0.68rem", fontWeight: 900 }}>PAID</span>
+      </div>
+      {[
+        { item: "Hair Color", amt: "PKR 4,500" },
+        { item: "Keratin Treatment", amt: "PKR 6,000" },
+      ].map((row) => (
+        <div key={row.item} className={styles.checkoutBody}>
+          <div><span>{row.item}</span><strong style={{ color: "#17112a" }}>{row.amt}</strong></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const rows: VerticalFeatureRow[] = [
   {
     eyebrow: "Appointments",
@@ -136,6 +180,18 @@ const rows: VerticalFeatureRow[] = [
     title: "Sell shampoos, color kits, and treatments at the same POS",
     body: "Point of sale software for hair salon retail is built in: ring up services and retail products together, accept six payment methods, and watch stock deduct automatically the moment a product sells.",
     visual: <CatalogVisual />,
+  },
+  {
+    eyebrow: "Online booking",
+    title: "Give clients hair salon booking software of their own",
+    body: "Salon Central includes hair salon online booking software: a branded page clients can book from directly via Instagram, WhatsApp, or Google Maps, with new appointments landing straight in your calendar, no phone calls needed.",
+    visual: <OnlineBookingVisual />,
+  },
+  {
+    eyebrow: "Invoicing",
+    title: "Auto-numbered invoices double as hair salon accounting software",
+    body: "Every sale in Salon Central generates a branded, auto-numbered invoice you can export as PDF, giving hair salons simple hair salon invoicing software and accounting software for tracking revenue without a separate bookkeeping tool.",
+    visual: <InvoiceVisual />,
   },
 ];
 
@@ -178,6 +234,18 @@ const faqs: VerticalFaq[] = [
   {
     q: "Why choose Salon Central as hair salon POS software?",
     a: "Salon Central combines hair salon POS software, appointment scheduling, hair formula tracking, AI virtual try-on, staff commission payroll, loyalty points, and WhatsApp automation in one platform built specifically for hair salons, not adapted from a general retail POS system.",
+  },
+  {
+    q: "Is Salon Central hair salon management software, or just a POS?",
+    a: "Salon Central is complete hair salon management software: appointment scheduling, hair salon booking software for online bookings, POS checkout, hair salon invoicing software, staff payroll, and WhatsApp automation, not just a checkout screen.",
+  },
+  {
+    q: "Does Salon Central offer hair salon invoicing and accounting software?",
+    a: "Yes. Every sale generates a branded, auto-numbered invoice you can export as PDF, giving hair salons simple hair salon accounting software and invoicing software for tracking revenue without a separate bookkeeping tool.",
+  },
+  {
+    q: "Why is Salon Central considered the best hair salon software?",
+    a: "Salon Central is one of the best hair salon software options because it combines hair salon software, hair salon booking software, hair salon POS software, and hair salon accounting software in one platform, instead of requiring separate tools for scheduling, checkout, and invoicing.",
   },
 ];
 

@@ -110,17 +110,39 @@ function CatalogVisual() {
   );
 }
 
+function InvoiceVisual() {
+  return (
+    <div className={styles.checkoutPanel}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <div style={{ fontSize: "0.65rem", fontWeight: 900, color: "#746b83" }}>INVOICE</div>
+          <div style={{ fontSize: "1rem", fontWeight: 900, color: "#17112a" }}>SI-2026-0114</div>
+        </div>
+        <span style={{ background: "#dcfce7", color: "#166534", padding: "3px 9px", borderRadius: 999, fontSize: "0.68rem", fontWeight: 900 }}>PAID</span>
+      </div>
+      {[
+        { item: "Hydra Facial", amt: "PKR 3,200" },
+        { item: "Skin Serum SPF50", amt: "PKR 2,200" },
+      ].map((row) => (
+        <div key={row.item} className={styles.checkoutBody}>
+          <div><span>{row.item}</span><strong style={{ color: "#17112a" }}>{row.amt}</strong></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const rows: VerticalFeatureRow[] = [
   {
     eyebrow: "Appointments",
-    title: "Book and manage every beauty treatment in one calendar",
-    body: "Salon Central is beauty salon POS software with a full appointment calendar built in: staff schedules by esthetician, automatic WhatsApp confirmations, and reminders before every facial, waxing, or skin treatment.",
+    title: "Beauty salon appointment scheduling software built around your calendar",
+    body: "Salon Central is beauty salon appointment software with a full calendar built in: staff schedules by esthetician, automatic WhatsApp confirmations, and reminders before every facial, waxing, or skin treatment.",
     visual: <ScheduleVisual />,
   },
   {
     eyebrow: "Beauty profiles",
     title: "Keep skin type, allergy alerts, and treatment history on every client",
-    body: "This beauty salon point of sale system stores skin type, allergy alerts, and treatment preferences for every client, so your team always knows what to use, and what to avoid, before starting a service.",
+    body: "This beauty salon CRM software stores skin type, allergy alerts, and treatment preferences for every client, so your team always knows what to use, and what to avoid, before starting a service.",
     visual: <BeautyProfileVisual />,
   },
   {
@@ -140,6 +162,12 @@ const rows: VerticalFeatureRow[] = [
     title: "Sell skincare, serums, and treatments at the same POS",
     body: "POS software for beauty salon retail is built in: ring up services and skincare products together, accept six payment methods, and watch stock deduct automatically the moment a product sells.",
     visual: <CatalogVisual />,
+  },
+  {
+    eyebrow: "Invoicing",
+    title: "Auto-numbered invoices double as beauty salon accounting software",
+    body: "Every sale in Salon Central generates a branded, auto-numbered invoice you can export as PDF, giving beauty parlour software users simple beauty salon invoicing software for tracking revenue without a separate bookkeeping tool.",
+    visual: <InvoiceVisual />,
   },
 ];
 
@@ -182,6 +210,22 @@ const faqs: VerticalFaq[] = [
   {
     q: "Why choose Salon Central as beauty salon POS software?",
     a: "Salon Central combines beauty salon POS software, appointment scheduling, detailed beauty client profiles, loyalty points, staff commission payroll, and WhatsApp automation in one platform built specifically for beauty salons, not adapted from a general retail POS system.",
+  },
+  {
+    q: "Is Salon Central beauty salon management software, or just a POS?",
+    a: "Salon Central is complete beauty salon management software: beauty salon appointment scheduling software, client CRM, POS checkout, beauty salon invoicing software, staff payroll, and WhatsApp automation, not just a checkout screen.",
+  },
+  {
+    q: "Is Salon Central good beauty parlour software?",
+    a: "Yes. Salon Central works as beauty parlour software for any size beauty business, with appointment scheduling, client beauty profiles, loyalty tiers, POS checkout, and WhatsApp automation built in.",
+  },
+  {
+    q: "Does Salon Central work as beauty salon CRM software?",
+    a: "Yes. Salon Central stores skin type, allergy alerts, treatment preferences, and full visit history for every client, making it beauty salon CRM software as well as a POS and booking platform.",
+  },
+  {
+    q: "Does Salon Central offer beauty salon invoicing and accounting software?",
+    a: "Yes. Every sale generates a branded, auto-numbered invoice you can export as PDF, giving beauty salons simple beauty salon accounting software and invoicing software for tracking revenue without a separate bookkeeping tool.",
   },
 ];
 

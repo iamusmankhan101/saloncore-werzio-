@@ -18,6 +18,14 @@ export const metadata = pageMetadata({
     "pos software for beauty salon",
     "pos system for beauty salon",
     "pos & booking system for beauty salon",
+    "beauty salon software",
+    "beauty parlour software",
+    "beauty salon management software",
+    "beauty salon appointment software",
+    "beauty salon appointment scheduling software",
+    "beauty salon crm software",
+    "beauty salon accounting software",
+    "beauty salon invoicing software",
   ],
 });
 

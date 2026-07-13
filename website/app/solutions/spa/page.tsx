@@ -15,6 +15,10 @@ export const metadata = pageMetadata({
     "spa point of sale systems",
     "spa point of sale software",
     "pos software for spa",
+    "salon and spa software",
+    "salon spa software",
+    "medical spa management software",
+    "spa membership software",
   ],
 });
 
