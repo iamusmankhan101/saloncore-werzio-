@@ -17,7 +17,7 @@ import { activeWhatsAppCredential, isFakePlaceholderPhone, sendWhatsAppMessage, 
 import { sendSalonInvoiceWhatsApp } from "@/lib/whatsapp-invoice-send";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppMessageIntent, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
-import { appointmentStartHasPassed, appointmentStartMs, timezoneFromSettings } from "@/lib/appointment-time";
+import { appointmentStartHasPassed, appointmentStartMs, timezoneFromSettings, isWithinSalonHours, nextSalonOpenMs, type SalonHoursDay } from "@/lib/appointment-time";
 
 const BATCH_LIMIT = 50;
 const SEND_LIMIT_PER_RUN = 1;
@@ -247,6 +247,12 @@ function intentForKind(kind: QueueKind): WhatsAppMessageIntent {
   return "utility";
 }
 
+// Confirmations stay immediate (client is actively booking right now — holding
+// that back defeats the point). Everything else in this set has no time
+// pressure, so it waits for the salon to actually be open rather than landing
+// in a client's chat, or the owner's low-stock alert, while the salon is closed.
+const SALON_HOURS_GATED_KINDS = new Set<QueueKind>(["reminder", "followup", "cancellation", "birthday", "lowstock"]);
+
 function autoSettingEnabled(settings: Record<string, unknown> | null, kind: QueueKind): boolean {
   const wasender = settings?.wasender as {
     autoConfirmation?: boolean;
@@ -413,6 +419,19 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       await updateItem(item, "expired", `${logTypeForKind(item.kind)} automation was disabled at the scheduled send time.`);
       expired++;
       continue;
+    }
+    if (SALON_HOURS_GATED_KINDS.has(item.kind)) {
+      const hours = settings?.hours as SalonHoursDay[] | undefined;
+      const tz = timezoneFromSettings(settings);
+      if (!isWithinSalonHours(hours, tz)) {
+        const nextOpenMs = nextSalonOpenMs(hours, tz);
+        if (nextOpenMs != null) {
+          const delayMs = Math.max(0, nextOpenMs - Date.now()) + Math.round(Math.random() * 15 * MINUTE_MS);
+          await deferItem(item, delayMs, "Deferred until the salon reopens.");
+          skipped++;
+          continue;
+        }
+      }
     }
     const apptId = apptIdForQueueItem(item);
     if (apptId && await hasSentMessage(item.userId, logTypeForKind(item.kind), apptId)) {
