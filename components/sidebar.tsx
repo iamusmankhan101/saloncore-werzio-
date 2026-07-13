@@ -7,7 +7,7 @@ import {
   LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare,
   UserCog, BarChart3, Package, Globe, Sparkles, CreditCard, Scissors,
   CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart,
-  X, Gift, Banknote, ChevronRight, ChevronDown, MapPin, Check, Wallet,
+  X, Gift, Banknote, ChevronRight, ChevronDown, MapPin, Check, Wallet, Star,
 } from "lucide-react";
 import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
 import { SETTINGS_CHANGED_EVENT, settingsStore, reloadSettings } from "@/lib/settings-store";
@@ -50,6 +50,7 @@ const NAV_GROUPS: {
     label: "Marketing",
     items: [
       { href: "/dashboard/messages", icon: MessageSquare, label: "WhatsApp"       },
+      { href: "/dashboard/feedback", icon: Star,          label: "Feedback"       },
       { href: "/online-booking",     icon: Globe,         label: "Online Booking", dynamicHref: true },
       { href: "/dashboard/try-on",   icon: Wand2,         label: "Virtual Try-On" },
     ],

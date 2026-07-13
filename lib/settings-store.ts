@@ -95,7 +95,7 @@ const defaults = {
     connected: true,
     reminder: "Hi {{name}}, this is a reminder that your {{service}} appointment at {{salon_name}} is on {{date}} at {{time}}. See you soon! 💜",
     confirmation: "Hi {{name}}, your {{service}} booking on {{date}} at {{time}} is confirmed at {{salon_name}}. We look forward to seeing you! 💜",
-    followup: "Hi {{name}}, thank you for visiting {{salon_name}}! We hope you loved your {{service}}. We'd love to see you again soon 💜",
+    followup: "Hi {{name}}, thank you for visiting {{salon_name}}! We hope you loved your {{service}}. We'd love to see you again soon 💜 How was your visit? Leave a quick rating: {{feedback_link}}",
     cancellation: "Hi {{name}}, we noticed your appointment at {{salon_name}} was cancelled. We'd love to have you back — enjoy {{discount}} off your next booking! Just reply to reschedule 💜",
     cancellationNoDiscount: "Hi {{name}}, we noticed your appointment at {{salon_name}} was cancelled. We'd love to have you back — just reply here and we’ll help you reschedule 💜",
     newBooking: "📅 New Booking! {{name}} has booked {{service}} on {{date}} at {{time}} at {{salon_name}}. Total: PKR {{amount}}.",
