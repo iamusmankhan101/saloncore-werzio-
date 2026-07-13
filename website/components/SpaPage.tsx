@@ -189,6 +189,9 @@ export default function SpaPage() {
       heroParagraph="Salon Central is spa POS software built for how spas actually run: appointment scheduling, multi-branch support, loyalty membership tiers, WhatsApp automation, and point of sale checkout, all in one spa point of sale system."
       heroImageLabel="Salon Central for Spas"
       heroVisual={<ScheduleVisual />}
+      heroFloatingIcon={<Gift size={15} />}
+      heroFloatingText="Loyalty points added"
+      heroFloatingColor="#166534"
       rows={rows}
       ctaEyebrow="Ready to upgrade your spa?"
       ctaTitle="See how Salon Central runs a spa end to end"

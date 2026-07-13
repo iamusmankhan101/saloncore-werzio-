@@ -194,6 +194,9 @@ export default function BeautySalonPage() {
       heroParagraph="Salon Central is beauty salon POS software built for how beauty salons actually run: appointment scheduling, detailed beauty client profiles, loyalty membership tiers, WhatsApp automation, and point of sale checkout, all in one beauty salon point of sale system."
       heroImageLabel="Salon Central for Beauty Salons"
       heroVisual={<ScheduleVisual />}
+      heroFloatingIcon={<ShieldCheck size={15} />}
+      heroFloatingText="Skin profile updated"
+      heroFloatingColor="#166534"
       rows={rows}
       ctaEyebrow="Ready to upgrade your beauty salon?"
       ctaTitle="See how Salon Central runs a beauty salon end to end"

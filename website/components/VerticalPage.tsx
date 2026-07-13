@@ -33,6 +33,9 @@ export interface VerticalPageProps {
   heroParagraph: string;
   heroImageLabel: string;
   heroVisual: React.ReactNode;
+  heroFloatingIcon: React.ReactNode;
+  heroFloatingText: string;
+  heroFloatingColor: string;
   rows: VerticalFeatureRow[];
   ctaEyebrow: string;
   ctaTitle: string;
@@ -87,6 +90,7 @@ function FaqSection({ title, ariaLabel, faqs }: { title: string; ariaLabel: stri
 
 export default function VerticalPage({
   kickerIcon, kickerLabel, h1, heroParagraph, heroImageLabel, heroVisual,
+  heroFloatingIcon, heroFloatingText, heroFloatingColor,
   rows, ctaEyebrow, ctaTitle, ctaSubtitle, stats, faqAriaLabel, faqTitle, faqs,
 }: VerticalPageProps) {
   const [demoOpen, setDemoOpen] = useState(false);
@@ -131,7 +135,11 @@ export default function VerticalPage({
                 <Image src="/salon-central-logo.png" alt="Salon Central logo" width={96} height={96} />
                 <span>{heroImageLabel}</span>
               </div>
-              {heroVisual}
+              <div className={styles.heroCard}>{heroVisual}</div>
+              <div className={styles.floatingNote} style={{ color: heroFloatingColor }}>
+                {heroFloatingIcon}
+                <span>{heroFloatingText}</span>
+              </div>
             </div>
           </div>
           <div className={styles.wave} aria-hidden="true" />
