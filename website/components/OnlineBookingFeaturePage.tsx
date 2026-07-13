@@ -12,6 +12,7 @@ import {
   Users,
   BarChart2,
   Smartphone,
+  ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -294,11 +295,138 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What is online salon booking software?",
+    a: "Online salon booking software allows clients to book appointments anytime without calling your salon. Salon Central's online salon booking system lets beauty salons, hair salons, spas, and barber shops accept appointments 24/7 while automatically updating your salon calendar.",
+  },
+  {
+    q: "How does Salon Central's online booking system work?",
+    a: "Salon Central's salon online booking system provides every salon with a branded online booking page where customers can choose services, preferred staff members, available dates, and time slots. Every booking is instantly synced with your appointment calendar.",
+  },
+  {
+    q: "Can clients book appointments 24/7?",
+    a: "Yes. Salon Central's online booking software for salons allows customers to schedule appointments anytime, even outside business hours. This helps salons capture more bookings without requiring staff to answer calls.",
+  },
+  {
+    q: "Can customers choose their preferred stylist or beautician?",
+    a: "Absolutely. During the booking process, clients can select their preferred stylist, beautician, therapist, or barber based on availability. Salon Central's salon appointment booking software automatically updates each staff member's schedule.",
+  },
+  {
+    q: "Does the online booking system prevent double bookings?",
+    a: "Yes. Salon Central's online appointment scheduling system checks staff availability in real time before confirming a booking. This prevents double bookings and scheduling conflicts while keeping your salon calendar accurate.",
+  },
+  {
+    q: "Can clients reschedule or cancel appointments online?",
+    a: "Yes. Customers can easily reschedule or cancel their appointments through your online salon booking page, while your salon calendar updates automatically to reflect the changes.",
+  },
+  {
+    q: "Does online booking work with the salon POS and CRM?",
+    a: "Yes. Every booking made through Salon Central's online booking software for salons automatically creates or updates the client profile, appointment history, salon CRM, and salon POS, giving you a complete customer record in one platform.",
+  },
+  {
+    q: "Can I accept online bookings for multiple salon branches?",
+    a: "Yes. Whether you operate one salon or multiple locations, Salon Central's salon online booking system lets customers choose their preferred branch, available staff, and appointment time while keeping each location's calendar organized.",
+  },
+  {
+    q: "Can I customize my online booking page?",
+    a: "Absolutely. You can customize your online booking system for beauty salons with your salon logo, branding, available services, staff members, operating hours, and booking rules, creating a professional booking experience for your clients.",
+  },
+  {
+    q: "Why choose Salon Central for online salon booking?",
+    a: "Salon Central offers a complete online salon booking solution with online booking software for salons, salon appointment booking software, online appointment scheduling, salon POS, client management, inventory, invoicing, payroll, loyalty programs, and WhatsApp automation. Whether you run a beauty salon, hair salon, spa, nail salon, or barber shop, Salon Central helps you accept more bookings, reduce no-shows, and grow your business from one cloud-based platform.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="Online booking FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>Online Salon Booking Software: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 /* ─── page ──────────────────────────────────────────────── */
 export default function OnlineBookingFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
 
@@ -386,6 +514,7 @@ export default function OnlineBookingFeaturePage() {
           </div>
         </section>
 
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

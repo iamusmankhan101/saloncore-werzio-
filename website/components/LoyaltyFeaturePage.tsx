@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowRight, Gift, Award, Sparkles, Smartphone, CheckCircle2,
+  ArrowRight, Gift, Award, Sparkles, Smartphone, CheckCircle2, ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -162,11 +162,138 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What is a loyalty points program for salons?",
+    a: "A loyalty points program for salons rewards customers every time they book a service or purchase a product. Salon Central's loyalty points program automatically awards points that clients can redeem for discounts, free services, or exclusive offers, helping salons improve customer retention and increase repeat visits.",
+  },
+  {
+    q: "How does Salon Central's loyalty points program work?",
+    a: "Salon Central's loyalty points program automatically tracks customer spending through the salon POS and awards points based on your reward rules. It works as a complete loyalty management software that keeps customer rewards, memberships, and redemption history organized in one platform.",
+  },
+  {
+    q: "Does Salon Central include a loyalty points calculator?",
+    a: "Yes. Salon Central includes a built-in loyalty points calculator that automatically calculates how many points customers earn or redeem. You can customize reward rates, redemption values, minimum spending limits, and promotional campaigns without manual calculations.",
+  },
+  {
+    q: "Can customers redeem loyalty points on future visits?",
+    a: "Absolutely. Customers can redeem their earned points for discounts, complimentary services, or retail products during future visits. Our loyalty rewards system automatically updates the customer's available points after every redemption.",
+  },
+  {
+    q: "Can I create a salon membership and rewards program?",
+    a: "Yes. Salon Central lets you build a complete salon membership program with Bronze, Silver, Gold, and Platinum tiers. Members can receive exclusive discounts, bonus points, birthday rewards, and special promotions based on their loyalty level.",
+  },
+  {
+    q: "Does the loyalty program work with the salon POS?",
+    a: "Yes. Every sale processed through Salon Central's salon POS automatically updates your loyalty points program. Customers earn and redeem rewards directly during checkout, creating a seamless customer rewards software experience.",
+  },
+  {
+    q: "Can I track customer loyalty and repeat visits?",
+    a: "Yes. Salon Central's salon customer retention software lets you monitor loyalty points, repeat visits, membership levels, customer lifetime value, and reward redemption history. These insights help you improve customer engagement and increase repeat business.",
+  },
+  {
+    q: "Can customers use digital loyalty cards?",
+    a: "Yes. Salon Central supports digital loyalty cards that allow customers to view their points balance, membership status, and available rewards digitally. This provides a modern alternative to traditional paper loyalty cards.",
+  },
+  {
+    q: "Is the loyalty program suitable for beauty salons and hair salons?",
+    a: "Absolutely. Salon Central's loyalty points program for salons is designed for beauty salons, hair salons, spas, nail salons, barber shops, and aesthetic clinics. It helps businesses reward loyal customers while increasing customer retention and lifetime value.",
+  },
+  {
+    q: "Why choose Salon Central's loyalty points program?",
+    a: "Salon Central combines a powerful loyalty points program, loyalty points calculator, salon membership program, customer rewards software, loyalty management software, salon POS, appointment scheduling, client management, inventory, invoicing, payroll, and WhatsApp automation in one platform. It's an all-in-one solution that helps beauty salons and hair salons increase repeat customers, build long-term loyalty, and grow revenue.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="Loyalty points program FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>Salon Loyalty Points Program: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 /* ─── page ───────────────────────────────────────────────── */
 export default function LoyaltyFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
         <section className={styles.hero}>
@@ -246,6 +373,8 @@ export default function LoyaltyFeaturePage() {
             <span>A digital card clients add to their phone in one tap.</span>
           </div>
         </section>
+
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

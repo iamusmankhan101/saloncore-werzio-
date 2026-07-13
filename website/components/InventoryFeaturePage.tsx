@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowRight, Package, AlertTriangle, ShoppingCart,
-  Tag, Search, BarChart2, Layers,
+  Tag, Search, BarChart2, Layers, ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -331,11 +331,138 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What is salon inventory software?",
+    a: "Salon inventory software helps beauty salons, hair salons, spas, and barber shops track products, monitor stock levels, manage purchases, and reduce inventory waste. Salon Central's salon inventory software automatically updates stock after every sale, helping you keep accurate inventory records.",
+  },
+  {
+    q: "How does Salon Central's inventory management software work?",
+    a: "Salon Central's inventory management software automatically deducts products whenever a sale is made through the salon POS. You can track inventory in real time, receive low-stock alerts, manage suppliers, and monitor product movement from one dashboard.",
+  },
+  {
+    q: "Is Salon Central a cloud-based inventory management software?",
+    a: "Yes. Salon Central is a cloud based inventory management software, allowing you to monitor inventory, stock levels, purchases, and reports from anywhere. Whether you're managing one salon or multiple branches, your inventory data stays synchronized in real time.",
+  },
+  {
+    q: "Can I manage retail products and salon supplies?",
+    a: "Absolutely. Salon Central's salon inventory software helps you manage retail products, professional salon supplies, hair color, skincare products, and consumables. Every product movement is tracked automatically, giving you complete control over your inventory.",
+  },
+  {
+    q: "Does the software send low-stock alerts?",
+    a: "Yes. Salon Central's inventory management software automatically notifies you when products reach minimum stock levels. This helps salon owners reorder products on time, prevent stock shortages, and avoid interruptions to daily salon operations.",
+  },
+  {
+    q: "Does inventory automatically sync with the salon POS?",
+    a: "Yes. Every transaction processed through Salon Central's salon POS automatically updates your inventory. This integration makes Salon Central an excellent accounting and inventory management software solution by keeping sales, inventory, invoicing, and financial records synchronized.",
+  },
+  {
+    q: "Can I manage inventory and billing from one system?",
+    a: "Yes. Salon Central combines inventory management with salon POS, invoicing, and billing. If you're looking for the best software for billing and inventory management, you can manage products, invoices, payments, and stock without switching between multiple systems.",
+  },
+  {
+    q: "Is Salon Central suitable for salons in Pakistan?",
+    a: "Yes. Salon Central is built specifically for beauty salons, hair salons, spas, and barber shops across Pakistan. If you're searching for inventory management software Pakistan, our cloud-based platform helps you track inventory, monitor stock, and manage your salon more efficiently.",
+  },
+  {
+    q: "Is Salon Central suitable for small salons?",
+    a: "Absolutely. Whether you're a startup salon or an established business, Salon Central is one of the best inventory management software for small businesses in the beauty industry. It helps you reduce inventory losses, improve stock accuracy, and save valuable time.",
+  },
+  {
+    q: "Why choose Salon Central as your inventory management software?",
+    a: "Salon Central is one of the best inventory management software solutions for beauty salons, hair salons, spas, and barber shops. It combines salon inventory software, cloud based inventory management software, salon POS, invoicing, client management, payroll, revenue reporting, loyalty programs, and WhatsApp automation into one powerful salon management platform.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="Inventory management FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>Salon Inventory Management Software: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 /* ─── page ───────────────────────────────────────────────── */
 export default function InventoryFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
         <section className={styles.hero}>
@@ -415,6 +542,8 @@ export default function InventoryFeaturePage() {
             <span>Cost value and retail value of your full inventory, always up to date.</span>
           </div>
         </section>
+
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowRight, Users, Search, Tag,
-  AlertTriangle, Heart, Globe, Camera, Download,
+  AlertTriangle, Heart, Globe, Camera, Download, ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -415,11 +415,138 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What is client management software?",
+    a: "Client management software helps beauty salons, hair salons, spas, and barber shops organize customer information, appointment history, invoices, loyalty points, and communication in one place. Salon Central's salon client management software makes it easy to manage every client relationship while improving customer service and retention.",
+  },
+  {
+    q: "How does Salon Central's client management system work?",
+    a: "Salon Central's client management system software automatically creates a profile for every client. It stores contact details, visit history, services, invoices, notes, loyalty points, and preferences, making it a complete client management software CRM solution for modern salons.",
+  },
+  {
+    q: "What information can I store for each client?",
+    a: "With Salon Central's client database management software, you can store customer contact details, appointment history, purchased services, retail products, invoices, loyalty points, notes, allergies, preferences, and lifetime spending. This helps salons deliver more personalized customer experiences.",
+  },
+  {
+    q: "Does Salon Central include a salon CRM?",
+    a: "Yes. Salon Central's salon CRM software helps you build stronger customer relationships by managing client profiles, appointment history, invoices, loyalty rewards, and personalized notes. It is also an ideal beauty salon CRM software for beauty salons, hair salons, and spas.",
+  },
+  {
+    q: "Can I track customer invoices and payment history?",
+    a: "Absolutely. Salon Central's salon invoice and customer management software links every invoice and payment directly to the client's profile. This allows you to view complete billing history, outstanding balances, and previous purchases from one dashboard.",
+  },
+  {
+    q: "Can I easily search and manage my clients?",
+    a: "Yes. Our client contact management software lets you quickly search clients by name, phone number, or email. You can update customer information, view visit history, manage appointments, and communicate with clients from a single platform.",
+  },
+  {
+    q: "Is Salon Central suitable for small salons?",
+    a: "Yes. Salon Central's client management software for small business is designed for salons of every size. Whether you run a single beauty salon or multiple locations, our online client management software helps you organize customer information and grow your business more efficiently.",
+  },
+  {
+    q: "Can I manage the complete client lifecycle?",
+    a: "Yes. Salon Central's client lifecycle management software helps you manage every stage of the customer journey, from the first appointment to repeat visits, loyalty rewards, follow-ups, and long-term customer retention. Our client lifecycle management system software gives you a complete view of every client relationship.",
+  },
+  {
+    q: "Why is Salon Central better than free or open-source client management software?",
+    a: "Unlike free client management software for small business or open source client management software, Salon Central combines client management software, salon CRM software, appointment scheduling, POS, invoicing, inventory management, payroll, loyalty programs, and WhatsApp automation in one secure cloud platform built specifically for salons.",
+  },
+  {
+    q: "Why choose Salon Central as your client management software?",
+    a: "Salon Central is one of the best client management software solutions for beauty salons, hair salons, spas, and barber shops. Our salon client management software combines client relationship management software, client account management software, client resource management software, and powerful salon management software features to help you manage clients, improve customer relationships, increase repeat visits, and grow your salon business from one easy-to-use platform.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="Client management FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>Client Management Software: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 /* ─── page ───────────────────────────────────────────────── */
 export default function ClientFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
         <section className={styles.hero}>
@@ -515,6 +642,8 @@ export default function ClientFeaturePage() {
             <span>One-click client report with visit history, spend, photos, and allergy alerts.</span>
           </div>
         </section>
+
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

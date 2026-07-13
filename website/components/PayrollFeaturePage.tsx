@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowRight, Coins, Percent, CheckCircle2, History, Wallet,
+  ArrowRight, Coins, Percent, CheckCircle2, History, Wallet, ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -169,11 +169,138 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What is salon payroll management software?",
+    a: "Salon payroll management software helps beauty salons, hair salons, spas, and barber shops calculate salaries, commissions, bonuses, and staff payouts automatically. Salon Central's payroll management software reduces manual work while ensuring employees are paid accurately and on time.",
+  },
+  {
+    q: "How does Salon Central's payroll software work?",
+    a: "Salon Central's salon payroll software automatically calculates employee salaries based on fixed pay, commissions, services performed, product sales, incentives, and bonuses. Payroll data is linked with your salon POS, revenue, and staff performance for accurate salary calculations.",
+  },
+  {
+    q: "Can I calculate staff commissions automatically?",
+    a: "Yes. Salon Central's payroll management software automatically calculates commissions for stylists, beauticians, therapists, and barbers based on your commission rules. This eliminates manual calculations and reduces payroll errors.",
+  },
+  {
+    q: "Can I manage salaries and payroll from one system?",
+    a: "Absolutely. Salon Central lets you manage employee salaries, commissions, bonuses, deductions, payment history, and payroll reports from one dashboard. You can also mark salaries as paid and keep a complete payroll history for every employee.",
+  },
+  {
+    q: "Does payroll integrate with invoicing and accounting?",
+    a: "Yes. Salon Central connects payroll with salon invoicing software, salon billing software, salon accounting software, and revenue reports. Employee commissions and salaries are calculated using actual sales and invoices generated through the salon POS.",
+  },
+  {
+    q: "Can I manage payroll for multiple employees?",
+    a: "Yes. Whether you have two employees or a large salon team, Salon Central's payroll software lets you manage payroll for every staff member from one centralized dashboard. You can monitor salaries, commissions, attendance, and payment history in one place.",
+  },
+  {
+    q: "Can I export payroll reports?",
+    a: "Yes. Salon Central generates detailed payroll reports showing salaries, commissions, bonuses, deductions, and payment status. These reports help salon owners simplify payroll processing and financial record keeping.",
+  },
+  {
+    q: "Is Salon Central suitable for beauty salons and hair salons?",
+    a: "Yes. Salon Central is built specifically for beauty salons, hair salons, spas, nail salons, and barber shops. It combines payroll management with beauty salon accounting software, hair salon accounting software, invoice management software, and salon POS, making daily operations much easier.",
+  },
+  {
+    q: "Does Salon Central work as salon accounting software?",
+    a: "Yes. In addition to payroll, Salon Central includes accounting software for salons, salon accounting software, invoice software for salons, salon invoice software, and beauty salon invoicing software. This allows you to manage payroll, invoicing, revenue, expenses, and business reports from one platform.",
+  },
+  {
+    q: "Why choose Salon Central for payroll management?",
+    a: "Salon Central combines salon payroll management software, salon invoicing software, salon billing software, accounting software for salons, client management, salon POS, inventory management, appointment scheduling, loyalty programs, and WhatsApp automation in one cloud-based platform. Whether you run a beauty salon, hair salon, spa, or barber shop, Salon Central helps you automate payroll, reduce administrative work, and manage your entire business from a single dashboard.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="Payroll management FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>Salon Payroll Management Software: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 /* ─── page ───────────────────────────────────────────────── */
 export default function PayrollFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
         <section className={styles.hero}>
@@ -253,6 +380,8 @@ export default function PayrollFeaturePage() {
             <span>Confirm payment method and date, done instantly.</span>
           </div>
         </section>
+
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
