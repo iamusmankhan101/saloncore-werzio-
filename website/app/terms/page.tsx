@@ -21,7 +21,7 @@ export default function TermsPage() {
           These Terms of Service ("<strong>Terms</strong>") are an agreement between you, whether personally or on
           behalf of a business ("<strong>you</strong>" or "<strong>your</strong>") and Salon Central ("<strong>Salon Central</strong>,"
           "<strong>we</strong>," "<strong>us</strong>" or "<strong>our</strong>"), concerning your access to and use of our
-          platform located at <a href="https://werzio.com">werzio.com</a> and <a href="https://app.werzio.com">app.werzio.com</a>.
+          platform located at <a href="https://saloncentral.xyz">saloncentral.xyz</a> and <a href="https://app.saloncentral.xyz">app.saloncentral.xyz</a>.
         </p>
         <p>
           By accessing or using the Platform, you agree to be bound by these Terms. If you do not agree with any part of
@@ -43,7 +43,7 @@ export default function TermsPage() {
         </p>
         <p>
           You are responsible for all activity that occurs under your account. Notify us immediately at{" "}
-          <a href="mailto:support@werzio.com">support@werzio.com</a> if you suspect unauthorized access.
+          <a href="mailto:support@saloncentral.xyz">support@saloncentral.xyz</a> if you suspect unauthorized access.
         </p>
 
         <h2>4. Subscription Plans & Billing</h2>
@@ -127,8 +127,8 @@ export default function TermsPage() {
         <h2>13. Contact Us</h2>
         <p>
           If you have any questions about these Terms, please contact us at{" "}
-          <a href="mailto:legal@werzio.com">legal@werzio.com</a> or visit{" "}
-          <a href="https://werzio.com">werzio.com</a>.
+          <a href="mailto:legal@saloncentral.xyz">legal@saloncentral.xyz</a> or visit{" "}
+          <a href="https://saloncentral.xyz">saloncentral.xyz</a>.
         </p>
       </div>
     </LegalLayout>

@@ -6,6 +6,8 @@ import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe,
 import styles from "./Navbar.module.css";
 import DemoModal from "./DemoModal";
 
+const CONTACT_SALES_URL = "https://wa.me/923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
+
 const featureLinks = [
   { label: "Appointment Scheduling", desc: "Calendar, bookings & reminders", href: "/features/appointment-scheduling", Icon: CalendarDays },
   { label: "Point of Sale (POS)",    desc: "Checkout, payments & invoices",   href: "/features/pos",                     Icon: ShoppingCart },
@@ -92,7 +94,7 @@ export default function Navbar() {
                       <div><strong>11</strong><span>Features</span></div>
                       
                     </div>
-                    <a href="https://app.werzio.com/sign-up" target="_blank" rel="noopener noreferrer" className={styles.featuredCta}>
+                    <a href={CONTACT_SALES_URL} target="_blank" rel="noopener noreferrer" className={styles.featuredCta}>
                       Get started →
                     </a>
                   </div>

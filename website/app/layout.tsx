@@ -83,10 +83,6 @@ const jsonLd = {
   description,
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
-  offers: {
-    "@type": "Offer",
-    priceCurrency: "PKR",
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

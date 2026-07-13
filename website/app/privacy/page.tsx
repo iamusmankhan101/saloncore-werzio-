@@ -20,8 +20,8 @@ export default function PrivacyPage() {
         <p>
           Salon Central ("<strong>we</strong>," "<strong>us</strong>," or "<strong>our</strong>") is committed to protecting
           your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when
-          you use our salon management platform at <a href="https://werzio.com">werzio.com</a> and{" "}
-          <a href="https://app.werzio.com">app.werzio.com</a>.
+          you use our salon management platform at <a href="https://saloncentral.xyz">saloncentral.xyz</a> and{" "}
+          <a href="https://app.saloncentral.xyz">app.saloncentral.xyz</a>.
         </p>
         <p>
           Please read this policy carefully. If you disagree with its terms, please discontinue use of the Platform.
@@ -127,7 +127,7 @@ export default function PrivacyPage() {
         </ul>
         <p>
           To exercise any of these rights, contact us at{" "}
-          <a href="mailto:privacy@werzio.com">privacy@werzio.com</a>.
+          <a href="mailto:privacy@saloncentral.xyz">privacy@saloncentral.xyz</a>.
         </p>
 
         <h2>9. Cookies</h2>
@@ -154,8 +154,8 @@ export default function PrivacyPage() {
           If you have questions or concerns about this Privacy Policy, please contact us at:
         </p>
         <ul>
-          <li>Email: <a href="mailto:privacy@werzio.com">privacy@werzio.com</a></li>
-          <li>Website: <a href="https://werzio.com">werzio.com</a></li>
+          <li>Email: <a href="mailto:privacy@saloncentral.xyz">privacy@saloncentral.xyz</a></li>
+          <li>Website: <a href="https://saloncentral.xyz">saloncentral.xyz</a></li>
           <li>Location: Lahore, Pakistan</li>
         </ul>
       </div>
