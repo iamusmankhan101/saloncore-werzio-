@@ -20,6 +20,7 @@ export default function SalonCentralVsHulmPage() {
     <ComparisonPage
       competitorName="Hulm"
       competitorUrl="https://hulmsolutions.com"
+      competitorLogo="/logos/hulm.svg"
       competitorSummary="Hulm markets itself as a complete business operations platform starting with POS and expanding into logistics, vendor management, and accounting, serving restaurants, retail stores, and other industries with salons and spas listed as one supported category."
       dataAsOf="July 2026"
       categories={[

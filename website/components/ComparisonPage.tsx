@@ -26,6 +26,7 @@ export interface ComparisonFaq {
 export interface ComparisonPageProps {
   competitorName: string;
   competitorUrl: string;
+  competitorLogo: string;
   competitorSummary: string;
   categories: ComparisonCategory[];
   verdict: string;
@@ -53,6 +54,7 @@ function Cell({ value, highlighted }: { value: boolean | string; highlighted?: b
 export default function ComparisonPage({
   competitorName,
   competitorUrl,
+  competitorLogo,
   competitorSummary,
   categories,
   verdict,
@@ -107,8 +109,14 @@ export default function ComparisonPage({
               <thead>
                 <tr>
                   <th className={compareStyles.featureHead}></th>
-                  <th className={compareStyles.highlightHead}>Salon Central</th>
-                  <th>{competitorName}</th>
+                  <th className={compareStyles.highlightHead}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/salon-central-logo.png" alt="Salon Central" className={compareStyles.scLogo} />
+                  </th>
+                  <th>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={competitorLogo} alt={`${competitorName} logo`} className={compareStyles.competitorLogo} />
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -132,13 +140,6 @@ export default function ComparisonPage({
               </tbody>
             </table>
           </div>
-
-          <p className={compareStyles.disclaimer}>
-            Data as of {dataAsOf}, based on publicly available information from {competitorName}&apos;s website
-            (<a href={competitorUrl} target="_blank" rel="noopener noreferrer">{competitorUrl}</a>). Features and
-            pricing change over time — notice an error in our comparison data?{" "}
-            <a href="https://wa.me/+923058562523?text=Hi%2C%20I%20noticed%20an%20error%20on%20your%20comparison%20page.">Let us know</a>.
-          </p>
         </section>
 
         {/* ── verdict ── */}

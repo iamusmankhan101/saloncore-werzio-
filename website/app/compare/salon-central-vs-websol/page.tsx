@@ -20,6 +20,7 @@ export default function SalonCentralVsWebsolPage() {
     <ComparisonPage
       competitorName="Websol"
       competitorUrl="https://www.pointofsale.pk"
+      competitorLogo="/logos/websol.png"
       competitorSummary="Websol is a general POS and ERP system for retail stores, restaurants, pharmacies, and other businesses, with salons listed as one of many supported industries rather than its core focus."
       dataAsOf="July 2026"
       categories={[

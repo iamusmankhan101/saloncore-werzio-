@@ -20,6 +20,7 @@ export default function SalonCentralVsAsaanPosPage() {
     <ComparisonPage
       competitorName="Asaan POS"
       competitorUrl="https://www.asaanpos.pk"
+      competitorLogo="/logos/asaan-pos.png"
       competitorSummary="Asaan POS is a general Windows/Android retail POS system for retail stores, restaurants, and pharmacies. Its own website states it has been discontinued and is not available for new customers, though existing users can continue using it."
       dataAsOf="July 2026"
       categories={[

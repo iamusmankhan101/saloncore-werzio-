@@ -20,6 +20,7 @@ export default function SalonCentralVsBlushaPage() {
     <ComparisonPage
       competitorName="Blusha"
       competitorUrl="https://blusha.app"
+      competitorLogo="/logos/blusha.svg"
       competitorSummary="Blusha is a purpose-built salon platform covering appointments, POS, client profiles, loyalty, staff commission, and WhatsApp automation, so this is a closer feature-for-feature comparison than most, based on Blusha's own partnership materials."
       dataAsOf="July 2026"
       categories={[

@@ -20,6 +20,7 @@ export default function SalonCentralVsOscarPage() {
     <ComparisonPage
       competitorName="Oscar"
       competitorUrl="https://oscar.pk"
+      competitorLogo="/logos/oscar.png"
       competitorSummary="Oscar is a general POS and business management platform serving restaurants, retail stores, fitness centers, clinics, and beauty salons among many other business types, rather than focusing specifically on salons."
       dataAsOf="July 2026"
       categories={[

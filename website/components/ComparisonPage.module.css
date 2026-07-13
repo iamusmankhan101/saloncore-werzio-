@@ -66,7 +66,7 @@
 .tableTitle {
   text-align: center;
   font-size: clamp(1.4rem, 2.6vw, 1.9rem);
-  font-weight: 900;
+  font-weight: 600;
   color: #17112a;
   letter-spacing: -0.01em;
 }
@@ -113,6 +113,23 @@
   background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
   color: #fff !important;
   border-radius: 14px 14px 0 0;
+}
+
+.scLogo {
+  height: 26px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  vertical-align: middle;
+}
+
+.competitorLogo {
+  height: 26px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+  vertical-align: middle;
 }
 
 .table td {
@@ -172,20 +189,6 @@
   line-height: 1.5;
 }
 
-.disclaimer {
-  max-width: 720px;
-  margin: 20px auto 0;
-  font-size: 0.76rem;
-  color: #9898b0;
-  line-height: 1.6;
-  text-align: center;
-}
-
-.disclaimer a {
-  color: #7c3aed;
-  text-decoration: underline;
-}
-
 /* ── verdict ── */
 .verdictSection {
   max-width: 760px;
@@ -224,7 +227,7 @@
 
 .faqHead h2 {
   font-size: clamp(1.3rem, 2.4vw, 1.7rem);
-  font-weight: 900;
+  font-weight: 600;
   color: #17112a;
 }
 

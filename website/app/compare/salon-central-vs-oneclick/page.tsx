@@ -20,6 +20,7 @@ export default function SalonCentralVsOneClickPage() {
     <ComparisonPage
       competitorName="OneClick"
       competitorUrl="https://oneclickpos.pk"
+      competitorLogo="/logos/oneclick.png"
       competitorSummary="OneClick is a general FBR-integrated POS system for retail stores, restaurants, pharmacies, and garment shops, with an Urdu-language interface, but no salon-specific booking or client management tools."
       dataAsOf="July 2026"
       categories={[
