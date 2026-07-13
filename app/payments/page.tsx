@@ -11,9 +11,14 @@ export default function PaymentsPage() {
           <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
             <img src="/salon-central-logo.png" alt="Salon Central" style={{ height: 32, width: "auto" }} />
           </Link>
-          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-            <ArrowLeft size={16} /> Back to Home
-          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <Link href="/" style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+              <ArrowLeft size={16} /> Back to Home
+            </Link>
+            <Link href="/sign-up" style={{ padding: "9px 18px", borderRadius: 8, background: "#7C3AED", color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+              Sign Up
+            </Link>
+          </div>
         </div>
       </header>
 

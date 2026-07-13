@@ -5,9 +5,9 @@ export const siteConfig = {
   url: "https://www.saloncentral.xyz",
   description:
     "Salon Central is all-in-one salon management software in Pakistan: POS, appointment booking, CRM, invoicing, inventory, payroll, and WhatsApp automation.",
-  ogImage: "/calendar-hero.png",
-  ogImageWidth: 2856,
-  ogImageHeight: 1610,
+  ogImage: "/og-image.jpg",
+  ogImageWidth: 1200,
+  ogImageHeight: 676,
 };
 
 export function pageMetadata({
