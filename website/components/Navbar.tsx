@@ -29,7 +29,7 @@ const links = [
   { label: "Pricing",      href: "/#pricing" },
 ];
 
-export default function Navbar() {
+export default function Navbar({ forceSolid = false }: { forceSolid?: boolean }) {
   const [scrolled, setScrolled]       = useState(false);
   const [open, setOpen]               = useState(false);
   const [dropOpen, setDropOpen]       = useState(false);
@@ -54,7 +54,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className={`${styles.nav} ${scrolled ? styles.scrolled : ""}`}>
+      <nav className={`${styles.nav} ${scrolled || forceSolid ? styles.scrolled : ""}`}>
         <Link href="/" className={styles.logo}>
           <Image src="/salon-central-logo.png" alt="Salon Central" width={1080} height={1080} style={{ height: "58px", width: "58px", objectFit: "contain" }} priority />
         </Link>

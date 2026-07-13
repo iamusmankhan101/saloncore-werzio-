@@ -78,7 +78,7 @@ export default function ComparisonPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
-      <Navbar />
+      <Navbar forceSolid />
       <main className={compareStyles.page}>
         {/* ── centered hero ── */}
         <section className={compareStyles.hero}>

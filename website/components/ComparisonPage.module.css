@@ -6,7 +6,7 @@
 .hero {
   max-width: 100%;
   margin: 0 auto;
-  padding: 64px 5% 56px;
+  padding: 104px 5% 56px;
   text-align: center;
   background:
     radial-gradient(60% 100% at 50% 0%, rgba(124, 58, 237, 0.16) 0%, rgba(124, 58, 237, 0) 70%),
