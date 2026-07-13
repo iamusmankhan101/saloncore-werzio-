@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowRight, UserCog, Users, Scissors,
-  BarChart2, Star, Shield, CheckCircle2,
+  BarChart2, Star, Shield, CheckCircle2, ChevronDown,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -230,11 +230,138 @@ const rows = [
   },
 ];
 
+const faqs = [
+  {
+    q: "What is staff management software?",
+    a: "Staff management software helps beauty salons, hair salons, spas, and barber shops manage employees, schedules, attendance, commissions, and performance from one platform. Salon Central's staff management system simplifies day-to-day operations by keeping all employee information organized.",
+  },
+  {
+    q: "How does Salon Central's staff management system work?",
+    a: "Salon Central's staff management system lets you create employee profiles, assign services, manage work schedules, monitor attendance, calculate commissions, and track performance. It's an all-in-one staff managing software built specifically for salon businesses.",
+  },
+  {
+    q: "Can I manage employee schedules and shifts?",
+    a: "Yes. Salon Central's staff scheduling software allows you to assign shifts, manage employee availability, and organize daily work schedules from one calendar. This helps avoid scheduling conflicts and improves team productivity.",
+  },
+  {
+    q: "Can I track staff attendance?",
+    a: "Absolutely. Salon Central's employee attendance software lets you monitor employee attendance, working hours, and shift history. This information can also be used for payroll and performance reporting.",
+  },
+  {
+    q: "Can I assign appointments to specific staff members?",
+    a: "Yes. Every appointment can be assigned to a specific stylist, beautician, therapist, or barber. Salon Central's salon staff management software automatically updates each employee's schedule, making appointment management simple and efficient.",
+  },
+  {
+    q: "Can I monitor staff performance?",
+    a: "Yes. Salon Central's employee management software provides detailed reports on services completed, sales generated, commissions earned, appointments handled, and customer activity. These insights help you reward top performers and improve team productivity.",
+  },
+  {
+    q: "Can I manage commissions and payroll for my staff?",
+    a: "Yes. Salon Central's salon employee management system integrates with payroll and commission management. Staff commissions are automatically calculated based on completed services and product sales, reducing manual work and payroll errors.",
+  },
+  {
+    q: "Is the staff management system suitable for multiple branches?",
+    a: "Yes. Whether you manage one salon or multiple locations, Salon Central's staff management software allows you to organize employees, schedules, attendance, and performance across all branches from a centralized dashboard.",
+  },
+  {
+    q: "Can I store employee information securely?",
+    a: "Yes. Salon Central's employee management software securely stores staff profiles, contact details, employment information, commission structures, attendance records, and work history. Everything is accessible from one cloud-based dashboard whenever you need it.",
+  },
+  {
+    q: "Why choose Salon Central for staff management?",
+    a: "Salon Central combines a powerful staff management system, staff management software, staff managing software, employee management software, staff scheduling software, employee attendance software, payroll, appointment scheduling, salon POS, client management, inventory, invoicing, revenue reporting, and WhatsApp automation into one complete salon management platform. It's designed to help beauty salons, hair salons, spas, nail salons, and barber shops improve staff productivity, simplify operations, and grow their business.",
+  },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section
+      style={{ maxWidth: 860, margin: "0 auto", padding: "84px 5%" }}
+      aria-label="Staff management FAQs"
+    >
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          FAQs
+        </span>
+        <h2 style={{ marginTop: 8 }}>Salon Staff Management Software: Frequently Asked Questions</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {faqs.map((item, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div
+              key={item.q}
+              style={{
+                border: "1px solid #e8e8f0",
+                borderRadius: 14,
+                background: "#fff",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  padding: "18px 22px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#17112a",
+                }}
+              >
+                {item.q}
+                <ChevronDown
+                  size={18}
+                  color="#7c3aed"
+                  style={{ flexShrink: 0, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+                />
+              </button>
+              {isOpen && (
+                <div style={{ padding: "0 22px 20px", fontSize: "0.92rem", lineHeight: 1.65, color: "#4b4459" }}>
+                  {item.a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 /* ─── page ───────────────────────────────────────────────── */
 export default function StaffFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <Navbar />
       <main className={styles.page}>
         <section className={styles.hero}>
@@ -314,6 +441,8 @@ export default function StaffFeaturePage() {
             <span>No team size cap on Salon Central Pro and Premium plans.</span>
           </div>
         </section>
+
+        <FaqSection />
       </main>
       <Footer />
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
