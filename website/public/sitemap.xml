@@ -61,6 +61,21 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://www.saloncentral.xyz/solutions/hair-salon</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.saloncentral.xyz/solutions/beauty-salon</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.saloncentral.xyz/solutions/spa</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.saloncentral.xyz/compare/salon-central-vs-blusha</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>

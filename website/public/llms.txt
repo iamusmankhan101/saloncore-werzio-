@@ -18,6 +18,12 @@ Salon Central helps beauty salons, hair salons, and spas in Pakistan run their e
 - [Staff Management Software](https://www.saloncentral.xyz/features/staff-management): Manage roles, service assignments, performance stats, and team revenue tracking.
 - [WhatsApp Marketing & Automated Reminders](https://www.saloncentral.xyz/features/whatsapp-reminders): Automated booking confirmations, appointment reminders, follow-ups, birthday messages, and low-stock alerts.
 
+## Solutions
+
+- [Hair Salon POS & Booking Software](https://www.saloncentral.xyz/solutions/hair-salon): Hair salon POS software with appointment scheduling, hair formula tracking, AI virtual try-on, and WhatsApp automation.
+- [Beauty Salon POS & Management Software](https://www.saloncentral.xyz/solutions/beauty-salon): Beauty salon POS software with appointment scheduling, detailed beauty client profiles, loyalty tiers, and WhatsApp automation.
+- [Spa POS & Booking Software](https://www.saloncentral.xyz/solutions/spa): Spa POS software with appointment scheduling, multi-branch support, loyalty tiers, and WhatsApp automation.
+
 ## Comparisons
 
 - [Salon Central vs Blusha](https://www.saloncentral.xyz/compare/salon-central-vs-blusha): A feature-by-feature comparison with Blusha, another salon-specific platform with WhatsApp automation and loyalty tools.
