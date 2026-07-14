@@ -31,6 +31,7 @@ const linkCols: { heading: string; items: { label: string; href: string; externa
       { label: "vs Asaan POS", href: "/compare/salon-central-vs-asaan-pos" },
       { label: "vs OneClick", href: "/compare/salon-central-vs-oneclick" },
       { label: "vs Oscar",    href: "/compare/salon-central-vs-oscar" },
+      { label: "vs eHisabKitab", href: "/compare/salon-central-vs-ehisabkitab" },
     ],
   },
 ];

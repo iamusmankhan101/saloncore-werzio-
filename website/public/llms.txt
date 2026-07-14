@@ -33,6 +33,7 @@ Salon Central helps beauty salons, hair salons, and spas in Pakistan run their e
 - [Salon Central vs Asaan POS](https://www.saloncentral.xyz/compare/salon-central-vs-asaan-pos): Asaan POS has been discontinued and is not available for new customers.
 - [Salon Central vs OneClick](https://www.saloncentral.xyz/compare/salon-central-vs-oneclick): How Salon Central compares to OneClick, a general FBR-integrated retail POS system.
 - [Salon Central vs Oscar](https://www.saloncentral.xyz/compare/salon-central-vs-oscar): How Salon Central compares to Oscar, a general multi-industry POS platform.
+- [Salon Central vs eHisabKitab](https://www.saloncentral.xyz/compare/salon-central-vs-ehisabkitab): How Salon Central compares to eHisabKitab, an FBR-compliant multi-industry POS, inventory, accounting, and HRM platform.
 
 ## Company
 
