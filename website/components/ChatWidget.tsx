@@ -11,6 +11,9 @@ interface Msg {
 type DemoStep = "name" | "phone" | "email" | null;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BULLET_RE = /^[-*•]\s+/;
+// Matches free-typed intent to book a demo / contact sales, so we route straight into the
+// structured name/phone/email flow instead of letting the LLM improvise a contact method.
+const DEMO_INTENT_RE = /\b(book|schedule|request|get|set up|setup)\b.{0,15}\bdemo\b|\bcontact\s+(sales|you|someone)\b|\btalk\s+to\s+(sales|someone|a\s+human)\b/i;
 
 /** Renders plain text with markdown-lite bullet lists ("- item" lines) as real <ul> lists; everything else as paragraphs. */
 function renderContent(content: string) {
@@ -69,9 +72,26 @@ export default function ChatWidget() {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading, screen]);
 
+  function startDemoFlow(precededByUserText?: string) {
+    demoDataRef.current = { name: "", phone: "", email: "" };
+    setDemoStep("name");
+    setInput("");
+    setMessages((prev) => [
+      ...prev,
+      ...(precededByUserText ? [{ role: "user" as const, content: precededByUserText }] : []),
+      { role: "assistant" as const, content: "Great! Let's get you booked in for a free demo. What's your name?" },
+    ]);
+  }
+
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
+
+    if (DEMO_INTENT_RE.test(trimmed)) {
+      startDemoFlow(trimmed);
+      return;
+    }
+
     const next: Msg[] = [...messages, { role: "user", content: trimmed }];
     setMessages(next);
     setInput("");
@@ -99,9 +119,7 @@ export default function ChatWidget() {
   function handleQuickAction(kind: "demo" | "chat" | "switch") {
     setScreen("chat");
     if (kind === "demo") {
-      demoDataRef.current = { name: "", phone: "", email: "" };
-      setDemoStep("name");
-      setMessages((prev) => [...prev, { role: "assistant", content: "Great! Let's get you booked in for a free demo. What's your name?" }]);
+      startDemoFlow();
       return;
     }
     if (kind === "switch") {
