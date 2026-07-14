@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, MessageCircle, Send } from "lucide-react";
+import { ArrowLeft, ChevronDown, MessageCircle, Send, Sparkles } from "lucide-react";
 import styles from "./ChatWidget.module.css";
 import DemoModal from "./DemoModal";
 
@@ -13,6 +13,12 @@ const QUICK_ACTIONS = [
   { emoji: "💜", label: "Book a free demo", kind: "demo" as const },
   { emoji: "💬", label: "Answer product questions", kind: "chat" as const },
   { emoji: "🚀", label: "Help switch from your current software", kind: "switch" as const },
+];
+
+const SUGGESTED_PROMPTS = [
+  "What features does Salon Central have?",
+  "Do you have WhatsApp reminders?",
+  "How do I book a demo?",
 ];
 
 export default function ChatWidget() {
@@ -78,15 +84,26 @@ export default function ChatWidget() {
       {open && (
         <div className={styles.window} role="dialog" aria-label="Salon Central chat">
           <div className={styles.header}>
-            <button type="button" className={styles.headerClose} onClick={() => setOpen(false)} aria-label="Close chat">
-              <ChevronDown size={16} />
-            </button>
+            <div className={styles.headerTopRow}>
+              {screen === "chat" ? (
+                <button type="button" className={styles.headerBack} onClick={() => setScreen("menu")} aria-label="Back to menu">
+                  <ArrowLeft size={15} />
+                </button>
+              ) : <span />}
+              <button type="button" className={styles.headerClose} onClick={() => setOpen(false)} aria-label="Close chat">
+                <ChevronDown size={16} />
+              </button>
+            </div>
             <div className={styles.avatarRow}>
               <div className={styles.avatar}>SC</div>
               <div className={styles.bubbleCol}>
                 <div className={styles.introBubble}>Welcome to Salon Central 👋</div>
                 <div className={styles.introBubble}>How can we help you?</div>
               </div>
+            </div>
+            <div className={styles.statusRow}>
+              <span className={styles.statusDot} />
+              Typically replies instantly
             </div>
           </div>
 
@@ -95,14 +112,28 @@ export default function ChatWidget() {
               <div className={styles.quickActions}>
                 {QUICK_ACTIONS.map((a) => (
                   <button key={a.label} type="button" className={styles.quickBtn} onClick={() => handleQuickAction(a.kind)}>
-                    <span>{a.emoji}</span> {a.label}
+                    <span className={styles.quickEmoji}>{a.emoji}</span> {a.label}
                   </button>
                 ))}
+              </div>
+            ) : messages.length === 0 && !loading ? (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}><Sparkles size={20} /></div>
+                <div className={styles.emptyTitle}>Ask me anything</div>
+                <div className={styles.emptyBody}>I can answer questions about Salon Central&apos;s features, pricing, and setup.</div>
+                <div className={styles.suggestions}>
+                  {SUGGESTED_PROMPTS.map((p) => (
+                    <button key={p} type="button" className={styles.suggestionChip} onClick={() => void send(p)}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               <>
                 {messages.map((m, i) => (
                   <div key={i} className={`${styles.msgRow} ${m.role === "user" ? styles.msgRowUser : ""}`}>
+                    {m.role === "assistant" && <div className={styles.msgAvatar}>SC</div>}
                     <div className={`${styles.msgBubble} ${m.role === "user" ? styles.msgBubbleUser : styles.msgBubbleAssistant}`}>
                       {m.content}
                     </div>
@@ -110,6 +141,7 @@ export default function ChatWidget() {
                 ))}
                 {loading && (
                   <div className={styles.msgRow}>
+                    <div className={styles.msgAvatar}>SC</div>
                     <div className={`${styles.msgBubble} ${styles.msgBubbleAssistant}`}>
                       <div className={styles.typing}><span /><span /><span /></div>
                     </div>
