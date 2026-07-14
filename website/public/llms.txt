@@ -23,6 +23,7 @@ Salon Central helps beauty salons, hair salons, and spas in Pakistan run their e
 - [Hair Salon POS & Booking Software](https://www.saloncentral.xyz/solutions/hair-salon): Hair salon POS software with appointment scheduling, hair formula tracking, AI virtual try-on, and WhatsApp automation.
 - [Beauty Salon POS & Management Software](https://www.saloncentral.xyz/solutions/beauty-salon): Beauty salon POS software with appointment scheduling, detailed beauty client profiles, loyalty tiers, and WhatsApp automation.
 - [Spa POS & Booking Software](https://www.saloncentral.xyz/solutions/spa): Spa POS software with appointment scheduling, multi-branch support, loyalty tiers, and WhatsApp automation.
+- [Nail Salon POS & Booking Software](https://www.saloncentral.xyz/solutions/nail-salon): Nail salon software with appointment scheduling, nail preference tracking, POS checkout, and WhatsApp automation.
 
 ## Comparisons
 

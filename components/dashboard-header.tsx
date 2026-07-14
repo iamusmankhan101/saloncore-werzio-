@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import Link from "next/link";
 import { Bell, X, AlertTriangle, FileText, Calendar, LayoutDashboard } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getStoredInventory, getStoredAppointments } from "@/lib/storage";
@@ -14,6 +15,7 @@ type Notif = {
   sub: string;
   color: string;
   icon: "stock" | "invoice" | "appointment";
+  href: string;
 };
 
 function buildNotifications(): Notif[] {
@@ -30,6 +32,7 @@ function buildNotifications(): Notif[] {
         color: "#7C3AED",
         text: `New online booking — ${a.clientName}`,
         sub: `${a.serviceNames.join(", ") || "Service"} · ${a.date} at ${a.startTime}`,
+        href: `/dashboard/appointments?id=${a.id}`,
       });
     });
   } catch { /* ignore */ }
@@ -45,6 +48,7 @@ function buildNotifications(): Notif[] {
         color: i.currentStock === 0 ? "#dc2626" : "#d97706",
         text: `${i.name} is ${i.currentStock === 0 ? "out of stock" : "running low"}`,
         sub: `${i.currentStock} ${i.unit} remaining (min: ${i.minStock})`,
+        href: `/dashboard/inventory?id=${i.id}`,
       });
     });
   } catch { /* ignore */ }
@@ -65,6 +69,7 @@ function buildNotifications(): Notif[] {
         color: isLate ? "#dc2626" : "#f97316",
         text: `Invoice ${inv.number} unpaid${reminder}`,
         sub: `${inv.clientName} · PKR ${inv.total.toLocaleString()}${daysSince > 0 ? ` · ${daysSince}d ago` : ""}`,
+        href: `/dashboard/invoices?id=${inv.id}`,
       });
     });
   } catch { /* ignore */ }
@@ -132,7 +137,13 @@ export default function DashboardHeader({
               ) : (
                 <div style={{ maxHeight: 360, overflowY: "auto" }}>
                   {notifs.map((n) => (
-                    <div key={n.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f8f8fc", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <Link
+                      key={n.id}
+                      href={n.href}
+                      onClick={() => setShowNotif(false)}
+                      className="hover-bg-row"
+                      style={{ padding: "12px 16px", borderBottom: "1px solid #f8f8fc", display: "flex", gap: 10, alignItems: "flex-start", textDecoration: "none", cursor: "pointer" }}
+                    >
                       <div style={{ width: 28, height: 28, borderRadius: 8, background: n.color + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                         {n.icon === "appointment"
                           ? <Calendar size={13} color={n.color} />
@@ -145,7 +156,7 @@ export default function DashboardHeader({
                         <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 2 }}>{n.sub}</div>
                       </div>
                       <div style={{ width: 6, height: 6, borderRadius: "50%", background: n.color, flexShrink: 0, marginTop: 5 }} />
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
