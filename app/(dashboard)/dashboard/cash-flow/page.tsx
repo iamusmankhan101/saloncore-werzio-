@@ -1102,7 +1102,19 @@ export default function CashFlowPage() {
                           : <CalendarCheck size={12} color="var(--accent)" />}
                     </div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{row.client}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{row.client}</span>
+                        {row.paymentMethod && (
+                          <span style={{
+                            fontSize: 9, fontWeight: 800, letterSpacing: "0.03em", textTransform: "uppercase",
+                            padding: "2px 7px", borderRadius: 20, flexShrink: 0,
+                            color: row.paymentMethod === "cash" ? "#059669" : "#2563eb",
+                            background: row.paymentMethod === "cash" ? "#ecfdf5" : "#eff6ff",
+                          }}>
+                            {row.paymentMethod === "cash" ? "Cash" : "Online"}
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2, fontWeight: 500 }} title={row.description}>
                         {row.description.length > 28 ? row.description.slice(0, 28) + "…" : row.description}
                       </div>
