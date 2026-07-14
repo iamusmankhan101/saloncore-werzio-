@@ -33,8 +33,8 @@ export interface VerticalPageProps {
   heroParagraph: string;
   heroImageLabel: string;
   heroVisual: React.ReactNode;
-  /** Icon rendered several times, large and faint, behind the hero card as a themed decorative pattern. */
-  heroDecorIcon: React.ElementType;
+  /** Themed background photo behind the hero card (a real, license-free Unsplash photo). */
+  heroImage: string;
   heroFloatingIcon: React.ReactNode;
   heroFloatingText: string;
   heroFloatingColor: string;
@@ -91,7 +91,7 @@ function FaqSection({ title, ariaLabel, faqs }: { title: string; ariaLabel: stri
 }
 
 export default function VerticalPage({
-  kickerIcon, kickerLabel, h1, heroParagraph, heroImageLabel, heroVisual, heroDecorIcon: DecorIcon,
+  kickerIcon, kickerLabel, h1, heroParagraph, heroImageLabel, heroVisual, heroImage,
   heroFloatingIcon, heroFloatingText, heroFloatingColor,
   rows, ctaEyebrow, ctaTitle, ctaSubtitle, stats, faqAriaLabel, faqTitle, faqs,
 }: VerticalPageProps) {
@@ -133,10 +133,10 @@ export default function VerticalPage({
               </div>
             </div>
             <div className={styles.heroVisual}>
-              <div className={styles.heroDecor} aria-hidden="true">
-                <DecorIcon className={styles.heroDecorIconA} />
-                <DecorIcon className={styles.heroDecorIconB} />
-                <DecorIcon className={styles.heroDecorIconC} />
+              <div className={styles.heroBgWrap} aria-hidden="true">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={heroImage} alt="" className={styles.heroBgImage} />
+                <div className={styles.heroBgOverlay} />
               </div>
               <div className={styles.imageChip}>
                 <Image src="/salon-central-logo.png" alt="Salon Central logo" width={96} height={96} />

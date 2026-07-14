@@ -253,7 +253,7 @@ export default function HairSalonPage() {
   return (
     <VerticalPage
       kickerIcon={<Scissors size={16} />}
-      heroDecorIcon={Scissors}
+      heroImage="https://images.unsplash.com/photo-1781450090585-1a511b7066d9?auto=format&fit=crop&w=900&q=70"
       kickerLabel="Hair Salons"
       h1="Hair Salon POS & Booking Software"
       heroParagraph="Salon Central is hair salon POS software built for how hair salons actually run: appointment scheduling, hair formula tracking, AI virtual hair color try-on, WhatsApp automation, and point of sale checkout, all in one hair salon point of sale system."

@@ -196,7 +196,7 @@ export default function SpaPage() {
   return (
     <VerticalPage
       kickerIcon={<Flower2 size={16} />}
-      heroDecorIcon={Flower2}
+      heroImage="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=70"
       kickerLabel="Spas"
       h1="Spa POS & Booking Software"
       heroParagraph="Salon Central is spa POS software built for how spas actually run: appointment scheduling, multi-branch support, loyalty membership tiers, WhatsApp automation, and point of sale checkout, all in one spa point of sale system."
