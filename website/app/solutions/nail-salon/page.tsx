@@ -2,9 +2,9 @@ import NailSalonPage from "../../../components/NailSalonPage";
 import { pageMetadata } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Nail Salon POS & Booking Software",
+  title: "Nail Salon Software | POS, Booking & Management",
   description:
-    "Nail salon software with appointment scheduling, nail preference tracking, POS checkout, and WhatsApp automation, all in one nail salon POS system.",
+    "Nail salon software with POS, appointment booking, scheduling, and management. The best POS system for nail salons by Salon Central",
   path: "/solutions/nail-salon",
   keywords: [
     "nail salon software",
