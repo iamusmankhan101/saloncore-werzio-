@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ChevronDown, MessageCircle, Send, Sparkles } from "lucide-react";
 import styles from "./ChatWidget.module.css";
 
@@ -10,6 +10,37 @@ interface Msg {
 
 type DemoStep = "name" | "phone" | "email" | null;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const BULLET_RE = /^[-*•]\s+/;
+
+/** Renders plain text with markdown-lite bullet lists ("- item" lines) as real <ul> lists; everything else as paragraphs. */
+function renderContent(content: string) {
+  const lines = content.split("\n");
+  const blocks: ReactNode[] = [];
+  let listItems: string[] = [];
+
+  const flushList = () => {
+    if (listItems.length === 0) return;
+    blocks.push(
+      <ul key={blocks.length} className={styles.msgList}>
+        {listItems.map((item, i) => <li key={i}>{item}</li>)}
+      </ul>
+    );
+    listItems = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) { flushList(); continue; }
+    if (BULLET_RE.test(line)) {
+      listItems.push(line.replace(BULLET_RE, ""));
+    } else {
+      flushList();
+      blocks.push(<p key={blocks.length} className={styles.msgPara}>{line}</p>);
+    }
+  }
+  flushList();
+  return blocks;
+}
 
 const QUICK_ACTIONS = [
   { emoji: "💜", label: "Book a free demo", kind: "demo" as const },
@@ -195,7 +226,7 @@ export default function ChatWidget() {
                   <div key={i} className={`${styles.msgRow} ${m.role === "user" ? styles.msgRowUser : ""}`}>
                     {m.role === "assistant" && <div className={styles.msgAvatar}>SC</div>}
                     <div className={`${styles.msgBubble} ${m.role === "user" ? styles.msgBubbleUser : styles.msgBubbleAssistant}`}>
-                      {m.content}
+                      {m.role === "assistant" ? renderContent(m.content) : m.content}
                     </div>
                   </div>
                 ))}

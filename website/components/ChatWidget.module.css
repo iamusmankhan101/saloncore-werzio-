@@ -295,6 +295,26 @@
   box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25);
 }
 
+.msgPara {
+  margin: 0;
+}
+.msgPara + .msgPara,
+.msgPara + .msgList,
+.msgList + .msgPara {
+  margin-top: 6px;
+}
+
+.msgList {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.msgList li {
+  line-height: 1.45;
+}
+
 .typing {
   display: flex;
   gap: 4px;
