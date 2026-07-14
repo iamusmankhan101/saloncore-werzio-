@@ -52,11 +52,26 @@ export async function POST(request: NextRequest) {
     return Response.json({ ok: true, queued: false, skipped: true, reason: "fake-placeholder-phone" });
   }
 
-  const scheduledAt = new Date(Date.now() + posReceiptDelayMs()).toISOString();
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
   try {
     await ensureTable();
+
+    // If this client already has a pending or recently-sent receipt (e.g. two separate
+    // checkouts within a minute of each other), stack this one's delay after that one's
+    // instead of independently jittering from "now" — otherwise two back-to-back
+    // invoices' own 10-15min windows can overlap and land only minutes apart.
+    const priorRow = await db.execute({
+      sql: `SELECT COALESCE(sent_at, scheduled_at) AS anchor_at FROM wa_pos_receipt_queue
+            WHERE user_id = ? AND phone = ? AND invoice_id != ?
+            ORDER BY anchor_at DESC LIMIT 1`,
+      args: [actor.userId, body.phone, body.invoice.id],
+    });
+    const anchorAt = priorRow.rows[0]?.anchor_at as string | undefined;
+    const ownEarliest = Date.now() + posReceiptDelayMs();
+    const afterPrior = anchorAt ? new Date(anchorAt).getTime() + posReceiptDelayMs() : 0;
+    const scheduledAt = new Date(Math.max(ownEarliest, afterPrior)).toISOString();
+
     await db.execute({
       sql: `INSERT INTO wa_pos_receipt_queue
               (id, user_id, invoice_id, invoice_number, phone, client_name, invoice_json, salon_json, thank_you_text, scheduled_at, status, attempts, created_at)
