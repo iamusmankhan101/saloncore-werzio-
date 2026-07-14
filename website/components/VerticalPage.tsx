@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -31,7 +30,6 @@ export interface VerticalPageProps {
   kickerLabel: string;
   h1: string;
   heroParagraph: string;
-  heroImageLabel: string;
   heroVisual: React.ReactNode;
   /** Themed background photo behind the hero card (a real, license-free Unsplash photo). */
   heroImage: string;
@@ -91,7 +89,7 @@ function FaqSection({ title, ariaLabel, faqs }: { title: string; ariaLabel: stri
 }
 
 export default function VerticalPage({
-  kickerIcon, kickerLabel, h1, heroParagraph, heroImageLabel, heroVisual, heroImage,
+  kickerIcon, kickerLabel, h1, heroParagraph, heroVisual, heroImage,
   heroFloatingIcon, heroFloatingText, heroFloatingColor,
   rows, ctaEyebrow, ctaTitle, ctaSubtitle, stats, faqAriaLabel, faqTitle, faqs,
 }: VerticalPageProps) {
@@ -137,10 +135,6 @@ export default function VerticalPage({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={heroImage} alt="" className={styles.heroBgImage} />
                 <div className={styles.heroBgOverlay} />
-              </div>
-              <div className={styles.imageChip}>
-                <Image src="/salon-central-logo.png" alt="Salon Central logo" width={96} height={96} />
-                <span>{heroImageLabel}</span>
               </div>
               <div className={styles.heroCard}>{heroVisual}</div>
               <div className={styles.floatingNote} style={{ color: heroFloatingColor }}>
