@@ -233,6 +233,7 @@ export default function BeautySalonPage() {
   return (
     <VerticalPage
       kickerIcon={<Sparkles size={16} />}
+      heroDecorIcon={Sparkles}
       kickerLabel="Beauty Salons"
       h1="Beauty Salon POS & Management Software"
       heroParagraph="Salon Central is beauty salon POS software built for how beauty salons actually run: appointment scheduling, detailed beauty client profiles, loyalty membership tiers, WhatsApp automation, and point of sale checkout, all in one beauty salon point of sale system."

@@ -33,6 +33,8 @@ export interface VerticalPageProps {
   heroParagraph: string;
   heroImageLabel: string;
   heroVisual: React.ReactNode;
+  /** Icon rendered several times, large and faint, behind the hero card as a themed decorative pattern. */
+  heroDecorIcon: React.ElementType;
   heroFloatingIcon: React.ReactNode;
   heroFloatingText: string;
   heroFloatingColor: string;
@@ -89,7 +91,7 @@ function FaqSection({ title, ariaLabel, faqs }: { title: string; ariaLabel: stri
 }
 
 export default function VerticalPage({
-  kickerIcon, kickerLabel, h1, heroParagraph, heroImageLabel, heroVisual,
+  kickerIcon, kickerLabel, h1, heroParagraph, heroImageLabel, heroVisual, heroDecorIcon: DecorIcon,
   heroFloatingIcon, heroFloatingText, heroFloatingColor,
   rows, ctaEyebrow, ctaTitle, ctaSubtitle, stats, faqAriaLabel, faqTitle, faqs,
 }: VerticalPageProps) {
@@ -131,6 +133,11 @@ export default function VerticalPage({
               </div>
             </div>
             <div className={styles.heroVisual}>
+              <div className={styles.heroDecor} aria-hidden="true">
+                <DecorIcon className={styles.heroDecorIconA} />
+                <DecorIcon className={styles.heroDecorIconB} />
+                <DecorIcon className={styles.heroDecorIconC} />
+              </div>
               <div className={styles.imageChip}>
                 <Image src="/salon-central-logo.png" alt="Salon Central logo" width={96} height={96} />
                 <span>{heroImageLabel}</span>

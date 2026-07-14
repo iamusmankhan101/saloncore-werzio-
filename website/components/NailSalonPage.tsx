@@ -193,6 +193,7 @@ export default function NailSalonPage() {
   return (
     <VerticalPage
       kickerIcon={<Hand size={16} />}
+      heroDecorIcon={Hand}
       kickerLabel="Nail Salons"
       h1="Nail Salon POS & Booking Software"
       heroParagraph="Salon Central is nail salon software built for how nail salons actually run: nail salon scheduling software, client nail preference tracking, WhatsApp automation, and point of sale checkout, all in one nail salon POS system."
