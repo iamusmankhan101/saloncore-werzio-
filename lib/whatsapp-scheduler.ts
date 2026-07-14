@@ -503,38 +503,8 @@ export async function enqueueWhatsAppConfirmation(apptId: string): Promise<void>
   if (!response.ok) throw new Error(`Queue confirmation failed: HTTP ${response.status}`);
 }
 
-/** Requests (or reuses) a public feedback-collection link for one appointment. */
-async function getFeedbackLink(appt: {
-  id: string;
-  clientId: string;
-  clientName: string;
-  staffName?: string;
-  serviceNames: string[];
-  date: string;
-}, phone: string): Promise<string> {
-  try {
-    const res = await fetch("/api/feedback/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        apptId: appt.id,
-        clientId: appt.clientId,
-        clientName: appt.clientName,
-        phone,
-        staffName: appt.staffName,
-        service: appt.serviceNames.join(", "),
-        apptDate: appt.date,
-      }),
-    });
-    const data = await res.json().catch(() => ({})) as { ok?: boolean; url?: string };
-    return data.ok && data.url ? data.url : "";
-  } catch {
-    return "";
-  }
-}
-
 /** Call when an appointment is marked completed — sends follow-up after the configured delay. */
-export async function enqueueWhatsAppFollowup(apptId: string): Promise<void> {
+export function enqueueWhatsAppFollowup(apptId: string) {
   if (typeof window === "undefined") return;
   // Master "WhatsApp Automation" toggle — skip queueing entirely while off, so
   // there's nothing sitting around to flush the moment it's re-enabled.
@@ -560,13 +530,7 @@ export async function enqueueWhatsAppFollowup(apptId: string): Promise<void> {
   const tpl = (settingsStore.whatsapp as { followup?: string }).followup;
   if (!tpl) return;
   const salonName = settingsStore.salon.name as string;
-  const feedbackLink = await getFeedbackLink(appt, phone);
-  let text = fillTemplate(tpl, buildVars(appt, salonName, feedbackLink));
-  // Older saved templates predate {{feedback_link}} — append it so every salon's
-  // clients get a feedback link, not just ones who've edited their template.
-  if (feedbackLink && !text.includes(feedbackLink)) {
-    text += `\n\nHow was your visit? Leave a quick rating: ${feedbackLink}`;
-  }
+  const text = fillTemplate(tpl, buildVars(appt, salonName));
   void queueDbWhatsAppMessage({
     kind: "followup",
     phone,
@@ -778,14 +742,13 @@ function buildVars(appt: {
   serviceNames: string[];
   date: string;
   startTime: string;
-}, salonName: string, feedbackLink = ""): Record<string, string> {
+}, salonName: string): Record<string, string> {
   return {
     name: appt.clientName,
     service: appt.serviceNames[0] || "",
     date: appt.date,
     time: to12h(appt.startTime),
     salon_name: salonName,
-    feedback_link: feedbackLink,
   };
 }
 

@@ -85,9 +85,8 @@ export default function SalonCentralVsBlushaPage() {
             },
             {
               feature: "Client feedback & review collection after visits",
-              salonCentral: true,
+              salonCentral: false,
               competitor: true,
-              note: "Salon Central's WhatsApp follow-up message includes a link where clients rate their visit and leave a comment, collected in the dashboard.",
             },
             { feature: "Loyalty points program with membership tiers", salonCentral: true, competitor: true },
           ],
@@ -118,7 +117,7 @@ export default function SalonCentralVsBlushaPage() {
           ],
         },
       ]}
-      verdict="Blusha and Salon Central are both purpose-built salon platforms, and this comparison is closer than most: both cover appointments, POS, staff commission, loyalty, multi-branch support, WhatsApp automation, and post-visit client feedback collection. Blusha currently has extra staff-facing tools Salon Central doesn't: a native mobile app with QR attendance and in-app loan requests, and a bulk multi-channel campaign builder. Salon Central's edge is in deeper beauty-specific client profiles (hair formulas, allergy alerts, skin type) and AI virtual try-on. If staff mobile app tooling matters most to you, Blusha is worth a close look; if detailed beauty client records and virtual try-on are your priority, Salon Central covers that more thoroughly. Best approach: demo both against your salon's actual daily workflow."
+      verdict="Blusha and Salon Central are both purpose-built salon platforms, and this comparison is closer than most: both cover appointments, POS, staff commission, loyalty, multi-branch support, and WhatsApp automation. Blusha currently has extra staff-facing tools Salon Central doesn't: a native mobile app with QR attendance and in-app loan requests, built-in client feedback collection, and a bulk multi-channel campaign builder. Salon Central's edge is in deeper beauty-specific client profiles (hair formulas, allergy alerts, skin type) and AI virtual try-on. If staff mobile app tooling and client feedback collection matter most to you, Blusha is worth a close look; if detailed beauty client records and virtual try-on are your priority, Salon Central covers that more thoroughly. Best approach: demo both against your salon's actual daily workflow."
       faqs={[
         {
           q: "What does Salon Central offer that Blusha doesn't?",
@@ -138,7 +137,7 @@ export default function SalonCentralVsBlushaPage() {
         },
         {
           q: "Does Salon Central collect client feedback like Blusha does?",
-          a: "Yes. Salon Central's automated WhatsApp follow-up message includes a link where clients rate their visit and leave an optional comment, collected in the dashboard, similar to Blusha's feedback requests.",
+          a: "Not currently. Blusha sends automated feedback requests after each service and tracks ratings and reviews. Salon Central does not currently include a client feedback or review collection feature.",
         },
         {
           q: "Does Salon Central work as a nail salon POS system on iPad?",
