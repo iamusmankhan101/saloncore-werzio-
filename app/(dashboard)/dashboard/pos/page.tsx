@@ -195,7 +195,9 @@ export default function POSPage() {
   const [discount,      setDiscount]      = useState<number>(0);
   const [discType,      setDiscType]      = useState<DiscountType>("flat");
   const [loyaltyRedeem, setLoyaltyRedeem] = useState<number>(0);
-  const [payMethod,     setPayMethod]     = useState<PaymentMethod>("cash");
+  // No default — staff must actively pick a method (or Pay Later/Credit) before checkout,
+  // otherwise sales were silently defaulting to "cash" even when no one confirmed that.
+  const [payMethod,     setPayMethod]     = useState<PaymentMethod | null>(null);
 
   // ── Mobile tab ───────────────────────────────────────────────────────────
   const [posTab, setPosTab] = useState<"customer" | "catalog" | "cart">("catalog");
@@ -255,6 +257,7 @@ export default function POSPage() {
   const { subtotal, taxAmount, total } = calcTotals(cartLineItems, totalDiscountAmount);
   const totalQty = cart.reduce((s, e) => s + e.qty, 0);
   const hasUnpricedVariable = cart.some(e => e.variablePrice && e.unitPrice <= 0);
+  const noPaymentSelected = !isCredit && !payMethod;
 
   // ── Cart ops ──────────────────────────────────────────────────────────────
   const addToCart = useCallback((item: CatalogItem) => {
@@ -365,7 +368,7 @@ export default function POSPage() {
 
   // ── New sale reset ────────────────────────────────────────────────────────
   function startNewSale() {
-    setCart([]); setDiscount(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod("cash");
+    setCart([]); setDiscount(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod(null);
     setSelectedClient(null); setClientQ(""); setSelectedStaffId("");
     setCompleted(false); setLastInvoice(null); setWaStatus("idle"); setIsCredit(false);
   }
@@ -373,6 +376,9 @@ export default function POSPage() {
   // ── Complete sale ─────────────────────────────────────────────────────────
   async function completeSale() {
     if (cart.length === 0 || completing) return;
+    // Mirrors the Complete Sale button's disabled condition — a payment method (or
+    // explicit Pay Later/Credit) must be chosen, never silently defaulted.
+    if (!isCredit && !payMethod) return;
     setCompleting(true);
     try {
       const today = localDateKey();
@@ -386,7 +392,7 @@ export default function POSPage() {
         staffName:     staffMember?.name || "",
         items:         cartLineItems,
         subtotal, discountAmount: totalDiscountAmount, taxAmount, total,
-        paymentMethod: isCredit ? "" : payMethod,
+        paymentMethod: isCredit ? "" : (payMethod as PaymentMethod),
         date: today, status: isCredit ? "unpaid" : "paid",
         notes: saleNotes.trim(),
         source: "pos",
@@ -488,7 +494,7 @@ export default function POSPage() {
   }
 
   const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string; logo?: string };
-  const selectedPayMethod = PAY_METHODS.find(p => p.value === payMethod)!;
+  const selectedPayMethod = PAY_METHODS.find(p => p.value === payMethod);
 
   const posPlan       = getCurrentPlan();
   const productLimit  = posPlan.posProductLimit; // -1 = unlimited
@@ -1141,8 +1147,16 @@ export default function POSPage() {
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", marginBottom: 3 }}>via</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 8, padding: "4px 10px" }}>
-                    {(() => { const Icon = selectedPayMethod.icon; return <Icon size={12} color="#fff" />; })()}
-                    <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{selectedPayMethod.label}</span>
+                    {isCredit ? (
+                      <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>Pay Later</span>
+                    ) : selectedPayMethod ? (
+                      <>
+                        <selectedPayMethod.icon size={12} color="#fff" />
+                        <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{selectedPayMethod.label}</span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 12, fontWeight: 800, color: "rgba(255,255,255,0.6)" }}>Not selected</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1188,15 +1202,20 @@ export default function POSPage() {
                   <AlertCircle size={13} /> Enter a price for the variable-priced item(s) before checkout
                 </div>
               )}
+              {!hasUnpricedVariable && noPaymentSelected && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, color: "#d97706" }}>
+                  <AlertCircle size={13} /> Select a payment method (or Pay Later/Credit) before checkout
+                </div>
+              )}
               {/* Complete button */}
-              <button type="button" onClick={completeSale} disabled={completing || hasUnpricedVariable}
+              <button type="button" onClick={completeSale} disabled={completing || hasUnpricedVariable || noPaymentSelected}
                 style={{
                   width: "100%", padding: "14px 0", borderRadius: 13, border: "none",
-                  background: (completing || hasUnpricedVariable) ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
-                  color: (completing || hasUnpricedVariable) ? "#aaaabc" : "#fff",
-                  fontSize: 15, fontWeight: 900, cursor: (completing || hasUnpricedVariable) ? "not-allowed" : "pointer",
+                  background: (completing || hasUnpricedVariable || noPaymentSelected) ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
+                  color: (completing || hasUnpricedVariable || noPaymentSelected) ? "#aaaabc" : "#fff",
+                  fontSize: 15, fontWeight: 900, cursor: (completing || hasUnpricedVariable || noPaymentSelected) ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-                  boxShadow: (completing || hasUnpricedVariable) ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
+                  boxShadow: (completing || hasUnpricedVariable || noPaymentSelected) ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
                   letterSpacing: "-0.01em", transition: "all 0.15s",
                 }}
                 onMouseEnter={e => { if (!completing) e.currentTarget.style.transform = "translateY(-1px)"; }}

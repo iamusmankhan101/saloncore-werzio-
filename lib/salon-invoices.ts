@@ -121,9 +121,9 @@ export function deleteSalonInvoice(id: string): void {
   saveSalonInvoices(getSalonInvoices().filter((inv) => inv.id !== id));
 }
 
-export function markSalonInvoicePaid(id: string): void {
+export function markSalonInvoicePaid(id: string, paymentMethod: PaymentMethod): void {
   const list = getSalonInvoices().map((inv) =>
-    inv.id === id ? { ...inv, status: "paid" as SalonInvoiceStatus } : inv
+    inv.id === id ? { ...inv, status: "paid" as SalonInvoiceStatus, paymentMethod } : inv
   );
   saveSalonInvoices(list);
 }

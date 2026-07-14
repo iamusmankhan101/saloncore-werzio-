@@ -9,6 +9,7 @@ import {
   getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid,
   type SalonInvoice,
 } from "@/lib/salon-invoices";
+import type { PaymentMethod } from "@/lib/types";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import { settingsStore } from "@/lib/settings-store";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
@@ -43,6 +44,15 @@ const METHOD_LABELS: Record<string, string> = {
   raast: "Raast", card: "Card", bank: "Bank Transfer", "": "—",
 };
 
+const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
+  { value: "cash",      label: "Cash" },
+  { value: "jazzcash",  label: "JazzCash" },
+  { value: "easypaisa", label: "EasyPaisa" },
+  { value: "raast",     label: "Raast" },
+  { value: "card",      label: "Card" },
+  { value: "bank",      label: "Bank Transfer" },
+];
+
 function StatCard({ label, value, sub, color = "var(--accent)", bg = "rgba(124, 58, 237, 0.08)", icon }: {
   label: string; value: string; sub?: string; color?: string; bg?: string; icon?: React.ReactNode;
 }) {
@@ -64,6 +74,7 @@ export default function InvoicesPage() {
   const [filterStatus, setFilterStatus] = useState<"all" | "paid" | "unpaid">("all");
   const [viewingInvoice, setViewingInvoice] = useState<SalonInvoice | null>(null);
   const [deleteConfirm, setDeleteConfirm]   = useState<string | null>(null);
+  const [markPaidPromptId, setMarkPaidPromptId] = useState<string | null>(null);
 
   const salon = settingsStore.salon;
 
@@ -102,12 +113,15 @@ export default function InvoicesPage() {
     });
   }, [invoices, search, filterStatus]);
 
-  function handleMarkPaid(id: string) {
-    markSalonInvoicePaid(id);
+  function confirmMarkPaid(method: PaymentMethod) {
+    if (!markPaidPromptId) return;
+    const id = markPaidPromptId;
+    markSalonInvoicePaid(id, method);
     reload();
     if (viewingInvoice?.id === id) {
-      setViewingInvoice((prev) => prev ? { ...prev, status: "paid" } : prev);
+      setViewingInvoice((prev) => prev ? { ...prev, status: "paid", paymentMethod: method } : prev);
     }
+    setMarkPaidPromptId(null);
   }
 
   function handleDelete(id: string) {
@@ -220,7 +234,7 @@ export default function InvoicesPage() {
           salonEmail={salon.email as string}
           salonAddress={salon.address as string}
           onClose={() => setViewingInvoice(null)}
-          onMarkPaid={() => handleMarkPaid(viewingInvoice.id)}
+          onMarkPaid={() => setMarkPaidPromptId(viewingInvoice.id)}
         />
       )}
       {deleteConfirm && (
@@ -235,6 +249,30 @@ export default function InvoicesPage() {
               <button onClick={() => setDeleteConfirm(null)} style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
               <button onClick={() => handleDelete(deleteConfirm)} style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "#dc2626", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>Delete</button>
             </div>
+          </div>
+        </div>
+      )}
+      {markPaidPromptId && (
+        <div onClick={() => setMarkPaidPromptId(null)} className="modal-overlay" style={{ zIndex: 250 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", maxWidth: 360, width: "100%", boxShadow: "0 16px 50px rgba(0,0,0,0.2)", textAlign: "center" }}>
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <CheckCircle size={22} color="#059669" />
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 6 }}>How was this paid?</div>
+            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 20 }}>Select a payment method to mark this invoice paid.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+              {PAYMENT_METHOD_OPTIONS.map((pm) => (
+                <button
+                  key={pm.value}
+                  onClick={() => confirmMarkPaid(pm.value)}
+                  style={{ padding: "10px 12px", borderRadius: 9, border: "1px solid #e8e8f0", background: "#faf9fd", fontSize: 13, fontWeight: 700, color: "#1a1a2e", cursor: "pointer" }}
+                  className="hover-bg-light"
+                >
+                  {pm.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setMarkPaidPromptId(null)} style={{ padding: "8px 20px", borderRadius: 9, border: "none", background: "none", fontSize: 13, fontWeight: 600, color: "#9898b0", cursor: "pointer" }}>Cancel</button>
           </div>
         </div>
       )}
@@ -367,7 +405,7 @@ export default function InvoicesPage() {
                       </button>
                       {inv.status === "unpaid" && (
                         <button
-                          onClick={() => handleMarkPaid(inv.id)}
+                          onClick={() => setMarkPaidPromptId(inv.id)}
                           title="Mark Paid"
                           style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #bbf7d0", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
                           className="hover-scale"
