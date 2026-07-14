@@ -120,9 +120,6 @@ export default function VerticalPage({
                 <button type="button" onClick={() => setDemoOpen(true)} className={styles.primaryCta}>
                   Get started <ArrowRight size={17} />
                 </button>
-                <Link href="/#features" className={styles.secondaryCta}>
-                  Explore features
-                </Link>
               </div>
             </div>
             <div className={styles.heroVisual}>
