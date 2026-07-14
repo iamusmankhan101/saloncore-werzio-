@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { siteConfig } from "../lib/seo";
+import ChatBubble from "../components/ChatBubble";
 
 const title = "Salon Software, POS & CRM for Beauty Salons | Salon Central";
 const description = siteConfig.description;
@@ -100,7 +101,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <ChatBubble />
+      </body>
     </html>
   );
 }
