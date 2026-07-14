@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users, Package, Gift, Coins, Scissors, Sparkles, Flower2, Hand } from "lucide-react";
+import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users, Package, Gift, Coins, Scissors, Sparkles, Flower2, Hand, Crown } from "lucide-react";
 import styles from "./Navbar.module.css";
 import DemoModal from "./DemoModal";
 
@@ -27,6 +27,7 @@ const solutionLinks = [
   { label: "Beauty Salons", desc: "Beauty profiles, loyalty & POS",     href: "/solutions/beauty-salon", Icon: Sparkles },
   { label: "Spas",          desc: "Multi-branch, packages & POS",       href: "/solutions/spa",          Icon: Flower2 },
   { label: "Nail Salons",   desc: "Nail preferences, booking & POS",    href: "/solutions/nail-salon",   Icon: Hand },
+  { label: "Bridal Salons", desc: "Trials, wedding day & try-on",       href: "/solutions/bridal-salon", Icon: Crown },
 ];
 
 const links = [
