@@ -4,10 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 const submittedEmails = new Set<string>();
 
 export async function POST(req: NextRequest) {
-  const { name, email, phone, datetime } = await req.json();
+  const body = await req.json();
+  const { name, email, phone } = body;
+  // datetime is optional — the chat widget's demo flow only collects name/phone/email
+  // and leaves scheduling to a follow-up call; the modal form still asks for it directly.
+  const datetime: string = body.datetime || "Not specified — to be scheduled by phone/email";
 
-  if (!name || !email || !phone || !datetime) {
-    return NextResponse.json({ error: "All fields are required." }, { status: 400 });
+  if (!name || !email || !phone) {
+    return NextResponse.json({ error: "Name, email, and phone are required." }, { status: 400 });
   }
 
   const normalizedEmail = email.toLowerCase().trim();

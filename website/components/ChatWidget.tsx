@@ -2,12 +2,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronDown, MessageCircle, Send, Sparkles } from "lucide-react";
 import styles from "./ChatWidget.module.css";
-import DemoModal from "./DemoModal";
 
 interface Msg {
   role: "user" | "assistant";
   content: string;
 }
+
+type DemoStep = "name" | "phone" | "email" | null;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const QUICK_ACTIONS = [
   { emoji: "💜", label: "Book a free demo", kind: "demo" as const },
@@ -28,7 +30,8 @@ export default function ChatWidget() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoStep, setDemoStep] = useState<DemoStep>(null);
+  const demoDataRef = useRef({ name: "", phone: "", email: "" });
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,13 +66,70 @@ export default function ChatWidget() {
   }
 
   function handleQuickAction(kind: "demo" | "chat" | "switch") {
+    setScreen("chat");
     if (kind === "demo") {
-      setDemoOpen(true);
+      demoDataRef.current = { name: "", phone: "", email: "" };
+      setDemoStep("name");
+      setMessages((prev) => [...prev, { role: "assistant", content: "Great! Let's get you booked in for a free demo. What's your name?" }]);
       return;
     }
-    setScreen("chat");
     if (kind === "switch") {
       void send("I want to switch from my current software to Salon Central. What should I know?");
+    }
+  }
+
+  async function handleDemoAnswer(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+    setInput("");
+
+    if (demoStep === "name") {
+      demoDataRef.current.name = trimmed;
+      setDemoStep("phone");
+      setMessages((prev) => [...prev, { role: "assistant", content: `Thanks, ${trimmed}! What's the best phone number to reach you on?` }]);
+      return;
+    }
+
+    if (demoStep === "phone") {
+      if (trimmed.replace(/\D/g, "").length < 7) {
+        setMessages((prev) => [...prev, { role: "assistant", content: "That doesn't look like a valid phone number — mind trying again?" }]);
+        return;
+      }
+      demoDataRef.current.phone = trimmed;
+      setDemoStep("email");
+      setMessages((prev) => [...prev, { role: "assistant", content: "Perfect. And what's your email address?" }]);
+      return;
+    }
+
+    if (demoStep === "email") {
+      if (!EMAIL_RE.test(trimmed)) {
+        setMessages((prev) => [...prev, { role: "assistant", content: "That doesn't look like a valid email — mind trying again?" }]);
+        return;
+      }
+      demoDataRef.current.email = trimmed;
+      setLoading(true);
+      try {
+        const res = await fetch("/api/demo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(demoDataRef.current),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setMessages((prev) => [...prev, { role: "assistant", content: data.error || "Something went wrong submitting that — mind trying your email again?" }]);
+          return;
+        }
+        setDemoStep(null);
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: `🎉 Thanks, ${demoDataRef.current.name}! We've got your details and will reach out within 24 hours to schedule your demo.`,
+        }]);
+      } catch {
+        setMessages((prev) => [...prev, { role: "assistant", content: "Couldn't submit that — mind trying your email again?" }]);
+      } finally {
+        setLoading(false);
+      }
     }
   }
 
@@ -157,14 +217,21 @@ export default function ChatWidget() {
               className={styles.footer}
               onSubmit={(e) => {
                 e.preventDefault();
-                void send(input);
+                if (demoStep) void handleDemoAnswer(input);
+                else void send(input);
               }}
             >
               <input
                 className={styles.input}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Type a message…"
+                placeholder={
+                  demoStep === "name" ? "Your name…"
+                  : demoStep === "phone" ? "Your phone number…"
+                  : demoStep === "email" ? "Your email…"
+                  : "Type a message…"
+                }
+                type={demoStep === "email" ? "email" : demoStep === "phone" ? "tel" : "text"}
                 maxLength={2000}
               />
               <button type="submit" className={styles.sendBtn} disabled={loading || !input.trim()} aria-label="Send">
@@ -180,8 +247,6 @@ export default function ChatWidget() {
           </div>
         </div>
       )}
-
-      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
   );
 }
