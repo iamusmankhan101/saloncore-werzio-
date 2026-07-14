@@ -193,9 +193,6 @@ export default function AestheticClinicPage() {
       kickerLabel="Aesthetic Clinics"
       h1="Aesthetic Clinic Software | Skin Clinic Management"
       heroParagraph="Salon Central is aesthetic clinic software built for how aesthetic and skin clinics actually run: consultation and treatment scheduling, client skin profiles, WhatsApp automation, and point of sale checkout, all in one platform for an aesthetic clinic in Lahore, an aesthetic clinic in Karachi, or any aesthetic skin clinic."
-      heroFloatingIcon={<Droplet size={15} />}
-      heroFloatingText="Skin profile saved automatically"
-      heroFloatingColor="#166534"
       rows={rows}
       ctaEyebrow="Ready to upgrade your clinic?"
       ctaTitle="See how Salon Central runs an aesthetic clinic end to end"

@@ -190,9 +190,6 @@ export default function BridalSalonPage() {
       kickerLabel="Bridal Salons"
       h1="Bridal Salon POS & Booking Software"
       heroParagraph="Salon Central is bridal salon software built for how bridal salons actually run: trial and wedding day scheduling, AI bridal look try-on, bridal profile tracking, WhatsApp automation, and point of sale checkout, all in one platform trusted by bridal salons in Lahore and beyond."
-      heroFloatingIcon={<Heart size={15} />}
-      heroFloatingText="Bridal profile saved automatically"
-      heroFloatingColor="#166534"
       rows={rows}
       ctaEyebrow="Ready to upgrade your bridal salon?"
       ctaTitle="See how Salon Central runs a bridal salon end to end"

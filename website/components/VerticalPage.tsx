@@ -32,9 +32,6 @@ export interface VerticalPageProps {
   heroParagraph: string;
   /** Themed background photo behind the hero card (a real, license-free Unsplash photo). */
   heroImage: string;
-  heroFloatingIcon: React.ReactNode;
-  heroFloatingText: string;
-  heroFloatingColor: string;
   rows: VerticalFeatureRow[];
   ctaEyebrow: string;
   ctaTitle: string;
@@ -89,7 +86,6 @@ function FaqSection({ title, ariaLabel, faqs }: { title: string; ariaLabel: stri
 
 export default function VerticalPage({
   kickerIcon, kickerLabel, h1, heroParagraph, heroImage,
-  heroFloatingIcon, heroFloatingText, heroFloatingColor,
   rows, ctaEyebrow, ctaTitle, ctaSubtitle, stats, faqAriaLabel, faqTitle, faqs,
 }: VerticalPageProps) {
   const [demoOpen, setDemoOpen] = useState(false);
@@ -134,10 +130,6 @@ export default function VerticalPage({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={heroImage} alt="" className={styles.heroBgImage} />
                 <div className={styles.heroBgOverlay} />
-              </div>
-              <div className={styles.floatingNote} style={{ color: heroFloatingColor }}>
-                {heroFloatingIcon}
-                <span>{heroFloatingText}</span>
               </div>
             </div>
           </div>
