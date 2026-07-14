@@ -6,7 +6,7 @@ export default function ChatBubble() {
     <Bubble
       typebot="user-onboarding-46ov8w7"
       apiHost="https://typebot.io"
-      theme={{ button: { backgroundColor: "#1D1D1D", iconColor: "#9c4df4" } }}
+      theme={{ button: { backgroundColor: "#1D1D1D", iconColor: "#FFFFFF" } }}
     />
   );
 }
