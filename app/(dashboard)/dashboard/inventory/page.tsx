@@ -527,6 +527,16 @@ export default function InventoryPage() {
     checkLowStockAlerts();
   }, []);
 
+  // Deep-link support: opening /dashboard/inventory?id=<itemId> (e.g. from a
+  // low-stock notification) auto-opens that item's edit modal once data has loaded.
+  useEffect(() => {
+    if (items.length === 0) return;
+    const id = new URLSearchParams(window.location.search).get("id");
+    if (!id) return;
+    const item = items.find((i) => i.id === id);
+    if (item) setEditItem(item);
+  }, [items]);
+
   const persist = useCallback((updated: InventoryItem[]) => {
     setItems(updated);
     saveInventory(updated);

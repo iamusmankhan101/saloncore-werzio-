@@ -87,6 +87,16 @@ export default function InvoicesPage() {
 
   useEffect(() => { reload(); }, []);
 
+  // Deep-link support: opening /dashboard/invoices?id=<invoiceId> (e.g. from a
+  // notification) auto-opens that invoice's detail view once data has loaded.
+  useEffect(() => {
+    if (invoices.length === 0) return;
+    const id = new URLSearchParams(window.location.search).get("id");
+    if (!id) return;
+    const inv = invoices.find((i) => i.id === id);
+    if (inv) setViewingInvoice(inv);
+  }, [invoices]);
+
   const stats = useMemo(() => {
     const paid   = invoices.filter((i) => i.status === "paid");
     const unpaid = invoices.filter((i) => i.status === "unpaid");
