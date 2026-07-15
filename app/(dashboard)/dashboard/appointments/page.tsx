@@ -373,6 +373,49 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   const [newClientForm, setNewClientForm] = useState({ name: "", phone: "", email: "", dob: "" });
   const [newClientSaved, setNewClientSaved] = useState(false);
 
+  // Searchable client picker — typing filters the client list live and shows
+  // matches, so staff never have to scroll a long native <select> to find someone.
+  const [clientQuery, setClientQuery] = useState("");
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
+  const clientBoxRef = useRef<HTMLDivElement>(null);
+
+  // Keep the search box text in sync whenever a client gets selected from
+  // outside a keystroke (picking a suggestion, or the duplicate-client flow in
+  // the "new client" panel handing control back here). Deliberately does NOT
+  // react to clientId being cleared — that happens on every keystroke below,
+  // and re-syncing then would overwrite what the user is actively typing.
+  useEffect(() => {
+    if (form.clientId && form.clientId !== "__new__") {
+      const c = clients.find((cl) => cl.id === form.clientId);
+      if (c) setClientQuery(c.name);
+    }
+  }, [form.clientId, clients]);
+
+  // Close the dropdown on an outside click rather than on blur, so clicking a
+  // suggestion (which blurs the input first) still registers as a selection.
+  useEffect(() => {
+    if (!clientDropdownOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (clientBoxRef.current && !clientBoxRef.current.contains(e.target as Node)) {
+        setClientDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [clientDropdownOpen]);
+
+  const clientQueryTrimmed = clientQuery.trim().toLowerCase();
+  const clientMatches = (clientQueryTrimmed
+    ? clients.filter((c) => c.name.toLowerCase().includes(clientQueryTrimmed) || c.phone.includes(clientQueryTrimmed))
+    : clients
+  ).slice(0, 8);
+
+  const pickClient = (c: Client) => {
+    set("clientId", c.id);
+    setClientQuery(c.name);
+    setClientDropdownOpen(false);
+  };
+
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const setNC = (k: string, v: string) => setNewClientForm((f) => ({ ...f, [k]: v }));
   const canSaveNewClient = newClientForm.name.trim();
@@ -539,10 +582,45 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
           <FormField label="Client">
             {!newClient ? (
               <div style={{ display: "flex", gap: 8 }}>
-                <select value={form.clientId} onChange={(e) => set("clientId", e.target.value)} style={{ ...selectStyle, flex: 1 }}>
-                  <option value="">Select a client…</option>
-                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}
-                </select>
+                <div ref={clientBoxRef} style={{ position: "relative", flex: 1 }}>
+                  <input
+                    value={clientQuery}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setClientQuery(val);
+                      setClientDropdownOpen(true);
+                      // Auto-select once what's typed exactly matches exactly one
+                      // client's name — no click needed for the common case of
+                      // typing a known client's full name. Ambiguous (0 or 2+
+                      // exact matches) falls back to picking from the list below.
+                      const exact = clients.filter((c) => c.name.trim().toLowerCase() === val.trim().toLowerCase());
+                      if (val.trim() && exact.length === 1) set("clientId", exact[0].id);
+                      else if (form.clientId) set("clientId", "");
+                    }}
+                    onFocus={() => setClientDropdownOpen(true)}
+                    placeholder="Select a client…"
+                    style={{ ...selectStyle, width: "100%", boxSizing: "border-box", paddingRight: 32 }}
+                  />
+                  <ChevronDown size={15} color="#9898b0" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                  {clientDropdownOpen && (
+                    <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 8, boxShadow: "0 8px 20px rgba(0,0,0,0.1)", zIndex: 10, maxHeight: 240, overflowY: "auto" }}>
+                      {clientMatches.length === 0 ? (
+                        <div style={{ padding: "10px 12px", fontSize: 12, color: "#9898b0" }}>No clients match &quot;{clientQuery}&quot;.</div>
+                      ) : clientMatches.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => pickClient(c)}
+                          style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: form.clientId === c.id ? "#F5F3FF" : "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", gap: 1 }}
+                          className="hover-bg-light"
+                        >
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{c.name}</span>
+                          <span style={{ fontSize: 11, color: "#9898b0" }}>{c.phone}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => { setNewClient(true); setNewClientSaved(false); set("clientId", "__new__"); }}
