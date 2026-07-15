@@ -9,7 +9,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { activeWhatsAppCredential, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { appointmentStartHasPassed, timezoneFromSettings } from "@/lib/appointment-time";
 
@@ -249,16 +249,19 @@ export async function POST(req: NextRequest) {
         // delay pushed it past its own start), same as the dashboard's confirmation
         // queue: confirming a booking that's already happened isn't useful.
         const apptAlreadyStarted = appointmentStartHasPassed(appointment.date, appointment.startTime, timezoneFromSettings(settings));
-        if (phone && autoConfirmation && !apptAlreadyStarted) {
+        const normalizedPhone = phone ? normalizePhone(phone) : "";
+        const phoneLooksFake = normalizedPhone ? isFakePlaceholderPhone(normalizedPhone) : false;
+        if (normalizedPhone && !phoneLooksFake && autoConfirmation && !apptAlreadyStarted) {
           const confirmationTpl: string =
             tpl.confirmation ||
             "Hi {{name}}, your {{service}} booking on {{date}} at {{time}} is confirmed at {{salon_name}}. We look forward to seeing you! 💜";
           const confirmText = fillTemplate(confirmationTpl, vars);
-          const normalizedPhone = normalizePhone(phone);
           await queueBookingSend("confirmation", normalizedPhone, confirmText, appointment.clientName);
           console.log(`[public/booking] Queued confirmation to ${normalizedPhone}`);
-        } else if (!phone) {
+        } else if (!normalizedPhone) {
           console.warn("[public/booking] No phone number — skipping WhatsApp confirmation");
+        } else if (phoneLooksFake) {
+          console.warn("[public/booking] Phone number looks fake/placeholder — skipping WhatsApp confirmation");
         } else if (apptAlreadyStarted) {
           console.log("[public/booking] Appointment time already passed — skipping WhatsApp confirmation");
         }

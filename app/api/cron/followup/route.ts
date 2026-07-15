@@ -8,7 +8,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { activeWhatsAppCredential, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
+import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { appointmentStartMs, isWithinSalonHours, nextSalonOpenMs, timezoneFromSettings, type SalonHoursDay } from "@/lib/appointment-time";
 
 const MINUTE_MS = 60 * 1000;
@@ -251,6 +251,7 @@ async function runFollowupCron() {
         }
         const phone = normalizePhone(rawPhone);
         if (!phone) { skipped++; continue; }
+        if (isFakePlaceholderPhone(phone)) { skipped++; continue; }
         if (queuedPhones.has(phone)) { skipped++; continue; }
         if (await hasFollowupForSameDay(userId, phone, appt.date)) { skipped++; continue; }
 
