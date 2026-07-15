@@ -447,6 +447,14 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     }
 
     const providerConfig = providerFromSettings(settings);
+    if (!activeWhatsAppCredential(providerConfig)) {
+      // Not connected — defer rather than attempt/fail. Credentials can come back
+      // (reconnect, re-enter API key) and the message should still go out then,
+      // unlike the "automation explicitly disabled" case above which expires outright.
+      await deferItem(item, retryDelayMs(item.kind), "WhatsApp is not connected — will retry once reconnected.");
+      skipped++;
+      continue;
+    }
     if (sendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
       deferredDelayMs += spacingDelayMs(item.kind);
       await deferItem(item, deferredDelayMs, "Deferred to pace automated WhatsApp sends.");
