@@ -6,9 +6,11 @@ import { rateLimit } from "@/lib/rate-limit";
 import { appointmentStartMs, appointmentStartHasPassed, timezoneFromSettings, type SalonHoursDay } from "@/lib/appointment-time";
 import { createBooking } from "@/lib/booking";
 import type { Client, Appointment, Staff, Service } from "@/lib/types";
+import type { SalonInvoice } from "@/lib/salon-invoices";
 
 const MAX_BOOKING_HORIZON_DAYS = 90;
 const MAX_AGENT_BOOKINGS_PER_DAY = 20;
+const MAX_REVENUE_RANGE_DAYS = 366;
 
 // ── shared data-access helpers ──────────────────────────────────────────────
 
@@ -239,6 +241,64 @@ const baseHandler = createMcpHandler(
             startTime: a.startTime, endTime: a.endTime, status: a.status,
           }));
         return jsonContent({ date: targetDate, appointments: dayAppts });
+      },
+    );
+
+    server.tool(
+      "get_revenue_summary",
+      "The salon's exact recognized revenue total for a date range — the same number shown on the dashboard's Revenue Management page. Use this instead of adding up list_appointments/list_services yourself: that misses POS checkout add-ons (retail products, discounts, tiered pricing) and can double-count or under-count, since an appointment's booked price can differ from what was actually charged at checkout.",
+      {
+        startDate: dateStrSchema,
+        endDate: dateStrSchema.optional(),
+      },
+      async ({ startDate, endDate }, extra) => {
+        const actor = mcpActorFrom(extra.authInfo);
+        if (!actor) return errorContent("Unauthorized.");
+        const limited = checkKeyRateLimit(actor);
+        if (limited) return limited;
+
+        const rangeEnd = endDate ?? startDate;
+        if (rangeEnd < startDate) return errorContent("endDate must be on or after startDate.");
+        const spanDays = (new Date(`${rangeEnd}T00:00:00Z`).getTime() - new Date(`${startDate}T00:00:00Z`).getTime()) / 86_400_000;
+        if (spanDays > MAX_REVENUE_RANGE_DAYS) return errorContent(`Range too wide — max ${MAX_REVENUE_RANGE_DAYS} days.`);
+
+        await ensureSalonDataTable();
+        const [appointments, invoices] = await Promise.all([
+          readBlob<Appointment>(actor, "appointments"),
+          readBlob<SalonInvoice>(actor, "salon_invoices"),
+        ]);
+
+        // Mirrors app/(dashboard)/dashboard/revenue/page.tsx exactly: completed
+        // appointments' totalAmount (reconciled to the real POS total when the
+        // appointment itself was checked out through POS) PLUS standalone/walk-in
+        // invoices only — appointment-linked invoices are excluded here because
+        // that same amount is already counted via the appointment's totalAmount,
+        // and including both would double-count that visit.
+        const inRange = (d: string) => d >= startDate && d <= rangeEnd;
+        const completedAppts = appointments.filter((a) => a.status === "completed" && inRange(a.date));
+        const standaloneInvoices = invoices.filter((inv) => !inv.appointmentId && inRange(inv.date));
+
+        const appointmentRevenue = completedAppts.reduce((s, a) => s + a.totalAmount, 0);
+        const posRevenue = standaloneInvoices.reduce((s, inv) => s + inv.total, 0);
+        const unpaidPosInvoices = standaloneInvoices.filter((inv) => inv.status === "unpaid");
+        const unpaidPosRevenue = unpaidPosInvoices.reduce((s, inv) => s + inv.total, 0);
+        const totalRevenue = appointmentRevenue + posRevenue;
+        const transactionCount = completedAppts.length + standaloneInvoices.length;
+
+        return jsonContent({
+          startDate,
+          endDate: rangeEnd,
+          totalRevenue,
+          appointmentRevenue,
+          posRevenue,
+          unpaidPosRevenue,
+          appointmentCount: completedAppts.length,
+          invoiceCount: standaloneInvoices.length,
+          avgTicket: transactionCount > 0 ? Math.round(totalRevenue / transactionCount) : 0,
+          note:
+            "totalRevenue matches the dashboard's Revenue Management page: it's recognized revenue (includes unpaid invoices as booked/owed), not cash actually collected. " +
+            (unpaidPosRevenue > 0 ? `Of posRevenue, ${unpaidPosRevenue} is still unpaid.` : "All included invoices are paid."),
+        });
       },
     );
 
