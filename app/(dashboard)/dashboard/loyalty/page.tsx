@@ -57,10 +57,10 @@ function StatCard({ icon, label, value, sub, color, bg }: {
 // ── Digital Loyalty Card ───────────────────────────────────────────────────────
 
 const TIER_CARD_STYLES: Record<ReturnType<typeof getTier>, { bg: string; shimmer: string; text: string; sub: string; chip: string }> = {
-  platinum: { bg: "linear-gradient(135deg,#3b0764 0%,#6b21a8 50%,#a855f7 100%)", shimmer: "rgba(255,255,255,0.12)", text: "#fff", sub: "rgba(255,255,255,0.7)", chip: "#c084fc" },
-  gold:     { bg: "linear-gradient(135deg,#78350f 0%,#b45309 50%,#f59e0b 100%)", shimmer: "rgba(255,255,255,0.14)", text: "#fff", sub: "rgba(255,255,255,0.72)", chip: "#fcd34d" },
-  silver:   { bg: "linear-gradient(135deg,#1e293b 0%,#334155 50%,#64748b 100%)", shimmer: "rgba(255,255,255,0.10)", text: "#fff", sub: "rgba(255,255,255,0.68)", chip: "#94a3b8" },
-  bronze:   { bg: "linear-gradient(135deg,#431407 0%,#9a3412 50%,#ea580c 100%)", shimmer: "rgba(255,255,255,0.10)", text: "#fff", sub: "rgba(255,255,255,0.68)", chip: "#fdba74" },
+  platinum: { bg: "linear-gradient(135deg,#2e1065 0%,#6d28d9 55%,#a855f7 100%)", shimmer: "rgba(255,255,255,0.14)", text: "#fff", sub: "rgba(255,255,255,0.72)", chip: "#c084fc" },
+  gold:     { bg: "linear-gradient(135deg,#2e1065 0%,#7c3aed 55%,#c084fc 100%)", shimmer: "rgba(255,255,255,0.13)", text: "#fff", sub: "rgba(255,255,255,0.72)", chip: "#d8b4fe" },
+  silver:   { bg: "linear-gradient(135deg,#1e1b4b 0%,#5b21b6 55%,#9333ea 100%)", shimmer: "rgba(255,255,255,0.11)", text: "#fff", sub: "rgba(255,255,255,0.7)", chip: "#c4b5fd" },
+  bronze:   { bg: "linear-gradient(135deg,#1e1b4b 0%,#4c1d95 55%,#7c3aed 100%)", shimmer: "rgba(255,255,255,0.10)", text: "#fff", sub: "rgba(255,255,255,0.68)", chip: "#a78bfa" },
   none:     { bg: "linear-gradient(135deg,#1e1b4b 0%,#4c1d95 50%,#7C3AED 100%)", shimmer: "rgba(255,255,255,0.10)", text: "#fff", sub: "rgba(255,255,255,0.68)", chip: "#a78bfa" },
 };
 
@@ -68,6 +68,21 @@ function formatCardNumber(id: string): string {
   const hex = id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().padEnd(16, "0").slice(0, 16);
   return `${hex.slice(0, 4)} ${hex.slice(4, 8)} ${hex.slice(8, 12)} ${hex.slice(12, 16)}`;
 }
+
+function shortMemberId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8).padEnd(6, "0");
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+const TIER_ICON: Record<ReturnType<typeof getTier>, typeof Award> = {
+  platinum: Award, gold: Award, silver: Star, bronze: Star, none: Gift,
+};
 
 function DigitalCard({
   client, settings, salonName, salonLogo, printRef,
@@ -84,89 +99,89 @@ function DigitalCard({
   const next    = nextTierThreshold(earned, settings);
   const cs      = TIER_CARD_STYLES[tier];
   const meta    = TIER_META[tier];
-  const cardNum = formatCardNumber(client.id);
+  const memberId = shortMemberId(client.id);
   const progress = next ? Math.min(100, (earned / (earned + next.needed)) * 100) : 100;
+  const TierIcon = TIER_ICON[tier];
 
   return (
     <div ref={printRef} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Card face */}
       <div style={{
-        position: "relative", borderRadius: 20, overflow: "hidden",
-        background: cs.bg, padding: "24px 26px 22px",
-        aspectRatio: "1.586", maxWidth: 420, width: "100%", margin: "0 auto",
+        position: "relative", borderRadius: 26, overflow: "hidden",
+        background: cs.bg, padding: "26px 26px 22px",
+        maxWidth: 420, width: "100%", margin: "0 auto",
         boxShadow: "0 16px 48px rgba(0,0,0,0.28)",
-        fontFamily: "'Courier New', monospace",
+        fontFamily: "inherit",
         userSelect: "none",
       }}>
+        {/* Watermark badge icon */}
+        <TierIcon size={168} color={cs.text} strokeWidth={1} style={{ position: "absolute", top: -34, right: -30, opacity: 0.10, transform: "rotate(-10deg)" }} />
         {/* Shimmer overlay */}
         <div style={{
           position: "absolute", inset: 0,
-          background: `radial-gradient(ellipse at 20% 20%, ${cs.shimmer} 0%, transparent 60%)`,
+          background: `radial-gradient(ellipse at 20% 15%, ${cs.shimmer} 0%, transparent 60%)`,
           pointerEvents: "none",
         }} />
 
         {/* Top row: salon logo/name + tier badge */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {/* Logo or fallback icon */}
             <div style={{
-              width: 40, height: 40, borderRadius: 10,
+              width: 42, height: 42, borderRadius: "50%",
               background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center",
-              overflow: "hidden", flexShrink: 0,
+              overflow: "hidden", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.32)",
             }}>
               {salonLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={salonLogo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
-                <Gift size={20} color={cs.text} />
+                <Gift size={19} color={cs.text} />
               )}
             </div>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: cs.sub, letterSpacing: "0.12em", textTransform: "uppercase" }}>Loyalty Card</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: cs.text, letterSpacing: "0.04em", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{salonName}</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: cs.sub, letterSpacing: "0.12em", textTransform: "uppercase" }}>Loyalty Member</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: cs.text, letterSpacing: "0.01em", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{salonName}</div>
             </div>
           </div>
           {/* Tier badge */}
           <div style={{
             background: "rgba(255,255,255,0.18)", borderRadius: 20,
-            padding: "4px 12px", fontSize: 11, fontWeight: 800, color: cs.text,
-            backdropFilter: "blur(4px)",
+            padding: "5px 13px", fontSize: 11, fontWeight: 800, color: cs.text,
+            backdropFilter: "blur(4px)", display: "flex", alignItems: "center", gap: 5,
           }}>
             {meta.emoji} {meta.label}
           </div>
         </div>
 
-        {/* Chip */}
-        <div style={{
-          marginTop: 20, width: 40, height: 30, borderRadius: 6,
-          background: cs.chip, opacity: 0.9,
-          border: "1px solid rgba(255,255,255,0.3)",
-          display: "grid", placeItems: "center",
-        }}>
-          <div style={{
-            width: 28, height: 20, borderRadius: 3,
-            background: "rgba(0,0,0,0.15)",
-            border: "1px solid rgba(255,255,255,0.25)",
-          }} />
-        </div>
-
-        {/* Points */}
-        <div style={{ marginTop: 14, position: "relative" }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: cs.sub, letterSpacing: "0.12em", textTransform: "uppercase" }}>Points Balance</div>
-          <div style={{ fontSize: 36, fontWeight: 900, color: cs.text, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+        {/* Points — hero */}
+        <div style={{ marginTop: 30, position: "relative", textAlign: "center" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: cs.sub, letterSpacing: "0.14em", textTransform: "uppercase" }}>Points Balance</div>
+          <div style={{ fontSize: 46, fontWeight: 900, color: cs.text, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
             {balance.toLocaleString()}
           </div>
-          <div style={{ fontSize: 10, color: cs.sub, marginTop: 1 }}>
+          <div style={{ fontSize: 11, color: cs.sub, marginTop: 2 }}>
             ≈ {fmt(pointsToRupees(balance, settings.rupeePerPoint))} redeemable
           </div>
         </div>
 
+        {/* Ticket-style perforation */}
+        <div style={{ margin: "24px 0 18px", position: "relative", borderTop: "1.5px dashed rgba(255,255,255,0.3)" }} />
+
         {/* Bottom row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 14, position: "relative" }}>
-          <div>
-            <div style={{ fontSize: 8, fontWeight: 700, color: cs.sub, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>Card Holder</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: cs.text, letterSpacing: "0.08em", textTransform: "uppercase" }}>{client.name}</div>
-            <div style={{ fontSize: 9, color: cs.sub, letterSpacing: "0.18em", marginTop: 3 }}>{cardNum}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+              background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.28)",
+              display: "grid", placeItems: "center", fontSize: 12, fontWeight: 800, color: cs.text,
+            }}>
+              {initials(client.name)}
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: cs.text }}>{client.name}</div>
+              <div style={{ fontSize: 9, color: cs.sub, letterSpacing: "0.1em", marginTop: 2 }}>MEMBER · {memberId}</div>
+            </div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 8, fontWeight: 700, color: cs.sub, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3 }}>Lifetime</div>
