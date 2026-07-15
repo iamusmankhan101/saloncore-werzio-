@@ -377,6 +377,20 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   const setNC = (k: string, v: string) => setNewClientForm((f) => ({ ...f, [k]: v }));
   const canSaveNewClient = newClientForm.name.trim();
 
+  // Suggest existing clients while typing a "new" client's name, so staff don't
+  // accidentally create a duplicate record for someone already in the system.
+  const nameQuery = newClientForm.name.trim().toLowerCase();
+  const existingNameMatches = nameQuery.length >= 2
+    ? clients.filter((c) => c.name.toLowerCase().includes(nameQuery)).slice(0, 5)
+    : [];
+
+  const selectExistingClient = (c: Client) => {
+    setNewClient(false);
+    setNewClientSaved(false);
+    setNewClientForm({ name: "", phone: "", email: "", dob: "" });
+    set("clientId", c.id);
+  };
+
   // Services are the master control — the stylist is derived from what's selected, so
   // the checklist always shows the full catalog rather than narrowing by staffId.
   const availableServices = allServices;
@@ -551,8 +565,29 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
                   </div>
                 ) : (
                   <>
-                    <input value={newClientForm.name} onChange={(e) => setNC("name", e.target.value)} placeholder="Full name *"
-                      style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #e8e8f0", fontSize: 13, outline: "none", background: "#fff" }} />
+                    <div style={{ position: "relative" }}>
+                      <input value={newClientForm.name} onChange={(e) => setNC("name", e.target.value)} placeholder="Full name *"
+                        style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #e8e8f0", fontSize: 13, outline: "none", background: "#fff", boxSizing: "border-box" }} />
+                      {existingNameMatches.length > 0 && (
+                        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 8, boxShadow: "0 8px 20px rgba(0,0,0,0.1)", zIndex: 10, overflow: "hidden" }}>
+                          <div style={{ padding: "6px 10px", fontSize: 10, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid #f0f0f8" }}>
+                            Existing client{existingNameMatches.length > 1 ? "s" : ""} found
+                          </div>
+                          {existingNameMatches.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => selectExistingClient(c)}
+                              style={{ width: "100%", textAlign: "left", padding: "8px 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", gap: 1 }}
+                              className="hover-bg-light"
+                            >
+                              <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{c.name}</span>
+                              <span style={{ fontSize: 11, color: "#9898b0" }}>{c.phone}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <input value={newClientForm.phone} onChange={(e) => setNC("phone", e.target.value)} placeholder="Phone number (optional)"
                       style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #e8e8f0", fontSize: 13, outline: "none", background: "#fff" }} />
                     <input value={newClientForm.email} onChange={(e) => setNC("email", e.target.value)} placeholder="Email (optional)"
