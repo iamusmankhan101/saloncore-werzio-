@@ -3,13 +3,14 @@ import jwt from "jsonwebtoken";
 import { db } from "@/lib/db";
 import { getTier, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import type { Client } from "@/lib/types";
-
-const ISSUER_ID             = process.env.GOOGLE_WALLET_ISSUER_ID;
-const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL;
-
-function getPrivateKey() {
-  return (process.env.GOOGLE_WALLET_PRIVATE_KEY || "").replace(/\\n/g, "\n");
-}
+import {
+  GOOGLE_WALLET_ISSUER_ID as ISSUER_ID,
+  GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL as SERVICE_ACCOUNT_EMAIL,
+  getGoogleWalletPrivateKey as getPrivateKey,
+  googleWalletConfigured,
+  getGoogleWalletAccessToken,
+  ensureGoogleWalletLoyaltyClass,
+} from "@/lib/google-wallet";
 
 const defaultLoyalty: LoyaltySettings = {
   enabled: true, pointsPerRupee: 0.01, rupeePerPoint: 1,
@@ -65,30 +66,6 @@ async function getSalonInfo(salonId: string): Promise<{ name: string; settings: 
 
 function safeId(str: string) {
   return str.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
-}
-
-async function getAccessToken(): Promise<string> {
-  const privateKey = getPrivateKey();
-  const now = Math.floor(Date.now() / 1000);
-  const assertion = jwt.sign(
-    {
-      iss:   SERVICE_ACCOUNT_EMAIL,
-      scope: "https://www.googleapis.com/auth/wallet_object.issuer",
-      aud:   "https://oauth2.googleapis.com/token",
-      iat:   now,
-      exp:   now + 3600,
-    },
-    privateKey,
-    { algorithm: "RS256" },
-  );
-  const res  = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
-  });
-  const data = await res.json() as { access_token?: string };
-  if (!data.access_token) throw new Error("Failed to get access token");
-  return data.access_token;
 }
 
 function buildObjectPayload(objectId: string, client: Client, salonName: string, ls: LoyaltySettings, appBaseUrl: string) {
@@ -157,7 +134,7 @@ function generateWalletUrl(client: Client, salonName: string, ls: LoyaltySetting
 async function upsertObject(client: Client, salonName: string, ls: LoyaltySettings, appBaseUrl: string): Promise<void> {
   const objectId  = `${ISSUER_ID}.werzio-loyalty_${safeId(client.id)}`;
   const objectUrl = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(objectId)}`;
-  const token     = await getAccessToken();
+  const token     = await getGoogleWalletAccessToken();
   const headers   = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
   const payload   = buildObjectPayload(objectId, client, salonName, ls, appBaseUrl);
   const patchPayload = {
@@ -191,15 +168,15 @@ async function upsertObject(client: Client, salonName: string, ls: LoyaltySettin
   }
 }
 
-async function updateClass(appBaseUrl: string, salonName: string, salonLogo: string): Promise<void> {
-  const response = await fetch(`${appBaseUrl}/api/wallet/update-class`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ salonName, logoUrl: salonLogo || undefined, bgColor: "#5B21B6" }),
-  });
-  const result = await response.json() as { ok?: boolean; error?: string };
-  if (!response.ok || !result.ok) {
-    throw new Error(result.error || `Google Wallet class update failed (${response.status}).`);
+async function updateClass(appBaseUrl: string, salonName: string): Promise<void> {
+  // Calls the class-update logic in-process rather than fetching our own
+  // `/api/wallet/update-class` route over HTTP — a self-fetch back to the
+  // current deployment can hit a stale domain, deployment-protection page,
+  // or a "build in progress" placeholder and return non-JSON, which broke
+  // `response.json()` here with "Unexpected token... is not valid JSON".
+  const result = await ensureGoogleWalletLoyaltyClass({ salonName, appOrigin: appBaseUrl });
+  if (!result.ok) {
+    throw new Error(result.error || "Google Wallet class update failed.");
   }
 }
 
@@ -211,7 +188,7 @@ async function updateClass(appBaseUrl: string, salonName: string, salonLogo: str
  * Returns 204 on success, 200 with ok:false if credentials not configured.
  */
 export async function PATCH(req: NextRequest) {
-  if (!ISSUER_ID || !SERVICE_ACCOUNT_EMAIL || !getPrivateKey()) {
+  if (!googleWalletConfigured()) {
     return Response.json({ ok: false, error: "Google Wallet credentials are not configured." }, { status: 501 });
   }
   try {
@@ -243,7 +220,7 @@ export async function PATCH(req: NextRequest) {
  * from eventually consistent storage.
  */
 export async function POST(req: NextRequest) {
-  if (!ISSUER_ID || !SERVICE_ACCOUNT_EMAIL || !getPrivateKey()) {
+  if (!googleWalletConfigured()) {
     return Response.json({ ok: false, error: "Google Wallet credentials are not configured." }, { status: 501 });
   }
 
@@ -252,9 +229,8 @@ export async function POST(req: NextRequest) {
       platform?: string;
       salonId?: string;
       client?: Client;
-      salonLogo?: string;
     };
-    const { platform, salonId, client, salonLogo = "" } = body;
+    const { platform, salonId, client } = body;
     if (platform !== "google") {
       return Response.json({ ok: false, error: platform === "apple" ? "Apple Wallet is not configured yet." : "Unsupported wallet platform." }, { status: 501 });
     }
@@ -265,7 +241,7 @@ export async function POST(req: NextRequest) {
     const { name: salonName, settings } = await getSalonInfo(salonId);
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
     // The class must exist before Google will accept an object referencing it.
-    await updateClass(appBaseUrl, salonName, salonLogo);
+    await updateClass(appBaseUrl, salonName);
     await upsertObject(client, salonName, settings, appBaseUrl);
 
     return Response.json({
@@ -285,7 +261,6 @@ export async function GET(req: NextRequest) {
   const platform  = req.nextUrl.searchParams.get("platform");
   const salonId   = req.nextUrl.searchParams.get("salonId");
   const clientId  = req.nextUrl.searchParams.get("clientId");
-  const salonLogo = req.nextUrl.searchParams.get("salonLogo") ?? "";
 
   if (!platform || !salonId || !clientId) {
     return Response.json({ ok: false, error: "Missing platform, salonId, or clientId" }, { status: 400 });
@@ -296,7 +271,7 @@ export async function GET(req: NextRequest) {
   if (platform !== "google") {
     return Response.json({ ok: false, error: "Unsupported wallet platform" }, { status: 400 });
   }
-  if (!ISSUER_ID || !SERVICE_ACCOUNT_EMAIL || !getPrivateKey()) {
+  if (!googleWalletConfigured()) {
     return Response.json({ ok: false, error: "Google Wallet credentials are not configured." }, { status: 501 });
   }
 
@@ -312,7 +287,7 @@ export async function GET(req: NextRequest) {
 
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.nextUrl.protocol}//${req.nextUrl.host}`;
 
-    await updateClass(appBaseUrl, salonName, salonLogo);
+    await updateClass(appBaseUrl, salonName);
     await upsertObject(client, salonName, settings, appBaseUrl);
     const url = generateWalletUrl(client, salonName, settings, appBaseUrl);
 
