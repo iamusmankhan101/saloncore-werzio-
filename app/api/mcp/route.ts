@@ -5,7 +5,7 @@ import { verifyMcpToken, mcpActorFrom, blobKey, type McpKeyActor } from "@/lib/m
 import { rateLimit } from "@/lib/rate-limit";
 import { appointmentStartMs, appointmentStartHasPassed, timezoneFromSettings, type SalonHoursDay } from "@/lib/appointment-time";
 import { createBooking } from "@/lib/booking";
-import type { Client, Appointment, Staff, Service } from "@/lib/types";
+import type { Client, Appointment, Staff, Service, InventoryItem } from "@/lib/types";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 
 const MAX_BOOKING_HORIZON_DAYS = 90;
@@ -43,6 +43,17 @@ function errorContent(text: string) {
 
 function jsonContent(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+}
+
+function clientSummary(c: Client) {
+  return {
+    id: c.id, name: c.name, phone: c.phone, email: c.email ?? null, gender: c.gender ?? null, dob: c.dob ?? null,
+    tags: c.tags, source: c.source, createdAt: c.createdAt,
+    totalVisits: c.totalVisits, totalSpend: c.totalSpend, lastVisitDate: c.lastVisitDate ?? null,
+    averageRating: c.averageRating ?? null, notes: c.notes ?? null,
+    loyaltyPoints: c.loyaltyPoints ?? 0, loyaltyPointsEarned: c.loyaltyPointsEarned ?? 0,
+    whatsappOptedOut: c.whatsappOptedOut ?? false,
+  };
 }
 
 /** Per-key rate limit, checked at the top of every tool call. Returns error content if blocked, else null. */
@@ -153,9 +164,9 @@ const baseHandler = createMcpHandler(
 
     server.tool(
       "list_staff",
-      "List the salon's active staff members with role and specialties.",
-      {},
-      async (_args, extra) => {
+      "List the salon's staff members, including role, specialties, contact info, and pay (commission rate or salary).",
+      { includeInactive: z.boolean().optional() },
+      async ({ includeInactive }, extra) => {
         const actor = mcpActorFrom(extra.authInfo);
         if (!actor) return errorContent("Unauthorized.");
         const limited = checkKeyRateLimit(actor);
@@ -163,16 +174,18 @@ const baseHandler = createMcpHandler(
 
         await ensureSalonDataTable();
         const staff = await readBlob<Staff>(actor, "staff");
-        const active = staff.filter((s) => s.isActive).map((s) => ({
-          id: s.id, name: s.name, role: s.role, specialties: s.specialties,
+        const list = (includeInactive ? staff : staff.filter((s) => s.isActive)).map((s) => ({
+          id: s.id, name: s.name, phone: s.phone, email: s.email ?? null, role: s.role,
+          specialties: s.specialties, isActive: s.isActive,
+          payType: s.payType ?? "commission", commissionRate: s.commissionRate ?? null, baseSalary: s.baseSalary ?? null,
         }));
-        return jsonContent(active);
+        return jsonContent(list);
       },
     );
 
     server.tool(
       "find_client",
-      "Search the salon's clients by name or phone number substring.",
+      "Search the salon's clients by name or phone number substring. Returns full client details for matches.",
       { query: z.string().min(1, "query is required") },
       async ({ query }, extra) => {
         const actor = mcpActorFrom(extra.authInfo);
@@ -187,10 +200,133 @@ const baseHandler = createMcpHandler(
         const matches = clients
           .filter((c) => c.name.toLowerCase().includes(q) || (qDigits && c.phone.replace(/\D/g, "").includes(qDigits)))
           .slice(0, 10)
-          .map((c) => ({
-            id: c.id, name: c.name, phone: c.phone, lastVisitDate: c.lastVisitDate ?? null, loyaltyPoints: c.loyaltyPoints ?? 0,
-          }));
+          .map(clientSummary);
         return jsonContent(matches);
+      },
+    );
+
+    server.tool(
+      "list_clients",
+      "List all of the salon's clients (paginated), with full profile details including notes, tags, loyalty points, and lifetime visit/spend stats.",
+      { limit: z.number().int().min(1).max(500).optional(), offset: z.number().int().min(0).optional() },
+      async ({ limit, offset }, extra) => {
+        const actor = mcpActorFrom(extra.authInfo);
+        if (!actor) return errorContent("Unauthorized.");
+        const limited = checkKeyRateLimit(actor);
+        if (limited) return limited;
+
+        await ensureSalonDataTable();
+        const clients = await readBlob<Client>(actor, "clients");
+        const start = offset ?? 0;
+        const pageSize = limit ?? 100;
+        const page = clients.slice(start, start + pageSize).map(clientSummary);
+        return jsonContent({ total: clients.length, offset: start, limit: pageSize, clients: page });
+      },
+    );
+
+    server.tool(
+      "get_client",
+      "Full profile for a single client by id, including notes, tags, loyalty, and their recent appointment history.",
+      { clientId: z.string().min(1) },
+      async ({ clientId }, extra) => {
+        const actor = mcpActorFrom(extra.authInfo);
+        if (!actor) return errorContent("Unauthorized.");
+        const limited = checkKeyRateLimit(actor);
+        if (limited) return limited;
+
+        await ensureSalonDataTable();
+        const [clients, appointments] = await Promise.all([
+          readBlob<Client>(actor, "clients"),
+          readBlob<Appointment>(actor, "appointments"),
+        ]);
+        const client = clients.find((c) => c.id === clientId);
+        if (!client) return errorContent("clientId not found.");
+
+        const history = appointments
+          .filter((a) => a.clientId === clientId)
+          .sort((a, b) => (b.date + b.startTime).localeCompare(a.date + a.startTime))
+          .slice(0, 20)
+          .map((a) => ({ id: a.id, date: a.date, startTime: a.startTime, serviceNames: a.serviceNames, staffName: a.staffName, status: a.status, totalAmount: a.totalAmount }));
+
+        return jsonContent({ ...clientSummary(client), recentAppointments: history });
+      },
+    );
+
+    server.tool(
+      "list_inventory",
+      "List the salon's inventory/stock items with current stock levels, cost, and retail price.",
+      {},
+      async (_args, extra) => {
+        const actor = mcpActorFrom(extra.authInfo);
+        if (!actor) return errorContent("Unauthorized.");
+        const limited = checkKeyRateLimit(actor);
+        if (limited) return limited;
+
+        await ensureSalonDataTable();
+        const items = await readBlob<InventoryItem>(actor, "inventory");
+        const list = items.map((i) => ({
+          id: i.id, name: i.name, brand: i.brand, category: i.category, unit: i.unit,
+          currentStock: i.currentStock, minStock: i.minStock, lowStock: i.currentStock <= i.minStock,
+          costPrice: i.costPrice, retailPrice: i.retailPrice ?? null, supplier: i.supplier ?? null, lastRestocked: i.lastRestocked ?? null,
+        }));
+        return jsonContent(list);
+      },
+    );
+
+    server.tool(
+      "list_invoices",
+      "List the salon's POS/checkout invoices for a date range, with line items, discount, tax, total, and payment status.",
+      { startDate: dateStrSchema, endDate: dateStrSchema.optional(), status: z.enum(["paid", "unpaid"]).optional() },
+      async ({ startDate, endDate, status }, extra) => {
+        const actor = mcpActorFrom(extra.authInfo);
+        if (!actor) return errorContent("Unauthorized.");
+        const limited = checkKeyRateLimit(actor);
+        if (limited) return limited;
+
+        const rangeEnd = endDate ?? startDate;
+        if (rangeEnd < startDate) return errorContent("endDate must be on or after startDate.");
+
+        await ensureSalonDataTable();
+        const invoices = await readBlob<SalonInvoice>(actor, "salon_invoices");
+        const matches = invoices
+          .filter((inv) => inv.date >= startDate && inv.date <= rangeEnd && (!status || inv.status === status))
+          .sort((a, b) => b.date.localeCompare(a.date))
+          .slice(0, 500)
+          .map((inv) => ({
+            id: inv.id, number: inv.number, appointmentId: inv.appointmentId ?? null,
+            clientName: inv.clientName, clientPhone: inv.clientPhone, staffName: inv.staffName,
+            items: inv.items, subtotal: inv.subtotal, discountAmount: inv.discountAmount, taxAmount: inv.taxAmount, total: inv.total,
+            paymentMethod: inv.paymentMethod, status: inv.status, date: inv.date, notes: inv.notes ?? null,
+          }));
+        return jsonContent({ startDate, endDate: rangeEnd, count: matches.length, invoices: matches });
+      },
+    );
+
+    server.tool(
+      "get_salon_info",
+      "The salon's business profile: name, contact info, address, currency, timezone, business hours, and loyalty program settings. Never includes WhatsApp/API credentials.",
+      {},
+      async (_args, extra) => {
+        const actor = mcpActorFrom(extra.authInfo);
+        if (!actor) return errorContent("Unauthorized.");
+        const limited = checkKeyRateLimit(actor);
+        if (limited) return limited;
+
+        await ensureSalonDataTable();
+        const settingsRows = await db.execute({ sql: "SELECT data FROM salon_data WHERE entity = ?", args: [blobKey(actor, "settings")] });
+        const settings = settingsRows.rows.length > 0 ? JSON.parse(settingsRows.rows[0].data as string) : {};
+        const salon = settings?.salon ?? {};
+        const loyalty = settings?.loyalty ?? {};
+
+        return jsonContent({
+          name: salon.name ?? null, phone: salon.phone ?? null, email: salon.email ?? null,
+          address: salon.address ?? null, city: salon.city ?? null,
+          currency: salon.currency ?? null, timezone: salon.timezone ?? null,
+          hours: settings?.hours ?? [],
+          loyalty: {
+            enabled: loyalty.enabled ?? false, pointsPerRupee: loyalty.pointsPerRupee ?? null, rupeePerPoint: loyalty.rupeePerPoint ?? null,
+          },
+        });
       },
     );
 
@@ -216,9 +352,14 @@ const baseHandler = createMcpHandler(
 
     server.tool(
       "list_appointments",
-      "List the salon's appointments for a given date (defaults to today).",
-      { date: dateStrSchema.optional() },
-      async ({ date }, extra) => {
+      "List the salon's appointments. Pass `date` for a single day (defaults to today), or `startDate`/`endDate` for a range. Optionally narrow to one client with clientId.",
+      {
+        date: dateStrSchema.optional(),
+        startDate: dateStrSchema.optional(),
+        endDate: dateStrSchema.optional(),
+        clientId: z.string().optional(),
+      },
+      async ({ date, startDate, endDate, clientId }, extra) => {
         const actor = mcpActorFrom(extra.authInfo);
         if (!actor) return errorContent("Unauthorized.");
         const limited = checkKeyRateLimit(actor);
@@ -231,16 +372,20 @@ const baseHandler = createMcpHandler(
         ]);
         const settings = settingsRows.rows.length > 0 ? JSON.parse(settingsRows.rows[0].data as string) : {};
         const timezone = timezoneFromSettings(settings);
-        const targetDate = date ?? new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date());
+        const today = new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date());
+        const rangeStart = startDate ?? date ?? today;
+        const rangeEnd = endDate ?? date ?? rangeStart;
+        if (rangeEnd < rangeStart) return errorContent("endDate must be on or after startDate.");
 
-        const dayAppts = appointments
-          .filter((a) => a.date === targetDate)
-          .sort((a, b) => a.startTime.localeCompare(b.startTime))
+        const matches = appointments
+          .filter((a) => a.date >= rangeStart && a.date <= rangeEnd && (!clientId || a.clientId === clientId))
+          .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
+          .slice(0, 500)
           .map((a) => ({
-            id: a.id, clientName: a.clientName, staffName: a.staffName, serviceNames: a.serviceNames,
-            startTime: a.startTime, endTime: a.endTime, status: a.status,
+            id: a.id, clientId: a.clientId, clientName: a.clientName, staffName: a.staffName, serviceNames: a.serviceNames,
+            date: a.date, startTime: a.startTime, endTime: a.endTime, status: a.status, totalAmount: a.totalAmount,
           }));
-        return jsonContent({ date: targetDate, appointments: dayAppts });
+        return jsonContent({ startDate: rangeStart, endDate: rangeEnd, count: matches.length, appointments: matches });
       },
     );
 
