@@ -82,7 +82,7 @@ export interface Client {
   photo?: string;
   preferredStaffId?: string;
   tags: string[];
-  source: "whatsapp" | "walk-in" | "web" | "manual";
+  source: "whatsapp" | "walk-in" | "web" | "manual" | "agent";
   createdAt: string;
   totalVisits: number;
   totalSpend: number;
@@ -137,7 +137,7 @@ export interface Appointment {
   status: AppointmentStatus;
   totalAmount: number;
   notes?: string;
-  source: "whatsapp" | "walk-in" | "web" | "manual";
+  source: "whatsapp" | "walk-in" | "web" | "manual" | "agent";
   createdAt?: string;
 }
 

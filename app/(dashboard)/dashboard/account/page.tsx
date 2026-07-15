@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Banknote, Check, ChevronLeft, ChevronRight, Clock, ImageIcon, KeyRound, LogOut, MapPin, Save, Shield, Smartphone, Store, Trash2, User, UserCog, Wand2, Zap } from "lucide-react";
+import { Banknote, Bot, Check, ChevronLeft, ChevronRight, Clock, Copy, ImageIcon, KeyRound, LogOut, MapPin, Plus, Save, Shield, Smartphone, Store, Trash2, User, UserCog, Wand2, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AuthUser, getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
@@ -13,7 +13,7 @@ import type { Staff, Client } from "@/lib/types";
 import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import { getDefaultLocationId, getSalonLocations, type SalonLocation } from "@/lib/locations";
 
-type SectionId = "profile" | "salon" | "hours" | "roles" | "security" | "whatsapp" | "decidr" | "tryon";
+type SectionId = "profile" | "salon" | "hours" | "roles" | "security" | "whatsapp" | "mcp" | "decidr" | "tryon";
 
 interface SalonSettings {
   name: string;
@@ -40,6 +40,7 @@ const BASE_SECTIONS: { id: SectionId; label: string; icon: React.ElementType }[]
   { id: "roles",    label: "Roles & Permissions", icon: UserCog },
   { id: "security", label: "Security",        icon: Shield },
   { id: "whatsapp", label: "WhatsApp",        icon: Smartphone },
+  { id: "mcp",      label: "AI Assistant",     icon: KeyRound },
 ];
 
 const inputStyle: CSSProperties = {
@@ -1647,6 +1648,181 @@ function WhatsAppSection() {
   );
 }
 
+interface McpKeyMeta {
+  id: string;
+  prefix: string;
+  label: string;
+  scope: "read" | "read_write";
+  createdAt: string;
+  lastUsedAt: string | null;
+  revoked: boolean;
+}
+
+function McpConnectionSection() {
+  const [keys, setKeys] = useState<McpKeyMeta[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [newLabel, setNewLabel] = useState("Poke");
+  const [newScope, setNewScope] = useState<"read" | "read_write">("read_write");
+  const [generating, setGenerating] = useState(false);
+  const [freshKey, setFreshKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  const serverUrl = typeof window !== "undefined" ? `${window.location.origin}/api/mcp` : "";
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/account/mcp-keys");
+      const data = await res.json();
+      if (data.ok) setKeys((data.keys as McpKeyMeta[]).filter((k) => !k.revoked));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function handleGenerate() {
+    setGenerating(true);
+    setError("");
+    try {
+      const res = await fetch("/api/account/mcp-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: newLabel, scope: newScope }),
+      });
+      const data = await res.json();
+      if (!data.ok) { setError(data.error || "Failed to generate key."); return; }
+      setFreshKey(data.key);
+      setShowGenerate(false);
+      setNewLabel("Poke");
+      await load();
+    } catch {
+      setError("Failed to generate key.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleRevoke(id: string) {
+    await fetch(`/api/account/mcp-keys/${id}`, { method: "DELETE" });
+    setConfirmRevokeId(null);
+    await load();
+  }
+
+  function copyText(text: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <section>
+      <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>AI Assistant (MCP)</h2>
+      <p style={{ margin: "0 0 28px", color: "#9999b0", fontSize: 12 }}>
+        Connect an external AI assistant like Poke so it can look up your salon&apos;s clients, services, and schedule, and book appointments on your behalf.
+      </p>
+
+      <div style={{ marginBottom: 24, borderRadius: 14, border: "1.5px solid #e5e3ef", padding: "16px 18px", background: "#faf9fd" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#9999b0", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Server URL</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <code style={{ flex: 1, fontSize: 13, color: "#29293d", background: "#fff", border: "1px solid #e5e3ef", borderRadius: 8, padding: "8px 12px", overflowX: "auto", whiteSpace: "nowrap" }}>{serverUrl}</code>
+          <button type="button" onClick={() => copyText(serverUrl)} style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid #e5e3ef", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Copy size={14} color="#6b6b8a" />
+          </button>
+        </div>
+        <div style={{ fontSize: 11, color: "#9999b0", marginTop: 6 }}>Paste this URL into Poke, then generate a key below and paste that too.</div>
+      </div>
+
+      {freshKey && (
+        <div style={{ marginBottom: 24, borderRadius: 14, border: "1.5px solid #7C3AED", padding: 18, background: "#F5F3FF" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <Bot size={16} color="#7C3AED" />
+            <span style={{ fontSize: 13, fontWeight: 800, color: "#4c1d95" }}>New key generated — copy it now, it won&apos;t be shown again</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <code style={{ flex: 1, fontSize: 12, color: "#29293d", background: "#fff", border: "1px solid #ddd6fe", borderRadius: 8, padding: "8px 12px", overflowX: "auto", whiteSpace: "nowrap" }}>{freshKey}</code>
+            <button type="button" onClick={() => copyText(freshKey)} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#7C3AED", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <Copy size={13} /> {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <button type="button" onClick={() => setFreshKey(null)} style={{ marginTop: 12, padding: "8px 16px", borderRadius: 8, border: "1px solid #ddd6fe", background: "#fff", color: "#4c1d95", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Done — I&apos;ve saved it
+          </button>
+        </div>
+      )}
+
+      {error && <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "#fef2f2", color: "#dc2626", fontSize: 12, fontWeight: 600 }}>{error}</div>}
+
+      <div style={{ marginBottom: 16 }}>
+        {!showGenerate ? (
+          <button type="button" onClick={() => setShowGenerate(true)} style={{ padding: "10px 18px", borderRadius: 10, border: "1px dashed #7C3AED", background: "#F5F3FF", color: "#7C3AED", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            <Plus size={14} /> Generate New Key
+          </button>
+        ) : (
+          <div style={{ borderRadius: 14, border: "1.5px solid #e5e3ef", padding: 16, display: "flex", flexDirection: "column", gap: 12, maxWidth: 420 }}>
+            <Field label="Label"><input style={inputStyle} value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Poke" /></Field>
+            <Field label="Permissions" hint="Read-only can look up data but never books or changes anything">
+              <select style={inputStyle} value={newScope} onChange={(e) => setNewScope(e.target.value as "read" | "read_write")}>
+                <option value="read_write">Read &amp; book appointments</option>
+                <option value="read">Read-only</option>
+              </select>
+            </Field>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" disabled={generating} onClick={handleGenerate} style={{ padding: "9px 18px", borderRadius: 8, border: "none", background: "#7C3AED", color: "#fff", fontSize: 12, fontWeight: 700, cursor: generating ? "not-allowed" : "pointer", opacity: generating ? 0.7 : 1 }}>
+                {generating ? "Generating…" : "Generate Key"}
+              </button>
+              <button type="button" onClick={() => setShowGenerate(false)} style={{ padding: "9px 18px", borderRadius: 8, border: "1px solid #e5e3ef", background: "#fff", color: "#6b6b8a", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <div style={{ color: "#9999b0", fontSize: 13 }}>Loading…</div>
+      ) : keys.length === 0 ? (
+        <div style={{ color: "#9999b0", fontSize: 13 }}>No keys yet — generate one above to connect an AI assistant.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {keys.map((k) => (
+            <div key={k.id} style={{ borderRadius: 12, border: "1px solid #e5e3ef", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#1d1d2f" }}>{k.label}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: k.scope === "read" ? "#0369a1" : "#059669", background: k.scope === "read" ? "#e0f2fe" : "#ecfdf5", padding: "2px 8px", borderRadius: 20, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                    {k.scope === "read" ? "Read-only" : "Read & book"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, color: "#9999b0", marginTop: 3, fontFamily: "monospace" }}>{k.prefix}…</div>
+                <div style={{ fontSize: 11, color: "#b0b0c4", marginTop: 2 }}>
+                  Created {new Date(k.createdAt).toLocaleDateString()}
+                  {k.lastUsedAt ? ` · Last used ${new Date(k.lastUsedAt).toLocaleDateString()}` : " · Never used"}
+                </div>
+              </div>
+              {confirmRevokeId === k.id ? (
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button type="button" onClick={() => handleRevoke(k.id)} style={{ padding: "7px 12px", borderRadius: 8, border: "none", background: "#dc2626", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Confirm</button>
+                  <button type="button" onClick={() => setConfirmRevokeId(null)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e5e3ef", background: "#fff", color: "#6b6b8a", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setConfirmRevokeId(k.id)} style={{ width: 34, height: 34, borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Trash2 size={14} color="#dc2626" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function DecidrLoyaltySection() {
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [msg, setMsg]       = useState("");
@@ -2074,6 +2250,7 @@ function SectionContent({ active }: { active: SectionId }) {
   if (active === "hours")    return <BusinessHours />;
   if (active === "roles")    return <RolesPermissionsSection />;
   if (active === "security") return <Security />;
+  if (active === "mcp")      return <McpConnectionSection />;
   if (active === "decidr")   return <DecidrLoyaltySection />;
   if (active === "tryon")    return <VirtualTryOnSection />;
   return <WhatsAppSection />;

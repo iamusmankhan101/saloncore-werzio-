@@ -606,8 +606,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           lastSeenId = latest.id;
           // This table also receives staff-created appointments (walk-in/manual/whatsapp) —
-          // only pop the alert for bookings made through the online booking page.
-          if (latest.source === "web") {
+          // only pop the alert for bookings made through the online booking page or by an
+          // external AI agent (Poke, via MCP) — staff should see those live too, since
+          // nobody on-site chose to add them.
+          if (latest.source === "web" || latest.source === "agent") {
             // Only surface the booking that just arrived. Older unseen records
             // must not be replayed as a stack of popups.
             showBookingAlert({

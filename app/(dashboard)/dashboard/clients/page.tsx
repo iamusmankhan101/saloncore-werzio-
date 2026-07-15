@@ -919,6 +919,7 @@ export default function ClientsPage() {
   const [tagFilter, setTagFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState(() => getActiveLocationFilter());
+  const [sortFilter, setSortFilter] = useState("none");
   const [selected, setSelected] = useState<Client | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -977,7 +978,7 @@ export default function ClientsPage() {
   const clientLimited = isAtLimit(plan.clientLimit, clients.length);
 
   const filtered = useMemo(() => {
-    return clients.filter((c) => {
+    const result = clients.filter((c) => {
       if (tagFilter !== "all" && !c.tags.includes(tagFilter)) return false;
       if (sourceFilter !== "all" && c.source !== sourceFilter) return false;
       if (locationFilter !== "all" && clientLocationId(c) !== locationFilter) return false;
@@ -987,11 +988,15 @@ export default function ClientsPage() {
       }
       return true;
     });
-  }, [clients, search, tagFilter, sourceFilter, locationFilter]);
+    if (sortFilter === "topSpend")  return [...result].sort((a, b) => b.totalSpend  - a.totalSpend);
+    if (sortFilter === "lowSpend")  return [...result].sort((a, b) => a.totalSpend  - b.totalSpend);
+    if (sortFilter === "topVisits") return [...result].sort((a, b) => b.totalVisits - a.totalVisits);
+    return result;
+  }, [clients, search, tagFilter, sourceFilter, locationFilter, sortFilter]);
 
   const allTags = Array.from(new Set(clients.flatMap((c) => c.tags)));
   const allSources = Array.from(new Set(clients.map((c) => c.source)));
-  const activeFilters = [tagFilter !== "all", sourceFilter !== "all"].filter(Boolean).length;
+  const activeFilters = [tagFilter !== "all", sourceFilter !== "all", sortFilter !== "none"].filter(Boolean).length;
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
   const someFilteredSelected = filtered.some((c) => selectedIds.has(c.id));
@@ -1257,6 +1262,7 @@ export default function ClientsPage() {
           {[
             { label: "Tag", value: tagFilter, onChange: setTagFilter, options: [["all", "All Tags"], ...allTags.map((t) => [t, t])] },
             { label: "Source", value: sourceFilter, onChange: setSourceFilter, options: [["all", "All Sources"], ...allSources.map((s) => [s, s])] },
+            { label: "Sort By", value: sortFilter, onChange: setSortFilter, options: [["none", "Default"], ["topSpend", "Top Spenders"], ["lowSpend", "Low Spenders"], ["topVisits", "Top Visits"]] },
           ].map(({ label, value, onChange, options }) => (
             <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label style={{ fontSize: 11, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
@@ -1266,7 +1272,7 @@ export default function ClientsPage() {
             </div>
           ))}
           {activeFilters > 0 && (
-            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
+            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); setSortFilter("none"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
           )}
         </div>
       )}
