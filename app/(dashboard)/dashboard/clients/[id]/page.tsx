@@ -50,12 +50,12 @@ function fmtTime(t: string) {
   return `${hr}:${String(mn).padStart(2, "0")}${ampm}`;
 }
 
-function SectionCard({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
+function SectionCard({ title, sub, headerAction, children }: { title: string; sub?: string; headerAction?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e8e8f0", overflow: "hidden" }}>
       <div style={{ padding: "18px 22px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>{title}</div>
-        {sub && <span style={{ fontSize: 12, color: "#9898b0" }}>{sub}</span>}
+        {headerAction ?? (sub && <span style={{ fontSize: 12, color: "#9898b0" }}>{sub}</span>)}
       </div>
       {children}
     </div>
@@ -88,6 +88,8 @@ export default function ClientProfilePage() {
   const [editForm, setEditForm] = useState({
     name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", notes: "",
   });
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
 
   useEffect(() => {
     const allClients = getStoredClients();
@@ -168,6 +170,21 @@ export default function ClientProfilePage() {
     syncWalletPass(updated.id, updated);
     setClient(updated);
     setEditing(false);
+  };
+
+  const handleStartEditNotes = () => {
+    setNotesDraft(client?.notes ?? "");
+    setEditingNotes(true);
+  };
+
+  const handleSaveNotes = () => {
+    if (!client) return;
+    const updated: Client = { ...client, notes: notesDraft.trim() || undefined };
+    const all = getStoredClients();
+    saveClients(all.map((c) => (c.id === updated.id ? updated : c)));
+    setClient(updated);
+    setEditForm((f) => ({ ...f, notes: updated.notes ?? "" }));
+    setEditingNotes(false);
   };
 
   if (!client) {
@@ -546,9 +563,32 @@ export default function ClientProfilePage() {
             </SectionCard>
 
             {/* Client notes */}
-            <SectionCard title="Notes">
+            <SectionCard
+              title="Notes"
+              headerAction={
+                editingNotes ? (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => setEditingNotes(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#9898b0" }}>Cancel</button>
+                    <button onClick={handleSaveNotes} style={{ background: "#7C3AED", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#fff", padding: "5px 12px", borderRadius: 8 }}>Save</button>
+                  </div>
+                ) : (
+                  <button onClick={handleStartEditNotes} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: "#7C3AED" }}>
+                    <Edit2 size={13} /> Edit
+                  </button>
+                )
+              }
+            >
               <div style={{ padding: "16px 20px", minHeight: 56 }}>
-                {client.notes ? (
+                {editingNotes ? (
+                  <textarea
+                    autoFocus
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    rows={4}
+                    placeholder="e.g. Sensitive scalp, prefers morning slots…"
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5, boxSizing: "border-box" }}
+                  />
+                ) : client.notes ? (
                   <div style={{ padding: "12px 14px", borderRadius: 10, background: "#faf8ff", border: "1px solid #ede9fe", color: "#5f5875", fontSize: 13, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
                     {client.notes}
                   </div>
