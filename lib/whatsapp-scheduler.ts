@@ -427,6 +427,11 @@ export async function sendGroupBookingAlert(appt: {
   const sentKey = appt.id ? `newbooking_${appt.id}` : undefined;
   if (sentKey && alreadySent(sentKey)) return;
 
+  // Never announce a booking to the group after its own appointment time has
+  // already passed (backdated/historical entries, bulk imports, etc) — same
+  // rule as the client-facing confirmation just above.
+  if (appointmentStartHasPassed(appt.date, appt.startTime, timezoneFromSettings(settingsStore as unknown as Record<string, unknown>))) return;
+
   const ws = settingsStore.wasender as {
     provider?: string;
     apiKey: string;

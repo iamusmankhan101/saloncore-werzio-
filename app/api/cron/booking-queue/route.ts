@@ -393,9 +393,11 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
 
     const settings = await getSettings(item.userId, settingsCache);
 
-    // Confirmation/reminder messages are tied to the appointment start. Once that
-    // time has passed in the salon's timezone, do not send them from a backlog.
-    if ((item.kind === "confirmation" || item.kind === "reminder") && item.apptDate && item.apptTime
+    // Confirmation/reminder/group-alert messages are tied to the appointment
+    // start. Once that time has passed in the salon's timezone, do not send
+    // them from a backlog — a "New Booking!" group alert or a client reminder
+    // for an appointment that's already happened is just noise.
+    if ((item.kind === "confirmation" || item.kind === "reminder" || item.kind === "groupalert") && item.apptDate && item.apptTime
         && appointmentStartHasPassed(item.apptDate, item.apptTime, timezoneFromSettings(settings))) {
       await updateItem(item, "expired", "Appointment time already passed — queued message skipped.");
       expired++;
