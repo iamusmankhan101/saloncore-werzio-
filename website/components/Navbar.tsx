@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users, Package, Gift, Coins, Scissors, Sparkles, Flower2, Hand, Crown, Droplet } from "lucide-react";
+import { Menu, X, ChevronDown, ShoppingCart, CalendarDays, MessageCircle, Globe, FileText, TrendingUp, UserCog, Users, Package, Gift, Coins, Scissors, Sparkles, Flower2, Hand, Crown, Droplet, Mars } from "lucide-react";
 import styles from "./Navbar.module.css";
 import DemoModal from "./DemoModal";
 
@@ -23,6 +23,7 @@ const featureLinks = [
 ];
 
 const solutionLinks = [
+  { label: "Men's Salons",  desc: "Grooming profiles, try-on & scheduling", href: "/solutions/mens-salon",   Icon: Mars },
   { label: "Hair Salons",   desc: "Hair formulas, try-on & scheduling", href: "/solutions/hair-salon",   Icon: Scissors },
   { label: "Beauty Salons", desc: "Beauty profiles, loyalty & POS",     href: "/solutions/beauty-salon", Icon: Sparkles },
   { label: "Spas",          desc: "Multi-branch, packages & POS",       href: "/solutions/spa",          Icon: Flower2 },
