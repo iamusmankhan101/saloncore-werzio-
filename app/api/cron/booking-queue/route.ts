@@ -42,8 +42,13 @@ function spacingDelayMs(kind: QueueKind): number {
   return randBetween(5 * MINUTE_MS, 7 * MINUTE_MS);
 }
 
-function invoiceSpacingDelayMs(): number {
-  return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
+// Small step used only to un-collide two invoices that both came due in the
+// same cron tick — NOT a re-roll of the full 10-15 min jitter. Re-rolling the
+// full window here compounds every time the run limit is hit (2nd collided
+// item gets 10-15, 3rd gets 20-30, ...), which pushes sends way past their
+// original per-client jitter target. A short step just nudges them apart.
+function invoiceCollisionStepMs(): number {
+  return randBetween(1 * MINUTE_MS, 3 * MINUTE_MS);
 }
 
 function retryDelayMs(kind: QueueKind): number {
@@ -382,6 +387,12 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
   let sent = 0, failed = 0, skipped = 0, expired = 0, posSent = 0, posFailed = 0, posExpired = 0;
   let sendAttemptsThisRun = 0;
   let deferredDelayMs = 0;
+  // Invoices get their own send budget and their own collision-deferral chain,
+  // separate from the general queue (confirmations/reminders/etc) — a burst of
+  // one shouldn't starve the other, and each should stagger against only its
+  // own kind.
+  let posSendAttemptsThisRun = 0;
+  let posDeferredDelayMs = 0;
   const settingsCache = new Map<string, Record<string, unknown> | null>();
 
   for (const item of items) {
@@ -543,9 +554,9 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       continue;
     }
 
-    if (sendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
-      deferredDelayMs += invoiceSpacingDelayMs();
-      await deferPosReceipt(item, deferredDelayMs, "Deferred to pace automated WhatsApp sends.");
+    if (posSendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
+      posDeferredDelayMs += invoiceCollisionStepMs();
+      await deferPosReceipt(item, posDeferredDelayMs, "Deferred to un-collide with another invoice due the same tick.");
       skipped++;
       continue;
     }
@@ -557,7 +568,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       providerConfig,
       thankYouText: item.thankYouText,
     });
-    sendAttemptsThisRun++;
+    posSendAttemptsThisRun++;
     if (result.skipped) {
       await updatePosReceipt(item, "expired", "Skipped fake/placeholder recipient.");
       skipped++;
