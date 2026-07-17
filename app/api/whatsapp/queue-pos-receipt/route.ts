@@ -57,15 +57,16 @@ export async function POST(request: NextRequest) {
   try {
     await ensureTable();
 
-    // If this client already has a pending or recently-sent receipt (e.g. two separate
-    // checkouts within a minute of each other), stack this one's delay after that one's
-    // instead of independently jittering from "now" — otherwise two back-to-back
-    // invoices' own 10-15min windows can overlap and land only minutes apart.
+    // Chain this invoice's delay after the salon's most recently queued/sent invoice
+    // (any client) instead of independently jittering from "now" — otherwise several
+    // checkouts close together each roll their own 10-15min window and can land only
+    // minutes apart. Anchoring on the last one in line keeps every send 10-15 min
+    // after the one before it, in a single sequential chain, regardless of client.
     const priorRow = await db.execute({
       sql: `SELECT COALESCE(sent_at, scheduled_at) AS anchor_at FROM wa_pos_receipt_queue
-            WHERE user_id = ? AND phone = ? AND invoice_id != ?
+            WHERE user_id = ? AND invoice_id != ?
             ORDER BY anchor_at DESC LIMIT 1`,
-      args: [actor.userId, body.phone, body.invoice.id],
+      args: [actor.userId, body.invoice.id],
     });
     const anchorAt = priorRow.rows[0]?.anchor_at as string | undefined;
     const ownEarliest = Date.now() + posReceiptDelayMs();
