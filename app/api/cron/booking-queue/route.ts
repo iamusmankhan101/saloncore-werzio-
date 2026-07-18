@@ -42,13 +42,12 @@ function spacingDelayMs(kind: QueueKind): number {
   return randBetween(5 * MINUTE_MS, 7 * MINUTE_MS);
 }
 
-// Small step used only to un-collide two invoices that both came due in the
-// same cron tick — NOT a re-roll of the full 10-15 min jitter. Re-rolling the
-// full window here compounds every time the run limit is hit (2nd collided
-// item gets 10-15, 3rd gets 20-30, ...), which pushes sends way past their
-// original per-client jitter target. A short step just nudges them apart.
-function invoiceCollisionStepMs(): number {
-  return randBetween(1 * MINUTE_MS, 3 * MINUTE_MS);
+// Invoices sent in a tight cluster (a busy checkout period) read as a bot
+// blast, so every invoice in a same-tick backlog gets a full 10-15 min step —
+// same cumulative-gap pattern as spacingDelayMs above (2nd collided item lands
+// 10-15 min out, 3rd lands 20-30 min out, ...).
+function posSpacingDelayMs(): number {
+  return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
 }
 
 function retryDelayMs(kind: QueueKind): number {
@@ -594,8 +593,8 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     }
 
     if (posSendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
-      posDeferredDelayMs += invoiceCollisionStepMs();
-      await deferPosReceipt(item, posDeferredDelayMs, "Deferred to un-collide with another invoice due the same tick.");
+      posDeferredDelayMs += posSpacingDelayMs();
+      await deferPosReceipt(item, posDeferredDelayMs, "Deferred to pace automated invoice WhatsApp sends 10-15 min apart.");
       skipped++;
       continue;
     }
