@@ -117,9 +117,10 @@ export function Notifications() {
   const [saved, setSaved] = useState(false);
   const toggle = (k: keyof typeof prefs) => setPrefs((p: any) => ({ ...p, [k]: !p[k] }));
   const save = () => { Object.assign(settingsStore.notifications, prefs); setSaved(true); setTimeout(() => setSaved(false), 3000); };
+  const reminderHours = Number(settingsStore.wasender.reminderHours) || 24;
   const rows = [
     { section: "Appointments", items: [
-      { key: "apptReminder", label: "Appointment reminders", hint: "Send reminder 1 hour before" },
+      { key: "apptReminder", label: "Appointment reminders", hint: `Send reminder ${reminderHours}h before (change lead time in Account → WhatsApp)` },
       { key: "apptConfirm",  label: "Booking confirmations", hint: "Notify client on booking" },
       { key: "noShow",       label: "No-show alerts",        hint: "Alert staff on no-shows" },
     ]},

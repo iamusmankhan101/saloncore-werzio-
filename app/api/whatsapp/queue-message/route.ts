@@ -119,9 +119,9 @@ function scheduledAtFor(kind: QueueKind, settings: Record<string, unknown>, requ
   const requestedAt = requested ? new Date(requested).getTime() : NaN;
   let scheduledAt: string;
   if (kind === "reminder") {
-    const minimum = now + 10 * MINUTE_MS;
+    const minimum = now + 25 * MINUTE_MS;
     if (!Number.isFinite(requestedAt) || requestedAt < minimum) {
-      scheduledAt = new Date(now + randBetween(10 * MINUTE_MS, 20 * MINUTE_MS)).toISOString();
+      scheduledAt = new Date(now + randBetween(25 * MINUTE_MS, 30 * MINUTE_MS)).toISOString();
       return salonHoursAdjustedScheduledAt(kind, scheduledAt, settings);
     }
   }
@@ -169,7 +169,10 @@ function autoSettingEnabled(settings: Record<string, unknown>, kind: QueueKind):
   if (kind === "groupalert") return wasender?.autoGroupBooking !== false;
   if (kind === "followup") return wasender?.autoFollowup !== false;
   if (kind === "cancellation") return wasender?.autoCancellation !== false;
-  if (kind === "reminder") return wasender?.autoReminder !== false;
+  if (kind === "reminder") {
+    const notifications = settings.notifications as { apptReminder?: boolean } | undefined;
+    return wasender?.autoReminder !== false && notifications?.apptReminder !== false;
+  }
   if (kind === "lowstock") return wasender?.autoLowStock !== false;
   return true;
 }

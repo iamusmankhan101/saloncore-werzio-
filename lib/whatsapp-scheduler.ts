@@ -213,8 +213,8 @@ let schedulerRunning = false;
 // type's spacing.
 const FAST_JITTER_MIN_MS = MESSAGE_JITTER_MIN_MS;       // 5 min
 const FAST_JITTER_MAX_MS = MESSAGE_JITTER_MAX_MS;        // 7 min
-const REMINDER_TIER_MIN_MS = 10 * 60_000;
-const REMINDER_TIER_MAX_MS = 20 * 60_000;
+const REMINDER_TIER_MIN_MS = 25 * 60_000;
+const REMINDER_TIER_MAX_MS = 30 * 60_000;
 const FOLLOWUP_TIER_MIN_MS = 20 * 60_000;
 const FOLLOWUP_TIER_MAX_MS = 35 * 60_000;
 
@@ -620,7 +620,7 @@ type ProviderConfig = WhatsAppSafetyConfig & {
 // API route — so it can never block a serverless request into a platform timeout.
 //
 // Confirmation (5-7 min), new-booking group alert (5-7 min with random seconds),
-// reminder (15-30 min), and
+// reminder (25-30 min), and
 // follow-up (20-35 min) each use their own dedicated gate/clock instead of this
 // shared floor — see the tier gates above.
 async function applyPacingGate(providerConfig: ProviderConfig, msgType?: WaMsgType): Promise<void> {
@@ -947,7 +947,11 @@ async function runSchedulerInternal(): Promise<void> {
 
   // 1. Appointment reminders — send X hours before appointment (only during salon hours).
   // Same-day bookings never get a reminder — reminders only make sense for a future day.
-  if (openNow && ws.autoReminder && waTpl.reminder) {
+  // Gated by both the Account → WhatsApp automation toggle (ws.autoReminder) and the
+  // Settings → Notifications toggle (notifications.apptReminder) — either one turned off
+  // stops reminders from being queued.
+  const notifications = settingsStore.notifications as { apptReminder?: boolean };
+  if (openNow && ws.autoReminder && notifications.apptReminder !== false && waTpl.reminder) {
     for (const appt of appointments) {
       if (appt.status === "cancelled" || appt.status === "no-show" || appt.status === "completed") continue;
       if (appt.date === todayKey) continue;
