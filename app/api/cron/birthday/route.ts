@@ -73,6 +73,7 @@ async function ensureTables() {
       PRIMARY KEY (user_id, client_id, year)
     )
   `);
+  await db.execute(`ALTER TABLE birthday_message_queue ADD COLUMN opted_in INTEGER NOT NULL DEFAULT 1`).catch(() => {});
   // wa_birthday_settings and wa_message_logs created by their own routes on first use
 }
 
@@ -189,7 +190,7 @@ async function getAllBirthdayUsers(): Promise<BirthdayUser[]> {
   return users;
 }
 
-async function getClients(userId: string): Promise<{ id: string; name: string; phone: string; dob?: string }[]> {
+async function getClients(userId: string): Promise<{ id: string; name: string; phone: string; dob?: string; whatsappOptedOut?: boolean }[]> {
   try {
     const result = await db.execute({
       sql: "SELECT data FROM salon_data WHERE entity = ?",
@@ -237,11 +238,12 @@ async function queueBirthdayMessage(input: {
   phone: string;
   text: string;
   scheduledAt: string;
+  optedIn: boolean;
 }) {
   await db.execute({
     sql: `INSERT OR IGNORE INTO birthday_message_queue
-            (user_id, client_id, year, client_name, phone, text, scheduled_at, status, attempts, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
+            (user_id, client_id, year, client_name, phone, text, scheduled_at, status, attempts, created_at, opted_in)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?)`,
     args: [
       input.userId,
       input.clientId,
@@ -251,6 +253,7 @@ async function queueBirthdayMessage(input: {
       input.text,
       input.scheduledAt,
       new Date().toISOString(),
+      input.optedIn ? 1 : 0,
     ],
   });
 }
@@ -296,10 +299,11 @@ async function sendBirthdayMessage(
   phone: string,
   providerConfig: WhatsAppProviderConfig & WhatsAppSafetyConfig,
   text: string,
+  recipientOptedIn: boolean,
 ): Promise<{ ok: boolean; skipped: boolean }> {
   if (!phone.trim()) return { ok: false, skipped: false };
   try {
-    const safety = checkWhatsAppSafety({ phone, intent: "marketing", config: providerConfig });
+    const safety = checkWhatsAppSafety({ phone, intent: "marketing", recipientOptedIn, config: providerConfig });
     if (!safety.ok) throw new Error(safety.error);
     const result = await sendWhatsAppMessage(providerConfig, phone, text, { messageType: "birthday" });
     if (result.ok) recordWhatsAppSafetySend({ phone, config: providerConfig });
@@ -371,6 +375,7 @@ async function enqueueTodaysBirthdays(): Promise<{ checked: number; queued: numb
         phone,
         text,
         scheduledAt: randomScheduledAt(scheduleIndex, birthdayClients.length, spreadWindowMs),
+        optedIn: !client.whatsappOptedOut,
       });
       scheduleIndex++;
       queued++;
@@ -388,9 +393,10 @@ async function getDueBirthdayQueueItems(limit: number): Promise<Array<{
   phone: string;
   text: string;
   attempts: number;
+  optedIn: boolean;
 }>> {
   const result = await db.execute({
-    sql: `SELECT user_id, client_id, year, client_name, phone, text, attempts
+    sql: `SELECT user_id, client_id, year, client_name, phone, text, attempts, opted_in
           FROM birthday_message_queue
           WHERE status = 'pending'
             AND scheduled_at <= ?
@@ -407,6 +413,7 @@ async function getDueBirthdayQueueItems(limit: number): Promise<Array<{
     phone: row.phone as string,
     text: row.text as string,
     attempts: Number(row.attempts ?? 0),
+    optedIn: Number(row.opted_in ?? 1) !== 0,
   }));
 }
 
@@ -461,7 +468,7 @@ async function processDueBirthdayMessages(): Promise<{ sent: number; failed: num
       continue;
     }
 
-    const result = await sendBirthdayMessage(item.phone, user.providerConfig, item.text);
+    const result = await sendBirthdayMessage(item.phone, user.providerConfig, item.text, item.optedIn);
     if (result.skipped) {
       await updateQueueAttempt({ ...item, ok: true });
       deferred++;

@@ -382,6 +382,42 @@ async function getSettings(userId: string, cache: Map<string, Record<string, unk
   return cache.get(userId) ?? null;
 }
 
+function normalizePhone(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("0")) digits = `92${digits.slice(1)}`;
+  else if (digits.length === 10 && digits.startsWith("3")) digits = `92${digits}`;
+  return digits;
+}
+
+// Marketing sends (cancellation win-backs) need the client's real opt-in status
+// for blockMarketingWithoutOptIn to have anything to check — without this,
+// every marketing send here is treated as an unknown, non-opted-in phone and
+// gets blocked outright whenever that (default-on) safety toggle is enabled.
+async function getRecipientOptedIn(
+  userId: string,
+  phone: string,
+  cache: Map<string, Map<string, boolean>>,
+): Promise<boolean | undefined> {
+  if (!cache.has(userId)) {
+    const map = new Map<string, boolean>();
+    try {
+      const row = await db.execute({
+        sql: "SELECT data FROM salon_data WHERE entity = ?",
+        args: [`${userId}_clients`],
+      });
+      if (row.rows.length > 0) {
+        const clients = JSON.parse(row.rows[0].data as string) as Array<{ phone?: string; whatsappOptedOut?: boolean }>;
+        for (const client of clients) {
+          if (!client.phone) continue;
+          map.set(normalizePhone(client.phone), !client.whatsappOptedOut);
+        }
+      }
+    } catch { /* leave map empty — unknown phones stay treated as not opted-in */ }
+    cache.set(userId, map);
+  }
+  return cache.get(userId)?.get(phone);
+}
+
 async function runBookingQueueCron(): Promise<{ sent: number; failed: number; skipped: number; expired: number; posSent: number; posFailed: number; posExpired: number }> {
   const items = await getDueItems();
   let sent = 0, failed = 0, skipped = 0, expired = 0, posSent = 0, posFailed = 0, posExpired = 0;
@@ -394,6 +430,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
   let posSendAttemptsThisRun = 0;
   let posDeferredDelayMs = 0;
   const settingsCache = new Map<string, Record<string, unknown> | null>();
+  const optedInCache = new Map<string, Map<string, boolean>>();
 
   for (const item of items) {
     if (Date.now() - new Date(item.scheduledAt).getTime() > EXPIRE_AFTER_MS) {
@@ -475,13 +512,15 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       continue;
     }
 
+    const intent = intentForKind(item.kind);
     const safety = checkWhatsAppSafety({
       phone: item.phone,
-      intent: intentForKind(item.kind),
+      intent,
       // Follow-ups have no time pressure (they go out days after the visit), so
       // they respect quiet hours even though their intent is "utility" — unlike
       // confirmations/reminders, which stay exempt since they're time-critical.
       respectQuietHours: item.kind === "followup" ? true : undefined,
+      recipientOptedIn: intent === "marketing" ? await getRecipientOptedIn(item.userId, item.phone, optedInCache) : undefined,
       config: providerConfig,
     });
     if (!safety.ok) {

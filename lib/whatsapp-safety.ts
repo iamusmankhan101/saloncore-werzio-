@@ -175,10 +175,14 @@ export function checkWhatsAppSafety(input: WhatsAppSafetyCheckInput) {
     };
   }
 
-  if (!config.safetyEnabled) return { ok: true };
+  // Emergency Pause is an unconditional kill switch ("Immediately blocks all
+  // WhatsApp sends") — like quiet hours above, it must not be neutered by the
+  // general Safety Guard toggle being off, so it's checked before that early exit.
   if (config.emergencyPause) {
     return { ok: false, status: 423, error: "WhatsApp sending is paused from Account → WhatsApp Safety." };
   }
+
+  if (!config.safetyEnabled) return { ok: true };
   if (intent === "marketing" && config.blockMarketingWithoutOptIn && input.recipientOptedIn !== true) {
     return { ok: false, status: 403, error: "Marketing WhatsApp send blocked because this client has not opted in." };
   }

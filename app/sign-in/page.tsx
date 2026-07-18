@@ -54,7 +54,14 @@ export default function SignInPage() {
         }
         localStorage.setItem("werzio_auth_session", data.user!.id);
         localStorage.setItem(`werzio_user_cache_${data.user!.id}`, JSON.stringify(data.user));
-        router.replace("/dashboard");
+        // Hard navigation, not router.replace: the dashboard is gated by an
+        // httpOnly cookie checked in middleware.ts, and Next's client router
+        // cache can still be holding the pre-login "redirected to /sign-in"
+        // result for /dashboard from earlier in the session. A soft nav can
+        // silently reuse that stale result; a full document load (same as a
+        // manual refresh, which is why that "fixes" it) re-runs middleware
+        // against the cookie that was just set.
+        window.location.href = "/dashboard";
       })
       .catch(err => {
         console.error("[sign-in] Error:", err);
