@@ -417,6 +417,45 @@ async function getRecipientOptedIn(
   return cache.get(userId)?.get(phone);
 }
 
+// The floor each kind's spacingDelayMs/posSpacingDelayMs range already implies
+// (e.g. reminder's 10-20 min range implies "at least 10 min apart"). Used to
+// check real elapsed time since the last actual send, not just collisions
+// within a single cron run — see getLastSentAtMs below for why that matters.
+function minGapMsForKind(kind: QueueKind): number {
+  if (kind === "followup") return 30 * MINUTE_MS;
+  if (kind === "reminder") return 10 * MINUTE_MS;
+  if (kind === "cancellation") return 15 * MINUTE_MS;
+  if (kind === "birthday") return 20 * MINUTE_MS;
+  return 5 * MINUTE_MS;
+}
+const POS_MIN_GAP_MS = 10 * MINUTE_MS;
+
+// SEND_LIMIT_PER_RUN only caps how many messages go out within one cron
+// invocation — it does nothing to stop a *later* invocation from sending
+// again a couple minutes after. With the drain cron now polling every 1-3
+// min (instead of the old, accidentally-slow ~10 min interval), a sustained
+// backlog could otherwise send a message every single poll, defeating the
+// whole point of each kind's 5-30 min anti-ban spacing. This checks the real
+// last successful send time (persisted in wa_message_logs, so it holds
+// across separate serverless invocations) and defers if the kind's own
+// minimum gap hasn't actually elapsed yet.
+async function getLastSentAtMs(
+  userId: string,
+  type: string,
+  cache: Map<string, number | null>,
+): Promise<number | null> {
+  const key = `${userId}:${type}`;
+  if (!cache.has(key)) {
+    const row = await db.execute({
+      sql: "SELECT MAX(timestamp) AS ts FROM wa_message_logs WHERE user_id = ? AND type = ? AND status = 'sent'",
+      args: [userId, type],
+    });
+    const ts = row.rows[0]?.ts as string | null;
+    cache.set(key, ts ? new Date(ts).getTime() : null);
+  }
+  return cache.get(key) ?? null;
+}
+
 async function runBookingQueueCron(): Promise<{ sent: number; failed: number; skipped: number; expired: number; posSent: number; posFailed: number; posExpired: number }> {
   const items = await getDueItems();
   let sent = 0, failed = 0, skipped = 0, expired = 0, posSent = 0, posFailed = 0, posExpired = 0;
@@ -430,6 +469,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
   let posDeferredDelayMs = 0;
   const settingsCache = new Map<string, Record<string, unknown> | null>();
   const optedInCache = new Map<string, Map<string, boolean>>();
+  const lastSentCache = new Map<string, number | null>();
 
   for (const item of items) {
     if (Date.now() - new Date(item.scheduledAt).getTime() > EXPIRE_AFTER_MS) {
@@ -507,6 +547,13 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     if (sendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
       deferredDelayMs += spacingDelayMs(item.kind);
       await deferItem(item, deferredDelayMs, "Deferred to pace automated WhatsApp sends.");
+      skipped++;
+      continue;
+    }
+    const lastSentForKind = await getLastSentAtMs(item.userId, logTypeForKind(item.kind), lastSentCache);
+    const minGap = minGapMsForKind(item.kind);
+    if (lastSentForKind != null && Date.now() - lastSentForKind < minGap) {
+      await deferItem(item, spacingDelayMs(item.kind), "Deferred to keep automated WhatsApp sends spaced apart.");
       skipped++;
       continue;
     }
@@ -588,6 +635,12 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
         ? safety.retryAfter * 1000
         : retryDelayMs("manual");
       await deferPosReceipt(item, retryAfterMs, safety.error ?? "WhatsApp safety check deferred this send.");
+      skipped++;
+      continue;
+    }
+    const lastInvoiceSent = await getLastSentAtMs(item.userId, "invoice", lastSentCache);
+    if (lastInvoiceSent != null && Date.now() - lastInvoiceSent < POS_MIN_GAP_MS) {
+      await deferPosReceipt(item, posSpacingDelayMs(), "Deferred to keep automated invoice sends spaced apart.");
       skipped++;
       continue;
     }
