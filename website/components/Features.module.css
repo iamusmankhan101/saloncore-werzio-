@@ -12,11 +12,12 @@
   margin-bottom: 56px;
 }
 
-/* ── CAROUSEL ───────────────────────── */
+/* ── MARQUEE CAROUSEL ───────────────── */
 .carouselWrap {
   position: relative;
   max-width: 1200px;
   margin: 0 auto;
+  overflow: hidden;
 }
 
 .carouselWrap::before,
@@ -24,8 +25,8 @@
   content: '';
   position: absolute;
   top: 0;
-  bottom: 20px;
-  width: 48px;
+  bottom: 0;
+  width: 80px;
   z-index: 2;
   pointer-events: none;
 }
@@ -35,65 +36,19 @@
 .carousel {
   display: flex;
   gap: 20px;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  scroll-behavior: smooth;
+  width: max-content;
   padding: 4px 4px 16px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  animation: marquee 55s linear infinite;
 }
-.carousel::-webkit-scrollbar { display: none; }
+.carousel:hover { animation-play-state: paused; }
 
-.carouselNav {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  margin-top: 24px;
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
 
-.navBtn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #fff;
-  border: 1.5px solid #ede9fe;
-  color: #7c3aed;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background .2s, color .2s, border-color .2s, transform .15s;
-  flex-shrink: 0;
-}
-.navBtn:hover:not(:disabled) {
-  background: #7c3aed;
-  color: #fff;
-  border-color: #7c3aed;
-  transform: translateY(-2px);
-}
-.navBtn:disabled { opacity: .35; cursor: not-allowed; }
-
-.dots {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.dot {
-  width: 7px;
-  height: 7px;
-  padding: 0;
-  border: none;
-  border-radius: 99px;
-  background: #ddd6fe;
-  cursor: pointer;
-  transition: all .25s;
-}
-.dot:hover { background: #c4b5fd; }
-.dotActive {
-  width: 22px;
-  background: #7c3aed;
+@media (prefers-reduced-motion: reduce) {
+  .carousel { animation: none; }
 }
 
 /* ── CARD ───────────────────────────── */
@@ -109,7 +64,6 @@
   position: relative;
   flex: 0 0 340px;
   width: 340px;
-  scroll-snap-align: start;
 }
 
 .cardGlow {
@@ -1112,7 +1066,6 @@
   .invStatVal { font-size: 0.9rem; }
   .carouselWrap::before,
   .carouselWrap::after { width: 24px; }
-  .navBtn { width: 36px; height: 36px; }
   .section { padding: 64px 4%; }
 }
 

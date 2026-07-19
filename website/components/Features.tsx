@@ -1,9 +1,8 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
 import styles from "./Features.module.css";
 import {
   CalendarDays, Package, Users, Check, Wallet, Megaphone, Gift, Banknote,
-  UserCog, ShoppingCart, Wand2, ChevronLeft, ChevronRight, Coins, Scissors,
+  UserCog, ShoppingCart, Wand2, Coins, Scissors,
   Sparkles, FileSpreadsheet,
 } from "lucide-react";
 
@@ -450,79 +449,11 @@ const features = [
   },
 ];
 
+// Rendered twice back-to-back so the marquee track can loop seamlessly:
+// animating the first copy fully offscreen lands exactly on the second's start.
+const loopedFeatures = [...features, ...features];
+
 export default function Features() {
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  // Fade cards in with a stagger once the section scrolls into view (vertical page scroll).
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const el = entry.target as HTMLElement;
-            el.style.opacity = "1";
-            el.style.transform = "translateY(0)";
-            observer.unobserve(el);
-          }
-        });
-      },
-      { threshold: 0.08, rootMargin: "0px 0px -30px 0px" }
-    );
-
-    cardRefs.current.forEach((card) => { if (card) observer.observe(card); });
-    return () => observer.disconnect();
-  }, []);
-
-  // Track which card is active as the user scrolls/swipes the carousel horizontally.
-  useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-    let raf = 0;
-
-    function onScroll() {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const first = cardRefs.current[0];
-        if (!scroller || !first) return;
-        // Snap to the last dot once we've hit (or nearly hit) the scroll end.
-        // The last card's step often doesn't divide evenly into scrollLeft.
-        const atEnd = scroller.scrollLeft + scroller.clientWidth >= scroller.scrollWidth - 4;
-        if (atEnd) { setActiveIndex(features.length - 1); return; }
-        const gap = 20;
-        const step = first.offsetWidth + gap;
-        const idx = Math.round(scroller.scrollLeft / step);
-        setActiveIndex(Math.max(0, Math.min(idx, features.length - 1)));
-      });
-    }
-
-    scroller.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      scroller.removeEventListener("scroll", onScroll);
-      cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  function goTo(index: number) {
-    const scroller = scrollerRef.current;
-    const target = cardRefs.current[index];
-    if (!scroller || !target) return;
-    scroller.scrollTo({ left: target.offsetLeft - scroller.offsetLeft, behavior: "smooth" });
-  }
-
-  // Prev/Next move relative to the current scroll position (not to a specific
-  // card's absolute offset). Near the end of the carousel, several trailing
-  // cards can share the same clamped max scrollLeft, which made goTo(index-1)
-  // resolve to the exact same position and made "Previous" look stuck.
-  function step(direction: 1 | -1) {
-    const scroller = scrollerRef.current;
-    const first = cardRefs.current[0];
-    if (!scroller || !first) return;
-    const gap = 20;
-    scroller.scrollBy({ left: direction * (first.offsetWidth + gap), behavior: "smooth" });
-  }
-
   return (
     <section className={styles.section} id="features">
       <div className={`${styles.header} text-center`}>
@@ -534,19 +465,17 @@ export default function Features() {
         </p>
       </div>
 
-      <div className={styles.carouselWrap}>
-        <div className={styles.carousel} ref={scrollerRef}>
-          {features.map((f, i) => {
+      <div className={styles.carouselWrap} data-animate data-delay="0.15">
+        <div className={styles.carousel}>
+          {loopedFeatures.map((f, i) => {
             const Icon = f.icon;
+            const isDuplicate = i >= features.length;
             return (
               <div
-                key={f.title}
-                ref={(el) => { cardRefs.current[i] = el; }}
+                key={`${f.title}-${i}`}
                 className={styles.card}
+                aria-hidden={isDuplicate}
                 style={{
-                  opacity: 0,
-                  transform: "translateY(36px)",
-                  transition: `opacity 0.55s ease ${i * 0.05}s, transform 0.55s cubic-bezier(0.16,1,0.3,1) ${i * 0.05}s`,
                   ["--accent" as string]: f.color,
                   ["--accent-shadow" as string]: hexToRgba(f.color, 0.18),
                 }}
@@ -574,26 +503,6 @@ export default function Features() {
             );
           })}
         </div>
-      </div>
-
-      <div className={styles.carouselNav}>
-        <button type="button" className={styles.navBtn} onClick={() => step(-1)} disabled={activeIndex === 0} aria-label="Previous feature">
-          <ChevronLeft size={18} />
-        </button>
-        <div className={styles.dots}>
-          {features.map((f, i) => (
-            <button
-              key={f.title}
-              type="button"
-              className={`${styles.dot} ${i === activeIndex ? styles.dotActive : ""}`}
-              onClick={() => goTo(i)}
-              aria-label={`Go to ${f.title}`}
-            />
-          ))}
-        </div>
-        <button type="button" className={styles.navBtn} onClick={() => step(1)} disabled={activeIndex === features.length - 1} aria-label="Next feature">
-          <ChevronRight size={18} />
-        </button>
       </div>
     </section>
   );

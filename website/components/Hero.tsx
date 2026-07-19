@@ -61,25 +61,7 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* ── screenshot wrapper with 4 floating pills ── */}
       <div className={styles.screenshotWrapper}>
-        <div className={`${styles.pill} ${styles.pillUL}`}>
-          <span className={styles.dot} style={{ background: "#7c3aed" }} />
-          Salon Owner
-        </div>
-        <div className={`${styles.pill} ${styles.pillUR}`}>
-          <span className={styles.dot} style={{ background: "#7c3aed" }} />
-          Walk-in Client
-        </div>
-        <div className={`${styles.pill} ${styles.pillLL}`}>
-          <span className={styles.dot} style={{ background: "#f59e0b" }} />
-          Head Stylist
-        </div>
-        <div className={`${styles.pill} ${styles.pillLR}`}>
-          <span className={styles.dot} style={{ background: "#10b981" }} />
-          Branch Manager
-        </div>
-
         <div ref={frameRef} className={styles.frame}>
           <Image
             src="/calendar-hero.png"
