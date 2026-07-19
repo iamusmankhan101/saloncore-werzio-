@@ -10,11 +10,13 @@
   position: relative;
   overflow: hidden;
   /* black/purple glow at the top (behind the transparent nav + headline),
-     fading down to white so it blends into the section below */
+     with soft asymmetric light blooms and a richer multi-tone descent
+     through indigo/violet/orchid before fading into the section below */
   background:
-    radial-gradient(ellipse 65% 50% at 18% -5%, rgba(156, 77, 244, 0.4), transparent 60%),
-    radial-gradient(ellipse 65% 50% at 85% 0%, rgba(124, 47, 212, 0.45), transparent 60%),
-    linear-gradient(180deg, #0a0714 0%, #170f2e 20%, #241640 38%, #ffffff 76%);
+    radial-gradient(ellipse 70% 60% at 12% -15%, rgba(196, 141, 250, 0.55), transparent 55%),
+    radial-gradient(ellipse 55% 55% at 92% -10%, rgba(124, 47, 212, 0.5), transparent 55%),
+    radial-gradient(ellipse 45% 40% at 55% 30%, rgba(156, 77, 244, 0.28), transparent 62%),
+    linear-gradient(180deg, #0a0714 0%, #150c28 16%, #221540 30%, #38205e 45%, #5c3592 60%, #a984e0 78%, #ffffff 95%);
 }
 
 .kicker {
