@@ -45,6 +45,66 @@
   background: rgba(255, 255, 255, 0.22);
 }
 
+/* ── FLOATING SALON-TOOL ICONS ───────── */
+.iconChip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(15, 10, 40, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 4px 18px rgba(0, 0, 0, .25),
+    inset 0 1px 0 rgba(255, 255, 255, .08);
+  pointer-events: none;
+}
+.iconChip svg { width: 20px; height: 20px; }
+
+@keyframes iconFloatA {
+  0%, 100% { transform: translateY(0px);   }
+  50%       { transform: translateY(-10px); }
+}
+@keyframes iconFloatB {
+  0%, 100% { transform: translateY(0px);  }
+  50%       { transform: translateY(8px); }
+}
+@keyframes iconFloatC {
+  0%, 100% { transform: translateY(0px);   }
+  50%       { transform: translateY(-7px); }
+}
+
+.iconUL {
+  top: 8%; left: 15%;
+  animation: iconFloatA 3.4s ease-in-out infinite;
+}
+.iconUR {
+  top: 10%; right: 12%;
+  animation: iconFloatB 3.9s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+.iconML {
+  top: 44%; left: 5%;
+  animation: iconFloatC 3.6s ease-in-out infinite;
+  animation-delay: 1s;
+}
+.iconMR {
+  top: 44%; right: 5%;
+  animation: iconFloatA 4s ease-in-out infinite;
+  animation-delay: 0.3s;
+}
+.iconLL {
+  top: 74%; left: 12%;
+  animation: iconFloatB 3.3s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
 /* ── CONTENT ─────────────────────────── */
 .content {
   position: relative;
@@ -128,8 +188,12 @@
 }
 
 /* ── RESPONSIVE ──────────────────────── */
+@media (max-width: 900px) {
+  .iconML, .iconMR, .iconLL { display: none; }
+}
 @media (max-width: 640px) {
   .hero { padding: 96px 0 64px; }
+  .iconChip { display: none; }
   .btns { flex-direction: column; align-items: center; }
   .btnPrimary, .btnOutline { width: 100%; max-width: 300px; justify-content: center; }
   .sub { font-size: 0.92rem; }
