@@ -9,10 +9,38 @@
   align-items: center;
   position: relative;
   overflow: hidden;
-  /* stretch image exactly — white at top, deep purple at bottom */
-  background-image: url('/05f51ef53be2fb71255e54e67ab3e34c.jpg');
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
+  /* black/purple glow at the top (behind the transparent nav + headline),
+     fading down to white so it blends into the section below */
+  background:
+    radial-gradient(ellipse 65% 50% at 18% -5%, rgba(155, 111, 212, 0.4), transparent 60%),
+    radial-gradient(ellipse 65% 50% at 85% 0%, rgba(91, 33, 182, 0.45), transparent 60%),
+    linear-gradient(180deg, #0a0714 0%, #170f2e 20%, #241640 38%, #ffffff 76%);
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 16px 7px 7px;
+  margin-bottom: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #9b6fd4 0%, #7c3aed 55%, #5b21b6 100%);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  box-shadow: 0 6px 22px rgba(124, 58, 237, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.kickerIconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 /* ── CONTENT ─────────────────────────── */
@@ -33,14 +61,14 @@
   font-weight: 500;
   line-height: 1.1;
   letter-spacing: -0.03em;
-  color: #150c30;
+  color: #fff;
   margin-bottom: 16px;
 }
 
 .sub {
   font-family: 'Montserrat', sans-serif;
   font-size: 1rem;
-  color: #1a0a2e;
+  color: rgba(255, 255, 255, 0.78);
   line-height: 1.7;
   max-width: 440px;
   margin-bottom: 30px;

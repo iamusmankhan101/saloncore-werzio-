@@ -26,6 +26,7 @@
   text-decoration: none;
   flex-shrink: 0;
   filter: brightness(0);
+  transition: filter .3s;
 }
 
 .links {
@@ -43,6 +44,24 @@
   white-space: nowrap;
 }
 .link:hover, .active { color: var(--purple); }
+
+/* ── DARK HERO MODE ──────────────────────────────────────────────
+   Used on pages whose hero sits on a black/purple background (only
+   while floating transparent — .scrolled always wins once the user
+   scrolls past the hero, reverting to the normal black-on-white look). */
+.navDark:not(.scrolled) .logo {
+  filter: brightness(0) invert(1);
+}
+.navDark:not(.scrolled) .link {
+  color: rgba(255, 255, 255, 0.82);
+}
+.navDark:not(.scrolled) .link:hover,
+.navDark:not(.scrolled) .active {
+  color: #fff;
+}
+.navDark:not(.scrolled) .burger {
+  color: #fff;
+}
 
 .cta {
   display: flex;

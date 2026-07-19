@@ -13,7 +13,7 @@ export default function Home() {
   return (
     <>
       <ScrollReveal />
-      <Navbar />
+      <Navbar dark />
       <Hero />
       <TrustedBy />
       <Features />

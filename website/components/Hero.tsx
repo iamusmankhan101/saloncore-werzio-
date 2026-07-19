@@ -2,6 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import styles from "./Hero.module.css";
 import DemoVideoModal from "./DemoVideoModal";
 
@@ -43,6 +44,10 @@ export default function Hero() {
 
       {/* ── headline + subtitle + buttons ── */}
       <div className={styles.content}>
+        <div className={styles.kicker} data-animate data-delay="0">
+          <span className={styles.kickerIconWrap}><ShieldCheck size={12} /></span>
+          Trusted by salons across Pakistan
+        </div>
         <h1 className={styles.title} data-animate data-delay="0.1">
           Simplify Salon Operations<br />10x Your Revenue
         </h1>
