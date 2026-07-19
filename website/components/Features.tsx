@@ -4,6 +4,7 @@ import styles from "./Features.module.css";
 import {
   CalendarDays, Package, Users, Check, Wallet, Megaphone, Gift, Banknote,
   UserCog, ShoppingCart, Wand2, ChevronLeft, ChevronRight, Coins, Scissors,
+  Sparkles, FileSpreadsheet,
 } from "lucide-react";
 
 /* ── helpers ───────────────────────────────────────────────── */
@@ -60,38 +61,27 @@ function WhatsAppPreview() {
 }
 
 function ClientPreview() {
+  const selected = new Set(["1-0", "0-3", "2-2"]);
   return (
-    <div className={styles.prev}>
-      <div className={styles.clientCard}>
-        <div className={styles.clientTop}>
-          <div className={styles.clientAvatar}>SN</div>
-          <div>
-            <div className={styles.clientName}>Sana Nawaz</div>
-            <div className={styles.clientSub}>24 visits · VIP</div>
-          </div>
-          <div className={styles.clientBadge}>VIP</div>
-        </div>
-        {[
-          {label:"Hair Formula", val:"Loreal 7.3 + 20vol", c:"#7c3aed"},
-          {label:"Skin Type",    val:"Oily Combination"},
-          {label:"Allergy",      val:"⚠ PPD Dye", c:"#ef4444"},
-          {label:"Notes",        val:"Sensitive scalp · prefers Zara", c:"#6b7280"},
-        ].map(r=>(
-          <div key={r.label} className={styles.clientRow}>
-            <span className={styles.clientLabel}>{r.label}</span>
-            <span className={styles.clientVal} style={{color:(r as {c?:string}).c, fontStyle: r.label==="Notes"?"italic":undefined}}>{r.val}</span>
+    <div className={`${styles.prev} ${styles.importPreview}`}>
+      <span className={styles.importCsvBadge}>
+        <FileSpreadsheet size={11} /> CSV
+      </span>
+      <div className={styles.importGrid}>
+        {Array.from({ length: 4 }).map((_, row) => (
+          <div className={styles.importGridRow} key={row}>
+            {Array.from({ length: 4 }).map((_, col) => (
+              <span
+                key={col}
+                className={`${styles.importCell} ${selected.has(`${row}-${col}`) ? styles.importCellSelected : ""}`}
+              />
+            ))}
           </div>
         ))}
-        <div className={styles.beforeAfterStrip}>
-          <div className={styles.beforeAfterHalf}>
-            <div className={styles.beforeAfterBefore} />
-            <span>Before</span>
-          </div>
-          <div className={styles.beforeAfterHalf}>
-            <div className={styles.beforeAfterAfter} />
-            <span>After</span>
-          </div>
-        </div>
+      </div>
+      <div className={styles.importBtn}>
+        <Sparkles size={13} />
+        Import
       </div>
     </div>
   );

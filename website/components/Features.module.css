@@ -540,91 +540,78 @@
 }
 
 /* ════════════════════════════════════
-   6. CLIENT MANAGEMENT PREVIEW
+   6. CLIENT MANAGEMENT (IMPORT) PREVIEW
 ════════════════════════════════════ */
-.clientCard {
+.importPreview {
+  position: relative;
+  justify-content: center;
+  gap: 10px;
+  overflow: hidden;
+  background: radial-gradient(120% 100% at 30% 0%, #ede9fe 0%, #f5f3ff 45%, #ffffff 100%);
+}
+
+.importCsvBadge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff;
+  color: #7c3aed;
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 20px;
+  box-shadow: 0 4px 10px rgba(124, 58, 237, .18);
+  z-index: 1;
+}
+
+.importGrid {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 7px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px 10px;
+  border: 1px solid #ede9fe;
+  margin-top: 14px;
 }
 
-.clientTop {
+.importGridRow {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.clientAvatar {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #7c3aed, #db2777);
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.clientName { font-size: 0.72rem; font-weight: 700; color: #111; }
-.clientSub  { font-size: 0.58rem; color: #9ca3af; }
-
-.clientBadge {
-  margin-left: auto;
-  font-size: 0.55rem;
-  font-weight: 700;
-  background: #fef3c7;
-  color: #d97706;
-  padding: 2px 7px;
-  border-radius: 20px;
-  flex-shrink: 0;
-}
-
-.clientRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 0;
-  border-bottom: 1px solid #f3f4f6;
   gap: 6px;
 }
-.clientRow:last-child { border-bottom: none; }
 
-.clientLabel { font-size: 0.62rem; color: #9ca3af; flex-shrink: 0; }
-.clientVal   { font-size: 0.63rem; font-weight: 700; color: #111827; text-align: right; }
-
-.beforeAfterStrip {
-  display: flex;
-  gap: 5px;
-  margin-top: 8px;
-}
-
-.beforeAfterHalf {
+.importCell {
   flex: 1;
+  height: 9px;
+  border-radius: 4px;
+  background: #ede9fe;
+}
+
+.importCellSelected {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, .18);
+}
+
+.importBtn {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%) rotate(-5deg);
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.beforeAfterHalf span {
-  font-size: 0.55rem;
-  font-weight: 700;
-  text-align: center;
-  color: #9ca3af;
-}
-
-.beforeAfterBefore {
-  height: 32px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #e5e7eb, #d1d5db);
-}
-
-.beforeAfterAfter {
-  height: 32px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #ede9fe, #c4b5fd);
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.8rem;
+  padding: 9px 18px;
+  border-radius: 999px;
+  box-shadow: 0 12px 26px rgba(124, 58, 237, .4), 0 2px 6px rgba(124, 58, 237, .3);
+  white-space: nowrap;
+  z-index: 1;
 }
 
 /* ════════════════════════════════════
