@@ -12,8 +12,8 @@
   /* black/purple glow at the top (behind the transparent nav + headline),
      fading down to white so it blends into the section below */
   background:
-    radial-gradient(ellipse 65% 50% at 18% -5%, rgba(155, 111, 212, 0.4), transparent 60%),
-    radial-gradient(ellipse 65% 50% at 85% 0%, rgba(91, 33, 182, 0.45), transparent 60%),
+    radial-gradient(ellipse 65% 50% at 18% -5%, rgba(156, 77, 244, 0.4), transparent 60%),
+    radial-gradient(ellipse 65% 50% at 85% 0%, rgba(124, 47, 212, 0.45), transparent 60%),
     linear-gradient(180deg, #0a0714 0%, #170f2e 20%, #241640 38%, #ffffff 76%);
 }
 
@@ -25,11 +25,11 @@
   margin-bottom: 22px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 999px;
-  background: linear-gradient(135deg, #9b6fd4 0%, #7c3aed 55%, #5b21b6 100%);
+  background: linear-gradient(135deg, #b378f7 0%, #9c4df4 55%, #7c2fd4 100%);
   color: #fff;
   font-size: 0.8rem;
   font-weight: 700;
-  box-shadow: 0 6px 22px rgba(124, 58, 237, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: 0 6px 22px rgba(156, 77, 244, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .kickerIconWrap {
@@ -87,20 +87,20 @@
   display: inline-flex;
   align-items: center;
   padding: 15px 34px;
-  background: #6d28d9;
+  background: #9c4df4;
   color: #fff;
   border-radius: 999px;
   font-size: 0.95rem;
   font-weight: 600;
   text-decoration: none;
-  box-shadow: 0 8px 28px rgba(109,40,217,.45);
+  box-shadow: 0 8px 28px rgba(156,77,244,.45);
   transition: all .2s;
   white-space: nowrap;
 }
 .btnPrimary:hover {
-  background: #5b21b6;
+  background: #7c2fd4;
   transform: translateY(-2px);
-  box-shadow: 0 12px 36px rgba(109,40,217,.55);
+  box-shadow: 0 12px 36px rgba(156,77,244,.55);
 }
 
 .btnOutline {
@@ -121,8 +121,8 @@
 }
 .btnOutline:hover {
   background: rgba(255,255,255,0.95);
-  border-color: #7c3aed;
-  color: #7c3aed;
+  border-color: #9c4df4;
+  color: #9c4df4;
 }
 
 /* ── RESPONSIVE ──────────────────────── */
