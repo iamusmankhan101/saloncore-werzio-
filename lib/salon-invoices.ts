@@ -122,9 +122,9 @@ export function deleteSalonInvoice(id: string): void {
   saveSalonInvoices(getSalonInvoices().filter((inv) => inv.id !== id));
 }
 
-export function markSalonInvoicePaid(id: string, paymentMethod: PaymentMethod): void {
+export function markSalonInvoicePaid(id: string, paymentMethod: PaymentMethod, paidDate?: string): void {
   const list = getSalonInvoices().map((inv) =>
-    inv.id === id ? { ...inv, status: "paid" as SalonInvoiceStatus, paymentMethod, paidDate: localDateKey() } : inv
+    inv.id === id ? { ...inv, status: "paid" as SalonInvoiceStatus, paymentMethod, paidDate: paidDate || localDateKey() } : inv
   );
   saveSalonInvoices(list);
 }

@@ -6,7 +6,7 @@ import {
   ReceiptText, ShoppingCart, TrendingUp, Users,
 } from "lucide-react";
 import {
-  getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid,
+  getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid, localDateKey,
   type SalonInvoice,
 } from "@/lib/salon-invoices";
 import type { PaymentMethod } from "@/lib/types";
@@ -75,6 +75,7 @@ export default function InvoicesPage() {
   const [viewingInvoice, setViewingInvoice] = useState<SalonInvoice | null>(null);
   const [deleteConfirm, setDeleteConfirm]   = useState<string | null>(null);
   const [markPaidPromptId, setMarkPaidPromptId] = useState<string | null>(null);
+  const [markPaidDate, setMarkPaidDate] = useState(() => localDateKey());
 
   const salon = settingsStore.salon;
 
@@ -86,6 +87,9 @@ export default function InvoicesPage() {
   }
 
   useEffect(() => { reload(); }, []);
+  // Reset to today each time the prompt opens for a new invoice, so a
+  // previously-picked backdate doesn't silently carry over to the next one.
+  useEffect(() => { if (markPaidPromptId) setMarkPaidDate(localDateKey()); }, [markPaidPromptId]);
 
   // Deep-link support: opening /dashboard/invoices?id=<invoiceId> (e.g. from a
   // notification) auto-opens that invoice's detail view once data has loaded.
@@ -126,10 +130,10 @@ export default function InvoicesPage() {
   function confirmMarkPaid(method: PaymentMethod) {
     if (!markPaidPromptId) return;
     const id = markPaidPromptId;
-    markSalonInvoicePaid(id, method);
+    markSalonInvoicePaid(id, method, markPaidDate);
     reload();
     if (viewingInvoice?.id === id) {
-      setViewingInvoice((prev) => prev ? { ...prev, status: "paid", paymentMethod: method } : prev);
+      setViewingInvoice((prev) => prev ? { ...prev, status: "paid", paymentMethod: method, paidDate: markPaidDate } : prev);
     }
     setMarkPaidPromptId(null);
   }
@@ -269,7 +273,20 @@ export default function InvoicesPage() {
               <CheckCircle size={22} color="#059669" />
             </div>
             <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 6 }}>How was this paid?</div>
-            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 20 }}>Select a payment method to mark this invoice paid.</div>
+            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 16 }}>Select a payment method to mark this invoice paid.</div>
+            <div style={{ textAlign: "left", marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+                Date paid
+              </label>
+              <input
+                type="date"
+                value={markPaidDate}
+                max={localDateKey()}
+                onChange={(e) => setMarkPaidDate(e.target.value)}
+                style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", background: "#faf9fd" }}
+              />
+              <div style={{ fontSize: 11, color: "#9898b0", marginTop: 5 }}>Defaults to today — change it if this was actually paid earlier.</div>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
               {PAYMENT_METHOD_OPTIONS.map((pm) => (
                 <button
