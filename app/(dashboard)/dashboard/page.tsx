@@ -108,10 +108,12 @@ export default function DashboardPage() {
       setAppointments(getStoredAppointments());
       setClients(getStoredClients());
       setStaffList(getStoredStaff());
-      // Revenue is recognized when an invoice is generated. Appointment-linked
-      // invoices are excluded because the completed appointment already carries
-      // the same revenue and would otherwise be counted twice.
-      setPosInvoices(getSalonInvoices().filter(inv => !inv.appointmentId));
+      // Revenue is only recognized once an invoice is actually paid, not when
+      // it's merely issued — an unpaid/credit invoice isn't money in hand yet.
+      // Appointment-linked invoices are excluded because the completed
+      // appointment already carries the same revenue and would otherwise be
+      // counted twice.
+      setPosInvoices(getSalonInvoices().filter(inv => !inv.appointmentId && inv.status === "paid"));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -125,7 +127,10 @@ export default function DashboardPage() {
       }
     });
     posInvoices.forEach((invoice) => {
-      totals.set(invoice.date, (totals.get(invoice.date) ?? 0) + invoice.total);
+      // A credit invoice paid off later counts toward the day it was actually
+      // paid, not the day it was originally issued.
+      const revenueDate = invoice.paidDate || invoice.date;
+      totals.set(revenueDate, (totals.get(revenueDate) ?? 0) + invoice.total);
     });
 
     const endDate = new Date(`${today}T12:00:00`);
@@ -143,7 +148,7 @@ export default function DashboardPage() {
     .map((value) => value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(Math.round(value)));
   const topClients = [...clients].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
   const todayCompletedAppts = todayAppts.filter((appointment) => appointment.status === "completed");
-  const todayPosInvoices = posInvoices.filter((invoice) => invoice.date === today);
+  const todayPosInvoices = posInvoices.filter((invoice) => (invoice.paidDate || invoice.date) === today);
   const todayTotal = todayCompletedAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPosInvoices.reduce((s, invoice) => s + invoice.total, 0);
   const todayTransactionCount = todayCompletedAppts.length + todayPosInvoices.length;
   const avgTicket = todayTransactionCount > 0 ? todayTotal / todayTransactionCount : 0;

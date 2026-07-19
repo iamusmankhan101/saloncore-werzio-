@@ -105,10 +105,19 @@ export default function RevenuePage() {
   useEffect(() => {
     setToday(toDateStr(new Date()));
     setAppointments(getStoredAppointments());
-    // Count generated standalone invoices as revenue, including unpaid invoices.
-    // Appointment-linked invoices stay excluded because their completed
-    // appointment is already included and counting both would duplicate revenue.
-    setPosInvoices(getSalonInvoices().filter(inv => !inv.appointmentId));
+    // Only paid invoices count as revenue — an unpaid/credit invoice isn't
+    // money in hand yet. Appointment-linked invoices stay excluded because
+    // their completed appointment is already included and counting both would
+    // duplicate revenue. `.date` is remapped to the actual paid date (falling
+    // back to the issue date for invoices paid at creation, or paid before
+    // paidDate existed) so every date-bucketed total below — which already
+    // treats `.date` as "the day this revenue counts toward" — lands on the
+    // day the money actually came in, not the day the invoice was written up.
+    setPosInvoices(
+      getSalonInvoices()
+        .filter(inv => !inv.appointmentId && inv.status === "paid")
+        .map(inv => ({ ...inv, date: inv.paidDate || inv.date }))
+    );
   }, []);
 
   // Reset drill-down when period changes
@@ -271,9 +280,11 @@ export default function RevenuePage() {
   }, [currentAppts, currentPos, period, today, customStart, customEnd]);
 
   const methodBreakdown = useMemo(() => {
-    const invoices = getSalonInvoices().filter(
-      inv => inv.status === "paid" && inv.date >= rangeStart && inv.date <= filterEnd
-    );
+    const invoices = getSalonInvoices().filter((inv) => {
+      if (inv.status !== "paid") return false;
+      const revenueDate = inv.paidDate || inv.date;
+      return revenueDate >= rangeStart && revenueDate <= filterEnd;
+    });
     const totals: Record<string, number> = {};
     invoices.forEach(inv => {
       if (!inv.paymentMethod) return;

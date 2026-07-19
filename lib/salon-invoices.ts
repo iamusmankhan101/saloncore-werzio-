@@ -35,7 +35,8 @@ export interface SalonInvoice {
   taxAmount: number;        // 0 for now; ready for future
   total: number;
   paymentMethod: PaymentMethod | "";
-  date: string;             // YYYY-MM-DD
+  date: string;             // YYYY-MM-DD — when the invoice was issued
+  paidDate?: string;        // YYYY-MM-DD — when it was actually marked paid; unset while unpaid
   status: SalonInvoiceStatus;
   notes?: string;
   createdAt: string;        // ISO timestamp
@@ -123,7 +124,7 @@ export function deleteSalonInvoice(id: string): void {
 
 export function markSalonInvoicePaid(id: string, paymentMethod: PaymentMethod): void {
   const list = getSalonInvoices().map((inv) =>
-    inv.id === id ? { ...inv, status: "paid" as SalonInvoiceStatus, paymentMethod } : inv
+    inv.id === id ? { ...inv, status: "paid" as SalonInvoiceStatus, paymentMethod, paidDate: localDateKey() } : inv
   );
   saveSalonInvoices(list);
 }
