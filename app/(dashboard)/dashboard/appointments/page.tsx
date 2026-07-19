@@ -250,12 +250,24 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
 
           <InfoRow icon={<Scissors size={14} color="#9898b0" />} label="Services">
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              {services.length > 0 ? services.map((sv) => (
-                <div key={sv.id} style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>{sv.name}</span>
-                  <span style={{ color: "#7C3AED", fontWeight: 600 }}>{fmt(sv.price)}</span>
-                </div>
-              )) : appt.serviceNames.map((name) => (
+              {services.length > 0 ? (() => {
+                // Split appt.totalAmount (the actual amount charged at booking
+                // time) across services proportionally to their current catalog
+                // prices, rather than showing each service's live catalog price
+                // directly — a service's price can be edited after the
+                // appointment was booked, and totalAmount is a snapshot that
+                // never gets recalculated, so showing live prices here could add
+                // up to a different number than "Total Amount" below.
+                const liveSum = services.reduce((s, sv) => s + sv.price, 0);
+                return services.map((sv) => (
+                  <div key={sv.id} style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>{sv.name}</span>
+                    <span style={{ color: "#7C3AED", fontWeight: 600 }}>
+                      {fmt(liveSum > 0 ? appt.totalAmount * (sv.price / liveSum) : appt.totalAmount / services.length)}
+                    </span>
+                  </div>
+                ));
+              })() : appt.serviceNames.map((name) => (
                 <div key={name} style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>{name}</span>
                 </div>
