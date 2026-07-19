@@ -111,7 +111,7 @@ export default function VerticalPage({
           <div className={styles.heroInner}>
             <div className={styles.heroCopy}>
               <div className={styles.kicker}>
-                {kickerIcon}
+                <span className={styles.kickerIconWrap}>{kickerIcon}</span>
                 {kickerLabel}
               </div>
               <h1>{h1}</h1>

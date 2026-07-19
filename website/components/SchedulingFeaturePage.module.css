@@ -32,15 +32,27 @@
 .kicker {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
+  gap: 9px;
+  padding: 7px 16px 7px 7px;
   margin-bottom: 20px;
-  border: 1px solid rgba(124, 58, 237, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #5b21b6;
+  background: linear-gradient(135deg, #9b6fd4 0%, #7c3aed 55%, #5b21b6 100%);
+  color: #fff;
   font-size: 0.82rem;
   font-weight: 700;
+  box-shadow: 0 6px 22px rgba(124, 58, 237, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.kickerIconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .hero h1,
