@@ -10,7 +10,9 @@ export default function CookieConsent() {
   useEffect(() => {
     // Only show once — if the visitor already made a choice (accept or
     // decline), never show it again on later visits/pages.
-    if (!localStorage.getItem(STORAGE_KEY)) setVisible(true);
+    if (localStorage.getItem(STORAGE_KEY)) return;
+    const timer = setTimeout(() => setVisible(true), 5000);
+    return () => clearTimeout(timer);
   }, []);
 
   function choose(value: "accepted" | "declined") {

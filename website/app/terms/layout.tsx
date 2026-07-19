@@ -1,9 +1,9 @@
-import LegalHeader from "../../components/LegalHeader";
+import Navbar from "../../components/Navbar";
 
 export default function TermsLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <LegalHeader />
+      <Navbar forceSolid />
       {children}
     </>
   );
