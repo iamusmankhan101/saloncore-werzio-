@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { siteConfig } from "../lib/seo";
 import ChatWidget from "../components/ChatWidget";
+import CookieConsent from "../components/CookieConsent";
 
 const title = "Salon Software, POS & CRM for Beauty Salons | Salon Central";
 const description = siteConfig.description;
@@ -104,6 +105,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <ChatWidget />
+        <CookieConsent />
       </body>
     </html>
   );
