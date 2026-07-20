@@ -58,10 +58,14 @@ export default function Hero() {
         <h1 className={styles.title} data-animate data-delay="0.1">
           Simplify Salon Operations<br />
           <span className={styles.revenueLine}>
-            10x Your Revenue
-            <svg className={styles.revenueScribble} viewBox="0 0 320 42" preserveAspectRatio="none" aria-hidden="true">
-              <path d="M4 32 C10 10 14 9 17 32 S28 9 32 32 S43 8 48 31 S61 8 66 31 S80 8 86 31 S101 7 108 30 S124 6 131 30 S148 6 156 29 S173 5 181 29 S198 5 207 28 S225 5 233 28 S251 6 260 29 S278 8 286 30 S304 10 316 31" />
-            </svg>
+            <span className={styles.tenXHighlight}>
+              10x
+              <svg className={styles.tenXCircle} viewBox="0 0 150 92" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M18 56 C7 35 28 14 68 10 C111 6 144 24 140 51 C136 79 91 88 48 78 C28 74 17 66 18 56 Z" />
+                <path d="M26 62 C14 42 33 21 72 17 C112 13 135 29 131 51 C127 73 91 80 52 72 C36 69 25 65 26 62 Z" />
+              </svg>
+            </span>{" "}
+            Your Revenue
           </span>
         </h1>
         <p className={styles.sub} data-animate data-delay="0.25">

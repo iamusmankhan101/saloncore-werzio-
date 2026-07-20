@@ -111,35 +111,46 @@
 .revenueLine {
   position: relative;
   display: inline-block;
-  padding: 0 0.08em 0.24em;
   color: #fff;
 }
 
-.revenueScribble {
+.tenXHighlight {
+  position: relative;
+  display: inline-block;
+  padding: 0.04em 0.15em 0.08em;
+}
+
+.tenXCircle {
   position: absolute;
-  left: 0.03em;
-  right: 0.03em;
-  bottom: -0.02em;
-  width: calc(100% - 0.06em);
-  height: 0.26em;
+  left: -0.12em;
+  top: -0.05em;
+  width: calc(100% + 0.28em);
+  height: 1.08em;
   color: #f5ac03;
   overflow: visible;
   pointer-events: none;
+  transform: rotate(-5deg);
 }
 
-.revenueScribble path {
+.tenXCircle path {
   fill: none;
   stroke: currentColor;
-  stroke-width: 8;
+  stroke-width: 8.5;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.12));
-  stroke-dasharray: 700;
-  stroke-dashoffset: 700;
-  animation: drawRevenueScribble 1.2s cubic-bezier(.2, .72, .2, 1) .9s forwards;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.1));
+  stroke-dasharray: 420;
+  stroke-dashoffset: 420;
+  animation: drawTenXCircle 1.05s cubic-bezier(.2, .72, .2, 1) .85s forwards;
 }
 
-@keyframes drawRevenueScribble {
+.tenXCircle path:nth-child(2) {
+  stroke-width: 5.5;
+  opacity: 0.9;
+  animation-delay: 1s;
+}
+
+@keyframes drawTenXCircle {
   100% {
     stroke-dashoffset: 0;
   }
