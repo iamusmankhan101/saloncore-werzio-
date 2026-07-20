@@ -12,6 +12,7 @@ import { fmtCurrency as fmt } from "@/lib/format";
 import {
   Plus, Trash2, TrendingUp, TrendingDown,
   Wallet, X, Download, Pencil, Check, CalendarCheck, ShoppingBag, Upload, FileSpreadsheet,
+  Banknote, CreditCard,
 } from "lucide-react";
 
 type Period = "today" | "7d" | "30d" | "1y" | "custom";
@@ -205,6 +206,24 @@ export default function CashFlowPage() {
         sortKey: entry.date + "T" + entry.createdAt.slice(11, 16),
       }));
     return [...apptRows, ...posRows, ...manualRows].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  }, [appointments, posInvoices, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
+
+  // Income split by how it was actually collected. Appointments completed without a
+  // POS checkout and manual/imported entries carry no payment method — bucketed as
+  // cash, the same "untracked → cash" convention the Excel export already uses.
+  const periodIncomeSplit = useMemo(() => {
+    if (period === "custom" && (!customStart || !customEnd || customStart > customEnd)) return { cash: 0, online: 0 };
+    const paidPosAppointmentIds = new Set(posInvoices.map(inv => inv.appointmentId).filter(Boolean));
+    const appts = appointments.filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date >= rangeStart && a.date <= filterEnd);
+    const pos    = posInvoices.filter(inv => inv.date >= rangeStart && inv.date <= filterEnd);
+    const manual = manualIncome.filter(entry => entry.date >= rangeStart && entry.date <= filterEnd);
+    let cash = appts.reduce((s, a) => s + a.totalAmount, 0) + manual.reduce((s, e) => s + e.amount, 0);
+    let online = 0;
+    pos.forEach(inv => {
+      if ((inv.paymentMethod || "cash") === "cash") cash += inv.total;
+      else online += inv.total;
+    });
+    return { cash, online };
   }, [appointments, posInvoices, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
 
   const paidPeriodExpenses = useMemo(
@@ -920,6 +939,25 @@ export default function CashFlowPage() {
             { label: "Income",    value: fmt(periodIncome),  color: "var(--accent)", bg: "rgba(124, 58, 237, 0.08)", sub: "Appointments & POS",          icon: TrendingUp  },
             { label: "Expenses",  value: fmt(totalExpense),  color: "#ef4444", bg: "#fef2f2", sub: pendingExpense > 0 ? `${fmt(pendingExpense)} pending` : `${periodExpenses.length} entries logged`, icon: TrendingDown },
             { label: "Net Flow",  value: (netCashFlow < 0 ? "−" : "+") + fmt(Math.abs(netCashFlow)), color: netCashFlow >= 0 ? "#059669" : "#ef4444", bg: netCashFlow >= 0 ? "#ecfdf5" : "#fef2f2", sub: netCashFlow >= 0 ? "Surplus" : "Deficit", icon: Wallet },
+          ].map(({ label, value, color, bg, sub, icon: Icon }) => (
+            <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)" }}>
+              <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon size={22} color={color} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 850, color, lineHeight: 1.1 }}>{value}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+                <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2, fontWeight: 500 }}>{sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Cash vs Online split ────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {[
+            { label: "Cash",   value: fmt(periodIncomeSplit.cash),   color: "#059669", bg: "#ecfdf5", sub: "Cash-in-hand income",                icon: Banknote   },
+            { label: "Online", value: fmt(periodIncomeSplit.online), color: "#2563eb", bg: "#eff6ff", sub: "Card, bank & mobile wallet income",   icon: CreditCard },
           ].map(({ label, value, color, bg, sub, icon: Icon }) => (
             <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)" }}>
               <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
