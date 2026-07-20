@@ -43,6 +43,13 @@ const testimonials = [
     name: "Hina Baig",
     role: "Owner, Velvet Touch Salon Lahore",
   },
+  {
+    stars: 5,
+    text: "Salon Central has made managing Lounge8 so much easier. From appointments and billing to staff and client records, everything is now organized in one place. It saves us time and helps us deliver a better experience to our clients.",
+    initials: "S",
+    name: "Samiya",
+    role: "Owner, Lounge8 Salon",
+  },
 ];
 
 // Duplicate for seamless infinite loop
