@@ -118,6 +118,15 @@
   position: relative;
   display: inline-block;
   padding: 0.04em 0.15em 0.08em;
+  color: #fff;
+  isolation: isolate;
+}
+
+.tenXText {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(18, 8, 42, 0.22);
 }
 
 .tenXCircle {
@@ -130,6 +139,7 @@
   overflow: visible;
   pointer-events: none;
   transform: rotate(-5deg);
+  z-index: 0;
 }
 
 .tenXCircle path {

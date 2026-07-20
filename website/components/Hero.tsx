@@ -59,7 +59,7 @@ export default function Hero() {
           Simplify Salon Operations<br />
           <span className={styles.revenueLine}>
             <span className={styles.tenXHighlight}>
-              10x
+              <span className={styles.tenXText}>10x</span>
               <svg className={styles.tenXCircle} viewBox="0 0 150 92" preserveAspectRatio="none" aria-hidden="true">
                 <path d="M18 56 C7 35 28 14 68 10 C111 6 144 24 140 51 C136 79 91 88 48 78 C28 74 17 66 18 56 Z" />
                 <path d="M26 62 C14 42 33 21 72 17 C112 13 135 29 131 51 C127 73 91 80 52 72 C36 69 25 65 26 62 Z" />
