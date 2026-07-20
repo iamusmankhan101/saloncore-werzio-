@@ -27,12 +27,13 @@ export async function syncFromDB(): Promise<void> {
           // Turso has nothing for this entity yet on this account/location — if this
           // browser is holding local data that predates sync support (e.g. expenses,
           // which only started syncing after this check was added), push it up now
-          // instead of waiting for the next add/edit to trigger a save.
+          // instead of waiting for the next add/edit to trigger a save. Awaited so a
+          // later syncFromDB() can't race ahead and see the still-empty DB row.
           try {
             const lsRaw = localStorage.getItem(locationUserKey(`werzio_${entity}`, locationId));
             const local = lsRaw ? JSON.parse(lsRaw) as unknown[] : [];
             if (Array.isArray(local) && local.length > 0) {
-              fetch("/api/db", {
+              await fetch("/api/db", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ entity, data: local, userId: dataOwnerId, locationId }),
@@ -42,19 +43,28 @@ export async function syncFromDB(): Promise<void> {
           return;
         }
 
+        // Merge by id instead of blindly overwriting: any record that exists only in
+        // localStorage (e.g. added while offline, or not yet pushed to Turso) is kept
+        // rather than dropped just because the DB's copy didn't have it. Without this,
+        // a DB row that is behind (or was raced by a smaller concurrent save) silently
+        // truncates whatever the browser already had — this is how the expenses total
+        // dropped from 400k+ to a handful of recent entries.
+        const lsRaw = localStorage.getItem(locationUserKey(`werzio_${entity}`, locationId));
+        const localList: Record<string, unknown>[] = [];
+        if (lsRaw) {
+          try { localList.push(...(JSON.parse(lsRaw) as Record<string, unknown>[])); } catch { /* ignore */ }
+        }
+        const incomingIds = new Set((incoming as Record<string, unknown>[]).map(r => (r as { id: string }).id));
+        const localOnly = localList.filter(r => !incomingIds.has((r as { id: string }).id));
+
         if (entity === "clients") {
-          // Merge: never overwrite a client's numeric progress (loyalty pts, visits, spend)
-          // with a staler value from DB — guards against the race where a POS save
-          // completes after syncFromDB already started its fetch.
-          const lsRaw = localStorage.getItem(locationUserKey("werzio_clients", locationId));
-          const local: Record<string, Record<string, unknown>> = {};
-          if (lsRaw) {
-            try {
-              (JSON.parse(lsRaw) as Record<string, unknown>[]).forEach(c => { local[(c as { id: string }).id] = c; });
-            } catch { /* ignore */ }
-          }
+          // Additionally: never overwrite a client's numeric progress (loyalty pts,
+          // visits, spend) with a staler value from DB — guards against the race where
+          // a POS save completes after syncFromDB already started its fetch.
+          const localById: Record<string, Record<string, unknown>> = {};
+          localList.forEach(c => { localById[(c as { id: string }).id] = c; });
           const merged = (incoming as Record<string, unknown>[]).map(dbClient => {
-            const lc = local[(dbClient as { id: string }).id];
+            const lc = localById[(dbClient as { id: string }).id];
             if (!lc) return dbClient;
             return {
               ...dbClient,
@@ -64,9 +74,18 @@ export async function syncFromDB(): Promise<void> {
               totalSpend:          Math.max(Number(lc.totalSpend           ?? 0), Number(dbClient.totalSpend           ?? 0)),
             };
           });
-          localStorage.setItem(locationUserKey("werzio_clients", locationId), JSON.stringify(merged));
+          localStorage.setItem(locationUserKey("werzio_clients", locationId), JSON.stringify([...merged, ...localOnly]));
         } else {
-          localStorage.setItem(locationUserKey(`werzio_${entity}`, locationId), JSON.stringify(incoming));
+          localStorage.setItem(locationUserKey(`werzio_${entity}`, locationId), JSON.stringify([...incoming, ...localOnly]));
+        }
+
+        if (localOnly.length > 0) {
+          // Push the reconciled (union) list back up so Turso stops being behind.
+          fetch("/api/db", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ entity, data: [...incoming, ...localOnly], userId: dataOwnerId, locationId }),
+          }).catch(() => {});
         }
       } catch { /* keep localStorage */ }
     }),
