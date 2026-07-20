@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Search, Eye, Trash2, CheckCircle, Clock, X,
+  Search, Eye, Trash2, CheckCircle, Clock, X, Pencil,
   ReceiptText, ShoppingCart, TrendingUp, Users,
 } from "lucide-react";
 import {
-  getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid, localDateKey,
+  getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid, updateSalonInvoice, localDateKey,
   type SalonInvoice,
 } from "@/lib/salon-invoices";
 import type { PaymentMethod } from "@/lib/types";
@@ -76,6 +76,8 @@ export default function InvoicesPage() {
   const [deleteConfirm, setDeleteConfirm]   = useState<string | null>(null);
   const [markPaidPromptId, setMarkPaidPromptId] = useState<string | null>(null);
   const [markPaidDate, setMarkPaidDate] = useState(() => localDateKey());
+  const [editDateInvoice, setEditDateInvoice] = useState<SalonInvoice | null>(null);
+  const [editDateValue, setEditDateValue] = useState("");
 
   const salon = settingsStore.salon;
 
@@ -136,6 +138,27 @@ export default function InvoicesPage() {
       setViewingInvoice((prev) => prev ? { ...prev, status: "paid", paymentMethod: method, paidDate: markPaidDate } : prev);
     }
     setMarkPaidPromptId(null);
+  }
+
+  function openEditDate(inv: SalonInvoice) {
+    setEditDateInvoice(inv);
+    setEditDateValue(inv.date);
+  }
+
+  function confirmEditDate() {
+    if (!editDateInvoice || !editDateValue) return;
+    // Keep paidDate in step with date when it was already set, so revenue
+    // reporting (which prefers paidDate over date where both exist) moves to
+    // the new day along with the invoice instead of staying pinned to the old one.
+    const updated: SalonInvoice = {
+      ...editDateInvoice,
+      date: editDateValue,
+      paidDate: editDateInvoice.paidDate ? editDateValue : editDateInvoice.paidDate,
+    };
+    updateSalonInvoice(updated);
+    reload();
+    if (viewingInvoice?.id === updated.id) setViewingInvoice(updated);
+    setEditDateInvoice(null);
   }
 
   function handleDelete(id: string) {
@@ -234,6 +257,13 @@ export default function InvoicesPage() {
                 <div className="mobile-list-amount">{fmt(inv.total)}</div>
                 <span className="mobile-badge" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
               </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); openEditDate(inv); }}
+                title="Change date"
+                style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #e3e0eb", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, marginLeft: 6 }}
+              >
+                <Pencil size={12} color="#9898b0" />
+              </button>
             </div>
           );
         })}
@@ -300,6 +330,37 @@ export default function InvoicesPage() {
               ))}
             </div>
             <button onClick={() => setMarkPaidPromptId(null)} style={{ padding: "8px 20px", borderRadius: 9, border: "none", background: "none", fontSize: 13, fontWeight: 600, color: "#9898b0", cursor: "pointer" }}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {editDateInvoice && (
+        <div onClick={() => setEditDateInvoice(null)} className="modal-overlay" style={{ zIndex: 250 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modal-sheet" style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", maxWidth: 360, width: "100%", boxShadow: "0 16px 50px rgba(0,0,0,0.2)", textAlign: "center" }}>
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: "#F5F3FF", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <Pencil size={20} color="#7C3AED" />
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 6 }}>Change Invoice Date</div>
+            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 16 }}>{editDateInvoice.number} · {editDateInvoice.clientName}</div>
+            <div style={{ textAlign: "left", marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+                Invoice date
+              </label>
+              <input
+                type="date"
+                value={editDateValue}
+                onChange={(e) => setEditDateValue(e.target.value)}
+                style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", background: "#faf9fd", boxSizing: "border-box" }}
+              />
+              <div style={{ fontSize: 11, color: "#9898b0", marginTop: 5 }}>
+                {editDateInvoice.appointmentId
+                  ? "This invoice is linked to an appointment — revenue reports follow the appointment's date, so this won't move the revenue day."
+                  : "Revenue reports will move to reflect the new date."}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button onClick={() => setEditDateInvoice(null)} style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
+              <button onClick={confirmEditDate} disabled={!editDateValue} style={{ padding: "9px 20px", borderRadius: 9, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 700, color: "#fff", cursor: editDateValue ? "pointer" : "not-allowed", opacity: editDateValue ? 1 : 0.6 }}>Save</button>
+            </div>
           </div>
         </div>
       )}
@@ -401,7 +462,17 @@ export default function InvoicesPage() {
                     <div style={{ fontSize: 13, color: "#4a4a6a", fontWeight: 600 }}>{inv.staffName || "—"}</div>
 
                     {/* Date */}
-                    <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{fmtDate(inv.date)}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{fmtDate(inv.date)}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEditDate(inv); }}
+                        title="Change date"
+                        style={{ width: 22, height: 22, borderRadius: 6, border: "none", background: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+                        className="hover-bg-light"
+                      >
+                        <Pencil size={11} color="#b0b0c8" />
+                      </button>
+                    </div>
 
                     {/* Created */}
                     <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 650, whiteSpace: "nowrap" }}>{fmtCreatedAt(inv.createdAt)}</div>
