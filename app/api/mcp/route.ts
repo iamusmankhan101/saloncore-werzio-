@@ -11,6 +11,7 @@ import type { SalonInvoice } from "@/lib/salon-invoices";
 const MAX_BOOKING_HORIZON_DAYS = 90;
 const MAX_AGENT_BOOKINGS_PER_DAY = 20;
 const MAX_REVENUE_RANGE_DAYS = 366;
+const MAX_DAILY_REVENUE_RANGE_DAYS = 92;
 
 // ── shared data-access helpers ──────────────────────────────────────────────
 
@@ -443,6 +444,67 @@ const baseHandler = createMcpHandler(
           note:
             "totalRevenue matches the dashboard's Revenue Management page: it's recognized revenue (includes unpaid invoices as booked/owed), not cash actually collected. " +
             (unpaidPosRevenue > 0 ? `Of posRevenue, ${unpaidPosRevenue} is still unpaid.` : "All included invoices are paid."),
+        });
+      },
+    );
+
+    server.tool(
+      "get_daily_revenue",
+      "Recognized revenue broken down day-by-day for a date range — the per-day numbers behind get_revenue_summary's total. Use this when asked for revenue on a specific day, or for a trend/breakdown across multiple days, instead of calling get_revenue_summary once per day.",
+      {
+        startDate: dateStrSchema,
+        endDate: dateStrSchema.optional(),
+      },
+      async ({ startDate, endDate }, extra) => {
+        const actor = mcpActorFrom(extra.authInfo);
+        if (!actor) return errorContent("Unauthorized.");
+        const limited = checkKeyRateLimit(actor);
+        if (limited) return limited;
+
+        const rangeEnd = endDate ?? startDate;
+        if (rangeEnd < startDate) return errorContent("endDate must be on or after startDate.");
+        const spanDays = (new Date(`${rangeEnd}T00:00:00Z`).getTime() - new Date(`${startDate}T00:00:00Z`).getTime()) / 86_400_000 + 1;
+        if (spanDays > MAX_DAILY_REVENUE_RANGE_DAYS) {
+          return errorContent(`Range too wide for a daily breakdown — max ${MAX_DAILY_REVENUE_RANGE_DAYS} days. Use get_revenue_summary for a single total over a wider range.`);
+        }
+
+        await ensureSalonDataTable();
+        const [appointments, invoices] = await Promise.all([
+          readBlob<Appointment>(actor, "appointments"),
+          readBlob<SalonInvoice>(actor, "salon_invoices"),
+        ]);
+
+        // Same recognized-revenue definition as get_revenue_summary, just bucketed per day.
+        const inRange = (d: string) => d >= startDate && d <= rangeEnd;
+        const completedAppts = appointments.filter((a) => a.status === "completed" && inRange(a.date));
+        const standaloneInvoices = invoices.filter((inv) => !inv.appointmentId && inRange(inv.date));
+
+        const byDay = new Map<string, { appointmentRevenue: number; posRevenue: number; appointmentCount: number; invoiceCount: number }>();
+        for (let t = new Date(`${startDate}T00:00:00Z`).getTime(); t <= new Date(`${rangeEnd}T00:00:00Z`).getTime(); t += 86_400_000) {
+          byDay.set(new Date(t).toISOString().slice(0, 10), { appointmentRevenue: 0, posRevenue: 0, appointmentCount: 0, invoiceCount: 0 });
+        }
+        completedAppts.forEach((a) => {
+          const bucket = byDay.get(a.date);
+          if (bucket) { bucket.appointmentRevenue += a.totalAmount; bucket.appointmentCount++; }
+        });
+        standaloneInvoices.forEach((inv) => {
+          const bucket = byDay.get(inv.date);
+          if (bucket) { bucket.posRevenue += inv.total; bucket.invoiceCount++; }
+        });
+
+        const days = Array.from(byDay.entries()).map(([date, d]) => ({
+          date,
+          revenue: d.appointmentRevenue + d.posRevenue,
+          appointmentRevenue: d.appointmentRevenue,
+          posRevenue: d.posRevenue,
+          transactionCount: d.appointmentCount + d.invoiceCount,
+        }));
+
+        return jsonContent({
+          startDate,
+          endDate: rangeEnd,
+          totalRevenue: days.reduce((s, d) => s + d.revenue, 0),
+          days,
         });
       },
     );
