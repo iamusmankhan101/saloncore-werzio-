@@ -126,6 +126,7 @@ export default function CashFlowPage() {
   const [fileMessage, setFileMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; title: string } | null>(null);
   const importInputRef                 = useRef<HTMLInputElement>(null);
+  const expenseFormRef                 = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const t = toDateStr(new Date());
@@ -138,6 +139,11 @@ export default function CashFlowPage() {
     setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos")));
     setManualIncome(getManualCashIncome());
   }, []);
+
+  useEffect(() => {
+    if (!showForm || !editId) return;
+    expenseFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [showForm, editId]);
 
   const cfg = PERIODS.find(p => p.key === period)!;
 
@@ -1021,7 +1027,7 @@ export default function CashFlowPage() {
 
         {/* ── Add / Edit form (slide-in) ───────────────────────────────── */}
         {showForm && (
-          <div style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #7C3AED", padding: "18px 20px", marginBottom: 16 }}>
+          <div ref={expenseFormRef} style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #7C3AED", padding: "18px 20px", marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1a2e" }}>{editId ? "Edit Expense" : "New Expense"}</span>
               <button onClick={() => { setShowForm(false); setEditId(null); setFormError(""); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0b0c8" }}><X size={16} /></button>
