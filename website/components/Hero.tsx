@@ -57,7 +57,12 @@ export default function Hero() {
         </div>
         <h1 className={styles.title} data-animate data-delay="0.1">
           Simplify Salon Operations<br />
-          <span className={styles.revenueLine}>10x Your Revenue</span>
+          <span className={styles.revenueLine}>
+            10x Your Revenue
+            <svg className={styles.revenueScribble} viewBox="0 0 320 42" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M4 32 C10 10 14 9 17 32 S28 9 32 32 S43 8 48 31 S61 8 66 31 S80 8 86 31 S101 7 108 30 S124 6 131 30 S148 6 156 29 S173 5 181 29 S198 5 207 28 S225 5 233 28 S251 6 260 29 S278 8 286 30 S304 10 316 31" />
+            </svg>
+          </span>
         </h1>
         <p className={styles.sub} data-animate data-delay="0.25">
           All-in-one salon management software with a built-in salon POS system and CRM.
