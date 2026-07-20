@@ -108,6 +108,54 @@
   margin-bottom: 16px;
 }
 
+.revenueLine {
+  position: relative;
+  display: inline-block;
+  padding: 0 0.06em 0.13em;
+}
+
+.revenueLine::before,
+.revenueLine::after {
+  content: "";
+  --underline-tilt: -1.2deg;
+  position: absolute;
+  left: 0.04em;
+  right: 0.02em;
+  bottom: 0.02em;
+  height: 0.11em;
+  border-radius: 999px 52% 999px 48%;
+  background: #f3d36b;
+  transform: scaleX(0) rotate(var(--underline-tilt));
+  transform-origin: left center;
+  animation: drawRevenueUnderline 1.05s cubic-bezier(.2, .72, .2, 1) .9s forwards;
+}
+
+.revenueLine::after {
+  --underline-tilt: .7deg;
+  left: 0.08em;
+  right: 0.08em;
+  bottom: 0.005em;
+  height: 0.055em;
+  background: rgba(255, 245, 180, 0.9);
+  transform: scaleX(0) rotate(var(--underline-tilt));
+  animation-duration: .95s;
+  animation-delay: 1.02s;
+}
+
+@keyframes drawRevenueUnderline {
+  0% {
+    opacity: 0;
+    transform: scaleX(0) rotate(var(--underline-tilt));
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1) rotate(var(--underline-tilt));
+  }
+}
+
 .sub {
   font-family: 'Montserrat', sans-serif;
   font-size: 1rem;

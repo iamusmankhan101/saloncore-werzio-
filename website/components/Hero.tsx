@@ -56,7 +56,8 @@ export default function Hero() {
           Trusted by salons across Pakistan
         </div>
         <h1 className={styles.title} data-animate data-delay="0.1">
-          Simplify Salon Operations<br />10x Your Revenue
+          Simplify Salon Operations<br />
+          <span className={styles.revenueLine}>10x Your Revenue</span>
         </h1>
         <p className={styles.sub} data-animate data-delay="0.25">
           All-in-one salon management software with a built-in salon POS system and CRM.

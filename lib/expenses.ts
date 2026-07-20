@@ -1,4 +1,5 @@
 import { locationUserKey } from "./locations";
+import { saveToDB } from "./turso-sync";
 
 export type ExpenseCategory =
   | "rent"
@@ -37,6 +38,7 @@ export function getExpenses(): Expense[] {
 export function saveExpenses(list: Expense[]): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(locationUserKey(KEY), JSON.stringify(list));
+  saveToDB("expenses", list);
 }
 
 export function addExpense(data: Omit<Expense, "id" | "createdAt">): Expense {
