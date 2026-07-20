@@ -92,7 +92,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
   pro: {
     id: "pro",
     name: "Pro",
-    label: "Salon Central Pro",
+    label: "Pro",
     badge: "PRO",
     price: 10000,
     color: "#7C3AED",
@@ -133,7 +133,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
   premium: {
     id: "premium",
     name: "Premium",
-    label: "Salon Central Premium",
+    label: "Premium",
     badge: "PREMIUM",
     price: 20000,
     color: "#9333EA",

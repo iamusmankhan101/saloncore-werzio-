@@ -19,7 +19,7 @@ const plans: Array<{
   {
     badge: "Most Popular",
     badgeStyle: {},
-    name: "salon central pro",
+    name: "Pro",
     desc: "The complete toolkit for growing salons.",
     price: "Contact Sales",
     period: "",
@@ -42,7 +42,7 @@ const plans: Array<{
   {
     badge: "Premium",
     badgeStyle: { background: "#fef3c7", color: "#d97706" },
-    name: "salon central premium",
+    name: "Premium",
     desc: "Everything in Pro plus virtual try-on and multi-location branch management.",
     price: "Contact Sales",
     period: "",
