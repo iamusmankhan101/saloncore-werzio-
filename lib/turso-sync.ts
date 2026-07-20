@@ -23,7 +23,24 @@ export async function syncFromDB(): Promise<void> {
         );
         if (!res.ok) return;
         const incoming = await res.json() as unknown[];
-        if (!Array.isArray(incoming) || incoming.length === 0) return;
+        if (!Array.isArray(incoming) || incoming.length === 0) {
+          // Turso has nothing for this entity yet on this account/location — if this
+          // browser is holding local data that predates sync support (e.g. expenses,
+          // which only started syncing after this check was added), push it up now
+          // instead of waiting for the next add/edit to trigger a save.
+          try {
+            const lsRaw = localStorage.getItem(locationUserKey(`werzio_${entity}`, locationId));
+            const local = lsRaw ? JSON.parse(lsRaw) as unknown[] : [];
+            if (Array.isArray(local) && local.length > 0) {
+              fetch("/api/db", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ entity, data: local, userId: dataOwnerId, locationId }),
+              }).catch(() => {});
+            }
+          } catch { /* ignore */ }
+          return;
+        }
 
         if (entity === "clients") {
           // Merge: never overwrite a client's numeric progress (loyalty pts, visits, spend)
