@@ -456,17 +456,45 @@ async function getLastSentAtMs(
   return cache.get(key) ?? null;
 }
 
+// getLastSentAtMs above only tracks spacing within one message *type* (e.g.
+// confirmation vs. groupalert vs. invoice track separately) — that leaves no
+// floor between two DIFFERENT automated types, so a confirmation, a group
+// alert, and an invoice for unrelated bookings could each land on their own
+// per-type schedule but still all fire within the same minute of each other,
+// reading as a bot blast even though each type individually looks paced.
+// This tracks the last successful send of ANY kind for the salon and enforces
+// a hard floor across every automated message type, on top of each kind's own
+// (equal or larger) internal spacing.
+const GLOBAL_MIN_GAP_MS = 5 * MINUTE_MS;
+function crossKindSpacingDelayMs(): number {
+  return randBetween(5 * MINUTE_MS, 10 * MINUTE_MS);
+}
+async function getLastAnySentAtMs(
+  userId: string,
+  cache: Map<string, number | null>,
+): Promise<number | null> {
+  const key = `${userId}:any`;
+  if (!cache.has(key)) {
+    const row = await db.execute({
+      sql: "SELECT MAX(timestamp) AS ts FROM wa_message_logs WHERE user_id = ? AND status = 'sent'",
+      args: [userId],
+    });
+    const ts = row.rows[0]?.ts as string | null;
+    cache.set(key, ts ? new Date(ts).getTime() : null);
+  }
+  return cache.get(key) ?? null;
+}
+
 async function runBookingQueueCron(): Promise<{ sent: number; failed: number; skipped: number; expired: number; posSent: number; posFailed: number; posExpired: number }> {
   const items = await getDueItems();
   let sent = 0, failed = 0, skipped = 0, expired = 0, posSent = 0, posFailed = 0, posExpired = 0;
+  // Shared across the general queue AND the invoice queue below — every
+  // automated WhatsApp send (of any kind) draws from this same budget so at
+  // most one message goes out per cron run, and collisions (whichever kind
+  // hits the exhausted budget first) all stagger off the same accumulating
+  // delay instead of each kind getting its own independent send slot.
   let sendAttemptsThisRun = 0;
   let deferredDelayMs = 0;
-  // Invoices get their own send budget and their own collision-deferral chain,
-  // separate from the general queue (confirmations/reminders/etc) — a burst of
-  // one shouldn't starve the other, and each should stagger against only its
-  // own kind.
-  let posSendAttemptsThisRun = 0;
-  let posDeferredDelayMs = 0;
   const settingsCache = new Map<string, Record<string, unknown> | null>();
   const optedInCache = new Map<string, Map<string, boolean>>();
   const lastSentCache = new Map<string, number | null>();
@@ -557,6 +585,12 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       skipped++;
       continue;
     }
+    const lastAnySent = await getLastAnySentAtMs(item.userId, lastSentCache);
+    if (lastAnySent != null && Date.now() - lastAnySent < GLOBAL_MIN_GAP_MS) {
+      await deferItem(item, crossKindSpacingDelayMs(), "Deferred to keep automated WhatsApp sends spaced apart from other message types.");
+      skipped++;
+      continue;
+    }
 
     const intent = intentForKind(item.kind);
     const safety = checkWhatsAppSafety({
@@ -644,10 +678,16 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       skipped++;
       continue;
     }
+    const lastAnySent = await getLastAnySentAtMs(item.userId, lastSentCache);
+    if (lastAnySent != null && Date.now() - lastAnySent < GLOBAL_MIN_GAP_MS) {
+      await deferPosReceipt(item, crossKindSpacingDelayMs(), "Deferred to keep automated WhatsApp sends spaced apart from other message types.");
+      skipped++;
+      continue;
+    }
 
-    if (posSendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
-      posDeferredDelayMs += posSpacingDelayMs();
-      await deferPosReceipt(item, posDeferredDelayMs, "Deferred to pace automated invoice WhatsApp sends 10-15 min apart.");
+    if (sendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
+      deferredDelayMs += posSpacingDelayMs();
+      await deferPosReceipt(item, deferredDelayMs, "Deferred to pace automated invoice WhatsApp sends 10-15 min apart.");
       skipped++;
       continue;
     }
@@ -659,7 +699,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       providerConfig,
       thankYouText: item.thankYouText,
     });
-    posSendAttemptsThisRun++;
+    sendAttemptsThisRun++;
     if (result.skipped) {
       await updatePosReceipt(item, "expired", "Skipped fake/placeholder recipient.");
       skipped++;
