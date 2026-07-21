@@ -87,7 +87,7 @@ function fillTemplate(template: string, vars: Record<string, string>) {
 }
 
 function jitteredScheduledAt(): string {
-  const delayMs = 5 * MINUTE_MS + Math.random() * 2 * MINUTE_MS;
+  const delayMs = 5 * MINUTE_MS + Math.random() * 5 * MINUTE_MS;
   return new Date(Date.now() + delayMs).toISOString();
 }
 

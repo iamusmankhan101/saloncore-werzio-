@@ -2,13 +2,13 @@
  * /api/cron/booking-queue
  *
  * Drains wa_booking_send_queue — automated appointment/customer WhatsApp sends
- * queued by the app with a 5-7 min scheduled_at
+ * queued by the app with a 5-10 min scheduled_at
  * instead of being sent immediately (a serverless function can't just sleep
- * for 5-7 minutes to apply the same jitter every other automated WhatsApp
+ * for 5-10 minutes to apply the same jitter every other automated WhatsApp
  * send in this app uses).
  *
  * Needs a cron schedule more frequent than Vercel Hobby's once-a-day limit to
- * actually hit the 5-7 min target — on Hobby this still drains, just later.
+ * actually hit the 5-10 min target — on Hobby this still drains, just later.
  */
 
 import { NextRequest } from "next/server";
@@ -39,7 +39,7 @@ function spacingDelayMs(kind: QueueKind): number {
   if (kind === "reminder") return randBetween(10 * MINUTE_MS, 20 * MINUTE_MS);
   if (kind === "cancellation") return randBetween(15 * MINUTE_MS, 20 * MINUTE_MS);
   if (kind === "birthday") return randBetween(20 * MINUTE_MS, 30 * MINUTE_MS);
-  return randBetween(5 * MINUTE_MS, 7 * MINUTE_MS);
+  return randBetween(5 * MINUTE_MS, 10 * MINUTE_MS);
 }
 
 // Invoices sent in a tight cluster (a busy checkout period) read as a bot

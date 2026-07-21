@@ -53,7 +53,7 @@ const LOW_STOCK_SENT_KEY = "werzio_wa_lowstock_sent";
 // exception: they call /api/whatsapp/send directly and never pass through this
 // file, so they're unaffected by design.
 const MESSAGE_JITTER_MIN_MS = 5 * 60_000;
-const MESSAGE_JITTER_MAX_MS = 7 * 60_000;
+const MESSAGE_JITTER_MAX_MS = 10 * 60_000;
 const MINUTE_MS = 60_000;
 const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
 const POS_JITTER_MIN_MS = 10 * 60_000;
@@ -104,7 +104,7 @@ function getReminderSendAt(apptId: string): number {
   let map: Record<string, number> = {};
   try { map = JSON.parse(localStorage.getItem(key) || "{}"); } catch { /* reset below */ }
   if (map[apptId] != null) return map[apptId];
-  const sendAt = Date.now() + MESSAGE_JITTER_MIN_MS + Math.random() * (MESSAGE_JITTER_MAX_MS - MESSAGE_JITTER_MIN_MS); // 5-7 min from now
+  const sendAt = Date.now() + MESSAGE_JITTER_MIN_MS + Math.random() * (MESSAGE_JITTER_MAX_MS - MESSAGE_JITTER_MIN_MS); // 5-10 min from now
   map[apptId] = sendAt;
   localStorage.setItem(key, JSON.stringify(map));
   return sendAt;
@@ -191,7 +191,7 @@ const SEND_RATE_LIMIT_MS = 60_000;       // WaSender free plan: 1 message per mi
 // queues (e.g. a follow-up and a cancellation due in the same scheduler tick) fire
 // back-to-back with no gap at all.
 //
-// Base pacing is a random 5-7 minutes between every message. On top of that, every
+// Base pacing is a random 5-10 minutes between every message. On top of that, every
 // 10th/50th/100th message gets a longer break before the next one — only the largest
 // matching tier applies (e.g. message #100 gets the 60-90 min break, not all three).
 function randBetween(minMs: number, maxMs: number): number {
@@ -609,7 +609,7 @@ type ProviderConfig = WhatsAppSafetyConfig & {
 // exactly like an unpaced burst even though only one real message went out.
 //
 // Base pacing (for anything not in one of the dedicated tiers below — cancellation,
-// birthday, lowstock, invoice) is a random 5-7 minutes between every logged item,
+// birthday, lowstock, invoice) is a random 5-10 minutes between every logged item,
 // with longer escalating breaks every 10th/50th/100th one (see minNaturalGapMs).
 // This floor always applies regardless of the optional WhatsApp Safety toggle or
 // provider — the Safety setting and WaSender's rate limit can only make the gap
@@ -619,7 +619,7 @@ type ProviderConfig = WhatsAppSafetyConfig & {
 // pacing kicks in for the rest. Runs client-side via setTimeout — never inside the
 // API route — so it can never block a serverless request into a platform timeout.
 //
-// Confirmation (5-7 min), new-booking group alert (5-7 min with random seconds),
+// Confirmation (5-10 min), new-booking group alert (5-10 min with random seconds),
 // reminder (25-30 min), and
 // follow-up (20-35 min) each use their own dedicated gate/clock instead of this
 // shared floor — see the tier gates above.
@@ -964,7 +964,7 @@ async function runSchedulerInternal(): Promise<void> {
       const sentKey = `reminder_${appt.id}`;
       const phone = clientPhone(appt.clientId);
       if (phone && !alreadySent(sentKey) && hoursUntil > 0 && hoursUntil <= ws.reminderHours) {
-        // Wait out this reminder's own 5-7 min jitter (from when it first became
+        // Wait out this reminder's own 5-10 min jitter (from when it first became
         // due) before sending — see getReminderSendAt.
         if (Date.now() < getReminderSendAt(appt.id)) continue;
         const text = fillTemplate(waTpl.reminder, buildVars(appt, salonName));
