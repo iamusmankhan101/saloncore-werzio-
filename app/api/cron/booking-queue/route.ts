@@ -39,7 +39,7 @@ function spacingDelayMs(kind: QueueKind): number {
   if (kind === "reminder") return randBetween(10 * MINUTE_MS, 20 * MINUTE_MS);
   if (kind === "cancellation") return randBetween(15 * MINUTE_MS, 20 * MINUTE_MS);
   if (kind === "birthday") return randBetween(20 * MINUTE_MS, 30 * MINUTE_MS);
-  return randBetween(5 * MINUTE_MS, 10 * MINUTE_MS);
+  return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
 }
 
 // Invoices sent in a tight cluster (a busy checkout period) read as a bot
@@ -426,7 +426,7 @@ function minGapMsForKind(kind: QueueKind): number {
   if (kind === "reminder") return 10 * MINUTE_MS;
   if (kind === "cancellation") return 15 * MINUTE_MS;
   if (kind === "birthday") return 20 * MINUTE_MS;
-  return 5 * MINUTE_MS;
+  return 10 * MINUTE_MS;
 }
 const POS_MIN_GAP_MS = 10 * MINUTE_MS;
 
