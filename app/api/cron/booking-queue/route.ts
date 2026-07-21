@@ -463,10 +463,12 @@ async function getLastSentAtMs(
 // per-type schedule but still all fire within the same minute of each other,
 // reading as a bot blast even though each type individually looks paced.
 // This tracks the last successful send of ANY kind for the salon and enforces
-// a hard floor across every automated message type, on top of each kind's own
-// (equal or larger) internal spacing.
-const GLOBAL_MIN_GAP_MS = 10 * MINUTE_MS;
-function crossKindSpacingDelayMs(): number {
+// a gap across every automated message type, on top of each kind's own
+// (equal or larger) internal spacing. The required gap itself is a fresh
+// random 10-15 min draw on every check (not a fixed 10-min floor) — a hard
+// floor means sends can always cluster right at the 10-min mark, which is
+// its own detectable regularity.
+function globalTargetGapMs(): number {
   return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
 }
 async function getLastAnySentAtMs(
@@ -586,10 +588,14 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       continue;
     }
     const lastAnySent = await getLastAnySentAtMs(item.userId, lastSentCache);
-    if (lastAnySent != null && Date.now() - lastAnySent < GLOBAL_MIN_GAP_MS) {
-      await deferItem(item, crossKindSpacingDelayMs(), "Deferred to keep automated WhatsApp sends spaced apart from other message types.");
-      skipped++;
-      continue;
+    if (lastAnySent != null) {
+      const targetGap = globalTargetGapMs();
+      const elapsed = Date.now() - lastAnySent;
+      if (elapsed < targetGap) {
+        await deferItem(item, targetGap - elapsed, "Deferred to keep automated WhatsApp sends spaced apart from other message types.");
+        skipped++;
+        continue;
+      }
     }
 
     const intent = intentForKind(item.kind);
@@ -679,10 +685,14 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       continue;
     }
     const lastAnySent = await getLastAnySentAtMs(item.userId, lastSentCache);
-    if (lastAnySent != null && Date.now() - lastAnySent < GLOBAL_MIN_GAP_MS) {
-      await deferPosReceipt(item, crossKindSpacingDelayMs(), "Deferred to keep automated WhatsApp sends spaced apart from other message types.");
-      skipped++;
-      continue;
+    if (lastAnySent != null) {
+      const targetGap = globalTargetGapMs();
+      const elapsed = Date.now() - lastAnySent;
+      if (elapsed < targetGap) {
+        await deferPosReceipt(item, targetGap - elapsed, "Deferred to keep automated WhatsApp sends spaced apart from other message types.");
+        skipped++;
+        continue;
+      }
     }
 
     if (sendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
