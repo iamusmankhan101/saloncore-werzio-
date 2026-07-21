@@ -465,9 +465,9 @@ async function getLastSentAtMs(
 // This tracks the last successful send of ANY kind for the salon and enforces
 // a hard floor across every automated message type, on top of each kind's own
 // (equal or larger) internal spacing.
-const GLOBAL_MIN_GAP_MS = 5 * MINUTE_MS;
+const GLOBAL_MIN_GAP_MS = 10 * MINUTE_MS;
 function crossKindSpacingDelayMs(): number {
-  return randBetween(5 * MINUTE_MS, 10 * MINUTE_MS);
+  return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
 }
 async function getLastAnySentAtMs(
   userId: string,
