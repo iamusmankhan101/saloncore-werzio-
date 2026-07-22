@@ -282,6 +282,19 @@ export default function RevenuePage() {
   const drillCount   = drillRows ? drillRows.reduce((s, r) => s + r.count, 0) : 0;
   const drillAvg     = drillCount ? drillTotal / drillCount : 0;
 
+  // Expenses for the drilled-into month — same paid-only filter as periodExpenses
+  // below, just scoped to the selected month instead of the page's date range.
+  const drillExpenses = useMemo(() => {
+    if (!selectedMonth) return 0;
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const monthStart = `${y}-${String(m).padStart(2, "0")}-01`;
+    const monthEnd = `${y}-${String(m).padStart(2, "0")}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
+    return expenses
+      .filter(e => e.date >= monthStart && e.date <= monthEnd && e.paymentStatus !== "pending")
+      .reduce((s, e) => s + e.amount, 0);
+  }, [selectedMonth, expenses]);
+  const drillGrossProfit = drillTotal - drillExpenses;
+
   // ── Default daily rows (no drill-down) ────────────────────────────────────
   const dailyRows = useMemo(() => {
     if (!today) return [] as { date: string; dow: string; count: number; revenue: number }[];
@@ -498,6 +511,9 @@ export default function RevenuePage() {
     const pdfTotal   = isYearDrill ? drillTotal   : totalRevenue;
     const pdfCount   = isYearDrill ? drillCount   : totalCount;
     const pdfAvg     = isYearDrill ? drillAvg     : avgTicket;
+    const pdfExpenses    = isYearDrill ? drillExpenses    : totalExpenses;
+    const pdfGrossProfit = isYearDrill ? drillGrossProfit : grossProfit;
+    const pdfGrossMarginPct = pdfTotal ? (pdfGrossProfit / pdfTotal) * 100 : 0;
     const periodLabel = period === "custom" ? `${rangeStart} → ${filterEnd}` : cfg.label;
     const pdfTitle   = isYearDrill ? `${selectedMonthLabel} — Daily Detail` : `Revenue Report — ${periodLabel}`;
     const pdfRange   = isYearDrill ? selectedMonthLabel : `${rangeStart} to ${filterEnd}`;
@@ -524,6 +540,8 @@ export default function RevenuePage() {
     .stat-card  { background: #F5F3FF; border-radius: 12px; padding: 16px; border: 1px solid #EDE9FE; }
     .stat-label { font-size: 10px; font-weight: 700; color: #a0a0b8; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
     .stat-value { font-size: 20px; font-weight: 800; color: #7C3AED; }
+    .stat-value.expense { color: #dc2626; }
+    .stat-value.profit { color: ${pdfGrossProfit >= 0 ? "#059669" : "#dc2626"}; }
     .stat-sub   { font-size: 10px; color: #a0a0b8; margin-top: 4px; }
     .section { margin-bottom: 28px; }
     .section-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
@@ -576,6 +594,16 @@ export default function RevenuePage() {
       <div class="stat-label">Total Revenue</div>
       <div class="stat-value">${fmt(pdfTotal)}</div>
       <div class="stat-sub">${!isYearDrill ? (revChange >= 0 ? "▲" : "▼") + " " + Math.abs(revChange).toFixed(1) + "% vs prev" : pdfRange}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Paid Expenses</div>
+      <div class="stat-value expense">${fmt(pdfExpenses)}</div>
+      <div class="stat-sub">Total expenses</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Gross Profit</div>
+      <div class="stat-value profit">${fmt(pdfGrossProfit)}</div>
+      <div class="stat-sub">${pdfGrossMarginPct.toFixed(1)}% gross margin</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Appointments</div>
