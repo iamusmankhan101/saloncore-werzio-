@@ -127,17 +127,28 @@ function DashboardLocationSwitcher({ onLocationChange }: { onLocationChange: (lo
   // A focused <input type="number"> silently increments/decrements by its
   // step on every mouse-wheel notch in Chrome/Firefox/Edge — including an
   // incidental scroll while the cursor just happens to be resting over the
-  // field (very easy in a form). That's how a salary typed as 15000 quietly
-  // becomes 14998: two accidental scroll ticks, not a rounding/precision bug.
-  // Blurring on wheel (site-wide, not per-input) stops the value from
-  // changing and lets the wheel event fall through to scroll the page as normal.
+  // field (very easy in a form) — AND on every ArrowUp/ArrowDown keypress,
+  // which is just as easy to bump by accident (e.g. tabbing through a form
+  // and hitting an arrow key out of habit). That's how a salary typed as
+  // 12000 quietly becomes 11999: one accidental key or scroll tick, not a
+  // rounding/precision bug. Blurring on wheel, and blocking the arrow-key
+  // step (site-wide, not per-input), stops the value from changing either way.
   useEffect(() => {
     function blurNumberInputOnWheel(e: WheelEvent) {
       const el = document.activeElement;
       if (el instanceof HTMLInputElement && el.type === "number") el.blur();
     }
+    function blockNumberStepArrowKeys(e: KeyboardEvent) {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement && el.type === "number") e.preventDefault();
+    }
     document.addEventListener("wheel", blurNumberInputOnWheel, { passive: true });
-    return () => document.removeEventListener("wheel", blurNumberInputOnWheel);
+    document.addEventListener("keydown", blockNumberStepArrowKeys);
+    return () => {
+      document.removeEventListener("wheel", blurNumberInputOnWheel);
+      document.removeEventListener("keydown", blockNumberStepArrowKeys);
+    };
   }, []);
 
   async function changeLocation(locationId: string) {
