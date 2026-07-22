@@ -3,10 +3,11 @@
  * Admin-only: permanently deletes a salon owner's entire account — login,
  * staff/manager sub-accounts, sessions, all app data (appointments, clients,
  * staff, services, products, invoices, settings, WhatsApp logs) and billing
- * records. Irreversible — there is no soft-delete/undo.
+ * records. Creates backup snapshots first, but the live delete itself is hard.
  */
 
 import { db } from "@/lib/db";
+import { snapshotFullDatabase, snapshotSalonDataForOwner } from "@/lib/data-backup";
 
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (c) => "\\" + c);
@@ -37,6 +38,14 @@ export interface DeleteAccountResult {
  * automation logs, and billing records (billing_users/billing_invoices).
  */
 export async function deleteSalonAccount(ownerId: string): Promise<DeleteAccountResult> {
+  await snapshotFullDatabase("before-account-delete").catch((err) => {
+    console.error("[account-deletion] Failed to create pre-delete database backup:", err);
+  });
+
+  await snapshotSalonDataForOwner(ownerId, "before-account-delete").catch((err) => {
+    console.error("[account-deletion] Failed to create pre-delete salon_data backup:", err);
+  });
+
   const ownerRow = await db.execute({ sql: "SELECT email FROM users WHERE id = ?", args: [ownerId] });
   const ownerEmail = ownerRow.rows[0]?.email as string | undefined;
 

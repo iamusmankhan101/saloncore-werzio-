@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { resolveActor } from "@/lib/api-auth";
+import { backupExistingSalonData } from "@/lib/data-backup";
 
 const ALLOWED = new Set(["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses"]);
 
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
     const { userId, locationId } = actor;
     await ensureTable();
     const key = locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`;
+    await backupExistingSalonData(key, userId);
     await db.execute({
       sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
       args: [key, JSON.stringify(data), new Date().toISOString()],

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { ensureAllTables } from "@/lib/db-schema";
+import { backupExistingSalonData } from "@/lib/data-backup";
 import { getTier, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import type { Client } from "@/lib/types";
 
@@ -61,6 +62,8 @@ async function readJson<T>(key: string, fallback: T): Promise<T> {
 }
 
 async function writeJson(key: string, data: unknown) {
+  const userId = key.endsWith("_clients") ? key.slice(0, -"_clients".length) : key.split("_")[0];
+  await backupExistingSalonData(key, userId);
   await db.execute({
     sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
     args: [key, JSON.stringify(data), new Date().toISOString()],

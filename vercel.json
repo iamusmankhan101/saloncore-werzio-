@@ -9,6 +9,10 @@
       "schedule": "0 4 * * *"
     },
     {
+      "path": "/api/cron/backup",
+      "schedule": "15 4 * * *"
+    },
+    {
       "path": "/api/cron/birthday",
       "schedule": "0 6 * * *"
     },

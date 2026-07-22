@@ -11,6 +11,7 @@
  */
 
 import { db } from "./db";
+import { backupExistingSalonData } from "./data-backup";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "./whatsapp-provider";
 import { appointmentStartHasPassed, timezoneFromSettings } from "./appointment-time";
 import type { Client, Appointment } from "./types";
@@ -86,6 +87,7 @@ export async function createBooking(
   if (!isDuplicateSubmission) {
     const appointmentWithCreatedAt = { ...appointment, createdAt: appointment.createdAt || now };
     const updatedAppts = [appointmentWithCreatedAt, ...existingAppts];
+    await backupExistingSalonData(apptKey, salonId);
     await db.execute({
       sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
       args: [apptKey, JSON.stringify(updatedAppts), now],
@@ -112,6 +114,7 @@ export async function createBooking(
       clients = [{ ...client, locationId: client.locationId || "main" }, ...clients];
     }
 
+    await backupExistingSalonData(clientKey, salonId);
     await db.execute({
       sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
       args: [clientKey, JSON.stringify(clients), now],

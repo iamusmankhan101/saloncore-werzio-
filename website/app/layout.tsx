@@ -4,7 +4,7 @@ import { siteConfig } from "../lib/seo";
 import ChatWidget from "../components/ChatWidget";
 import CookieConsent from "../components/CookieConsent";
 
-const title = "Salon Software, POS & CRM for Beauty Salons | Salon Central";
+const title = "Salon Management Software in Pakistan | Salon Central";
 const description = siteConfig.description;
 
 export const metadata: Metadata = {

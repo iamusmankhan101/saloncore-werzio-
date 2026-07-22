@@ -11,6 +11,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { resolveActor } from "@/lib/api-auth";
+import { backupExistingSalonData } from "@/lib/data-backup";
 
 async function ensureTable() {
   await db.execute(`
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
 
   try {
     await ensureTable();
+    await backupExistingSalonData(`${actor.userId}_settings`, actor.userId);
     await db.execute({
       sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
       args: [`${actor.userId}_settings`, JSON.stringify(data), new Date().toISOString()],
