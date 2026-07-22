@@ -16,6 +16,8 @@ import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProvider
 import { appointmentStartMs, isWithinSalonHours, nextSalonOpenMs, timezoneFromSettings, type SalonHoursDay } from "@/lib/appointment-time";
 
 const MINUTE_MS = 60 * 1000;
+const REMINDER_TARGET_GRACE_MS = 75 * MINUTE_MS;
+const REMINDER_MIN_LEAD_MS = 30 * MINUTE_MS;
 
 function reminderSpacingMs() {
   return Math.round(10 * MINUTE_MS + Math.random() * 10 * MINUTE_MS);
@@ -23,6 +25,12 @@ function reminderSpacingMs() {
 
 function reminderClosedDayJitterMs() {
   return Math.round(5 * MINUTE_MS + Math.random() * 5 * MINUTE_MS);
+}
+
+function reminderIsInSendWindow(apptStart: number, reminderHours: number, nowMs = Date.now()): boolean {
+  const reminderMs = Number.isFinite(reminderHours) ? reminderHours * 60 * MINUTE_MS : 24 * 60 * MINUTE_MS;
+  const targetMs = apptStart - reminderMs;
+  return nowMs >= targetMs && nowMs <= targetMs + REMINDER_TARGET_GRACE_MS && apptStart - nowMs >= REMINDER_MIN_LEAD_MS;
 }
 
 function authorized(req: NextRequest): boolean {
@@ -248,8 +256,7 @@ async function runReminderCron() {
         if (appt.createdAt && appt.createdAt.slice(0, 10) === appt.date) return false;
         const apptTimeMs = appointmentStartMs(appt.date, appt.startTime, timezone);
         if (apptTimeMs == null) return false;
-        const hoursUntil = (apptTimeMs - now.getTime()) / 3_600_000;
-        return hoursUntil > 0 && hoursUntil <= reminderHours;
+        return reminderIsInSendWindow(apptTimeMs, reminderHours, now.getTime());
       });
 
       for (const appt of eligible) {

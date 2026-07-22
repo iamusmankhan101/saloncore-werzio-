@@ -29,6 +29,8 @@ const MAX_ATTEMPTS = 5;
 const EXPIRE_AFTER_MS = 24 * 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
+const REMINDER_TARGET_GRACE_MS = 75 * MINUTE_MS;
+const REMINDER_MIN_LEAD_MS = 30 * MINUTE_MS;
 
 function randBetween(minMs: number, maxMs: number): number {
   return Math.round(minMs + Math.random() * (maxMs - minMs));
@@ -63,6 +65,18 @@ function followupWindowExpired(item: Pick<QueueRow, "apptDate" | "apptTime">, se
   const startMs = appointmentStartMs(item.apptDate, item.apptTime, timezoneFromSettings(settings));
   if (startMs == null) return false;
   return Date.now() > startMs + delayMinutes * MINUTE_MS + FOLLOWUP_STALE_GRACE_MS;
+}
+
+function reminderWindowMissed(item: Pick<QueueRow, "apptDate" | "apptTime">, settings: Record<string, unknown> | null): boolean {
+  if (!item.apptDate?.trim() || !item.apptTime?.trim()) return false;
+  const wasender = settings?.wasender as { reminderHours?: number } | undefined;
+  const rawReminderHours = Number(wasender?.reminderHours ?? 24);
+  const reminderHours = Number.isFinite(rawReminderHours) ? rawReminderHours : 24;
+  const startMs = appointmentStartMs(item.apptDate, item.apptTime, timezoneFromSettings(settings));
+  if (startMs == null) return false;
+  const targetMs = startMs - reminderHours * 60 * MINUTE_MS;
+  const now = Date.now();
+  return now > targetMs + REMINDER_TARGET_GRACE_MS || startMs - now < REMINDER_MIN_LEAD_MS;
 }
 
 function authorized(req: NextRequest): boolean {
@@ -517,6 +531,11 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     if ((item.kind === "confirmation" || item.kind === "reminder" || item.kind === "groupalert") && item.apptDate && item.apptTime
         && appointmentStartHasPassed(item.apptDate, item.apptTime, timezoneFromSettings(settings))) {
       await updateItem(item, "expired", "Appointment time already passed — queued message skipped.");
+      expired++;
+      continue;
+    }
+    if (item.kind === "reminder" && reminderWindowMissed(item, settings)) {
+      await updateItem(item, "expired", "Reminder window missed — too close to appointment time.");
       expired++;
       continue;
     }

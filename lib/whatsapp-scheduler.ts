@@ -55,6 +55,8 @@ const LOW_STOCK_SENT_KEY = "werzio_wa_lowstock_sent";
 const MESSAGE_JITTER_MIN_MS = 5 * 60_000;
 const MESSAGE_JITTER_MAX_MS = 10 * 60_000;
 const MINUTE_MS = 60_000;
+const REMINDER_TARGET_GRACE_MS = 75 * MINUTE_MS;
+const REMINDER_MIN_LEAD_MS = 30 * MINUTE_MS;
 const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
 const POS_JITTER_MIN_MS = 10 * 60_000;
 const POS_JITTER_MAX_MS = 15 * 60_000;
@@ -126,6 +128,12 @@ function clearReminderSendAts(apptIds: Set<string>) {
     apptIds.forEach((apptId) => { delete map[apptId]; });
     localStorage.setItem(key, JSON.stringify(map));
   } catch { /* ignore */ }
+}
+
+function reminderIsInSendWindow(apptStart: number, reminderHours: number, nowMs = Date.now()): boolean {
+  const reminderMs = Number.isFinite(reminderHours) ? reminderHours * 60 * MINUTE_MS : 24 * 60 * MINUTE_MS;
+  const targetMs = apptStart - reminderMs;
+  return nowMs >= targetMs && nowMs <= targetMs + REMINDER_TARGET_GRACE_MS && apptStart - nowMs >= REMINDER_MIN_LEAD_MS;
 }
 
 const CONFIRM_QUEUE_KEY = "werzio_wa_confirm_queue";
@@ -961,13 +969,12 @@ async function runSchedulerInternal(): Promise<void> {
       if (appt.date === todayKey && appt.createdAt?.slice(0, 10) === todayKey) continue;
       if (ws.autoConfirmation && pendingConfirmIds.has(appt.id)) continue;
       const apptTimeMs = appointmentStartMs(appt.date, appt.startTime, timezoneFromSettings(settingsStore as unknown as Record<string, unknown>));
-      const hoursUntil = apptTimeMs == null ? Number.POSITIVE_INFINITY : (apptTimeMs - now.getTime()) / 3_600_000;
       // Scoped to this one appointment, not the client overall — sentKey is keyed by
       // appt.id, so a client with two distinct upcoming appointments both due for a
       // reminder still gets one reminder per appointment, not just one total.
       const sentKey = `reminder_${appt.id}`;
       const phone = clientPhone(appt.clientId);
-      if (phone && !alreadySent(sentKey) && hoursUntil > 0 && hoursUntil <= ws.reminderHours) {
+      if (phone && apptTimeMs != null && !alreadySent(sentKey) && reminderIsInSendWindow(apptTimeMs, ws.reminderHours, now.getTime())) {
         // Wait out this reminder's own 5-10 min jitter (from when it first became
         // due) before sending — see getReminderSendAt.
         if (Date.now() < getReminderSendAt(appt.id)) continue;

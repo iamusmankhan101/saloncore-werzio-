@@ -8,6 +8,8 @@ type QueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "birt
 
 const MINUTE_MS = 60 * 1000;
 const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
+const REMINDER_TARGET_GRACE_MS = 75 * MINUTE_MS;
+const REMINDER_MIN_LEAD_MS = 30 * MINUTE_MS;
 const SALON_HOURS_GATED_KINDS = new Set<QueueKind>(["reminder", "followup", "cancellation", "birthday", "lowstock"]);
 
 interface QueueMessageBody {
@@ -153,6 +155,18 @@ function followupWindowExpired(settings: Record<string, unknown>, apptDate?: str
   return Date.now() > startMs + delayMinutes * MINUTE_MS + FOLLOWUP_STALE_GRACE_MS;
 }
 
+function reminderWindowMissed(settings: Record<string, unknown>, apptDate?: string, apptTime?: string): boolean {
+  if (!apptDate?.trim() || !apptTime?.trim()) return false;
+  const wasender = settings.wasender as { reminderHours?: number } | undefined;
+  const rawReminderHours = Number(wasender?.reminderHours ?? 24);
+  const reminderHours = Number.isFinite(rawReminderHours) ? rawReminderHours : 24;
+  const startMs = appointmentStartMs(apptDate, apptTime, timezoneFromSettings(settings));
+  if (startMs == null) return false;
+  const targetMs = startMs - reminderHours * 60 * MINUTE_MS;
+  const now = Date.now();
+  return now > targetMs + REMINDER_TARGET_GRACE_MS || startMs - now < REMINDER_MIN_LEAD_MS;
+}
+
 function logTypeForKind(kind: QueueKind): string {
   if (kind === "groupalert") return "newbooking";
   return kind;
@@ -258,6 +272,9 @@ export async function POST(req: NextRequest) {
     if (body.kind === "reminder" && body.apptDate && body.apptTime
         && appointmentStartHasPassed(body.apptDate, body.apptTime, timezoneFromSettings(settings))) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "appointment-started" });
+    }
+    if (body.kind === "reminder" && reminderWindowMissed(settings, body.apptDate, body.apptTime)) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: "reminder-window-missed" });
     }
     if (body.kind === "followup" && followupWindowExpired(settings, body.apptDate, body.apptTime)) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "followup-window-expired" });
