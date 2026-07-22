@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { getStoredAppointments } from "@/lib/storage";
+import { getStoredAppointments, getStoredStaff, getStoredServices } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
-import type { Appointment } from "@/lib/types";
+import { getExpenses, type Expense, type ExpenseCategory } from "@/lib/expenses";
+import { revenueInPeriod } from "@/lib/payouts";
+import type { Appointment, Staff, Service } from "@/lib/types";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import {
   Download, ArrowUpRight, ArrowDownRight,
-  TrendingUp, CalendarDays, Percent, ChevronLeft,
-  ChevronDown, ChevronUp, Receipt, Clock,
+  TrendingUp, TrendingDown, CalendarDays, Percent, ChevronLeft,
+  ChevronDown, ChevronUp, Receipt, Clock, Wallet, Users,
 } from "lucide-react";
 
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -49,6 +51,26 @@ const METHOD_LABELS: Record<string, string> = {
   cash: "Cash", jazzcash: "JazzCash", easypaisa: "EasyPaisa",
   raast: "Raast", card: "Card", bank: "Bank Transfer",
 };
+
+// Mirrors EXPENSE_CATEGORIES on the Cash Flow page (app/(dashboard)/dashboard/cash-flow/page.tsx)
+// — kept local rather than imported since page files in this app are self-contained.
+const EXPENSE_CATEGORIES: { key: ExpenseCategory; label: string; color: string }[] = [
+  { key: "rent",          label: "Rent",                color: "#ef4444" },
+  { key: "water_bill",    label: "Water Bill",          color: "#0ea5e9" },
+  { key: "electricity_bill", label: "Electricity Bill", color: "#f59e0b" },
+  { key: "committee",     label: "Committee",           color: "#14b8a6" },
+  { key: "salaries",      label: "Staff Salaries",      color: "#f97316" },
+  { key: "utilities",     label: "Utilities",           color: "#eab308" },
+  { key: "supplies",      label: "Products & Supplies", color: "#22c55e" },
+  { key: "equipment",     label: "Equipment",           color: "#3b82f6" },
+  { key: "marketing",     label: "Marketing",           color: "#8b5cf6" },
+  { key: "food",          label: "Food & Tea",          color: "#ec4899" },
+  { key: "miscellaneous", label: "Miscellaneous",       color: "#6b7280" },
+];
+const EXPENSE_LABELS: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map(c => [c.key, c.label]));
+const EXPENSE_COLORS: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map(c => [c.key, c.color]));
+
+type RevTab = "overview" | "gross" | "net";
 
 function toDateStr(d: Date) { return d.toLocaleDateString("en-CA"); }
 
@@ -92,9 +114,13 @@ interface ChartBar {
 }
 
 export default function RevenuePage() {
+  const [tab, setTab]                   = useState<RevTab>("overview");
   const [period, setPeriod]             = useState<Period>("today");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [posInvoices, setPosInvoices]   = useState<ReturnType<typeof getSalonInvoices>>([]);
+  const [expenses, setExpenses]         = useState<Expense[]>([]);
+  const [staffList, setStaffList]       = useState<Staff[]>([]);
+  const [services, setServices]         = useState<Service[]>([]);
   const [today, setToday]               = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [hoveredBar, setHoveredBar]     = useState<number | null>(null);
@@ -118,6 +144,9 @@ export default function RevenuePage() {
         .filter(inv => !inv.appointmentId && inv.status === "paid")
         .map(inv => ({ ...inv, date: inv.paidDate || inv.date }))
     );
+    setExpenses(getExpenses());
+    setStaffList(getStoredStaff());
+    setServices(getStoredServices());
   }, []);
 
   // Reset drill-down when period changes
@@ -345,6 +374,59 @@ export default function RevenuePage() {
     });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 6);
   }, [currentAppts, currentPos]);
+
+  // ── Gross / Net profit ─────────────────────────────────────────────────────
+  // Gross Profit = Revenue − all logged Expenses (rent, utilities, marketing, etc,
+  // including the "salaries" category) for the selected period. Only expenses
+  // marked paid count — a pending/unpaid bill isn't a cost that's actually hit
+  // the salon yet, matching the same paid-only filter the Cash Flow page uses.
+  const periodExpenses = useMemo(() =>
+    expenses.filter(e => e.date >= rangeStart && e.date <= filterEnd && e.paymentStatus !== "pending"),
+    [expenses, rangeStart, filterEnd]);
+
+  const totalExpenses = useMemo(() => periodExpenses.reduce((s, e) => s + e.amount, 0), [periodExpenses]);
+
+  const expenseByCategory = useMemo(() => {
+    const totals: Record<string, number> = {};
+    periodExpenses.forEach(e => { totals[e.category] = (totals[e.category] ?? 0) + e.amount; });
+    const grand = Object.values(totals).reduce((s, v) => s + v, 0) || 1;
+    return Object.entries(totals)
+      .map(([category, amount]) => ({ category, amount, pct: (amount / grand) * 100 }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [periodExpenses]);
+
+  const grossProfit = totalRevenue - totalExpenses;
+  const grossMarginPct = totalRevenue ? (grossProfit / totalRevenue) * 100 : 0;
+
+  // Net Profit = Gross Profit − staff commission/salary cost for the period.
+  // Recomputed live from each staff member's actual revenue in this exact date
+  // range (same formula the Payouts page uses for its "estimated" column) rather
+  // than reading processed Payout records, since those cover whatever period the
+  // owner last ran payroll for — not necessarily this page's selected range.
+  // Salary is prorated by the number of days in the period (baseSalary assumed
+  // monthly, i.e. ÷30 × days) so a 1-day "Today" view doesn't count a full
+  // month's salary as today's cost.
+  const periodDayCount = useMemo(() => {
+    if (!rangeStart || !filterEnd || rangeStart > filterEnd) return 0;
+    return getDaysInRange(rangeStart, filterEnd).length;
+  }, [rangeStart, filterEnd]);
+
+  const staffCostBreakdown = useMemo(() => {
+    if (!rangeStart || !filterEnd) return [] as { staffId: string; name: string; payType: string; revenue: number; cost: number }[];
+    return staffList.map(s => {
+      const payType = s.payType ?? "commission";
+      const revenue = revenueInPeriod(s.id, appointments, services, rangeStart, filterEnd);
+      const cost = payType === "commission"
+        ? revenue * (s.commissionRate ?? 0) / 100
+        : (s.baseSalary ?? 0) * (periodDayCount / 30);
+      return { staffId: s.id, name: s.name, payType, revenue, cost };
+    }).filter(s => s.cost > 0).sort((a, b) => b.cost - a.cost);
+  }, [staffList, appointments, services, rangeStart, filterEnd, periodDayCount]);
+
+  const totalStaffCost = useMemo(() => staffCostBreakdown.reduce((s, r) => s + r.cost, 0), [staffCostBreakdown]);
+
+  const netProfit = grossProfit - totalStaffCost;
+  const netMarginPct = totalRevenue ? (netProfit / totalRevenue) * 100 : 0;
 
   const maxChart = Math.max(...chartData.map(d => d.value), 1);
 
@@ -788,6 +870,26 @@ export default function RevenuePage() {
         </div>
       )}
 
+      {/* Content tabs */}
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #f0f0f8" }}>
+        {([
+          { key: "overview", label: "Overview" },
+          { key: "gross",    label: "Gross Profit" },
+          { key: "net",      label: "Net Profit" },
+        ] as { key: RevTab; label: string }[]).map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            background: "none", border: "none", cursor: "pointer",
+            padding: "10px 16px", fontSize: 13, fontWeight: 700,
+            color: tab === t.key ? "#7C3AED" : "#9898b0",
+            borderBottom: tab === t.key ? "2px solid #7C3AED" : "2px solid transparent",
+          }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "overview" && (
+      <>
       {/* Empty state banner */}
       {appointments.filter(a => a.status === "completed").length === 0 && posInvoices.length === 0 && (
         <div style={{ background: "#f8f9ff", border: "1px solid #e0e0f8", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#6b6b8a", display: "flex", alignItems: "center", gap: 10 }}>
@@ -1285,7 +1387,197 @@ export default function RevenuePage() {
         </div>
         </div></div>{/* /rev-table-inner /table-scroll-inner */}
       </div>{/* /table-scroll-wrap */}
+      </>
+      )}{/* /tab === "overview" */}
+
+      {tab === "gross" && (
+        <GrossProfitView
+          period={cfg.label} rangeStart={rangeStart} filterEnd={filterEnd}
+          totalRevenue={totalRevenue} totalExpenses={totalExpenses} grossProfit={grossProfit}
+          grossMarginPct={grossMarginPct} expenseByCategory={expenseByCategory}
+        />
+      )}
+
+      {tab === "net" && (
+        <NetProfitView
+          period={cfg.label} rangeStart={rangeStart} filterEnd={filterEnd}
+          grossProfit={grossProfit} totalStaffCost={totalStaffCost} netProfit={netProfit}
+          netMarginPct={netMarginPct} staffCostBreakdown={staffCostBreakdown} periodDayCount={periodDayCount}
+        />
+      )}
+
       </div>{/* /desktop-only */}
     </div>
+  );
+}
+
+// ── Gross Profit tab ─────────────────────────────────────────────────────────
+function GrossProfitView({
+  period, rangeStart, filterEnd, totalRevenue, totalExpenses, grossProfit, grossMarginPct, expenseByCategory,
+}: {
+  period: string; rangeStart: string; filterEnd: string;
+  totalRevenue: number; totalExpenses: number; grossProfit: number; grossMarginPct: number;
+  expenseByCategory: { category: string; amount: number; pct: number }[];
+}) {
+  return (
+    <>
+      <div className="stats-grid-3">
+        {[
+          { label: "Total Revenue",  value: fmt(totalRevenue),  icon: TrendingUp,   color: "var(--accent)", bg: "rgba(124, 58, 237, 0.08)" },
+          { label: "Total Expenses", value: fmt(totalExpenses), icon: TrendingDown, color: "#dc2626", bg: "#fef2f2" },
+          { label: "Gross Profit",   value: fmt(grossProfit),   icon: Wallet,       color: grossProfit >= 0 ? "#059669" : "#dc2626", bg: grossProfit >= 0 ? "#f0fdf4" : "#fef2f2" },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)", flex: 1 }}>
+            <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color }}>
+              <Icon size={24} color={color} />
+            </div>
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 850, color, lineHeight: 1.1 }}>{value}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="dash-grid-bottom">
+        {/* P&L summary */}
+        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "26px 30px" }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 4 }}>Gross Profit Summary</div>
+          <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>{rangeStart} → {filterEnd} · {period}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, color: "#6b6b8a" }}>Revenue</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>{fmt(totalRevenue)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, color: "#6b6b8a" }}>− Expenses (all categories)</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#dc2626" }}>−{fmt(totalExpenses)}</span>
+            </div>
+            <div style={{ height: 1, background: "#f0f0f8" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>= Gross Profit</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: grossProfit >= 0 ? "#059669" : "#dc2626" }}>{fmt(grossProfit)}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "#a0a0b8" }}>{grossMarginPct.toFixed(1)}% gross margin</div>
+          </div>
+        </div>
+
+        {/* Expenses by category */}
+        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "26px 30px" }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 4 }}>Expenses by Category</div>
+          <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>Paid expenses this period</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {expenseByCategory.length === 0 ? (
+              <div style={{ fontSize: 13, color: "#c0c0d0", textAlign: "center", padding: "24px 0" }}>
+                No expenses logged for this period — add them on the Cash Flow page.
+              </div>
+            ) : expenseByCategory.map(e => (
+              <div key={e.category}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: EXPENSE_COLORS[e.category] ?? "#888", flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{EXPENSE_LABELS[e.category] ?? e.category}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 11, color: "#a0a0b8", fontWeight: 500 }}>{e.pct.toFixed(0)}%</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>{fmt(e.amount)}</span>
+                  </div>
+                </div>
+                <div style={{ height: 6, background: "#f0f0f8", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${e.pct}%`, background: EXPENSE_COLORS[e.category] ?? "#888", borderRadius: 4, transition: "width 0.6s ease" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Net Profit tab ───────────────────────────────────────────────────────────
+function NetProfitView({
+  period, rangeStart, filterEnd, grossProfit, totalStaffCost, netProfit, netMarginPct, staffCostBreakdown, periodDayCount,
+}: {
+  period: string; rangeStart: string; filterEnd: string;
+  grossProfit: number; totalStaffCost: number; netProfit: number; netMarginPct: number; periodDayCount: number;
+  staffCostBreakdown: { staffId: string; name: string; payType: string; revenue: number; cost: number }[];
+}) {
+  const maxCost = Math.max(...staffCostBreakdown.map(s => s.cost), 1);
+  return (
+    <>
+      <div className="stats-grid-3">
+        {[
+          { label: "Gross Profit", value: fmt(grossProfit),    icon: Wallet,       color: grossProfit >= 0 ? "#059669" : "#dc2626", bg: grossProfit >= 0 ? "#f0fdf4" : "#fef2f2" },
+          { label: "Staff Cost",   value: fmt(totalStaffCost), icon: Users,        color: "#dc2626", bg: "#fef2f2" },
+          { label: "Net Profit",   value: fmt(netProfit),      icon: TrendingUp,   color: netProfit >= 0 ? "#059669" : "#dc2626", bg: netProfit >= 0 ? "#f0fdf4" : "#fef2f2" },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)", flex: 1 }}>
+            <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color }}>
+              <Icon size={24} color={color} />
+            </div>
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 850, color, lineHeight: 1.1 }}>{value}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="dash-grid-bottom">
+        {/* P&L summary */}
+        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "26px 30px" }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 4 }}>Net Profit Summary</div>
+          <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>{rangeStart} → {filterEnd} · {period}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, color: "#6b6b8a" }}>Gross Profit</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>{fmt(grossProfit)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, color: "#6b6b8a" }}>− Staff commission / salary cost</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#dc2626" }}>−{fmt(totalStaffCost)}</span>
+            </div>
+            <div style={{ height: 1, background: "#f0f0f8" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>= Net Profit</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: netProfit >= 0 ? "#059669" : "#dc2626" }}>{fmt(netProfit)}</span>
+            </div>
+            <div style={{ fontSize: 12, color: "#a0a0b8" }}>{netMarginPct.toFixed(1)}% net margin</div>
+          </div>
+        </div>
+
+        {/* Staff cost breakdown */}
+        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "26px 30px" }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 4 }}>Staff Cost Breakdown</div>
+          <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>
+            Commission on revenue generated · salary prorated over {periodDayCount} day{periodDayCount === 1 ? "" : "s"} (assumes a monthly salary)
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {staffCostBreakdown.length === 0 ? (
+              <div style={{ fontSize: 13, color: "#c0c0d0", textAlign: "center", padding: "24px 0" }}>No staff cost for this period</div>
+            ) : staffCostBreakdown.map(s => {
+              const pct = maxCost > 0 ? (s.cost / maxCost) * 100 : 0;
+              return (
+                <div key={s.staffId}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{s.name}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: s.payType === "commission" ? "#7C3AED" : "#0284c7", background: s.payType === "commission" ? "#f5f3ff" : "#e0f2fe", padding: "2px 8px", borderRadius: 20 }}>
+                        {s.payType === "commission" ? "Commission" : "Salary"}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>{fmt(s.cost)}</span>
+                  </div>
+                  <div style={{ height: 5, background: "#f0f0f8", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${pct}%`, background: "#DDD6FE", borderRadius: 3, transition: "width 0.6s ease" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
