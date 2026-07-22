@@ -946,7 +946,11 @@ async function runSchedulerInternal(): Promise<void> {
   const pendingConfirmIds = new Set(getQueue(CONFIRM_QUEUE_KEY).map((item) => item.id));
 
   // 1. Appointment reminders — send X hours before appointment (only during salon hours).
-  // Same-day bookings never get a reminder — reminders only make sense for a future day.
+  // A walk-in booked today for later today never gets a reminder — the confirmation
+  // that just went out makes an advance-notice reminder redundant. This only applies
+  // when the booking itself was ALSO made today (appt.createdAt), not merely whenever
+  // the appointment happens to fall on today's date — an appointment booked days or
+  // weeks ago that's simply due today still needs its reminder.
   // Gated by both the Account → WhatsApp automation toggle (ws.autoReminder) and the
   // Settings → Notifications toggle (notifications.apptReminder) — either one turned off
   // stops reminders from being queued.
@@ -954,7 +958,7 @@ async function runSchedulerInternal(): Promise<void> {
   if (openNow && ws.autoReminder && notifications.apptReminder !== false && waTpl.reminder) {
     for (const appt of appointments) {
       if (appt.status === "cancelled" || appt.status === "no-show" || appt.status === "completed") continue;
-      if (appt.date === todayKey) continue;
+      if (appt.date === todayKey && appt.createdAt?.slice(0, 10) === todayKey) continue;
       if (ws.autoConfirmation && pendingConfirmIds.has(appt.id)) continue;
       const apptTimeMs = appointmentStartMs(appt.date, appt.startTime, timezoneFromSettings(settingsStore as unknown as Record<string, unknown>));
       const hoursUntil = apptTimeMs == null ? Number.POSITIVE_INFINITY : (apptTimeMs - now.getTime()) / 3_600_000;
