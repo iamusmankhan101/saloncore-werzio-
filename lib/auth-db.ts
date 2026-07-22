@@ -235,6 +235,13 @@ export async function upsertStaffUser(input: {
   return withoutPassword(created);
 }
 
+/** Every login account on the platform (salon owners, managers, and staff) — admin use only. */
+export async function getAllUsers(): Promise<AuthUser[]> {
+  await ensureAuthTables();
+  const res = await db.execute("SELECT * FROM users ORDER BY created_at DESC");
+  return res.rows.map((row) => withoutPassword(rowToUser(row)));
+}
+
 export async function getStaffUsersForOwner(salonOwnerId: string): Promise<AuthUser[]> {
   await ensureAuthTables();
   const res = await db.execute({

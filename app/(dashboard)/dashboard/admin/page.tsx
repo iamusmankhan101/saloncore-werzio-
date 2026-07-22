@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X, ReceiptText } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X, ReceiptText, Users as UsersIcon, BadgeCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getPaymentRequests,
@@ -27,8 +27,35 @@ interface BillingUserRow {
   suspensionReason: string | null;
 }
 
+interface AccountUserRow {
+  id: string;
+  email: string;
+  ownerName: string;
+  salonName: string;
+  phone: string;
+  role: "owner" | "manager" | "staff" | "admin";
+  salonOwnerId?: string;
+  staffId?: string;
+  emailVerified: boolean;
+  createdAt: string;
+}
+
+const ROLE_META: Record<AccountUserRow["role"], { label: string; color: string; bg: string }> = {
+  admin:   { label: "Admin",   color: "#7C3AED", bg: "#f5f3ff" },
+  owner:   { label: "Owner",   color: "#0284c7", bg: "#e0f2fe" },
+  manager: { label: "Manager", color: "#d97706", bg: "#fffbeb" },
+  staff:   { label: "Staff",   color: "#6b6b8a", bg: "#f4f5f7" },
+};
+
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
+}
+
+// Account signup dates are stored date-only ("YYYY-MM-DD"), not a full timestamp
+// — appending T12:00:00 keeps the displayed day from shifting a day back in
+// timezones behind UTC (midnight UTC parses as the previous day locally).
+function fmtSignupDate(dateOnly: string) {
+  return new Date(`${dateOnly}T12:00:00`).toLocaleDateString("en-PK", { dateStyle: "medium" });
 }
 
 const STATUS_META: Record<PaymentStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
@@ -504,11 +531,124 @@ function SalonAccountsPanel() {
   );
 }
 
+function UsersPanel() {
+  const [rows, setRows] = useState<AccountUserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<AccountUserRow["role"] | "all">("all");
+
+  useEffect(() => {
+    fetch("/api/admin/users")
+      .then((res) => res.json())
+      .then((data) => { if (data.ok) setRows(data.users); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = rows.filter((r) => {
+    if (roleFilter !== "all" && r.role !== roleFilter) return false;
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      r.ownerName.toLowerCase().includes(q) ||
+      r.email.toLowerCase().includes(q) ||
+      r.salonName.toLowerCase().includes(q) ||
+      r.phone.toLowerCase().includes(q)
+    );
+  });
+
+  const counts = {
+    all: rows.length,
+    owner: rows.filter((r) => r.role === "owner").length,
+    manager: rows.filter((r) => r.role === "manager").length,
+    staff: rows.filter((r) => r.role === "staff").length,
+    admin: rows.filter((r) => r.role === "admin").length,
+  };
+
+  if (loading) {
+    return (
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "48px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>
+        Loading users…
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name, email, salon, or phone…"
+          style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", minWidth: 280, flex: 1, maxWidth: 340 }}
+        />
+        <div style={{ display: "flex", gap: 6 }}>
+          {(["all", "owner", "manager", "staff", "admin"] as const).map((r) => (
+            <button key={r} onClick={() => setRoleFilter(r)}
+              style={{
+                padding: "7px 12px", borderRadius: 9, fontSize: 11, fontWeight: 700, cursor: "pointer", textTransform: "capitalize",
+                border: `1.5px solid ${roleFilter === r ? "#7C3AED" : "#ebebf0"}`,
+                background: roleFilter === r ? "#f5f3ff" : "#fff",
+                color: roleFilter === r ? "#7C3AED" : "#6b6b8a",
+              }}>
+              {r === "all" ? "All" : ROLE_META[r].label} {r !== "all" && `(${counts[r]})`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 110px 90px 130px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+          {["NAME / EMAIL", "SALON", "PHONE", "ROLE", "VERIFIED", "SIGNED UP"].map((h) => (
+            <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+          ))}
+        </div>
+        {filtered.length === 0 ? (
+          <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No users found</div>
+        ) : (
+          filtered.map((row, i) => {
+            const role = ROLE_META[row.role] ?? ROLE_META.staff;
+            return (
+              <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 110px 90px 130px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: "#f0f0f8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#7C3AED", flexShrink: 0 }}>
+                    {row.ownerName.charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.ownerName}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.email}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "#6b6b8a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.salonName}</div>
+                <div style={{ fontSize: 12, color: "#6b6b8a" }}>{row.phone || "—"}</div>
+                <div>
+                  <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 9px", borderRadius: 16, background: role.bg, border: `1px solid ${role.color}44`, fontSize: 10, fontWeight: 700, color: role.color }}>
+                    {role.label}
+                  </span>
+                </div>
+                <div>
+                  {row.emailVerified ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#059669" }}>
+                      <BadgeCheck size={13} /> Verified
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#c4c4d4" }}>Unverified</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtSignupDate(row.createdAt)}</div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [filter, setFilter] = useState<PaymentStatus | "all">("all");
-  const [tab, setTab] = useState<"requests" | "salons">("requests");
+  const [tab, setTab] = useState<"requests" | "salons" | "users">("requests");
   const [isAdmin, setIsAdmin] = useState(false);
   const [checking, setChecking] = useState(true);
 
@@ -543,7 +683,9 @@ export default function AdminPage() {
         <div>
           <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e" }}>Admin Panel</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 1 }}>
-            {tab === "requests" ? "Review and approve payment requests" : "Manage salon accounts and set custom pricing"}
+            {tab === "requests" ? "Review and approve payment requests"
+              : tab === "salons" ? "Manage salon accounts and set custom pricing"
+              : "Every login account on the platform"}
           </div>
         </div>
       </div>
@@ -557,6 +699,10 @@ export default function AdminPage() {
         <button onClick={() => setTab("salons")}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "salons" ? "#7C3AED" : "#ebebf0"}`, background: tab === "salons" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "salons" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
           <Store size={14} /> Salon Accounts
+        </button>
+        <button onClick={() => setTab("users")}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "users" ? "#7C3AED" : "#ebebf0"}`, background: tab === "users" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "users" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
+          <UsersIcon size={14} /> Users
         </button>
       </div>
 
@@ -588,8 +734,10 @@ export default function AdminPage() {
             )}
           </div>
         </>
-      ) : (
+      ) : tab === "salons" ? (
         <SalonAccountsPanel />
+      ) : (
+        <UsersPanel />
       )}
     </div>
   );
