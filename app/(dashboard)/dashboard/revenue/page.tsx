@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { getStoredAppointments, getStoredStaff, getStoredServices } from "@/lib/storage";
+import { getStoredAppointments } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
 import { getExpenses, type Expense, type ExpenseCategory } from "@/lib/expenses";
-import { revenueInPeriod } from "@/lib/payouts";
-import type { Appointment, Staff, Service } from "@/lib/types";
+import type { Appointment } from "@/lib/types";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import {
   Download, ArrowUpRight, ArrowDownRight,
   TrendingUp, TrendingDown, CalendarDays, Percent, ChevronLeft,
-  ChevronDown, ChevronUp, Receipt, Clock, Wallet, Users,
+  ChevronDown, ChevronUp, Receipt, Clock, Wallet,
 } from "lucide-react";
 
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -70,7 +69,7 @@ const EXPENSE_CATEGORIES: { key: ExpenseCategory; label: string; color: string }
 const EXPENSE_LABELS: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map(c => [c.key, c.label]));
 const EXPENSE_COLORS: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map(c => [c.key, c.color]));
 
-type RevTab = "overview" | "gross" | "net";
+type RevTab = "overview" | "gross";
 
 function toDateStr(d: Date) { return d.toLocaleDateString("en-CA"); }
 
@@ -119,8 +118,6 @@ export default function RevenuePage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [posInvoices, setPosInvoices]   = useState<ReturnType<typeof getSalonInvoices>>([]);
   const [expenses, setExpenses]         = useState<Expense[]>([]);
-  const [staffList, setStaffList]       = useState<Staff[]>([]);
-  const [services, setServices]         = useState<Service[]>([]);
   const [today, setToday]               = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [hoveredBar, setHoveredBar]     = useState<number | null>(null);
@@ -145,8 +142,6 @@ export default function RevenuePage() {
         .map(inv => ({ ...inv, date: inv.paidDate || inv.date }))
     );
     setExpenses(getExpenses());
-    setStaffList(getStoredStaff());
-    setServices(getStoredServices());
   }, []);
 
   // Reset drill-down when period changes
@@ -398,36 +393,6 @@ export default function RevenuePage() {
   const grossProfit = totalRevenue - totalExpenses;
   const grossMarginPct = totalRevenue ? (grossProfit / totalRevenue) * 100 : 0;
 
-  // Net Profit = Gross Profit − staff commission/salary cost for the period.
-  // Recomputed live from each staff member's actual revenue in this exact date
-  // range (same formula the Payouts page uses for its "estimated" column) rather
-  // than reading processed Payout records, since those cover whatever period the
-  // owner last ran payroll for — not necessarily this page's selected range.
-  // Salary is prorated by the number of days in the period (baseSalary assumed
-  // monthly, i.e. ÷30 × days) so a 1-day "Today" view doesn't count a full
-  // month's salary as today's cost.
-  const periodDayCount = useMemo(() => {
-    if (!rangeStart || !filterEnd || rangeStart > filterEnd) return 0;
-    return getDaysInRange(rangeStart, filterEnd).length;
-  }, [rangeStart, filterEnd]);
-
-  const staffCostBreakdown = useMemo(() => {
-    if (!rangeStart || !filterEnd) return [] as { staffId: string; name: string; payType: string; revenue: number; cost: number }[];
-    return staffList.map(s => {
-      const payType = s.payType ?? "commission";
-      const revenue = revenueInPeriod(s.id, appointments, services, rangeStart, filterEnd);
-      const cost = payType === "commission"
-        ? revenue * (s.commissionRate ?? 0) / 100
-        : (s.baseSalary ?? 0) * (periodDayCount / 30);
-      return { staffId: s.id, name: s.name, payType, revenue, cost };
-    }).filter(s => s.cost > 0).sort((a, b) => b.cost - a.cost);
-  }, [staffList, appointments, services, rangeStart, filterEnd, periodDayCount]);
-
-  const totalStaffCost = useMemo(() => staffCostBreakdown.reduce((s, r) => s + r.cost, 0), [staffCostBreakdown]);
-
-  const netProfit = grossProfit - totalStaffCost;
-  const netMarginPct = totalRevenue ? (netProfit / totalRevenue) * 100 : 0;
-
   const maxChart = Math.max(...chartData.map(d => d.value), 1);
 
   const yLabels = useMemo(() => computeYLabels(maxChart), [maxChart]);
@@ -555,7 +520,7 @@ export default function RevenuePage() {
     .report-title { font-size: 16px; font-weight: 800; color: #7C3AED; }
     .report-sub   { font-size: 12px; color: #6b6b8a; margin-top: 4px; }
     .report-gen   { font-size: 11px; color: #c0c0d0; margin-top: 2px; }
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
     .stat-card  { background: #F5F3FF; border-radius: 12px; padding: 16px; border: 1px solid #EDE9FE; }
     .stat-label { font-size: 10px; font-weight: 700; color: #a0a0b8; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
     .stat-value { font-size: 20px; font-weight: 800; color: #7C3AED; }
@@ -621,11 +586,6 @@ export default function RevenuePage() {
       <div class="stat-label">Avg Ticket</div>
       <div class="stat-value">${fmt(pdfAvg)}</div>
       <div class="stat-sub">Per appointment</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Est. Tips</div>
-      <div class="stat-value">${fmt(Math.round(pdfTotal * 0.08))}</div>
-      <div class="stat-sub">~8% of revenue</div>
     </div>
   </div>
 
@@ -875,7 +835,6 @@ export default function RevenuePage() {
         {([
           { key: "overview", label: "Overview" },
           { key: "gross",    label: "Gross Profit" },
-          { key: "net",      label: "Net Profit" },
         ] as { key: RevTab; label: string }[]).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
             background: "none", border: "none", cursor: "pointer",
@@ -1398,14 +1357,6 @@ export default function RevenuePage() {
         />
       )}
 
-      {tab === "net" && (
-        <NetProfitView
-          period={cfg.label} rangeStart={rangeStart} filterEnd={filterEnd}
-          grossProfit={grossProfit} totalStaffCost={totalStaffCost} netProfit={netProfit}
-          netMarginPct={netMarginPct} staffCostBreakdown={staffCostBreakdown} periodDayCount={periodDayCount}
-        />
-      )}
-
       </div>{/* /desktop-only */}
     </div>
   );
@@ -1488,93 +1439,6 @@ function GrossProfitView({
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ── Net Profit tab ───────────────────────────────────────────────────────────
-function NetProfitView({
-  period, rangeStart, filterEnd, grossProfit, totalStaffCost, netProfit, netMarginPct, staffCostBreakdown, periodDayCount,
-}: {
-  period: string; rangeStart: string; filterEnd: string;
-  grossProfit: number; totalStaffCost: number; netProfit: number; netMarginPct: number; periodDayCount: number;
-  staffCostBreakdown: { staffId: string; name: string; payType: string; revenue: number; cost: number }[];
-}) {
-  const maxCost = Math.max(...staffCostBreakdown.map(s => s.cost), 1);
-  return (
-    <>
-      <div className="stats-grid-3">
-        {[
-          { label: "Gross Profit", value: fmt(grossProfit),    icon: Wallet,       color: grossProfit >= 0 ? "#059669" : "#dc2626", bg: grossProfit >= 0 ? "#f0fdf4" : "#fef2f2" },
-          { label: "Staff Cost",   value: fmt(totalStaffCost), icon: Users,        color: "#dc2626", bg: "#fef2f2" },
-          { label: "Net Profit",   value: fmt(netProfit),      icon: TrendingUp,   color: netProfit >= 0 ? "#059669" : "#dc2626", bg: netProfit >= 0 ? "#f0fdf4" : "#fef2f2" },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)", flex: 1 }}>
-            <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color }}>
-              <Icon size={24} color={color} />
-            </div>
-            <div>
-              <div style={{ fontSize: 24, fontWeight: 850, color, lineHeight: 1.1 }}>{value}</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="dash-grid-bottom">
-        {/* P&L summary */}
-        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "26px 30px" }}>
-          <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 4 }}>Net Profit Summary</div>
-          <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>{rangeStart} → {filterEnd} · {period}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 13, color: "#6b6b8a" }}>Gross Profit</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>{fmt(grossProfit)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 13, color: "#6b6b8a" }}>− Staff commission / salary cost</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#dc2626" }}>−{fmt(totalStaffCost)}</span>
-            </div>
-            <div style={{ height: 1, background: "#f0f0f8" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>= Net Profit</span>
-              <span style={{ fontSize: 18, fontWeight: 800, color: netProfit >= 0 ? "#059669" : "#dc2626" }}>{fmt(netProfit)}</span>
-            </div>
-            <div style={{ fontSize: 12, color: "#a0a0b8" }}>{netMarginPct.toFixed(1)}% net margin</div>
-          </div>
-        </div>
-
-        {/* Staff cost breakdown */}
-        <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "26px 30px" }}>
-          <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 4 }}>Staff Cost Breakdown</div>
-          <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>
-            Commission on revenue generated · salary prorated over {periodDayCount} day{periodDayCount === 1 ? "" : "s"} (assumes a monthly salary)
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {staffCostBreakdown.length === 0 ? (
-              <div style={{ fontSize: 13, color: "#c0c0d0", textAlign: "center", padding: "24px 0" }}>No staff cost for this period</div>
-            ) : staffCostBreakdown.map(s => {
-              const pct = maxCost > 0 ? (s.cost / maxCost) * 100 : 0;
-              return (
-                <div key={s.staffId}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{s.name}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: s.payType === "commission" ? "#7C3AED" : "#0284c7", background: s.payType === "commission" ? "#f5f3ff" : "#e0f2fe", padding: "2px 8px", borderRadius: 20 }}>
-                        {s.payType === "commission" ? "Commission" : "Salary"}
-                      </span>
-                    </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>{fmt(s.cost)}</span>
-                  </div>
-                  <div style={{ height: 5, background: "#f0f0f8", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${pct}%`, background: "#DDD6FE", borderRadius: 3, transition: "width 0.6s ease" }} />
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       </div>
