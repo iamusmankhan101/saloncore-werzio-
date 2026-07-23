@@ -10,7 +10,7 @@ import styles from "../auth.module.css";
 const PLANS = [
   {
     id: "demo",
-    billingPlanId: "pro",
+    billingPlanId: "starter",
     name: "7-Day Demo",
     price: "Demo access",
     icon: CalendarClock,
@@ -18,7 +18,7 @@ const PLANS = [
     bg: "#f0f9ff",
     badge: "Try first",
     features: [
-      "Pro access for 7 days",
+      "Starter access for 7 days",
       "Explore before choosing a plan",
       "Point of Sale (POS)",
       "Unlimited appointment booking",

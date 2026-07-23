@@ -9,7 +9,7 @@ import { ensureBillingTables, upsertBillingUser } from "@/lib/billing-db";
 import { PLAN_CONFIGS } from "@/lib/plan-limits";
 
 function normalizePlanId(planId: string): string {
-  if (planId === "demo") return "pro";
+  if (planId === "demo") return "starter";
   return planId;
 }
 
