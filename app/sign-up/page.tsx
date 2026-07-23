@@ -3,14 +3,33 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Building2, Check, Crown, LockKeyhole, Mail, MailCheck, Phone, Shield, User } from "lucide-react";
-import { signUp, getUnverifiedUser } from "@/lib/auth";
+import { ArrowRight, Building2, CalendarClock, Check, Crown, LockKeyhole, Mail, MailCheck, Phone, Shield, User } from "lucide-react";
+import { getUnverifiedUser } from "@/lib/auth";
 import { setActivePlan } from "@/lib/payment-requests";
 import styles from "../auth.module.css";
 
 const PLANS = [
   {
+    id: "demo",
+    billingPlanId: "pro",
+    name: "7-Day Demo",
+    price: "Free for 7 days",
+    icon: CalendarClock,
+    color: "#0EA5E9",
+    bg: "#f0f9ff",
+    badge: "Try first",
+    features: [
+      "Pro access for 7 days",
+      "No invoice during demo",
+      "Point of Sale (POS)",
+      "Unlimited appointment booking",
+      "Branded online web booking page",
+      "WhatsApp reminders & alerts",
+    ],
+  },
+  {
     id: "pro",
+    billingPlanId: "pro",
     name: "Salon Central Pro",
     price: "Contact Sales",
     icon: Building2,
@@ -31,6 +50,7 @@ const PLANS = [
   },
   {
     id: "premium",
+    billingPlanId: "premium",
     name: "Salon Central Premium",
     price: "Contact Sales",
     icon: Crown,
@@ -52,7 +72,7 @@ type PlanId = typeof PLANS[number]["id"];
 export default function SignUpPage() {
   const router = useRouter();
   const [step, setStep] = useState<"plan" | "details" | "verify">("plan");
-  const [selectedPlan, setSelectedPlan] = useState<PlanId>("pro");
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>("demo");
   const [form, setForm] = useState({ ownerName: "", salonName: "", email: "", phone: "", password: "" });
   const [adminCode, setAdminCode] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
@@ -105,7 +125,8 @@ export default function SignUpPage() {
         return;
       }
 
-      setActivePlan(selectedPlan);
+      const billingPlanId = plan.billingPlanId;
+      setActivePlan(billingPlanId);
 
       // Register in billing DB (fire-and-forget — don't block sign-up on failure)
       fetch("/api/billing/register", {
@@ -117,7 +138,7 @@ export default function SignUpPage() {
           ownerName:  form.ownerName,
           salonName:  form.salonName || form.ownerName,
           phone:      form.phone,
-          planId:     selectedPlan,
+          planId:     billingPlanId,
           trialStart: newUser.createdAt,
         }),
       }).catch((e) => console.warn("[billing/register] failed:", e));
@@ -416,7 +437,7 @@ export default function SignUpPage() {
                   Click the link in the email to activate your account. The link expires in 24 hours.
                 </p>
                 <div style={{ padding: "12px 14px", borderRadius: 10, background: "#f8f8fc", border: "1px solid #ebebf0", fontSize: 12, color: "#9898b0", marginBottom: 16 }}>
-                  Didn't receive it? Check your spam folder or{" "}
+                  Did not receive it? Check your spam folder or{" "}
                   <button type="button"
                     onClick={async () => {
                       setSending(true);

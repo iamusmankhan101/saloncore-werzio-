@@ -2,8 +2,8 @@
  * lib/billing-db.ts
  * Server-side billing state stored in Turso (SQLite).
  *
- * Billing model — 30-day rolling cycles (not calendar months):
- *   • billing_anchor  = signup_date             (invoice issued on day 1 of account)
+ * Billing model — 7-day demo, then 30-day rolling cycles (not calendar months):
+ *   • billing_anchor  = signup_date + 7 days    (first invoice issued after demo)
  *   • cycle_index     = floor((today − anchor) / 30)  starting at 0
  *   • period_start    = anchor + cycle_index × 30 days
  *   • due_date        = period_start + 30 days  (30 days to pay)
@@ -17,10 +17,10 @@
 import { db } from "@/lib/db";
 
 // ─── Billing constants ────────────────────────────────────────────────────────
-export const TRIAL_DAYS = 0;
+export const TRIAL_DAYS = 7;
 export const BILLING_CYCLE_DAYS = 30;
 export const INVOICE_DUE_DAYS = 30;
-export const OVERDUE_GRACE_DAYS = 0;     // overdue immediately at due_date (day 30 from signup)
+export const OVERDUE_GRACE_DAYS = 0;     // overdue immediately at invoice due_date
 export const SUSPENSION_GRACE_DAYS = 0;  // suspend immediately at due_date
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -174,15 +174,12 @@ function daysDiff(a: string, b: string): number {
   return Math.floor(ms / 86_400_000);
 }
 
-/**
- * Compute the billing anchor: signup_date + 30 days.
- * The very first invoice is issued on this date.
- */
+/** Compute the billing anchor. The very first invoice is issued on this date. */
 export function computeBillingAnchor(signupDate: string): string {
   return addDays(signupDate, TRIAL_DAYS);
 }
 
-/** Returns true if today is still within the 30-day grace period before first billing. */
+/** Returns true if today is still within the demo period before first billing. */
 export function isInTrial(signupDate: string): boolean {
   const today  = new Date().toISOString().slice(0, 10);
   const anchor = computeBillingAnchor(signupDate);

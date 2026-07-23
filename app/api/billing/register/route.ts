@@ -8,6 +8,11 @@ import { NextRequest } from "next/server";
 import { ensureBillingTables, upsertBillingUser } from "@/lib/billing-db";
 import { PLAN_CONFIGS } from "@/lib/plan-limits";
 
+function normalizePlanId(planId: string): string {
+  if (planId === "demo") return "pro";
+  return planId;
+}
+
 function getPlanPrice(planId: string): number {
   if (planId === "basic") return PLAN_CONFIGS.pro.price; // legacy alias
   return PLAN_CONFIGS[planId as keyof typeof PLAN_CONFIGS]?.price ?? 0;
@@ -35,7 +40,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: false, error: "Invalid request body." }, { status: 400 });
   }
 
-  const { userId, email, ownerName, salonName, phone, planId, trialStart } = body;
+  const { userId, email, ownerName, salonName, phone, trialStart } = body;
+  const planId = normalizePlanId(body.planId);
   if (!userId || !email || !planId) {
     return Response.json({ ok: false, error: "Missing required fields." }, { status: 400 });
   }
