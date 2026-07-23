@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import type { InValue } from "@libsql/client";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
 import {
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
 
     await ensureSalonDataBackupTable();
     const filters: string[] = [];
-    const args: unknown[] = [];
+    const args: InValue[] = [];
     if (userId) {
       filters.push("user_id = ?");
       args.push(userId);
