@@ -17,6 +17,28 @@ const plans: Array<{
   featured: boolean;
 }> = [
   {
+    badge: "No WhatsApp",
+    badgeStyle: { background: "#cffafe", color: "#0e7490" },
+    name: "Starter",
+    desc: "Core salon management without WhatsApp automation.",
+    price: "Contact Sales",
+    period: "",
+    features: [
+      "Point of Sale (POS)",
+      "Unlimited appointment booking",
+      "Branded online web booking page",
+      "Unlimited staff & client management",
+      "Inventory management",
+      "Invoicing",
+      "Revenue management",
+      "Services management",
+    ],
+    cta: "Contact Sales",
+    ctaHref: CONTACT_SALES_URL,
+    ctaClass: "btn btn-outline",
+    featured: false,
+  },
+  {
     badge: "Most Popular",
     badgeStyle: {},
     name: "Pro",
