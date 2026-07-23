@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Building2, CalendarClock, Check, Crown, LockKeyhole, Mail, MailCheck, Phone, Shield, User } from "lucide-react";
-import { getUnverifiedUser } from "@/lib/auth";
+import { ArrowRight, Building2, CalendarClock, Check, Crown, LockKeyhole, Mail, Phone, Shield, User } from "lucide-react";
 import { setActivePlan } from "@/lib/payment-requests";
 import styles from "../auth.module.css";
 
@@ -71,7 +70,7 @@ type PlanId = typeof PLANS[number]["id"];
 
 export default function SignUpPage() {
   const router = useRouter();
-  const [step, setStep] = useState<"plan" | "details" | "verify">("plan");
+  const [step, setStep] = useState<"plan" | "details">("plan");
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("demo");
   const [form, setForm] = useState({ ownerName: "", salonName: "", email: "", phone: "", password: "" });
   const [adminCode, setAdminCode] = useState("");
@@ -117,8 +116,6 @@ export default function SignUpPage() {
       const newUser = signupData.user;
 
       if (showAdmin) {
-        // Admin auto-login (skips email verification and billing)
-        // Set session in localStorage
         localStorage.setItem("werzio_auth_session", newUser.id);
         localStorage.setItem(`werzio_user_cache_${newUser.id}`, JSON.stringify(newUser));
         router.replace("/dashboard");
@@ -129,7 +126,7 @@ export default function SignUpPage() {
       setActivePlan(billingPlanId);
 
       // Register in billing DB (fire-and-forget — don't block sign-up on failure)
-      fetch("/api/billing/register", {
+      await fetch("/api/billing/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -143,46 +140,14 @@ export default function SignUpPage() {
         }),
       }).catch((e) => console.warn("[billing/register] failed:", e));
 
-      const res = await fetch("/api/send-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, name: form.ownerName }),
-      });
-      const result = await res.json() as { ok: boolean; error?: string; devUrl?: string };
-      setSending(false);
-      if (!result.ok) {
-        setError(result.error || "Failed to send verification email. Please try again.");
-        return;
-      }
-      if (result.devUrl) {
-        console.log("[dev] Verify URL:", result.devUrl);
-      }
-      setStep("verify");
+      localStorage.setItem("werzio_auth_session", newUser.id);
+      localStorage.setItem(`werzio_user_cache_${newUser.id}`, JSON.stringify(newUser));
+      router.replace("/dashboard");
     } catch (err) {
       setSending(false);
       const msg = err instanceof Error ? err.message : "Unable to create account.";
 
-      // ── Email already exists but account is not verified ──────────────────
-      // Instead of a hard error, just resend the verification email so the
-      // user can complete sign-up without having to clear localStorage.
       if (msg.includes("already exists") && !showAdmin) {
-        const unverified = getUnverifiedUser(form.email);
-        if (unverified) {
-          setSending(true);
-          try {
-            const res = await fetch("/api/send-verification", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: form.email, name: form.ownerName }),
-            });
-            const result = await res.json() as { ok: boolean; devUrl?: string };
-            if (result.devUrl) console.log("[dev] Verify URL:", result.devUrl);
-          } catch { /* ignore — we'll still move to verify step */ }
-          setSending(false);
-          setStep("verify"); // Show verify screen with resend note
-          return;
-        }
-        // Account exists AND is already verified → tell them to sign in
         setError("An account with this email already exists. Please sign in instead.");
         return;
       }
@@ -229,10 +194,10 @@ export default function SignUpPage() {
             {/* Header */}
             <div className={styles.formHeader}>
               <h1 className={styles.formTitle} style={{ marginTop: 14 }}>
-                {step === "verify" ? "Check your email" : step === "plan" ? "Choose your plan" : showAdmin ? "Admin registration" : `${plan.name} plan — details`}
+                {step === "plan" ? "Choose your plan" : showAdmin ? "Admin registration" : `${plan.name} plan — details`}
               </h1>
               <p className={styles.formSubtitle}>
-                {step === "verify" ? `We sent a verification link to ${form.email}` : step === "plan" ? "Pick a plan to get started. Cancel anytime." : "Fill in your salon details to get started."}
+                {step === "plan" ? "Pick a plan to get started. Cancel anytime." : "Fill in your salon details to get started."}
               </p>
             </div>
 
@@ -427,33 +392,7 @@ export default function SignUpPage() {
               </>
             )}
 
-            {/* ── STEP 3: Email verification sent ── */}
-            {step === "verify" && (
-              <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
-                <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-                  <MailCheck size={32} color="#7C3AED" />
-                </div>
-                <p style={{ fontSize: 13, color: "#6b6b8a", lineHeight: 1.7, marginBottom: 20 }}>
-                  Click the link in the email to activate your account. The link expires in 24 hours.
-                </p>
-                <div style={{ padding: "12px 14px", borderRadius: 10, background: "#f8f8fc", border: "1px solid #ebebf0", fontSize: 12, color: "#9898b0", marginBottom: 16 }}>
-                  Did not receive it? Check your spam folder or{" "}
-                  <button type="button"
-                    onClick={async () => {
-                      setSending(true);
-                      await fetch("/api/send-verification", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.email, name: form.ownerName }) });
-                      setSending(false);
-                    }}
-                    style={{ background: "none", border: "none", color: "#7C3AED", fontWeight: 700, cursor: "pointer", fontSize: 12, padding: 0 }}
-                    disabled={sending}
-                  >
-                    {sending ? "Sending…" : "resend the email"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <p className={styles.footerText} style={{ marginTop: step === "verify" ? 0 : 16 }}>
+            <p className={styles.footerText} style={{ marginTop: 16 }}>
               Already have an account? <Link href="/sign-in" className={styles.footerLink}>Sign in</Link>
             </p>
           </form>
