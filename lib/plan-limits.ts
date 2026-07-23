@@ -9,6 +9,8 @@
  *  │ Salon Central Free  │ 0 PKR   │ Appts 30/mo, POS 5 products, staff 5,         │
  *  │              │         │ clients 5, invoicing ✓                        │
  *  ├──────────────┼─────────┼───────────────────────────────────────────────┤
+ *  │ Salon Central Starter │ 7000  │ Everything unlimited, no WhatsApp automation  │
+ *  ├──────────────┼─────────┼───────────────────────────────────────────────┤
  *  │ Salon Central Pro   │ 10000   │ Everything unlimited + WhatsApp               │
  *  ├──────────────┼─────────┼───────────────────────────────────────────────┤
  *  │ Salon Central Prem. │ 20000   │ Everything unlimited + WhatsApp + Try-On      │
@@ -19,7 +21,7 @@ import { getActivePlan } from "./payment-requests";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type PlanId = "free" | "pro" | "premium";
+export type PlanId = "free" | "starter" | "pro" | "premium";
 
 export interface PlanConfig {
   id: PlanId;
@@ -130,6 +132,45 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     ],
   },
 
+  starter: {
+    id: "starter",
+    name: "Starter",
+    label: "Starter",
+    badge: "STARTER",
+    price: 7000,
+    color: "#0891b2",
+    bg: "#ecfeff",
+    gradient: "linear-gradient(135deg,#0E7490,#06B6D4)",
+
+    appointmentsPerMonth: -1,
+    staffLimit: -1,
+    clientLimit: -1,
+    posProductLimit: -1,
+
+    whatsapp: false,
+    tryOn: false,
+    multiLocation: false,
+    invoicing: true,
+
+    features: [
+      "Unlimited appointments",
+      "Unlimited POS products",
+      "Full invoicing & POS",
+      "Unlimited staff",
+      "Unlimited clients",
+      "Advanced revenue & analytics",
+      "Full inventory management",
+      "Online booking page",
+      "Calendar & scheduling",
+      "Services management",
+    ],
+    lockedFeatures: [
+      "WhatsApp automation",
+      "Virtual Try-On (AI)",
+      "Multi-location branches",
+    ],
+  },
+
   premium: {
     id: "premium",
     name: "Premium",
@@ -160,7 +201,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
   },
 };
 
-export const ORDERED_PLANS: PlanId[] = ["pro", "premium"];
+export const ORDERED_PLANS = ["starter", "pro", "premium"] as const satisfies readonly PlanId[];
 
 // ─── Active plan helpers ──────────────────────────────────────────────────────
 
@@ -171,6 +212,7 @@ export const ORDERED_PLANS: PlanId[] = ["pro", "premium"];
 export function getCurrentPlanId(): PlanId {
   const raw = getActivePlan();
   if (raw === "premium") return "premium";
+  if (raw === "starter") return "starter";
   if (raw === "pro" || raw === "basic") return "pro"; // "basic" was the old Pro name
   return "free";
 }
@@ -204,7 +246,8 @@ export function thisMonthCount(appointments: { date: string; status?: string }[]
 // ─── Upgrade prompt helpers ───────────────────────────────────────────────────
 
 export function upgradeTarget(planId: PlanId): PlanId {
-  if (planId === "free") return "pro";
+  if (planId === "free") return "starter";
+  if (planId === "starter") return "pro";
   if (planId === "pro") return "premium";
   return "premium";
 }

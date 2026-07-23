@@ -22,6 +22,7 @@ import {
 const EP_DETAILS  = { name: "Muhammad Usman Khan", phone: "03058562523" };
 const BANK_DETAILS = { name: "TAREEZ TECH", account: "02291011176553", iban: "PK90ALFH0229001011176553" };
 const CONTACT_SALES_URL = "https://wa.me/+923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
+const DEMO_DAYS = 7;
 
 const STATUS_META: Record<InvoiceStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   paid:    { label: "Paid",    color: "#059669", bg: "#ecfdf5", icon: CheckCircle },
@@ -31,6 +32,7 @@ const STATUS_META: Record<InvoiceStatus, { label: string; color: string; bg: str
 
 const PLAN_ICONS: Record<PlanId, React.ElementType> = {
   free:    Sparkles,
+  starter: Building2,
   pro:     Zap,
   premium: Crown,
 };
@@ -39,6 +41,12 @@ const PLAN_ICONS: Record<PlanId, React.ElementType> = {
 
 function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-PK", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -74,11 +82,12 @@ function CopyField({ label, value }: { label: string; value: string }) {
 // ─── Plan card ────────────────────────────────────────────────────────────────
 
 function PlanCard({
-  plan, isCurrent, isPopular, onDowngrade,
+  plan, isCurrent, isPopular, hidePricing, onDowngrade,
 }: {
   plan: PlanConfig;
   isCurrent: boolean;
   isPopular: boolean;
+  hidePricing?: boolean;
   onDowngrade: () => void;
 }) {
   const Icon = PLAN_ICONS[plan.id];
@@ -125,6 +134,8 @@ function PlanCard({
         <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
           {plan.price === 0
             ? <span style={{ fontSize: 34, fontWeight: 900, color: "#fff" }}>Free</span>
+            : hidePricing
+              ? <span style={{ fontSize: 24, fontWeight: 900, color: "#fff" }}>Contact Sales</span>
             : <>
                 <span style={{ fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.82)" }}>PKR</span>
                 <span style={{ fontSize: 34, fontWeight: 900, color: "#fff", letterSpacing: "-1px" }}>{plan.price.toLocaleString("en-PK")}</span>
@@ -179,7 +190,7 @@ function PlanCard({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
-  const [activePlanId, setActivePlanId] = useState<PlanId>("free");
+  const [activePlanId, setActivePlanId] = useState<PlanId>(() => getCurrentPlanId());
   const [showModal,    setShowModal]    = useState<PlanId | null>(null);
   const [payMethod,    setPayMethod]    = useState<PaymentMethod>("easypaisa");
   const [screenshot,   setScreenshot]  = useState<{ base64: string; name: string } | null>(null);
@@ -189,15 +200,12 @@ export default function BillingPage() {
   const [invoices,     setInvoices]    = useState<Invoice[]>([]);
   const [viewInvoice,  setViewInvoice] = useState<Invoice | null>(null);
   const [actualPrice,  setActualPrice] = useState<number | null>(null);
+  const [trialStart,   setTrialStart]  = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const user = getCurrentUser();
     if (!user) return;
-
-    // Apply cached plan immediately to avoid flash on refresh
-    const cached = getCurrentPlanId();
-    if (cached !== "free") setActivePlanId(cached);
 
     // Fetch authoritative plan from database
     fetch(`/api/billing/user?userId=${user.id}`)
@@ -209,6 +217,7 @@ export default function BillingPage() {
           // Admin may have set a custom negotiated price for this salon —
           // prefer it over the static plan-tier price when displaying.
           if (typeof data.planPrice === "number") setActualPrice(data.planPrice);
+          if (typeof data.trialStart === "string") setTrialStart(data.trialStart);
 
           // Also update localStorage for backward compatibility
           if (planId !== "free") {
@@ -232,11 +241,25 @@ export default function BillingPage() {
       })
       .catch(err => console.error("[billing] Failed to fetch invoices:", err));
 
-    setHasPending(getPaymentRequests().some(r => r.userId === user.id && r.status === "pending"));
+    queueMicrotask(() => {
+      setHasPending(getPaymentRequests().some(r => r.userId === user.id && r.status === "pending"));
+    });
   }, [submitted]);
 
   const currentPlan = PLAN_CONFIGS[activePlanId];
   const displayPrice = actualPrice ?? currentPlan.price;
+  const demoEndsAt = trialStart ? addDays(trialStart, DEMO_DAYS) : null;
+  const isDemoActive = activePlanId !== "free" && !!demoEndsAt && new Date().toISOString().slice(0, 10) < demoEndsAt;
+  const currentPlanSubtitle = isDemoActive
+    ? `7-day demo active until ${fmtDate(demoEndsAt)}`
+    : displayPrice === 0
+      ? "Free forever · no billing"
+      : `PKR ${displayPrice.toLocaleString("en-PK")}/month`;
+  const desktopPlanSubtitle = isDemoActive
+    ? `7-day demo active until ${fmtDate(demoEndsAt)} · no pricing shown`
+    : displayPrice === 0
+      ? "Free forever · no billing"
+      : `PKR ${displayPrice.toLocaleString("en-PK")}/month · billed every 30 days`;
   const upgradePlan = showModal ? PLAN_CONFIGS[showModal] : null;
   const latestInvoice = invoices[0];
 
@@ -277,18 +300,18 @@ export default function BillingPage() {
     setActivePlanId("free");
   }
 
-  const COMPARISON_ROWS = [
-    { feature: "Appointments",         pro: "Unlimited",       premium: "Unlimited" },
-    { feature: "Staff members",         pro: "Unlimited",       premium: "Unlimited" },
-    { feature: "Clients",               pro: "Unlimited",       premium: "Unlimited" },
-    { feature: "POS products",          pro: "Unlimited",       premium: "Unlimited" },
-    { feature: "Invoicing",             pro: "✓",               premium: "✓" },
-    { feature: "Revenue analytics",     pro: "Full",            premium: "Full" },
-    { feature: "Inventory",             pro: "Full",            premium: "Full" },
-    { feature: "WhatsApp automation",   pro: "✓",               premium: "✓" },
-    { feature: "Virtual Try-On (AI)",   pro: "—",               premium: "✓" },
-    { feature: "Multi-location branches", pro: "—",             premium: "✓" },
-    { feature: "Price",                 pro: "Contact Sales",   premium: "Contact Sales" },
+  const COMPARISON_ROWS: Array<{ feature: string } & Record<(typeof ORDERED_PLANS)[number], string>> = [
+    { feature: "Appointments",           starter: "Unlimited",     pro: "Unlimited",     premium: "Unlimited" },
+    { feature: "Staff members",          starter: "Unlimited",     pro: "Unlimited",     premium: "Unlimited" },
+    { feature: "Clients",                starter: "Unlimited",     pro: "Unlimited",     premium: "Unlimited" },
+    { feature: "POS products",           starter: "Unlimited",     pro: "Unlimited",     premium: "Unlimited" },
+    { feature: "Invoicing",              starter: "✓",             pro: "✓",             premium: "✓" },
+    { feature: "Revenue analytics",      starter: "Full",          pro: "Full",          premium: "Full" },
+    { feature: "Inventory",              starter: "Full",          pro: "Full",          premium: "Full" },
+    { feature: "WhatsApp automation",    starter: "—",             pro: "✓",             premium: "✓" },
+    { feature: "Virtual Try-On (AI)",    starter: "—",             pro: "—",             premium: "✓" },
+    { feature: "Multi-location branches", starter: "—",            pro: "—",             premium: "✓" },
+    { feature: "Price",                  starter: "Contact Sales", pro: "Contact Sales", premium: "Contact Sales" },
   ];
 
   return (
@@ -435,9 +458,7 @@ export default function BillingPage() {
             <div>
               <div style={{ fontSize: 24, fontWeight: 900, color: "#fff", lineHeight: 1.1 }}>{currentPlan.label}</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.78)", marginTop: 3 }}>
-                {displayPrice === 0
-                  ? "Free forever · no billing"
-                  : `PKR ${displayPrice.toLocaleString("en-PK")}/month`}
+                {currentPlanSubtitle}
               </div>
             </div>
           </div>
@@ -483,6 +504,7 @@ export default function BillingPage() {
                 plan={PLAN_CONFIGS[planId]}
                 isCurrent={planId === activePlanId}
                 isPopular={planId === "pro"}
+                hidePricing={isDemoActive}
                 onDowngrade={handleDowngrade}
               />
             </div>
@@ -496,21 +518,24 @@ export default function BillingPage() {
           <Shield size={13} color="#9898b0" /> Feature Comparison
         </div>
         <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingLeft: 16, scrollbarWidth: "none" }}>
-          <div style={{ minWidth: 340, marginRight: 16, background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", padding: "10px 14px", background: "#f4f4fc", borderBottom: "1px solid #f0f0f8" }}>
+          <div style={{ minWidth: 460, marginRight: 16, background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", overflow: "hidden" }}>
+            <div style={{ display: "grid", gridTemplateColumns: `1.4fr repeat(${ORDERED_PLANS.length}, 1fr)`, padding: "10px 14px", background: "#f4f4fc", borderBottom: "1px solid #f0f0f8" }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: "#9898b0", textTransform: "uppercase" }}>Feature</div>
               {ORDERED_PLANS.map(p => (
                 <div key={p} style={{ fontSize: 10, fontWeight: 800, color: PLAN_CONFIGS[p].color, textTransform: "uppercase" }}>{PLAN_CONFIGS[p].name}</div>
               ))}
             </div>
             {COMPARISON_ROWS.map((row, i) => (
-              <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", padding: "10px 14px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
+              <div key={row.feature} style={{ display: "grid", gridTemplateColumns: `1.4fr repeat(${ORDERED_PLANS.length}, 1fr)`, padding: "10px 14px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>
-                {[row.pro, row.premium].map((val, j) => (
-                  <div key={j} style={{ fontSize: 11, fontWeight: val === "—" ? 400 : 600, color: val === "—" ? "#c8c8d8" : val === "✓" || val === "Full" || val === "Unlimited" ? "#059669" : "#4a4a6a" }}>
+                {ORDERED_PLANS.map((planId) => {
+                  const val = row[planId];
+                  return (
+                  <div key={planId} style={{ fontSize: 11, fontWeight: val === "—" ? 400 : 600, color: val === "—" ? "#c8c8d8" : val === "✓" || val === "Full" || val === "Unlimited" ? "#059669" : "#4a4a6a" }}>
                     {val}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ))}
           </div>
@@ -577,9 +602,7 @@ export default function BillingPage() {
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.09em" }}>Active Plan</div>
               <div style={{ fontSize: 26, fontWeight: 900, color: "#fff", marginTop: 2 }}>{currentPlan.label}</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>
-                {displayPrice === 0
-                  ? "Free forever · no billing"
-                  : `PKR ${displayPrice.toLocaleString("en-PK")}/month · billed every 30 days`}
+                {desktopPlanSubtitle}
               </div>
             </div>
           </div>
@@ -607,13 +630,14 @@ export default function BillingPage() {
         <div>
           <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a2e", marginBottom: 6 }}>Choose Your Plan</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 18 }}>Upgrade anytime — pay via EasyPaisa or bank transfer</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
             {ORDERED_PLANS.map(planId => (
               <PlanCard
                 key={planId}
                 plan={PLAN_CONFIGS[planId]}
                 isCurrent={planId === activePlanId}
                 isPopular={planId === "pro"}
+                hidePricing={isDemoActive}
                 onDowngrade={handleDowngrade}
               />
             ))}
@@ -626,31 +650,20 @@ export default function BillingPage() {
             <Shield size={18} color="#7C3AED" />
             <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Feature Comparison</div>
           </div>
-          {[
-            { feature: "Appointments",         pro: "Unlimited",      premium: "Unlimited" },
-            { feature: "Staff members",         pro: "Unlimited",      premium: "Unlimited" },
-            { feature: "Clients",               pro: "Unlimited",      premium: "Unlimited" },
-            { feature: "POS products",          pro: "Unlimited",      premium: "Unlimited" },
-            { feature: "Invoicing & receipts",  pro: "✓",              premium: "✓" },
-            { feature: "Calendar & scheduling", pro: "✓",              premium: "✓" },
-            { feature: "Revenue analytics",     pro: "Full",           premium: "Full" },
-            { feature: "Inventory management",  pro: "Full",           premium: "Full" },
-            { feature: "Online booking page",   pro: "✓",              premium: "✓" },
-            { feature: "WhatsApp automation",   pro: "✓",              premium: "✓" },
-            { feature: "Virtual Try-On (AI)",   pro: "—",              premium: "✓" },
-            { feature: "Multi-location branches", pro: "—",            premium: "✓" },
-            { feature: "Price",                 pro: `PKR ${PLAN_CONFIGS.pro.price.toLocaleString("en-PK")}/month`,  premium: `PKR ${PLAN_CONFIGS.premium.price.toLocaleString("en-PK")}/month` },
-          ].map((row, i) => (
-            <div key={row.feature} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
+          {COMPARISON_ROWS.map((row, i) => (
+            <div key={row.feature} style={{ display: "grid", gridTemplateColumns: `1fr repeat(${ORDERED_PLANS.length}, 1fr)`, padding: "11px 24px", background: i % 2 === 0 ? "#fff" : "#fafafd", borderBottom: "1px solid #f4f4f8", alignItems: "center" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#3a3a5a" }}>{row.feature}</div>
-              {[row.pro, row.premium].map((val, j) => (
-                <div key={j} style={{ fontSize: 12, color: val === "—" ? "#c8c8d8" : val.startsWith("✓") || val === "Full" || val === "Unlimited" ? "#059669" : "#4a4a6a", fontWeight: val === "—" ? 400 : 600 }}>
+              {ORDERED_PLANS.map((planId) => {
+                const val = row[planId];
+                return (
+                <div key={planId} style={{ fontSize: 12, color: val === "—" ? "#c8c8d8" : val.startsWith("✓") || val === "Full" || val === "Unlimited" ? "#059669" : "#4a4a6a", fontWeight: val === "—" ? 400 : 600 }}>
                   {val}
                 </div>
-              ))}
+                );
+              })}
             </div>
           ))}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "11px 24px", background: "#f4f4fc" }}>
+          <div style={{ display: "grid", gridTemplateColumns: `1fr repeat(${ORDERED_PLANS.length}, 1fr)`, padding: "11px 24px", background: "#f4f4fc" }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Feature</div>
             {ORDERED_PLANS.map(p => (
               <div key={p} style={{ fontSize: 11, fontWeight: 800, color: PLAN_CONFIGS[p].color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
