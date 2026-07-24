@@ -16,6 +16,7 @@ export interface AuthUser {
   phone: string;
   role: "owner" | "admin";
   emailVerified: boolean;
+  approvalStatus?: "pending" | "approved" | "rejected";
   createdAt: string;
 }
 

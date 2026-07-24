@@ -4,6 +4,7 @@
  */
 
 import { db } from "@/lib/db";
+import type { InValue } from "@libsql/client";
 import { randomBytes, pbkdf2Sync, timingSafeEqual } from "crypto";
 
 // ─── Password hashing ─────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ function verifyPassword(plain: string, stored: string): boolean {
 }
 
 export { hashPassword };
+export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -57,6 +59,7 @@ async function ensureAuthTablesUncached(): Promise<void> {
   await db.execute("ALTER TABLE users ADD COLUMN staff_id TEXT").catch(() => {});
   await db.execute("ALTER TABLE users ADD COLUMN permissions TEXT").catch(() => {});
   await db.execute("ALTER TABLE users ADD COLUMN location_id TEXT").catch(() => {});
+  await db.execute("ALTER TABLE users ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'approved'").catch(() => {});
 
   // Create index for faster email lookups
   await db.execute(`
@@ -91,6 +94,7 @@ export interface User {
   locationId?: string;
   permissions?: string[];
   emailVerified: boolean;
+  approvalStatus: ApprovalStatus;
   createdAt: string;
 }
 
@@ -106,6 +110,7 @@ export interface AuthUser {
   locationId?: string;
   permissions?: string[];
   emailVerified: boolean;
+  approvalStatus: ApprovalStatus;
   createdAt: string;
 }
 
@@ -126,12 +131,14 @@ function rowToUser(r: any): User {
     locationId: (r.location_id as string) || undefined,
     permissions: r.permissions ? JSON.parse(r.permissions as string) : undefined,
     emailVerified: (r.email_verified as number) === 1,
+    approvalStatus: ((r.approval_status as string | undefined) || "approved") as ApprovalStatus,
     createdAt: r.created_at as string,
   };
 }
 
 function withoutPassword(user: User): AuthUser {
-  const { password, ...rest } = user;
+  const { password: _password, ...rest } = user;
+  void _password;
   return rest;
 }
 
@@ -145,6 +152,7 @@ export async function createUser(input: {
   phone: string;
   role?: "owner" | "manager" | "staff" | "admin";
   emailVerified?: boolean;
+  approvalStatus?: ApprovalStatus;
 }): Promise<AuthUser> {
   await ensureAuthTables();
 
@@ -153,8 +161,8 @@ export async function createUser(input: {
 
   try {
     await db.execute({
-      sql: `INSERT INTO users (id, email, password, owner_name, salon_name, phone, role, email_verified, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO users (id, email, password, owner_name, salon_name, phone, role, email_verified, approval_status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
         input.email.trim().toLowerCase(),
@@ -164,6 +172,7 @@ export async function createUser(input: {
         input.phone?.trim() || "",
         input.role || "owner",
         input.emailVerified ? 1 : 0,
+        input.approvalStatus ?? ((input.role || "owner") === "owner" ? "pending" : "approved"),
         createdAt,
       ],
     });
@@ -171,8 +180,9 @@ export async function createUser(input: {
     const user = await getUserById(id);
     if (!user) throw new Error("Failed to create user");
     return withoutPassword(user);
-  } catch (err: any) {
-    if (err.message?.includes("UNIQUE constraint failed")) {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("UNIQUE constraint failed")) {
       throw new Error("An account with this email already exists.");
     }
     throw err;
@@ -221,8 +231,8 @@ export async function upsertStaffUser(input: {
   await db.execute({
     sql: `INSERT INTO users
           (id, email, password, owner_name, salon_name, phone, role, email_verified,
-           created_at, salon_owner_id, staff_id, permissions, location_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`,
+           approval_status, created_at, salon_owner_id, staff_id, permissions, location_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'approved', ?, ?, ?, ?, ?)`,
     args: [
       id, input.email.trim().toLowerCase(), hashPassword(input.password), input.name.trim(),
       input.salonName, input.phone, input.role || "staff",
@@ -269,6 +279,22 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   return res.rows.length ? rowToUser(res.rows[0]) : null;
 }
 
+export async function updateUserApprovalStatus(id: string, approvalStatus: ApprovalStatus): Promise<AuthUser> {
+  await ensureAuthTables();
+  const user = await getUserById(id);
+  if (!user) throw new Error("User not found.");
+  if (user.role === "admin") throw new Error("Admin accounts cannot be disapproved.");
+
+  await db.execute({
+    sql: "UPDATE users SET approval_status = ? WHERE id = ?",
+    args: [approvalStatus, id],
+  });
+
+  const updated = await getUserById(id);
+  if (!updated) throw new Error("Failed to update approval status.");
+  return withoutPassword(updated);
+}
+
 export async function verifyUserEmail(email: string): Promise<AuthUser> {
   await ensureAuthTables();
   
@@ -293,7 +319,7 @@ export async function updateUser(
   if (!user) throw new Error("User not found.");
 
   const fields: string[] = [];
-  const args: any[] = [];
+  const args: InValue[] = [];
 
   if (updates.ownerName !== undefined) {
     fields.push("owner_name = ?");
@@ -408,8 +434,8 @@ export async function findOrCreateGoogleUser(profile: {
   const unusablePassword = hashPassword(randomBytes(32).toString("hex"));
 
   await db.execute({
-    sql: `INSERT INTO users (id, email, password, owner_name, salon_name, phone, role, email_verified, created_at, google_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    sql: `INSERT INTO users (id, email, password, owner_name, salon_name, phone, role, email_verified, approval_status, created_at, google_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'pending', ?, ?)`,
     args: [
       id,
       profile.email.trim().toLowerCase(),
@@ -437,6 +463,12 @@ export async function validateCredentials(
   // user-enumeration (attacker measuring response time to detect valid emails)
   const valid = user ? verifyPassword(password, user.password) : false;
   if (!user || !valid) throw new Error("Invalid email or password.");
+  if (user.approvalStatus === "pending") {
+    throw new Error("Your account has been created and is waiting for admin approval.");
+  }
+  if (user.approvalStatus === "rejected") {
+    throw new Error("Your account request was not approved. Please contact Salon Central support.");
+  }
   // Upgrade legacy plaintext password to hashed format on first successful login
   if (!user.password.startsWith("pbkdf2:")) {
     await db.execute({

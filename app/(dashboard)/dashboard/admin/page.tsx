@@ -37,6 +37,7 @@ interface AccountUserRow {
   salonOwnerId?: string;
   staffId?: string;
   emailVerified: boolean;
+  approvalStatus: "pending" | "approved" | "rejected";
   createdAt: string;
 }
 
@@ -536,6 +537,7 @@ function UsersPanel() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<AccountUserRow["role"] | "all">("all");
+  const [updatingApproval, setUpdatingApproval] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/users")
@@ -563,6 +565,24 @@ function UsersPanel() {
     staff: rows.filter((r) => r.role === "staff").length,
     admin: rows.filter((r) => r.role === "admin").length,
   };
+
+  async function updateApproval(userId: string, approvalStatus: AccountUserRow["approvalStatus"]) {
+    setUpdatingApproval(userId);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, approvalStatus }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to update approval.");
+      setRows((prev) => prev.map((row) => row.id === userId ? { ...row, approvalStatus } : row));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update approval.");
+    } finally {
+      setUpdatingApproval(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -597,8 +617,8 @@ function UsersPanel() {
       </div>
 
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 110px 90px 130px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-          {["NAME / EMAIL", "SALON", "PHONE", "ROLE", "VERIFIED", "SIGNED UP"].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 100px 110px 130px 180px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+          {["NAME / EMAIL", "SALON", "PHONE", "ROLE", "APPROVAL", "SIGNED UP", "ACTIONS"].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
         </div>
@@ -608,7 +628,7 @@ function UsersPanel() {
           filtered.map((row, i) => {
             const role = ROLE_META[row.role] ?? ROLE_META.staff;
             return (
-              <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 110px 90px 130px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+              <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 100px 110px 130px 180px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                   <div style={{ width: 32, height: 32, borderRadius: 10, background: "#f0f0f8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#7C3AED", flexShrink: 0 }}>
                     {row.ownerName.charAt(0).toUpperCase()}
@@ -626,15 +646,32 @@ function UsersPanel() {
                   </span>
                 </div>
                 <div>
-                  {row.emailVerified ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#059669" }}>
-                      <BadgeCheck size={13} /> Verified
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "#c4c4d4" }}>Unverified</span>
-                  )}
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 16,
+                    background: row.approvalStatus === "approved" ? "#ecfdf5" : row.approvalStatus === "rejected" ? "#fef2f2" : "#fffbeb",
+                    color: row.approvalStatus === "approved" ? "#059669" : row.approvalStatus === "rejected" ? "#dc2626" : "#d97706",
+                    fontSize: 11, fontWeight: 800, textTransform: "capitalize",
+                  }}>
+                    {row.approvalStatus === "approved" ? <BadgeCheck size={13} /> : row.approvalStatus === "rejected" ? <XCircle size={13} /> : <Clock size={13} />}
+                    {row.approvalStatus}
+                  </span>
                 </div>
                 <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtSignupDate(row.createdAt)}</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {row.role === "owner" && row.approvalStatus !== "approved" && (
+                    <button onClick={() => updateApproval(row.id, "approved")} disabled={updatingApproval === row.id}
+                      style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: "#059669", color: "#fff", fontSize: 11, fontWeight: 800, cursor: updatingApproval === row.id ? "not-allowed" : "pointer" }}>
+                      Approve
+                    </button>
+                  )}
+                  {row.role === "owner" && row.approvalStatus !== "rejected" && (
+                    <button onClick={() => updateApproval(row.id, "rejected")} disabled={updatingApproval === row.id}
+                      style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 11, fontWeight: 800, cursor: updatingApproval === row.id ? "not-allowed" : "pointer" }}>
+                      Disapprove
+                    </button>
+                  )}
+                  {row.role !== "owner" && <span style={{ fontSize: 11, color: "#c4c4d4" }}>—</span>}
+                </div>
               </div>
             );
           })
@@ -658,9 +695,11 @@ export default function AdminPage() {
       router.replace("/dashboard");
       return;
     }
-    setIsAdmin(true);
-    setChecking(false);
-    setRequests(getPaymentRequests());
+    queueMicrotask(() => {
+      setIsAdmin(true);
+      setChecking(false);
+      setRequests(getPaymentRequests());
+    });
   }, [router]);
 
   function refresh() {

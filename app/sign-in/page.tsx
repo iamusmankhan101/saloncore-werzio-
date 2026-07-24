@@ -20,12 +20,16 @@ export default function SignInPage() {
   useEffect(() => {
     if (getCurrentUser()) router.replace("/dashboard");
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("verified") === "true") setVerifiedMessage(true);
+    queueMicrotask(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("verified") === "true") setVerifiedMessage(true);
 
-    const oauthErr = params.get("error");
-    if (oauthErr === "google_cancelled") setError("Google sign-in was cancelled.");
-    else if (oauthErr) setError("Google sign-in failed. Please try again.");
+      const oauthErr = params.get("error");
+      if (oauthErr === "google_cancelled") setError("Google sign-in was cancelled.");
+      else if (oauthErr === "account_pending") setError("Your account has been created and is waiting for admin approval.");
+      else if (oauthErr === "account_rejected") setError("Your account request was not approved. Please contact Salon Central support.");
+      else if (oauthErr) setError("Google sign-in failed. Please try again.");
+    });
   }, [router]);
 
   function handleSubmit() {

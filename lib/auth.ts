@@ -10,6 +10,7 @@ export interface AuthUser {
   staffId?: string;
   locationId?: string;
   permissions?: string[];
+  approvalStatus?: "pending" | "approved" | "rejected";
 }
 
 interface StoredUser extends AuthUser {

@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
         phone: user.phone,
         role: user.role,
         emailVerified: user.emailVerified,
+        approvalStatus: user.approvalStatus,
         createdAt: user.createdAt,
         salonOwnerId: user.salonOwnerId,
         staffId: user.staffId,
@@ -83,6 +84,9 @@ export async function POST(req: NextRequest) {
 
     if (message === "Invalid email or password.") {
       return Response.json({ ok: false, error: message }, { status: 401 });
+    }
+    if (message.includes("waiting for admin approval") || message.includes("not approved")) {
+      return Response.json({ ok: false, error: message }, { status: 403 });
     }
 
     console.error("[auth/signin] Unexpected error:", message);

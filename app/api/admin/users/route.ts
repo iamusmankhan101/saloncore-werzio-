@@ -7,7 +7,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { getAllUsers } from "@/lib/auth-db";
+import { getAllUsers, updateUserApprovalStatus, type ApprovalStatus } from "@/lib/auth-db";
 import { requireAdmin } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
@@ -21,5 +21,33 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error("[admin/users] Error fetching users:", err);
     return Response.json({ ok: false, error: "Failed to fetch users." }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  if (!(await requireAdmin(req))) {
+    return Response.json({ ok: false, error: "Unauthorized" }, { status: 403 });
+  }
+
+  let body: { userId?: string; approvalStatus?: ApprovalStatus };
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ ok: false, error: "Invalid request body." }, { status: 400 });
+  }
+
+  if (!body.userId || !body.approvalStatus) {
+    return Response.json({ ok: false, error: "Missing userId or approvalStatus." }, { status: 400 });
+  }
+  if (!["pending", "approved", "rejected"].includes(body.approvalStatus)) {
+    return Response.json({ ok: false, error: "Invalid approval status." }, { status: 400 });
+  }
+
+  try {
+    const user = await updateUserApprovalStatus(body.userId, body.approvalStatus);
+    return Response.json({ ok: true, user });
+  } catch (err) {
+    console.error("[admin/users] Approval update error:", err);
+    return Response.json({ ok: false, error: err instanceof Error ? err.message : "Failed to update approval." }, { status: 500 });
   }
 }

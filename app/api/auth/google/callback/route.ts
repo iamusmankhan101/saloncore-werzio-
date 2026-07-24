@@ -103,6 +103,10 @@ export async function GET(req: NextRequest) {
     return failRedirect(req, "google_db_error");
   }
 
+  if (user.role !== "admin" && user.approvalStatus !== "approved") {
+    return failRedirect(req, user.approvalStatus === "rejected" ? "account_rejected" : "account_pending");
+  }
+
   // Issue session (identical to email/password login path)
   const token     = createSessionToken(user.id);
   const expiresAt = new Date(Date.now() + cookieOptions.maxAge * 1000);

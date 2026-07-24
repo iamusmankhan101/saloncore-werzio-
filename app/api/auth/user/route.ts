@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
         phone: user.phone,
         role: user.role,
         emailVerified: user.emailVerified,
+        approvalStatus: user.approvalStatus,
         createdAt: user.createdAt,
         salonOwnerId: user.salonOwnerId,
         staffId: user.staffId,

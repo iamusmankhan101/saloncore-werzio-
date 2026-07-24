@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
       phone: phone || "",
       role: isAdmin ? "admin" : "owner",
       emailVerified: true,
+      approvalStatus: isAdmin ? "approved" : "pending",
     });
 
     return Response.json({
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
         phone: user.phone,
         role: user.role,
         emailVerified: user.emailVerified,
+        approvalStatus: user.approvalStatus,
         createdAt: user.createdAt,
       },
     });

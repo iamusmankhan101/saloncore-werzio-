@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Building2, CalendarClock, Check, Crown, LockKeyhole, Mail, Phone, Shield, User } from "lucide-react";
-import { setActivePlan } from "@/lib/payment-requests";
+import { ArrowRight, Building2, CalendarClock, Check, Clock, Crown, LockKeyhole, Mail, Phone, Shield, User } from "lucide-react";
 import styles from "../auth.module.css";
 
 const PLANS = [
@@ -23,7 +22,6 @@ const PLANS = [
       "Point of Sale (POS)",
       "Unlimited appointment booking",
       "Branded online web booking page",
-      "WhatsApp reminders & alerts",
     ],
   },
   {
@@ -90,7 +88,7 @@ type PlanId = typeof PLANS[number]["id"];
 
 export default function SignUpPage() {
   const router = useRouter();
-  const [step, setStep] = useState<"plan" | "details">("plan");
+  const [step, setStep] = useState<"plan" | "details" | "pending">("plan");
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("demo");
   const [form, setForm] = useState({ ownerName: "", salonName: "", email: "", phone: "", password: "" });
   const [adminCode, setAdminCode] = useState("");
@@ -143,7 +141,6 @@ export default function SignUpPage() {
       }
 
       const billingPlanId = plan.billingPlanId;
-      setActivePlan(billingPlanId);
 
       // Register in billing DB (fire-and-forget — don't block sign-up on failure)
       await fetch("/api/billing/register", {
@@ -160,9 +157,8 @@ export default function SignUpPage() {
         }),
       }).catch((e) => console.warn("[billing/register] failed:", e));
 
-      localStorage.setItem("werzio_auth_session", newUser.id);
-      localStorage.setItem(`werzio_user_cache_${newUser.id}`, JSON.stringify(newUser));
-      router.replace("/dashboard");
+      setSending(false);
+      setStep("pending");
     } catch (err) {
       setSending(false);
       const msg = err instanceof Error ? err.message : "Unable to create account.";
@@ -214,10 +210,10 @@ export default function SignUpPage() {
             {/* Header */}
             <div className={styles.formHeader}>
               <h1 className={styles.formTitle} style={{ marginTop: 14 }}>
-                {step === "plan" ? "Choose your plan" : showAdmin ? "Admin registration" : `${plan.name} plan — details`}
+                {step === "pending" ? "Account created" : step === "plan" ? "Choose your plan" : showAdmin ? "Admin registration" : `${plan.name} plan — details`}
               </h1>
               <p className={styles.formSubtitle}>
-                {step === "plan" ? "Pick a plan to get started. Cancel anytime." : "Fill in your salon details to get started."}
+                {step === "pending" ? "Your account is waiting for admin approval." : step === "plan" ? "Pick a plan to get started. Cancel anytime." : "Fill in your salon details to get started."}
               </p>
             </div>
 
@@ -410,6 +406,20 @@ export default function SignUpPage() {
                   </button>
                 </div>
               </>
+            )}
+
+            {step === "pending" && (
+              <div style={{ textAlign: "center", padding: "8px 0 14px" }}>
+                <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#fffbeb", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", border: "1px solid #fde68a" }}>
+                  <Clock size={32} color="#d97706" />
+                </div>
+                <p style={{ fontSize: 13, color: "#6b6b8a", lineHeight: 1.7, marginBottom: 18 }}>
+                  Your account has been created. Please wait while the admin reviews and approves your access.
+                </p>
+                <Link href="/sign-in" className={styles.primaryButton} style={{ textDecoration: "none" }}>
+                  Go to sign in
+                </Link>
+              </div>
             )}
 
             <p className={styles.footerText} style={{ marginTop: 16 }}>
