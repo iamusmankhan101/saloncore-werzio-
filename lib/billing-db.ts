@@ -15,6 +15,7 @@
  */
 
 import { db } from "@/lib/db";
+import type { InValue } from "@libsql/client";
 
 // ─── Billing constants ────────────────────────────────────────────────────────
 export const TRIAL_DAYS = 7;
@@ -117,6 +118,14 @@ export interface BillingInvoice {
   notifiedOverdueAt: string | null;
   notifiedSuspendedAt: string | null;
   createdAt: string;
+}
+
+export interface BillingAdminSummary {
+  userId: string;
+  planId: string;
+  planName: string;
+  trialStart: string;
+  invoiceDueDate: string | null;
 }
 
 // ─── Row → typed objects ──────────────────────────────────────────────────────
@@ -232,6 +241,49 @@ export async function getBillingUser(id: string): Promise<BillingUser | null> {
 export async function getAllActiveBillingUsers(): Promise<BillingUser[]> {
   const res = await db.execute("SELECT * FROM billing_users");
   return res.rows.map(rowToUser);
+}
+
+export async function getBillingAdminSummaries(userIds: string[]): Promise<Map<string, BillingAdminSummary>> {
+  await ensureBillingTables();
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
+  if (ids.length === 0) return new Map();
+
+  const placeholders = ids.map(() => "?").join(", ");
+  const res = await db.execute({
+    sql: `
+      SELECT
+        bu.id,
+        bu.plan_id,
+        bu.plan_name,
+        bu.trial_start,
+        (
+          SELECT bi.due_date
+          FROM billing_invoices bi
+          WHERE bi.user_id = bu.id
+            AND bi.status IN ('unpaid', 'overdue')
+          ORDER BY bi.due_date ASC
+          LIMIT 1
+        ) AS invoice_due_date
+      FROM billing_users bu
+      WHERE bu.id IN (${placeholders})
+    `,
+    args: ids as InValue[],
+  });
+
+  const summaries = new Map<string, BillingAdminSummary>();
+  for (const row of res.rows) {
+    const userId = row.id as string;
+    const trialStart = row.trial_start as string;
+    const invoiceDueDate = (row.invoice_due_date as string | null) ?? addDays(computeBillingAnchor(trialStart), INVOICE_DUE_DAYS);
+    summaries.set(userId, {
+      userId,
+      planId: row.plan_id as string,
+      planName: row.plan_name as string,
+      trialStart,
+      invoiceDueDate,
+    });
+  }
+  return summaries;
 }
 
 export async function suspendUser(userId: string, reason: string): Promise<void> {

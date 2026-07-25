@@ -9,6 +9,7 @@
 import { NextRequest } from "next/server";
 import { getAllUsers, updateUserApprovalStatus, type ApprovalStatus } from "@/lib/auth-db";
 import { requireAdmin } from "@/lib/api-auth";
+import { getBillingAdminSummaries } from "@/lib/billing-db";
 
 export async function GET(req: NextRequest) {
   if (!(await requireAdmin(req))) {
@@ -17,7 +18,19 @@ export async function GET(req: NextRequest) {
 
   try {
     const users = await getAllUsers();
-    return Response.json({ ok: true, users });
+    const ownerIds = users.filter((user) => user.role === "owner").map((user) => user.id);
+    const billingSummaries = await getBillingAdminSummaries(ownerIds);
+    const enrichedUsers = users.map((user) => {
+      const billing = user.role === "owner" ? billingSummaries.get(user.id) : null;
+      return {
+        ...user,
+        planName: billing?.planName ?? null,
+        planId: billing?.planId ?? null,
+        startedDate: billing?.trialStart ?? null,
+        invoiceDueDate: billing?.invoiceDueDate ?? null,
+      };
+    });
+    return Response.json({ ok: true, users: enrichedUsers });
   } catch (err) {
     console.error("[admin/users] Error fetching users:", err);
     return Response.json({ ok: false, error: "Failed to fetch users." }, { status: 500 });

@@ -38,8 +38,14 @@ interface AccountUserRow {
   staffId?: string;
   emailVerified: boolean;
   approvalStatus: "pending" | "approved" | "rejected";
+  planName: string | null;
+  planId: string | null;
+  startedDate: string | null;
+  invoiceDueDate: string | null;
   createdAt: string;
 }
+
+const USERS_GRID_COLUMNS = "minmax(240px,1.4fr) minmax(160px,1fr) minmax(140px,0.9fr) 96px 116px 130px 120px 120px 180px";
 
 const ROLE_META: Record<AccountUserRow["role"], { label: string; color: string; bg: string }> = {
   admin:   { label: "Admin",   color: "#7C3AED", bg: "#f5f3ff" },
@@ -57,6 +63,10 @@ function fmtDate(iso: string) {
 // timezones behind UTC (midnight UTC parses as the previous day locally).
 function fmtSignupDate(dateOnly: string) {
   return new Date(`${dateOnly}T12:00:00`).toLocaleDateString("en-PK", { dateStyle: "medium" });
+}
+
+function fmtOptionalDate(dateOnly: string | null) {
+  return dateOnly ? fmtSignupDate(dateOnly) : "—";
 }
 
 const STATUS_META: Record<PaymentStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
@@ -616,19 +626,20 @@ function UsersPanel() {
         </div>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 100px 110px 130px 180px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-          {["NAME / EMAIL", "SALON", "PHONE", "ROLE", "APPROVAL", "SIGNED UP", "ACTIONS"].map((h) => (
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflowX: "auto", overflowY: "hidden" }}>
+        <div style={{ minWidth: 1420 }}>
+          <div style={{ display: "grid", gridTemplateColumns: USERS_GRID_COLUMNS, padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+          {["NAME / EMAIL", "SALON", "PHONE", "ROLE", "APPROVAL", "PLAN", "STARTED", "INVOICE DUE", "ACTIONS"].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
-        </div>
+          </div>
         {filtered.length === 0 ? (
           <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No users found</div>
         ) : (
           filtered.map((row, i) => {
             const role = ROLE_META[row.role] ?? ROLE_META.staff;
             return (
-              <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 100px 110px 130px 180px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+              <div key={row.id} style={{ display: "grid", gridTemplateColumns: USERS_GRID_COLUMNS, padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                   <div style={{ width: 32, height: 32, borderRadius: 10, background: "#f0f0f8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#7C3AED", flexShrink: 0 }}>
                     {row.ownerName.charAt(0).toUpperCase()}
@@ -656,7 +667,9 @@ function UsersPanel() {
                     {row.approvalStatus}
                   </span>
                 </div>
-                <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtSignupDate(row.createdAt)}</div>
+                <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 700 }}>{row.planName ?? "—"}</div>
+                <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtOptionalDate(row.startedDate)}</div>
+                <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtOptionalDate(row.invoiceDueDate)}</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   {row.role === "owner" && row.approvalStatus !== "approved" && (
                     <button onClick={() => updateApproval(row.id, "approved")} disabled={updatingApproval === row.id}
@@ -676,6 +689,7 @@ function UsersPanel() {
             );
           })
         )}
+        </div>
       </div>
     </div>
   );

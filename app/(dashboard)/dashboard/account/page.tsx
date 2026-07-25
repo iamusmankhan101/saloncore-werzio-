@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Banknote, Bot, Check, ChevronLeft, ChevronRight, Clock, Copy, ImageIcon, KeyRound, LogOut, MapPin, Plus, Save, Shield, Smartphone, Store, Trash2, User, UserCog, Wand2, Zap } from "lucide-react";
+import { Banknote, Bot, Check, ChevronLeft, ChevronRight, Clock, Copy, ImageIcon, KeyRound, Lock, LogOut, MapPin, Plus, Save, Shield, Smartphone, Store, Trash2, User, UserCog, Wand2, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AuthUser, getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
@@ -12,6 +12,7 @@ import { getStoredStaff, getStoredClients, saveClients } from "@/lib/storage";
 import type { Staff, Client } from "@/lib/types";
 import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import { getDefaultLocationId, getSalonLocations, type SalonLocation } from "@/lib/locations";
+import { getCurrentPlan } from "@/lib/plan-limits";
 
 type SectionId = "profile" | "salon" | "hours" | "roles" | "security" | "whatsapp" | "mcp" | "decidr" | "tryon";
 
@@ -700,6 +701,7 @@ function AutoRow({
 
 function WhatsAppSection() {
   type WhatsAppContact = { phone: string; name: string; jid: string };
+  const waPlan = getCurrentPlan();
   const [form, setForm] = useState<WhatsAppSettings>({ ...(settingsStore.wasender as WhatsAppSettings) });
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -1040,6 +1042,27 @@ function WhatsAppSection() {
   const activeCredential = form.provider === "botsailor" ? form.botSailorApiToken : form.provider === "zaptick" ? form.zaptickApiKey : form.apiKey;
   const isConnected = !!activeCredential && connectionState !== "disconnected";
   const isEnabled = form.enabled !== false; // Default to true if not set
+
+  if (!waPlan.whatsapp) {
+    return (
+      <section style={{ textAlign: "center", padding: "48px 24px" }}>
+        <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", boxShadow: "0 8px 28px rgba(91,33,182,0.35)" }}>
+          <Smartphone size={30} color="#fff" />
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 900, color: "#1a1a2e", marginBottom: 10 }}>WhatsApp Automation</div>
+        <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.7, marginBottom: 24, maxWidth: 420, margin: "0 auto 24px" }}>
+          Automated WhatsApp reminders, booking confirmations, follow-ups, and manual sends are available on the <strong>Pro</strong> and <strong>Premium</strong> plans.
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 20 }}>
+          <span style={{ fontSize: 13, color: "#9898b0" }}>Current plan:</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: waPlan.color, background: waPlan.bg, borderRadius: 20, padding: "2px 12px", border: `1px solid ${waPlan.color}30` }}>{waPlan.label}</span>
+        </div>
+        <a href="/dashboard/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 12, background: "linear-gradient(135deg,#7C3AED,#9333EA)", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none", boxShadow: "0 4px 16px rgba(124,58,237,0.38)" }}>
+          Upgrade to unlock WhatsApp →
+        </a>
+      </section>
+    );
+  }
 
   return (
     <section>
@@ -2260,6 +2283,7 @@ export default function AccountPage() {
   const router = useRouter();
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === "admin";
+  const currentPlan = getCurrentPlan();
   const SECTIONS = isAdmin
     ? [...BASE_SECTIONS,
         { id: "decidr" as SectionId, label: "Loyalty",        icon: Banknote },
@@ -2354,12 +2378,14 @@ export default function AccountPage() {
                 profile: "#7C3AED", salon: "#0284c7", hours: "#ca8a04",
                 roles: "#6d28d9", security: "#dc2626", whatsapp: "#16a34a", decidr: "#059669", tryon: "#a21caf",
               };
+              const isLocked = section.id === "whatsapp" && !currentPlan.whatsapp;
               return (
                 <button
                   key={section.id}
                   type="button"
                   className="mobile-settings-row"
                   onClick={() => setMobileScreen(section.id)}
+                  style={isLocked ? { opacity: 0.55 } : undefined}
                 >
                   <div className="mobile-settings-row-icon" style={{ background: iconBgs[section.id] || "#f4f4fb" }}>
                     <Icon size={18} color={iconColors[section.id] || "#7C3AED"} />
@@ -2367,7 +2393,7 @@ export default function AccountPage() {
                   <div className="mobile-settings-row-body">
                     <div className="mobile-settings-row-label">{section.label}</div>
                   </div>
-                  <ChevronRight size={16} className="mobile-settings-chevron" />
+                  {isLocked ? <Lock size={14} color="#b0b0c8" /> : <ChevronRight size={16} className="mobile-settings-chevron" />}
                 </button>
               );
             })}
@@ -2416,18 +2442,19 @@ export default function AccountPage() {
             {SECTIONS.map((section) => {
               const Icon = section.icon;
               const isActive = active === section.id;
+              const isLocked = section.id === "whatsapp" && !currentPlan.whatsapp;
               return (
                 <button
                   key={section.id}
                   type="button"
                   onClick={() => setActive(section.id)}
-                  style={{ width: "100%", minHeight: 50, display: "flex", alignItems: "center", gap: 11, padding: "7px 10px", marginBottom: 4, border: isActive ? "1px solid rgba(124,58,237,.14)" : "1px solid transparent", borderRadius: 12, background: isActive ? "linear-gradient(135deg,rgba(124,58,237,.12),rgba(147,51,234,.07))" : "transparent", color: isActive ? "var(--accent)" : "#747087", fontSize: 13, fontWeight: isActive ? 800 : 650, cursor: "pointer", textAlign: "left" }}
+                  style={{ width: "100%", minHeight: 50, display: "flex", alignItems: "center", gap: 11, padding: "7px 10px", marginBottom: 4, border: isActive ? "1px solid rgba(124,58,237,.14)" : "1px solid transparent", borderRadius: 12, background: isActive ? "linear-gradient(135deg,rgba(124,58,237,.12),rgba(147,51,234,.07))" : "transparent", color: isActive ? "var(--accent)" : "#747087", fontSize: 13, fontWeight: isActive ? 800 : 650, cursor: "pointer", textAlign: "left", opacity: isLocked ? 0.55 : 1 }}
                 >
                   <span style={{ width: 32, height: 32, borderRadius: 9, display: "grid", placeItems: "center", background: isActive ? "#fff" : "#f6f4fa", boxShadow: isActive ? "0 4px 10px rgba(91,33,182,.1)" : "none" }}>
                     <Icon size={15} />
                   </span>
                   <span style={{ flex: 1 }}>{section.label}</span>
-                  <ChevronRight size={14} color={isActive ? "var(--accent)" : "#c2bfce"} />
+                  {isLocked ? <Lock size={13} color="#c2bfce" /> : <ChevronRight size={14} color={isActive ? "var(--accent)" : "#c2bfce"} />}
                 </button>
               );
             })}
