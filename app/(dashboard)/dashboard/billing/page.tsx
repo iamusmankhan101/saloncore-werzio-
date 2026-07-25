@@ -201,6 +201,7 @@ export default function BillingPage() {
   const [viewInvoice,  setViewInvoice] = useState<Invoice | null>(null);
   const [actualPrice,  setActualPrice] = useState<number | null>(null);
   const [trialStart,   setTrialStart]  = useState<string | null>(null);
+  const [planLoaded,   setPlanLoaded]  = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -229,7 +230,8 @@ export default function BillingPage() {
         console.error("[billing] Failed to fetch user plan:", err);
         // Fallback to localStorage
         setActivePlanId(getCurrentPlanId());
-      });
+      })
+      .finally(() => setPlanLoaded(true));
 
     // Fetch authoritative invoice history from the billing database — this is
     // the same table the admin-approval flow marks paid, so it always
@@ -250,12 +252,20 @@ export default function BillingPage() {
   const displayPrice = actualPrice ?? currentPlan.price;
   const demoEndsAt = trialStart ? addDays(trialStart, DEMO_DAYS) : null;
   const isDemoActive = activePlanId !== "free" && !!demoEndsAt && new Date().toISOString().slice(0, 10) < demoEndsAt;
-  const currentPlanSubtitle = isDemoActive
-    ? `7-day demo active until ${fmtDate(demoEndsAt)}`
-    : displayPrice === 0
-      ? "Free forever · no billing"
-      : `PKR ${displayPrice.toLocaleString("en-PK")}/month`;
-  const desktopPlanSubtitle = isDemoActive
+  // Until the authoritative plan/trial data has loaded, assume pricing should
+  // stay hidden rather than flashing real prices for accounts that turn out
+  // to be in an active demo window.
+  const hidePricing = !planLoaded || isDemoActive;
+  const currentPlanSubtitle = !planLoaded
+    ? "Loading plan…"
+    : isDemoActive
+      ? `7-day demo active until ${fmtDate(demoEndsAt)}`
+      : displayPrice === 0
+        ? "Free forever · no billing"
+        : `PKR ${displayPrice.toLocaleString("en-PK")}/month`;
+  const desktopPlanSubtitle = !planLoaded
+    ? "Loading plan…"
+    : isDemoActive
     ? `7-day demo active until ${fmtDate(demoEndsAt)} · no pricing shown`
     : displayPrice === 0
       ? "Free forever · no billing"
@@ -504,7 +514,7 @@ export default function BillingPage() {
                 plan={PLAN_CONFIGS[planId]}
                 isCurrent={planId === activePlanId}
                 isPopular={planId === "pro"}
-                hidePricing={isDemoActive}
+                hidePricing={hidePricing}
                 onDowngrade={handleDowngrade}
               />
             </div>
@@ -637,7 +647,7 @@ export default function BillingPage() {
                 plan={PLAN_CONFIGS[planId]}
                 isCurrent={planId === activePlanId}
                 isPopular={planId === "pro"}
-                hidePricing={isDemoActive}
+                hidePricing={hidePricing}
                 onDowngrade={handleDowngrade}
               />
             ))}
