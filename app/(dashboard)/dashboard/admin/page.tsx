@@ -14,7 +14,7 @@ import {
 import type { Invoice } from "@/lib/invoices";
 
 import { fmtCurrency as fmt } from "@/lib/format";
-import { PLAN_CONFIGS, type PlanId } from "@/lib/plan-limits";
+import { PLAN_CONFIGS, ORDERED_PLANS, type PlanId } from "@/lib/plan-limits";
 
 interface BillingUserRow {
   id: string;
@@ -191,6 +191,48 @@ function RequestCard({ req, onUpdate }: { req: PaymentRequest; onUpdate: () => v
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function PlanCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: string, planId: string, planName: string, planPrice: number) => void }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function changePlan(planId: string) {
+    if (planId === row.planId) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/update-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: row.id, planId }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to change plan");
+      const plan = PLAN_CONFIGS[planId as PlanId];
+      onSaved(row.id, planId, plan.name, plan.price);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to change plan");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <select
+        value={row.planId}
+        disabled={saving}
+        onChange={(e) => changePlan(e.target.value)}
+        style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4ee", fontSize: 12, outline: "none", color: "#1a1a2e", background: "#fff", cursor: saving ? "not-allowed" : "pointer" }}
+      >
+        {ORDERED_PLANS.map((id) => (
+          <option key={id} value={id}>{PLAN_CONFIGS[id].name}</option>
+        ))}
+      </select>
+      {error && <div style={{ fontSize: 11, color: "#dc2626" }}>{error}</div>}
     </div>
   );
 }
@@ -493,6 +535,10 @@ function SalonAccountsPanel() {
     setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, planPrice: price } : r)));
   }
 
+  function handlePlanSaved(userId: string, planId: string, planName: string, planPrice: number) {
+    setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, planId, planName, planPrice } : r)));
+  }
+
   function handleDeleted(userId: string) {
     setRows((prev) => prev.filter((r) => r.id !== userId));
     setDeleteTarget(null);
@@ -525,7 +571,7 @@ function SalonAccountsPanel() {
         style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", maxWidth: 340 }}
       />
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 96px 44px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 130px 100px 160px 96px 44px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
           {["SALON", "PLAN", "STATUS", "MONTHLY PRICE", "INVOICES", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
@@ -534,12 +580,12 @@ function SalonAccountsPanel() {
           <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No salon accounts found</div>
         ) : (
           filtered.map((row, i) => (
-            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 100px 160px 96px 44px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 130px 100px 160px 96px 44px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{row.salonName}</div>
                 <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{row.ownerName} · {row.email}</div>
               </div>
-              <div style={{ fontSize: 12, color: "#6b6b8a" }}>{row.planName}</div>
+              <PlanCell row={row} onSaved={handlePlanSaved} />
               <div>
                 {row.suspended ? (
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 16, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 10, fontWeight: 700, color: "#dc2626" }}>Suspended</span>
