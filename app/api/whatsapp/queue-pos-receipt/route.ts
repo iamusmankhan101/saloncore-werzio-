@@ -140,3 +140,33 @@ export async function POST(request: NextRequest) {
     return Response.json({ ok: false, error: error instanceof Error ? error.message : "Could not queue POS receipt." }, { status: 500 });
   }
 }
+
+/**
+ * DELETE /api/whatsapp/queue-pos-receipt?invoiceId=xxx
+ *
+ * Cancels a still-pending queued receipt when its invoice is deleted, so a
+ * WhatsApp "Invoice" message never goes out for a sale that no longer exists.
+ * Rows already sent are left untouched — the message already went out.
+ */
+export async function DELETE(request: NextRequest) {
+  const actor = await resolveActor(request);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+
+  const invoiceId = request.nextUrl.searchParams.get("invoiceId");
+  if (!invoiceId) {
+    return Response.json({ ok: false, error: "invoiceId is required." }, { status: 400 });
+  }
+
+  try {
+    await ensureTable();
+    const result = await db.execute({
+      sql: `UPDATE wa_pos_receipt_queue SET status = 'cancelled'
+            WHERE user_id = ? AND invoice_id = ? AND status = 'pending'`,
+      args: [actor.userId, invoiceId],
+    });
+    return Response.json({ ok: true, cancelled: result.rowsAffected > 0 });
+  } catch (error) {
+    console.error("[whatsapp/queue-pos-receipt] DELETE", error);
+    return Response.json({ ok: false, error: error instanceof Error ? error.message : "Could not cancel queued receipt." }, { status: 500 });
+  }
+}

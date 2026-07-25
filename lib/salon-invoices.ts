@@ -120,6 +120,15 @@ export function updateSalonInvoice(updated: SalonInvoice): void {
 
 export function deleteSalonInvoice(id: string): void {
   saveSalonInvoices(getSalonInvoices().filter((inv) => inv.id !== id));
+
+  // A deleted invoice may still have a pending WhatsApp receipt queued from
+  // checkout — cancel it so the client isn't sent an "Invoice" message for a
+  // sale that no longer exists. Fire-and-forget: nothing in the UI depends on
+  // this completing, and a still-pending row is harmless to retry cancelling.
+  if (typeof window !== "undefined") {
+    fetch(`/api/whatsapp/queue-pos-receipt?invoiceId=${encodeURIComponent(id)}`, { method: "DELETE" })
+      .catch((err) => console.error("[salon-invoices] Failed to cancel queued receipt:", err));
+  }
 }
 
 export function markSalonInvoicePaid(id: string, paymentMethod: PaymentMethod, paidDate?: string): void {
