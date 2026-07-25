@@ -14,6 +14,7 @@ import {
 import type { Invoice } from "@/lib/invoices";
 
 import { fmtCurrency as fmt } from "@/lib/format";
+import { PLAN_CONFIGS, type PlanId } from "@/lib/plan-limits";
 
 interface BillingUserRow {
   id: string;
@@ -197,8 +198,21 @@ function RequestCard({ req, onUpdate }: { req: PaymentRequest; onUpdate: () => v
 function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: string, price: number) => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(row.planPrice));
+  const [discountPct, setDiscountPct] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const basePrice = PLAN_CONFIGS[row.planId as PlanId]?.price ?? row.planPrice;
+
+  function applyDiscount() {
+    const pct = Number(discountPct);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      setError("Enter a discount between 0–100%");
+      return;
+    }
+    setError(null);
+    setValue(String(Math.round(basePrice * (1 - pct / 100))));
+  }
 
   async function save() {
     const price = Number(value);
@@ -238,7 +252,7 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <input
           type="number"
@@ -255,6 +269,23 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
         <button onClick={() => { setEditing(false); setError(null); }} disabled={saving}
           style={{ background: "#f4f5f7", border: "1px solid #e4e4ee", borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: "#6b6b8a", display: "flex" }} title="Cancel">
           <Ban size={13} />
+        </button>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          placeholder="Discount %"
+          value={discountPct}
+          onChange={(e) => setDiscountPct(e.target.value)}
+          disabled={saving}
+          title={`Base price: ${fmt(basePrice)}`}
+          style={{ width: 90, padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4ee", fontSize: 12, outline: "none" }}
+        />
+        <button onClick={applyDiscount} disabled={saving}
+          style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 8, padding: "6px 10px", cursor: saving ? "not-allowed" : "pointer", color: "#7C3AED", fontSize: 11, fontWeight: 700 }} title="Apply discount off base plan price">
+          Apply %
         </button>
       </div>
       {error && <div style={{ fontSize: 11, color: "#dc2626" }}>{error}</div>}
