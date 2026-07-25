@@ -83,6 +83,7 @@
 .brandTop img {
   height: 110px !important;
   width: auto !important;
+  filter: brightness(0) invert(1);
 }
 
 .brandMark {
