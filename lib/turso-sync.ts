@@ -76,7 +76,21 @@ export async function syncFromDB(): Promise<void> {
           });
           localStorage.setItem(locationUserKey("werzio_clients", locationId), JSON.stringify([...merged, ...localOnly]));
         } else {
-          localStorage.setItem(locationUserKey(`werzio_${entity}`, locationId), JSON.stringify([...incoming, ...localOnly]));
+          // Prefer the local copy of any record this browser already has, rather
+          // than the DB's — the DB row can be stale for a few seconds after a save
+          // (saveToDB is fire-and-forget), and syncFromDB() runs on nearly every
+          // page's mount. Without this, editing something (e.g. a staff member's
+          // pay type or section) and then immediately navigating to another page
+          // races the still-in-flight save: syncFromDB fetches the pre-edit DB
+          // row and silently reverts the edit back in localStorage. Records that
+          // exist only in the DB (created on another device/session) still come
+          // through unaffected.
+          const localById: Record<string, Record<string, unknown>> = {};
+          localList.forEach(r => { localById[(r as { id: string }).id] = r; });
+          const merged = (incoming as Record<string, unknown>[]).map(dbRecord =>
+            localById[(dbRecord as { id: string }).id] ?? dbRecord
+          );
+          localStorage.setItem(locationUserKey(`werzio_${entity}`, locationId), JSON.stringify([...merged, ...localOnly]));
         }
 
         if (localOnly.length > 0) {
