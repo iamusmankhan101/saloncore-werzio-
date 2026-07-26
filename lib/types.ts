@@ -39,6 +39,8 @@ export interface Staff {
   phone: string;
   photo?: string;
   role: StaffRole;
+  /** Which salon section this staff member belongs to (e.g. "Men's", "Women's"), for salons that run both from one branch. Free text, cosmetic only. */
+  section?: string;
   specialties: string[];
   color: string;
   isActive: boolean;
@@ -56,6 +58,8 @@ export interface Service {
   name: string;
   description?: string;
   category: ServiceCategoryValue;
+  /** Which salon section this service belongs to (e.g. "Men's", "Women's"). Free text, cosmetic only. */
+  section?: string;
   durationMin: number;
   price: number;
   variablePrice?: boolean;
@@ -82,6 +86,8 @@ export interface Client {
   photo?: string;
   preferredStaffId?: string;
   tags: string[];
+  /** Which salon section this client is associated with (e.g. "Men's", "Women's"). Free text, cosmetic only. */
+  section?: string;
   source: "whatsapp" | "walk-in" | "web" | "manual" | "agent";
   createdAt: string;
   totalVisits: number;
@@ -139,6 +145,8 @@ export interface Appointment {
   notes?: string;
   source: "whatsapp" | "walk-in" | "web" | "manual" | "agent";
   createdAt?: string;
+  /** Which salon section this appointment belongs to — derived from the assigned staff member's section. Free text, cosmetic only. */
+  section?: string;
 }
 
 export interface Payment {
@@ -168,6 +176,8 @@ export interface InventoryItem {
   name: string;
   brand: string;
   category: InventoryCategory;
+  /** Which salon section this item belongs to (e.g. "Men's", "Women's"). Free text, cosmetic only. */
+  section?: string;
   unit: InventoryUnit;
   currentStock: number;
   minStock: number;

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
 import type { Service, Staff } from "@/lib/types";
 import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search } from "lucide-react";
+import { getSectionOptions } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -39,6 +40,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
     description:      serviceToEdit?.description ?? "",
     category:         editedCategoryIsCustom ? "custom" : (serviceToEdit?.category ?? "hair"),
     customCategory:   editedCategoryIsCustom ? serviceToEdit!.category : "",
+    section:          serviceToEdit?.section ?? "",
     durationMin:      serviceToEdit ? String(serviceToEdit.durationMin) : "60",
     price:            serviceToEdit ? String(serviceToEdit.price) : "",
     variablePrice:    serviceToEdit?.variablePrice ?? false,
@@ -128,6 +130,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
       name:             form.name.trim(),
       description:      form.description.trim() || undefined,
       category:         form.isPackage ? "package" : (form.category === "custom" ? form.customCategory.trim() : form.category),
+      section:          form.section || undefined,
       durationMin,
       price:            form.variablePrice ? rangeMin : price,
       variablePrice:    form.variablePrice,
@@ -233,6 +236,15 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
                 style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
             </div>
           )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Salon Section</label>
+            <select value={form.section} onChange={(e) => set("section", e.target.value)}
+              style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+              <option value="">Unassigned</option>
+              {getSectionOptions(servicesList).map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
 
           {form.isPackage && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -394,6 +406,7 @@ export default function ServicesPage() {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const [filter, setFilter] = useState("all");
+  const [sectionFilter, setSectionFilter] = useState("all");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -427,9 +440,11 @@ export default function ServicesPage() {
 
   const filteredServices = services
     .filter(s => filter === "all" || s.category === filter)
+    .filter(s => sectionFilter === "all" || s.section === sectionFilter)
     .filter(s => !search.trim() || s.name.toLowerCase().includes(search.trim().toLowerCase()));
   const customCategories = Array.from(new Set(services.map(s => s.category))).filter(c => !PRESET_CATEGORIES.includes(c));
   const tabCategories = ["all", ...PRESET_CATEGORIES, ...customCategories];
+  const tabSections = ["all", ...getSectionOptions(services)];
 
   const totalCount  = services.length;
   const maxPrice    = services.reduce((m, s) => s.price > m ? s.price : m, 0);
@@ -532,6 +547,30 @@ export default function ServicesPage() {
                 transition: "all 0.18s ease"
               }}>
               {cat === "all" ? "All Services" : catLabel(cat)}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Section filter */}
+      <div className="filter-tabs" style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 12, padding: 4, alignSelf: "flex-start", marginBottom: 4 }}>
+        {tabSections.map((sec) => {
+          const active = sectionFilter === sec;
+          return (
+            <button key={sec} onClick={() => setSectionFilter(sec)}
+              style={{
+                padding: "7px 16px",
+                borderRadius: 9,
+                border: "none",
+                background: active ? "var(--accent-gradient)" : "transparent",
+                color: active ? "#fff" : "#6b6b8a",
+                fontSize: 13,
+                fontWeight: 750,
+                cursor: "pointer",
+                boxShadow: active ? "0 4px 10px var(--accent-glow)" : "none",
+                transition: "all 0.18s ease"
+              }}>
+              {sec === "all" ? "All Sections" : sec}
             </button>
           );
         })}

@@ -11,6 +11,7 @@ import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
+import { getSectionOptions } from "@/lib/sections";
 import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -559,9 +560,9 @@ function InfoLine({ icon, label }: { icon: React.ReactNode; label: string }) {
 }
 
 // ── Add Client Modal ──────────────────────────────────────────────────────────
-function AddClientModal({ onClose, onAdd, locations, allowLocationSelection }: { onClose: () => void; onAdd: (c: Client) => void; locations: SalonLocation[]; allowLocationSelection: boolean }) {
+function AddClientModal({ onClose, onAdd, locations, allowLocationSelection, clients }: { onClose: () => void; onAdd: (c: Client) => void; locations: SalonLocation[]; allowLocationSelection: boolean; clients: Client[] }) {
   const [done, setDone] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", notes: "", locationId: getDefaultLocationId() });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", section: "", notes: "", locationId: getDefaultLocationId() });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const canSubmit = form.name.trim();
 
@@ -576,6 +577,7 @@ function AddClientModal({ onClose, onAdd, locations, allowLocationSelection }: {
       gender: "female",
       dob: form.dob || undefined,
       tags: form.tag ? [form.tag] : ["New"],
+      section: form.section || undefined,
       source: form.source as any,
       createdAt: new Date().toISOString().split("T")[0],
       totalVisits: 0,
@@ -619,7 +621,7 @@ function AddClientModal({ onClose, onAdd, locations, allowLocationSelection }: {
                 style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
             </div>
           ))}
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${allowLocationSelection ? 3 : 2}, minmax(0, 1fr))`, gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${allowLocationSelection ? 4 : 3}, minmax(0, 1fr))`, gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Source</label>
               <select value={form.source} onChange={(e) => set("source", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
@@ -639,6 +641,13 @@ function AddClientModal({ onClose, onAdd, locations, allowLocationSelection }: {
               <select value={form.tag} onChange={(e) => set("tag", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
                 <option value="">None</option>
                 {Object.keys(TAG_COLORS).map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Section</label>
+              <select value={form.section} onChange={(e) => set("section", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+                <option value="">Unassigned</option>
+                {getSectionOptions(clients).map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
@@ -919,6 +928,7 @@ export default function ClientsPage() {
   const [tagFilter, setTagFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState(() => getActiveLocationFilter());
+  const [sectionFilter, setSectionFilter] = useState("all");
   const [sortFilter, setSortFilter] = useState("none");
   const [selected, setSelected] = useState<Client | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -982,6 +992,7 @@ export default function ClientsPage() {
       if (tagFilter !== "all" && !c.tags.includes(tagFilter)) return false;
       if (sourceFilter !== "all" && c.source !== sourceFilter) return false;
       if (locationFilter !== "all" && clientLocationId(c) !== locationFilter) return false;
+      if (sectionFilter !== "all" && c.section !== sectionFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         return c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email ?? "").toLowerCase().includes(q);
@@ -992,11 +1003,11 @@ export default function ClientsPage() {
     if (sortFilter === "lowSpend")  return [...result].sort((a, b) => a.totalSpend  - b.totalSpend);
     if (sortFilter === "topVisits") return [...result].sort((a, b) => b.totalVisits - a.totalVisits);
     return result;
-  }, [clients, search, tagFilter, sourceFilter, locationFilter, sortFilter]);
+  }, [clients, search, tagFilter, sourceFilter, locationFilter, sectionFilter, sortFilter]);
 
   const allTags = Array.from(new Set(clients.flatMap((c) => c.tags)));
   const allSources = Array.from(new Set(clients.map((c) => c.source)));
-  const activeFilters = [tagFilter !== "all", sourceFilter !== "all", sortFilter !== "none"].filter(Boolean).length;
+  const activeFilters = [tagFilter !== "all", sourceFilter !== "all", sectionFilter !== "all", sortFilter !== "none"].filter(Boolean).length;
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
   const someFilteredSelected = filtered.some((c) => selectedIds.has(c.id));
@@ -1054,6 +1065,7 @@ export default function ClientsPage() {
           onClose={() => setShowAdd(false)}
           locations={locations}
           allowLocationSelection={plan.multiLocation}
+          clients={clients}
           onAdd={(newC) => {
             setClients((prevClients) => {
               const updated = [newC, ...prevClients];
@@ -1262,6 +1274,7 @@ export default function ClientsPage() {
           {[
             { label: "Tag", value: tagFilter, onChange: setTagFilter, options: [["all", "All Tags"], ...allTags.map((t) => [t, t])] },
             { label: "Source", value: sourceFilter, onChange: setSourceFilter, options: [["all", "All Sources"], ...allSources.map((s) => [s, s])] },
+            { label: "Section", value: sectionFilter, onChange: setSectionFilter, options: [["all", "All Sections"], ...getSectionOptions(clients).map((s) => [s, s])] },
             { label: "Sort By", value: sortFilter, onChange: setSortFilter, options: [["none", "Default"], ["topSpend", "Top Spenders"], ["lowSpend", "Low Spenders"], ["topVisits", "Top Visits"]] },
           ].map(({ label, value, onChange, options }) => (
             <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -1272,7 +1285,7 @@ export default function ClientsPage() {
             </div>
           ))}
           {activeFilters > 0 && (
-            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); setSortFilter("none"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
+            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); setSectionFilter("all"); setSortFilter("none"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
           )}
         </div>
       )}

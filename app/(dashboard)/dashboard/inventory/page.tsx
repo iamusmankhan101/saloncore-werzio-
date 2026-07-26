@@ -5,6 +5,7 @@ import { getStoredInventory, saveInventory } from "@/lib/storage";
 import { checkLowStockAlerts } from "@/lib/whatsapp-scheduler";
 import { settingsStore } from "@/lib/settings-store";
 import type { InventoryItem, InventoryCategory, InventoryUnit } from "@/lib/types";
+import { getSectionOptions } from "@/lib/sections";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import {
@@ -73,6 +74,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // ── Item Form (shared by Add + Edit modals) ───────────────────────────────────
 type ItemForm = {
   name: string; brand: string; category: InventoryCategory | "";
+  section: string;
   unit: InventoryUnit; currentStock: string; minStock: string;
   costPrice: string; retailPrice: string; supplier: string; notes: string;
   barcode: string;
@@ -80,7 +82,7 @@ type ItemForm = {
 };
 
 const EMPTY_FORM: ItemForm = {
-  name: "", brand: "", category: "", unit: "pcs",
+  name: "", brand: "", category: "", section: "", unit: "pcs",
   currentStock: "", minStock: "", costPrice: "",
   retailPrice: "", barcode: "", supplier: "", notes: "",
   variablePrice: false, priceRangeMin: "", priceRangeMax: "",
@@ -89,6 +91,7 @@ const EMPTY_FORM: ItemForm = {
 function itemToForm(item: InventoryItem): ItemForm {
   return {
     name: item.name, brand: item.brand, category: item.category,
+    section: item.section ?? "",
     unit: item.unit,
     currentStock: String(item.currentStock), minStock: String(item.minStock),
     costPrice: String(item.costPrice), retailPrice: item.retailPrice ? String(item.retailPrice) : "",
@@ -104,6 +107,7 @@ function formToItem(form: ItemForm, existing?: InventoryItem): InventoryItem {
     id: existing?.id ?? "i_" + Date.now(),
     name: form.name, brand: form.brand,
     category: form.category as InventoryCategory,
+    section: form.section || undefined,
     unit: form.unit,
     currentStock: Number(form.currentStock),
     minStock: Number(form.minStock),
@@ -121,7 +125,7 @@ function formToItem(form: ItemForm, existing?: InventoryItem): InventoryItem {
   };
 }
 
-function ItemFormFields({ form, set }: { form: ItemForm; set: (k: keyof ItemForm, v: string | boolean) => void }) {
+function ItemFormFields({ form, set, items }: { form: ItemForm; set: (k: keyof ItemForm, v: string | boolean) => void; items: InventoryItem[] }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -141,6 +145,12 @@ function ItemFormFields({ form, set }: { form: ItemForm; set: (k: keyof ItemForm
           </select>
         </Field>
       </div>
+      <Field label="Salon Section">
+        <select value={form.section} onChange={(e) => set("section", e.target.value)} style={INP}>
+          <option value="">Unassigned</option>
+          {getSectionOptions(items).map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </Field>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Field label="Current Stock *"><input type="number" min="0" value={form.currentStock} onChange={(e) => set("currentStock", e.target.value)} placeholder="0" style={INP} /></Field>
         <Field label="Min Stock (alert threshold) *"><input type="number" min="0" value={form.minStock} onChange={(e) => set("minStock", e.target.value)} placeholder="0" style={INP} /></Field>
@@ -179,7 +189,7 @@ function priceFieldsValid(form: ItemForm): boolean {
 }
 
 // ── Add Modal ─────────────────────────────────────────────────────────────────
-function AddModal({ onClose, onAdd }: { onClose: () => void; onAdd: (item: InventoryItem) => void }) {
+function AddModal({ onClose, onAdd, items }: { onClose: () => void; onAdd: (item: InventoryItem) => void; items: InventoryItem[] }) {
   const [form, setForm] = useState<ItemForm>(EMPTY_FORM);
   const [done, setDone] = useState(false);
   const set = useCallback((k: keyof ItemForm, v: string | boolean) => setForm((f) => ({ ...f, [k]: v })), []);
@@ -200,7 +210,7 @@ function AddModal({ onClose, onAdd }: { onClose: () => void; onAdd: (item: Inven
     <Overlay onClose={onClose}>
       <ModalHeader title="Add Inventory Item" onClose={onClose} />
       <div style={{ padding: "22px 24px" }}>
-        <ItemFormFields form={form} set={set} />
+        <ItemFormFields form={form} set={set} items={items} />
         <div style={{ display: "flex", gap: 10, paddingTop: 18, marginTop: 6, borderTop: "1px solid #f0f0f8" }}>
           <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
           <button onClick={() => { if (canSubmit) { onAdd(formToItem(form)); setDone(true); } }} style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit ? "linear-gradient(135deg, #5B21B6, #9333EA)" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit ? "#fff" : "#b0b0c8", cursor: canSubmit ? "pointer" : "not-allowed" }}>
@@ -213,7 +223,7 @@ function AddModal({ onClose, onAdd }: { onClose: () => void; onAdd: (item: Inven
 }
 
 // ── Edit Modal ────────────────────────────────────────────────────────────────
-function EditModal({ item, onClose, onSave }: { item: InventoryItem; onClose: () => void; onSave: (updated: InventoryItem) => void }) {
+function EditModal({ item, onClose, onSave, items }: { item: InventoryItem; onClose: () => void; onSave: (updated: InventoryItem) => void; items: InventoryItem[] }) {
   const [form, setForm] = useState<ItemForm>(() => itemToForm(item));
   const [saved, setSaved] = useState(false);
   const set = useCallback((k: keyof ItemForm, v: string | boolean) => setForm((f) => ({ ...f, [k]: v })), []);
@@ -234,7 +244,7 @@ function EditModal({ item, onClose, onSave }: { item: InventoryItem; onClose: ()
     <Overlay onClose={onClose}>
       <ModalHeader title={`Edit — ${item.name}`} onClose={onClose} />
       <div style={{ padding: "22px 24px" }}>
-        <ItemFormFields form={form} set={set} />
+        <ItemFormFields form={form} set={set} items={items} />
         <div style={{ display: "flex", gap: 10, paddingTop: 18, marginTop: 6, borderTop: "1px solid #f0f0f8" }}>
           <button onClick={onClose} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: "pointer" }}>Cancel</button>
           <button
@@ -515,6 +525,7 @@ export default function InventoryPage() {
   const [search, setSearch]             = useState("");
   const [catFilter, setCatFilter]       = useState<InventoryCategory | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "low" | "out" | "ok">("all");
+  const [sectionFilter, setSectionFilter] = useState("all");
   const [showFilters, setShowFilters]   = useState(false);
   const [showAdd, setShowAdd]           = useState(false);
   const [editItem, setEditItem]         = useState<InventoryItem | null>(null);
@@ -563,6 +574,7 @@ export default function InventoryPage() {
     return items.filter((item) => {
       if (catFilter !== "all" && item.category !== catFilter) return false;
       if (statusFilter !== "all" && stockStatus(item) !== statusFilter) return false;
+      if (sectionFilter !== "all" && item.section !== sectionFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         return (
@@ -575,16 +587,16 @@ export default function InventoryPage() {
       }
       return true;
     });
-  }, [items, search, catFilter, statusFilter]);
+  }, [items, search, catFilter, statusFilter, sectionFilter]);
 
-  const activeFilters = [catFilter !== "all", statusFilter !== "all"].filter(Boolean).length;
+  const activeFilters = [catFilter !== "all", statusFilter !== "all", sectionFilter !== "all"].filter(Boolean).length;
 
   return (
     <div className="dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
 
       {/* ── Modals (shared) ── */}
-      {showAdd    && <AddModal    onClose={() => setShowAdd(false)}    onAdd={(item) => persist([item, ...items])} />}
-      {editItem   && <EditModal   item={editItem} onClose={() => setEditItem(null)} onSave={(updated) => persist(items.map((i) => i.id === updated.id ? updated : i))} />}
+      {showAdd    && <AddModal    onClose={() => setShowAdd(false)}    onAdd={(item) => persist([item, ...items])} items={items} />}
+      {editItem   && <EditModal   item={editItem} onClose={() => setEditItem(null)} onSave={(updated) => persist(items.map((i) => i.id === updated.id ? updated : i))} items={items} />}
       {deleteItem && <DeleteModal item={deleteItem} onClose={() => setDeleteItem(null)} onDelete={() => persist(getStoredInventory().filter((i) => i.id !== deleteItem.id))} />}
       {showReminder && <ReminderModal alertItems={alertItems} onClose={() => setShowReminder(false)} />}
 
@@ -1138,6 +1150,11 @@ export default function InventoryPage() {
                   onChange: (v: string) => setStatusFilter(v as "all" | "low" | "out" | "ok"),
                   options: [["all", "All"], ["ok", "In Stock"], ["low", "Low Stock"], ["out", "Out of Stock"]] as [string, string][],
                 },
+                {
+                  label: "Section", value: sectionFilter,
+                  onChange: (v: string) => setSectionFilter(v),
+                  options: [["all", "All Sections"], ...getSectionOptions(items).map((s) => [s, s])] as [string, string][],
+                },
               ].map(({ label, value, onChange, options }) => (
                 <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   <label style={{ fontSize: 11, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
@@ -1147,7 +1164,7 @@ export default function InventoryPage() {
                 </div>
               ))}
               {activeFilters > 0 && (
-                <button onClick={() => { setCatFilter("all"); setStatusFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>
+                <button onClick={() => { setCatFilter("all"); setStatusFilter("all"); setSectionFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>
                   Clear all
                 </button>
               )}

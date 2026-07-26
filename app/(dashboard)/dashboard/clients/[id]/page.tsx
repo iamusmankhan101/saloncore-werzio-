@@ -12,6 +12,7 @@ import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySett
 import { settingsStore } from "@/lib/settings-store";
 import { exportClientPdf } from "@/lib/export-pdf";
 import { locationUserKey } from "@/lib/locations";
+import { getSectionOptions } from "@/lib/sections";
 import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import {
   ArrowLeft, Phone, Mail, Calendar, Heart, Star, Camera, X,
@@ -86,7 +87,7 @@ export default function ClientProfilePage() {
   const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", notes: "",
+    name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", section: "", notes: "",
   });
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
@@ -120,6 +121,7 @@ export default function ClientProfilePage() {
       setEditForm({
         name: resolved.name, phone: resolved.phone, email: resolved.email ?? "",
         dob: resolved.dob ?? "", source: resolved.source, tag: resolved.tags[0] ?? "",
+        section: resolved.section ?? "",
         notes: resolved.notes ?? "",
       });
     }
@@ -163,6 +165,7 @@ export default function ClientProfilePage() {
       dob: editForm.dob || undefined,
       source: editForm.source as Client["source"],
       tags: editForm.tag ? [editForm.tag] : [],
+      section: editForm.section || undefined,
       notes: editForm.notes || undefined,
     };
     const all = getStoredClients();
@@ -620,10 +623,11 @@ export default function ClientProfilePage() {
                         style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", boxSizing: "border-box" }} />
                     </div>
                   ))}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                     {([
                       { label: "Source", key: "source", opts: ["whatsapp","walk-in","web","manual"] },
                       { label: "Tag",    key: "tag",    opts: ["", ...Object.keys(TAG_COLORS)] },
+                      { label: "Section", key: "section", opts: ["", ...getSectionOptions(getStoredClients())] },
                     ] as const).map(({ label, key, opts }) => (
                       <div key={key}>
                         <label style={{ fontSize: 10, fontWeight: 700, color: "#b0b0c8", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 5 }}>{label}</label>

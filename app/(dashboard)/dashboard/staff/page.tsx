@@ -6,6 +6,7 @@ import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAp
 import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
 import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
+import { getSectionOptions } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -29,16 +30,18 @@ function getStaffStats(staffId: string, appointments: Appointment[]) {
 }
 
 // ── Staff Form Modal (Add & Edit) ─────────────────────────────────────────────
-function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () => void; onSave: (s: Staff, assignedServiceIds: string[]) => void; staff?: Staff; servicesList: Service[] }) {
+function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { onClose: () => void; onSave: (s: Staff, assignedServiceIds: string[]) => void; staff?: Staff; servicesList: Service[]; staffList: Staff[] }) {
   const [done, setDone] = useState(false);
   const [form, setForm] = useState({
     name: staff?.name ?? "",
     phone: staff?.phone ?? "",
     role: staff?.role ?? "",
+    section: staff?.section ?? "",
     payType: staff?.payType ?? "commission",
     commissionRate: staff?.commissionRate ? String(staff.commissionRate) : "",
     baseSalary: staff?.baseSalary ? String(staff.baseSalary) : "",
   });
+  const sectionOptions = getSectionOptions(staffList);
 
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() => {
     if (staff) {
@@ -75,6 +78,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
       phone: form.phone,
       email: staff?.email ?? "",
       role: form.role as StaffRole,
+      section: form.section || undefined,
       specialties: specialtiesArray,
       color,
       isActive: staff?.isActive ?? true,
@@ -124,6 +128,14 @@ function StaffFormModal({ onClose, onSave, staff, servicesList }: { onClose: () 
             <select value={form.role} onChange={(e) => set("role", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
               <option value="">Select a role…</option>
               {Object.keys(ROLE_COLORS).map((r) => <option key={r} value={r}>{r.replace(/-/g, " ")}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Salon Section</label>
+            <select value={form.section} onChange={(e) => set("section", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+              <option value="">Unassigned</option>
+              {sectionOptions.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
@@ -225,6 +237,7 @@ export default function StaffPage() {
   const [servicesList, setServicesList] = useState<Service[]>([]);
   const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
+  const [sectionFilter, setSectionFilter] = useState("all");
 
   const plan        = getCurrentPlan();
   const activeCount = staffList.filter((s) => s.isActive).length;
@@ -275,6 +288,7 @@ export default function StaffPage() {
       {(showAdd || editingStaff) && (
         <StaffFormModal
           servicesList={servicesList}
+          staffList={staffList}
           staff={editingStaff ?? undefined}
           onClose={() => { setShowAdd(false); setEditingStaff(null); }}
           onSave={handleSaveStaff}
@@ -338,9 +352,38 @@ export default function StaffPage() {
         </div>
       )}
 
+      {/* Section filter */}
+      {(() => {
+        const sectionTabs = ["all", ...getSectionOptions(staffList)];
+        return (
+          <div className="filter-tabs" style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 12, padding: 4, alignSelf: "flex-start", marginBottom: 4 }}>
+            {sectionTabs.map((sec) => {
+              const active = sectionFilter === sec;
+              return (
+                <button key={sec} onClick={() => setSectionFilter(sec)}
+                  style={{
+                    padding: "7px 16px",
+                    borderRadius: 9,
+                    border: "none",
+                    background: active ? "var(--accent-gradient)" : "transparent",
+                    color: active ? "#fff" : "#6b6b8a",
+                    fontSize: 13,
+                    fontWeight: 750,
+                    cursor: "pointer",
+                    boxShadow: active ? "0 4px 10px var(--accent-glow)" : "none",
+                    transition: "all 0.18s ease"
+                  }}>
+                  {sec === "all" ? "All Sections" : sec}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* Cards grid */}
       <div className="cards-grid-auto">
-        {staffList.map((s) => {
+        {staffList.filter((s) => sectionFilter === "all" || s.section === sectionFilter).map((s) => {
           const stats = getStaffStats(s.id, appointmentsList);
           const role  = ROLE_COLORS[s.role] ?? { color: "#6b7280", bg: "#f9fafb" };
           return (

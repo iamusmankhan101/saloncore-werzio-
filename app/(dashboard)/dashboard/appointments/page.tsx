@@ -9,6 +9,7 @@ import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCa
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
+import { getSectionOptions } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -531,6 +532,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       clientName: finalClientName,
       staffId: form.staffId,
       staffName: staffObj?.name ?? "",
+      section: staffObj?.section,
       serviceIds: form.serviceIds,
       serviceNames: selectedServices.map((s) => s.name),
       date: form.date,
@@ -1020,6 +1022,7 @@ export default function AppointmentsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<AppointmentStatus | "all">("all");
   const [staffFilter, setStaffFilter] = useState<string>("all");
+  const [sectionFilter, setSectionFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<"apptDateDesc" | "apptDateAsc" | "createdDesc" | "createdAsc">("apptDateDesc");
   const [selected, setSelected] = useState<Appointment | null>(null);
@@ -1075,6 +1078,7 @@ export default function AppointmentsPage() {
       .filter((a) => {
         if (statusFilter !== "all" && a.status !== statusFilter) return false;
         if (staffFilter !== "all" && a.staffId !== staffFilter) return false;
+        if (sectionFilter !== "all" && a.section !== sectionFilter) return false;
         if (dateFilter && a.date !== dateFilter) return false;
         if (search) {
           const q = search.toLowerCase();
@@ -1082,12 +1086,12 @@ export default function AppointmentsPage() {
         }
         return true;
       });
-  }, [appointments, search, statusFilter, staffFilter, dateFilter, sortBy]);
+  }, [appointments, search, statusFilter, staffFilter, sectionFilter, dateFilter, sortBy]);
 
   const totalRevenue = filtered
     .filter((a) => a.status === "completed")
     .reduce((s, a) => s + a.totalAmount, 0);
-  const activeFilters = [statusFilter !== "all", staffFilter !== "all", !!dateFilter].filter(Boolean).length;
+  const activeFilters = [statusFilter !== "all", staffFilter !== "all", sectionFilter !== "all", !!dateFilter].filter(Boolean).length;
 
   const allChecked = filtered.length > 0 && filtered.every(a => checkedIds.has(a.id));
   const someChecked = filtered.some(a => checkedIds.has(a.id));
@@ -1413,6 +1417,10 @@ export default function AppointmentsPage() {
             <option value="all">All Stylists</option>
             {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </FilterSelect>
+          <FilterSelect label="Section" value={sectionFilter} onChange={setSectionFilter}>
+            <option value="all">All Sections</option>
+            {getSectionOptions(appointments).map((s) => <option key={s} value={s}>{s}</option>)}
+          </FilterSelect>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label style={{ fontSize: 11, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Date</label>
             <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e3e0eb", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }} />
@@ -1424,7 +1432,7 @@ export default function AppointmentsPage() {
             <option value="createdAsc">Created (oldest first)</option>
           </FilterSelect>
           {activeFilters > 0 && (
-            <button onClick={() => { setStatusFilter("all"); setStaffFilter("all"); setDateFilter(""); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>
+            <button onClick={() => { setStatusFilter("all"); setStaffFilter("all"); setSectionFilter("all"); setDateFilter(""); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>
               Clear all
             </button>
           )}

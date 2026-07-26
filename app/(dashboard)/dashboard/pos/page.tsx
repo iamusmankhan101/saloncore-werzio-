@@ -24,6 +24,7 @@ import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, fillTemplate } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
+import { getSectionOptions } from "@/lib/sections";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -37,6 +38,7 @@ interface CatalogItem {
   name: string;
   price: number;
   category: string;
+  section?: string;
   stock?: number;
   unit?: string;
   barcode?: string;
@@ -185,6 +187,7 @@ export default function POSPage() {
   // ── Catalog ───────────────────────────────────────────────────────────────
   const [catalogTab,    setCatalogTab]    = useState<CatalogTab>("all");
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogSectionFilter, setCatalogSectionFilter] = useState("all");
   const [barcodeInput, setBarcodeInput] = useState("");
   const [scanFeedback, setScanFeedback] = useState<{ ok: boolean; message: string } | null>(null);
   const scannerBuffer = useRef("");
@@ -217,20 +220,22 @@ export default function POSPage() {
     const q = catalogSearch.toLowerCase();
     const svc: CatalogItem[] = (catalogTab !== "products" ? services : [])
       .filter(s => !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q))
+      .filter(s => catalogSectionFilter === "all" || s.section === catalogSectionFilter)
       .map(s => ({
-        id: s.id, type: "service", name: s.name, price: s.price, category: s.category,
+        id: s.id, type: "service", name: s.name, price: s.price, category: s.category, section: s.section,
         variablePrice: s.variablePrice, priceRangeMin: s.priceRangeMin, priceRangeMax: s.priceRangeMax,
       }));
     const prod: CatalogItem[] = (catalogTab !== "services" ? inventory : [])
       .filter(i => (i.retailPrice ?? 0) > 0 || i.variablePrice)
       .filter(i => !q || i.name.toLowerCase().includes(q) || i.brand.toLowerCase().includes(q))
+      .filter(i => catalogSectionFilter === "all" || i.section === catalogSectionFilter)
       .map(i => ({
         id: i.id, type: "product", name: `${i.brand ? i.brand + " " : ""}${i.name}`, price: i.retailPrice ?? 0,
-        category: i.category, stock: i.currentStock, unit: i.unit, barcode: i.barcode,
+        category: i.category, section: i.section, stock: i.currentStock, unit: i.unit, barcode: i.barcode,
         variablePrice: i.variablePrice, priceRangeMin: i.priceRangeMin, priceRangeMax: i.priceRangeMax,
       }));
     return [...svc, ...prod];
-  }, [services, inventory, catalogTab, catalogSearch]);
+  }, [services, inventory, catalogTab, catalogSearch, catalogSectionFilter]);
 
   const dropClients = useMemo(() => {
     const q = clientQ.toLowerCase();
@@ -386,6 +391,13 @@ export default function POSPage() {
     try {
       const today = localDateKey();
       const staffMember = staff.find(s => s.id === selectedStaffId);
+      // Prefer the assigned staff member's section; with no staff chosen, fall
+      // back to the cart's section only when every line item agrees — a mixed
+      // cart (e.g. a men's haircut + a women's product) has no single section,
+      // so leave it unset rather than guess.
+      const cartSections = cart.map(e => catalogItems.find(ci => ci.id === e.itemId)?.section).filter((s): s is string => !!s);
+      const saleSection = staffMember?.section
+        ?? (new Set(cartSections).size === 1 ? cartSections[0] : undefined);
       const { invoice, dbSaved } = await createSalonInvoice({
         appointmentId: checkoutAppointmentId || undefined,
         clientId:      selectedClient?.id || undefined,
@@ -393,6 +405,7 @@ export default function POSPage() {
         clientPhone:   selectedClient?.phone ? normalizePhone(selectedClient.phone) : "",
         clientEmail:   selectedClient?.email,
         staffName:     staffMember?.name || "",
+        section:       saleSection,
         items:         cartLineItems,
         subtotal, discountAmount: totalDiscountAmount, taxAmount, total,
         paymentMethod: isCredit ? "" : (payMethod as PaymentMethod),
@@ -889,6 +902,21 @@ export default function POSPage() {
                 );
               })}
             </div>
+
+            {/* Section filter — only shown once at least one service/product is actually tagged */}
+            {[...services, ...inventory].some(x => x.section) && (
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", marginTop: 8 }}>
+                {["all", ...getSectionOptions([...services, ...inventory])].map(sec => {
+                  const active = catalogSectionFilter === sec;
+                  return (
+                    <button key={sec} type="button" onClick={() => setCatalogSectionFilter(sec)}
+                      style={{ padding: "5px 12px", borderRadius: 8, border: `1.5px solid ${active ? "#7C3AED" : "#e8e8f4"}`, background: active ? "#f5f3ff" : "#fafafe", color: active ? "#7C3AED" : "#9999b0", fontSize: 11, fontWeight: 700, cursor: "pointer", transition: "all 0.12s", flexShrink: 0, whiteSpace: "nowrap" }}>
+                      {sec === "all" ? "All Sections" : sec}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Grid */}

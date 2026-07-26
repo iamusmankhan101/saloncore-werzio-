@@ -41,6 +41,8 @@ export interface SalonInvoice {
   notes?: string;
   createdAt: string;        // ISO timestamp
   source?: "pos" | "manual";
+  /** Which salon section this sale belongs to (e.g. "Men's", "Women's"). Free text, cosmetic only. */
+  section?: string;
 }
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
