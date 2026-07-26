@@ -159,7 +159,13 @@ export default function RevenuePage() {
       // undercounts every imported entry. These have no section of their own,
       // so a section-restricted view can't attribute them and excludes them.
       setManualIncome(revenueScoped ? [] : getManualCashIncome());
-      setExpenses(getExpenses());
+      // Untagged expenses are shared overhead (rent, general salaries, etc.)
+      // that can't be attributed to one section, so a restricted view excludes
+      // them too — only expenses explicitly tagged to the active section count
+      // against it, same rule as manual income above.
+      setExpenses(
+        getExpenses().filter(e => !revenueScoped || e.section === activeSection)
+      );
     });
     return () => { cancelled = true; };
   }, [revenueScoped, activeSection]);

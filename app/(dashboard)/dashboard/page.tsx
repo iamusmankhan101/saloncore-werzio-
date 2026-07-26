@@ -122,27 +122,35 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const paidPosAppointmentIds = useMemo(() =>
-    new Set(posInvoices.map((invoice) => invoice.appointmentId).filter(Boolean)),
-    [posInvoices]);
   const todayAppts = appointments.filter((a) => a.date === today);
-  // Everything on this page is scoped to the active dashboard section EXCEPT
-  // the actual revenue figures (Today's Revenue, Average Ticket, Revenue
-  // Trend) — those stay computed from the unfiltered arrays below so the
-  // owner always sees the whole business's money regardless of which section
-  // dashboard is currently active.
+  // Everything on this page is strictly scoped to the active dashboard
+  // section EXCEPT the revenue figures (Today's Revenue, Average Ticket,
+  // Revenue Trend), which follow a different rule: "Men's" acts as the
+  // owner's main view and sees revenue combined across both sections, while
+  // any other specific section (e.g. "Women's") is restricted to only its
+  // own revenue. "All Sections" also sees everything, same as Men's. This
+  // matches the Revenue and Cash Flow pages' identical rule.
   const activeSection = getActiveSection();
   const todayApptsScoped = activeSection === "all" ? todayAppts : todayAppts.filter((a) => a.section === activeSection);
   const staffListScoped = activeSection === "all" ? staffList : staffList.filter((s) => s.section === activeSection);
   const clientsScoped = activeSection === "all" ? clients : clients.filter((c) => c.section === activeSection);
+
+  const revenueScoped = activeSection !== "all" && activeSection !== "Men's";
+  const appointmentsForRevenue = revenueScoped ? appointments.filter((a) => a.section === activeSection) : appointments;
+  const posInvoicesForRevenue = revenueScoped ? posInvoices.filter((inv) => inv.section === activeSection) : posInvoices;
+  const todayApptsForRevenue = revenueScoped ? todayAppts.filter((a) => a.section === activeSection) : todayAppts;
+
+  const paidPosAppointmentIds = useMemo(() =>
+    new Set(posInvoicesForRevenue.map((invoice) => invoice.appointmentId).filter(Boolean)),
+    [posInvoicesForRevenue]);
   const revenueLast7Days = useMemo(() => {
     const totals = new Map<string, number>();
-    appointments.forEach((appointment) => {
+    appointmentsForRevenue.forEach((appointment) => {
       if (appointment.status === "completed" && !paidPosAppointmentIds.has(appointment.id)) {
         totals.set(appointment.date, (totals.get(appointment.date) ?? 0) + appointment.totalAmount);
       }
     });
-    posInvoices.forEach((invoice) => {
+    posInvoicesForRevenue.forEach((invoice) => {
       // A credit invoice paid off later counts toward the day it was actually
       // paid, not the day it was originally issued.
       const revenueDate = invoice.paidDate || invoice.date;
@@ -156,17 +164,15 @@ export default function DashboardPage() {
       const dateKey = date.toLocaleDateString("en-CA");
       return { date: dateKey, total: totals.get(dateKey) ?? 0 };
     });
-  }, [appointments, paidPosAppointmentIds, posInvoices, today]);
+  }, [appointmentsForRevenue, paidPosAppointmentIds, posInvoicesForRevenue, today]);
 
   const maxRevenue = Math.max(...revenueLast7Days.map((day) => day.total), 0);
   const axisMax = maxRevenue > 0 ? Math.ceil((maxRevenue * 1.2) / 1000) * 1000 : 60000;
   const yAxisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0]
     .map((value) => value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(Math.round(value)));
   const topClients = [...clientsScoped].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
-  // Revenue-family figures — intentionally computed from the unfiltered
-  // (combined) arrays, not the *Scoped ones above.
-  const todayCompletedAppts = todayAppts.filter((appointment) => appointment.status === "completed" && !paidPosAppointmentIds.has(appointment.id));
-  const todayPosInvoices = posInvoices.filter((invoice) => (invoice.paidDate || invoice.date) === today);
+  const todayCompletedAppts = todayApptsForRevenue.filter((appointment) => appointment.status === "completed" && !paidPosAppointmentIds.has(appointment.id));
+  const todayPosInvoices = posInvoicesForRevenue.filter((invoice) => (invoice.paidDate || invoice.date) === today);
   const todayTotal = todayCompletedAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPosInvoices.reduce((s, invoice) => s + invoice.total, 0);
   const todayTransactionCount = todayCompletedAppts.length + todayPosInvoices.length;
   const avgTicket = todayTransactionCount > 0 ? todayTotal / todayTransactionCount : 0;
@@ -209,7 +215,7 @@ export default function DashboardPage() {
             <div style={{ fontSize: 22, fontWeight: 900, color: "#1a1a2e", marginTop: 6 }}>{fmt(todayTotal)}</div>
             <div style={{ fontSize: 11, color: "#059669", fontWeight: 600, display: "flex", alignItems: "center", gap: 3, marginTop: 4 }}>
               <ArrowUpRight size={12} />
-              <span>Gross earnings</span>
+              <span>{revenueScoped ? `${activeSection} only` : "Gross earnings · combined"}</span>
             </div>
           </div>
           <div style={{

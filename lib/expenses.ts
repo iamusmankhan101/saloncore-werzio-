@@ -26,6 +26,8 @@ export interface Expense {
   billImageName?: string;
   notes?: string;
   createdAt: string;   // ISO timestamp
+  /** Which salon section this expense belongs to (e.g. "Men's", "Women's"). Untagged = shared overhead, excluded from a section-restricted view. */
+  section?: string;
 }
 
 const KEY = "werzio_expenses";

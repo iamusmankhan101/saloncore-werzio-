@@ -10,10 +10,11 @@ import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import { fmtCurrency as fmt } from "@/lib/format";
 import { syncFromDB } from "@/lib/turso-sync";
+import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import {
   Plus, Trash2, TrendingUp, TrendingDown,
   Wallet, X, Download, Pencil, Check, CalendarCheck, ShoppingBag, Upload, FileSpreadsheet,
-  Banknote, CreditCard,
+  Banknote, CreditCard, Lock,
 } from "lucide-react";
 
 type Period = "today" | "7d" | "30d" | "1y" | "custom";
@@ -108,6 +109,7 @@ const EMPTY_FORM = {
   billImageDataUrl: undefined as string | undefined,
   billImageName: undefined as string | undefined,
   notes: "",
+  section: "",
 };
 
 export default function CashFlowPage() {
@@ -129,6 +131,13 @@ export default function CashFlowPage() {
   const importInputRef                 = useRef<HTMLInputElement>(null);
   const expenseFormRef                 = useRef<HTMLDivElement>(null);
 
+  // Cash flow visibility by dashboard section: "Men's" acts as the owner's
+  // main view and sees everything combined; any other specific section (e.g.
+  // "Women's") is restricted to only its own income and expenses. "All
+  // Sections" also sees everything, same as Men's. Matches Revenue's rule.
+  const activeSection = getActiveSection();
+  const cashFlowScoped = activeSection !== "all" && activeSection !== "Men's";
+
   useEffect(() => {
     let cancelled = false;
     syncFromDB().finally(() => {
@@ -138,13 +147,20 @@ export default function CashFlowPage() {
       setCustomEnd(t);
       setCustomStart(t);
       setForm(f => ({ ...f, date: t }));
-      setExpenses(getExpenses());
-      setAppointments(getStoredAppointments());
-      setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos")));
-      setManualIncome(getManualCashIncome());
+      // Untagged expenses are shared overhead that can't be attributed to one
+      // section, so a restricted view excludes them — same for manual income,
+      // which has no section field to filter by at all.
+      setExpenses(getExpenses().filter(e => !cashFlowScoped || e.section === activeSection));
+      setAppointments(getStoredAppointments().filter(a => !cashFlowScoped || a.section === activeSection));
+      setPosInvoices(
+        getSalonInvoices()
+          .filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos"))
+          .filter(inv => !cashFlowScoped || inv.section === activeSection)
+      );
+      setManualIncome(cashFlowScoped ? [] : getManualCashIncome());
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [cashFlowScoped, activeSection]);
 
   useEffect(() => {
     if (!showForm || !editId) return;
@@ -329,6 +345,7 @@ export default function CashFlowPage() {
       billImageDataUrl: exp.billImageDataUrl,
       billImageName: exp.billImageName,
       notes: exp.notes ?? "",
+      section: exp.section ?? "",
     });
     setShowForm(true);
   }
@@ -376,13 +393,18 @@ export default function CashFlowPage() {
       ? { billImageDataUrl: form.billImageDataUrl, billImageName: form.billImageName }
       : { billImageDataUrl: undefined, billImageName: undefined };
 
+    // Locked to the active dashboard section when one is restricted (e.g.
+    // Women's) — an expense added from that view can only belong to it.
+    // From the Men's/All view, the form's own picker decides.
+    const expenseSection = cashFlowScoped ? activeSection : (form.section || undefined);
+
     try {
       if (editId) {
-        updateExpense(editId, { date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, ...billImagePatch, notes: form.notes.trim() || undefined });
+        updateExpense(editId, { date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, ...billImagePatch, notes: form.notes.trim() || undefined, section: expenseSection });
       } else {
-        addExpense({ date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, ...billImagePatch, notes: form.notes.trim() || undefined });
+        addExpense({ date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, ...billImagePatch, notes: form.notes.trim() || undefined, section: expenseSection });
       }
-      setExpenses(getExpenses());
+      setExpenses(getExpenses().filter(e => !cashFlowScoped || e.section === activeSection));
       setFormError("");
       setShowForm(false);
       setEditId(null);
@@ -394,10 +416,10 @@ export default function CashFlowPage() {
   function handleDelete(id: string) {
     try {
       setExpenses((prev) => {
-        const latest = getExpenses();
+        const latest = getExpenses().filter(e => !cashFlowScoped || e.section === activeSection);
         const source = latest.some((expense) => expense.id === id) ? latest : prev;
         const updated = source.filter((expense) => expense.id !== id);
-        saveExpenses(updated);
+        saveExpenses(getExpenses().filter((expense) => expense.id !== id));
         return updated;
       });
       if (editId === id) {
@@ -609,7 +631,8 @@ export default function CashFlowPage() {
 
       // All paid invoices (appointments + POS — both carry paymentMethod)
       const allPaidInvoices = getSalonInvoices().filter(
-        inv => inv.status === "paid" && inv.date >= (rangeStart || filterEnd) && inv.date <= filterEnd,
+        inv => inv.status === "paid" && inv.date >= (rangeStart || filterEnd) && inv.date <= filterEnd
+          && (!cashFlowScoped || inv.section === activeSection),
       );
       allPaidInvoices.forEach(inv => {
         if (!dayMap[inv.date]) dayMap[inv.date] = { card: 0, cash: 0, bank: 0, newAccount: 0, expense: 0 };
@@ -877,7 +900,10 @@ export default function CashFlowPage() {
           <PageTitle
             icon={<Wallet size={24} />}
             title="Cash Flow"
-            subtitle={rangeStart === filterEnd ? rangeStart : `${rangeStart} → ${filterEnd}`}
+            subtitle={
+              (cashFlowScoped ? `Restricted to ${activeSection} only · ` : "") +
+              (rangeStart === filterEnd ? rangeStart : `${rangeStart} → ${filterEnd}`)
+            }
           />
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             {/* Period tabs */}
@@ -1071,6 +1097,19 @@ export default function CashFlowPage() {
               <div>
                 <label style={labelSt}>Amount (PKR)</label>
                 <input type="number" value={form.amount} onChange={e => { setForm(f => ({ ...f, amount: e.target.value })); setFormError(""); }} placeholder="0" min={0.01} step="0.01" style={inputSt} />
+              </div>
+              <div>
+                <label style={labelSt}>Section</label>
+                {cashFlowScoped ? (
+                  <div style={{ ...inputSt, display: "flex", alignItems: "center", gap: 6, color: "#7C3AED", fontWeight: 700, background: "#faf9fd" }}>
+                    <Lock size={12} /> {activeSection} (locked)
+                  </div>
+                ) : (
+                  <select value={form.section} onChange={e => setForm(f => ({ ...f, section: e.target.value }))} style={inputSt}>
+                    <option value="">Shared / Unassigned</option>
+                    {getSectionOptions(expenses).map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                )}
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={labelSt}>Description <span style={{ fontWeight: 500, textTransform: "none" }}>(optional)</span></label>
