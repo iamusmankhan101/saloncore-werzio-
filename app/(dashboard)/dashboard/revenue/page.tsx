@@ -1009,7 +1009,10 @@ export default function RevenuePage() {
                       <Clock size={12} color="#c0c0d0" />
                       {reportHasMultipleDays ? `${fmtShortDate(a.date)} · ` : ""}{fmtTime(a.startTime)}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{a.clientName}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      {a.clientName}
+                      {a.section && <span style={{ fontSize: 10, fontWeight: 700, background: "#F5F3FF", color: "#7C3AED", padding: "1px 7px", borderRadius: 20 }}>{a.section}</span>}
+                    </div>
                     <div style={{ fontSize: 12, color: "#6b6b8a" }}>{a.serviceNames.join(", ") || "—"}</div>
                     <div style={{ fontSize: 12, color: "#6b6b8a" }}>{a.staffName}</div>
                     <div>
@@ -1026,7 +1029,10 @@ export default function RevenuePage() {
                       {reportHasMultipleDays ? `${fmtShortDate(inv.date)} · ` : ""}
                       {inv.createdAt ? new Date(inv.createdAt).toLocaleTimeString("en-PK", { hour: "numeric", minute: "2-digit", hour12: true }) : "—"}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{inv.clientName || "Walk-in"}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      {inv.clientName || "Walk-in"}
+                      {inv.section && <span style={{ fontSize: 10, fontWeight: 700, background: "#F5F3FF", color: "#7C3AED", padding: "1px 7px", borderRadius: 20 }}>{inv.section}</span>}
+                    </div>
                     <div style={{ fontSize: 12, color: "#6b6b8a" }}>{inv.items.map(it => it.description).join(", ") || "POS Sale"}</div>
                     <div style={{ fontSize: 12, color: "#6b6b8a" }}>{inv.staffName || "—"}</div>
                     <div>
