@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments } from "@/lib/storage";
-import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
+import type { Staff, Service, StaffRole, StaffPayType, Appointment } from "@/lib/types";
 import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { getSectionOptions, getActiveSection } from "@/lib/sections";
@@ -82,9 +82,9 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
       specialties: specialtiesArray,
       color,
       isActive: staff?.isActive ?? true,
-      payType: form.payType as "commission" | "salary",
-      commissionRate: form.payType === "commission" && form.commissionRate ? Number(form.commissionRate) : undefined,
-      baseSalary: form.payType === "salary" && form.baseSalary ? Number(form.baseSalary) : undefined,
+      payType: form.payType as StaffPayType,
+      commissionRate: (form.payType === "commission" || form.payType === "both") && form.commissionRate ? Number(form.commissionRate) : undefined,
+      baseSalary: (form.payType === "salary" || form.payType === "both") && form.baseSalary ? Number(form.baseSalary) : undefined,
     };
 
     onSave(savedStaff, selectedServiceIds);
@@ -142,7 +142,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Pay Type</label>
             <div style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 10, padding: 4 }}>
-              {([["commission", "Commission"], ["salary", "Fixed Salary"]] as const).map(([val, label]) => {
+              {([["commission", "Commission"], ["salary", "Fixed Salary"], ["both", "Both"]] as const).map(([val, label]) => {
                 const active = form.payType === val;
                 return (
                   <button key={val} type="button" onClick={() => set("payType", val)}
@@ -158,13 +158,14 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
               })}
             </div>
           </div>
-          {form.payType === "commission" ? (
+          {(form.payType === "commission" || form.payType === "both") && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Commission Rate (%)</label>
               <input type="number" min="0" max="100" value={form.commissionRate} onChange={(e) => set("commissionRate", e.target.value)} placeholder="e.g. 30"
                 style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
             </div>
-          ) : (
+          )}
+          {(form.payType === "salary" || form.payType === "both") && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Base Salary (PKR / pay period)</label>
               <input type="number" min="0" value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value)} placeholder="e.g. 30000"

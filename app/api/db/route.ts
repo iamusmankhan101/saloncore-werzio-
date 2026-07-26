@@ -29,7 +29,7 @@ async function mergeQueuedPosInvoices(userId: string, stored: unknown[]): Promis
   try {
     const queued = await db.execute({
       sql: `SELECT invoice_json FROM wa_pos_receipt_queue
-            WHERE user_id = ? AND status IN ('pending', 'sent', 'failed')
+            WHERE user_id = ? AND status != 'cancelled'
             ORDER BY created_at DESC`,
       args: [userId],
     });

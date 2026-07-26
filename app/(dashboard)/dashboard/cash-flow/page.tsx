@@ -9,6 +9,7 @@ import type { Appointment } from "@/lib/types";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import { fmtCurrency as fmt } from "@/lib/format";
+import { syncFromDB } from "@/lib/turso-sync";
 import {
   Plus, Trash2, TrendingUp, TrendingDown,
   Wallet, X, Download, Pencil, Check, CalendarCheck, ShoppingBag, Upload, FileSpreadsheet,
@@ -129,15 +130,20 @@ export default function CashFlowPage() {
   const expenseFormRef                 = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const t = toDateStr(new Date());
-    setToday(t);
-    setCustomEnd(t);
-    setCustomStart(t);
-    setForm(f => ({ ...f, date: t }));
-    setExpenses(getExpenses());
-    setAppointments(getStoredAppointments());
-    setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos")));
-    setManualIncome(getManualCashIncome());
+    let cancelled = false;
+    syncFromDB().finally(() => {
+      if (cancelled) return;
+      const t = toDateStr(new Date());
+      setToday(t);
+      setCustomEnd(t);
+      setCustomStart(t);
+      setForm(f => ({ ...f, date: t }));
+      setExpenses(getExpenses());
+      setAppointments(getStoredAppointments());
+      setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos")));
+      setManualIncome(getManualCashIncome());
+    });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {

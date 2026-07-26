@@ -8,7 +8,7 @@ import {
   BarChart2, ChevronRight, Briefcase,
 } from "lucide-react";
 import { getStoredStaff, getStoredAppointments, getStoredServices, saveStaff, saveServices } from "@/lib/storage";
-import type { Staff, Appointment, Service, StaffRole } from "@/lib/types";
+import type { Staff, Appointment, Service, StaffRole, StaffPayType } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
 import { Check, X, Plus, FileDown } from "lucide-react";
 import { exportStaffPdf } from "@/lib/export-pdf";
@@ -96,9 +96,9 @@ function EditModal({
       phone: form.phone,
       role: form.role as StaffRole,
       specialties: selectedServices.map((s) => s.name),
-      payType: form.payType as "commission" | "salary",
-      commissionRate: form.payType === "commission" && form.commissionRate ? Number(form.commissionRate) : undefined,
-      baseSalary: form.payType === "salary" && form.baseSalary ? Number(form.baseSalary) : undefined,
+      payType: form.payType as StaffPayType,
+      commissionRate: (form.payType === "commission" || form.payType === "both") && form.commissionRate ? Number(form.commissionRate) : undefined,
+      baseSalary: (form.payType === "salary" || form.payType === "both") && form.baseSalary ? Number(form.baseSalary) : undefined,
     };
     onSave(updatedStaff, selectedServiceIds);
     setDone(true);
@@ -146,7 +146,7 @@ function EditModal({
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Pay Type</label>
             <div style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 10, padding: 4 }}>
-              {([["commission", "Commission"], ["salary", "Fixed Salary"]] as const).map(([val, label]) => {
+              {([["commission", "Commission"], ["salary", "Fixed Salary"], ["both", "Both"]] as const).map(([val, label]) => {
                 const active = form.payType === val;
                 return (
                   <button key={val} type="button" onClick={() => set("payType", val)}
@@ -162,12 +162,13 @@ function EditModal({
               })}
             </div>
           </div>
-          {form.payType === "commission" ? (
+          {(form.payType === "commission" || form.payType === "both") && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Commission Rate (%)</label>
               <input type="number" min="0" max="100" style={inp} value={form.commissionRate} onChange={(e) => set("commissionRate", e.target.value)} placeholder="e.g. 30" />
             </div>
-          ) : (
+          )}
+          {(form.payType === "salary" || form.payType === "both") && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Base Salary (PKR / pay period)</label>
               <input type="number" min="0" style={inp} value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value)} placeholder="e.g. 30000" />

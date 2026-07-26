@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { fmtCurrency as fmt } from "@/lib/format";
+import { syncFromDB } from "@/lib/turso-sync";
 const fmtK = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
   : n >= 1_000   ? `${Math.round(n / 1_000)}K`
@@ -128,24 +129,29 @@ export default function RevenuePage() {
   const [customEnd, setCustomEnd]       = useState(() => toDateStr(new Date()));
 
   useEffect(() => {
-    setToday(toDateStr(new Date()));
-    setAppointments(getStoredAppointments());
-    // Only paid invoices count as revenue — an unpaid/credit invoice isn't
-    // money in hand yet. Appointment-linked invoices stay excluded because
-    // their completed appointment is already included and counting both would
-    // duplicate revenue. Source filter and date field (raw `.date`, the issue
-    // date) mirror the Cash Flow page's identical filter exactly, so the two
-    // reports reconcile for the same range instead of silently diverging.
-    setPosInvoices(
-      getSalonInvoices()
-        .filter(inv => !inv.appointmentId && inv.status === "paid" && (!inv.source || inv.source === "pos"))
-    );
-    // Cash Flow's "Import" feature records income (e.g. bulk-uploaded past
-    // sales) as ManualCashIncome entries rather than salon invoices — Cash
-    // Flow already counts these, so Revenue needs the same source or it
-    // undercounts every imported entry.
-    setManualIncome(getManualCashIncome());
-    setExpenses(getExpenses());
+    let cancelled = false;
+    syncFromDB().finally(() => {
+      if (cancelled) return;
+      setToday(toDateStr(new Date()));
+      setAppointments(getStoredAppointments());
+      // Only paid invoices count as revenue — an unpaid/credit invoice isn't
+      // money in hand yet. Appointment-linked invoices stay excluded because
+      // their completed appointment is already included and counting both would
+      // duplicate revenue. Source filter and date field (raw `.date`, the issue
+      // date) mirror the Cash Flow page's identical filter exactly, so the two
+      // reports reconcile for the same range instead of silently diverging.
+      setPosInvoices(
+        getSalonInvoices()
+          .filter(inv => !inv.appointmentId && inv.status === "paid" && (!inv.source || inv.source === "pos"))
+      );
+      // Cash Flow's "Import" feature records income (e.g. bulk-uploaded past
+      // sales) as ManualCashIncome entries rather than salon invoices — Cash
+      // Flow already counts these, so Revenue needs the same source or it
+      // undercounts every imported entry.
+      setManualIncome(getManualCashIncome());
+      setExpenses(getExpenses());
+    });
+    return () => { cancelled = true; };
   }, []);
 
   // Reset drill-down when period changes

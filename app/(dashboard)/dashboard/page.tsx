@@ -10,6 +10,7 @@ import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { MoreHorizontal, TrendingUp, Calendar, Users, Award, Clock, ArrowUpRight, Tag, Star } from "lucide-react";
 import { fmtCurrency as fmt } from "@/lib/format";
+import { syncFromDB } from "@/lib/turso-sync";
 
 function fmtTime(t: string) {
   const [hourValue, minuteValue] = t.split(":").map(Number);
@@ -104,7 +105,9 @@ export default function DashboardPage() {
   const [today] = useState(() => new Date().toLocaleDateString("en-CA"));
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    let cancelled = false;
+    syncFromDB().finally(() => {
+      if (cancelled) return;
       setAppointments(getStoredAppointments());
       setClients(getStoredClients());
       setStaffList(getStoredStaff());
@@ -114,8 +117,8 @@ export default function DashboardPage() {
       // appointment already carries the same revenue and would otherwise be
       // counted twice.
       setPosInvoices(getSalonInvoices().filter(inv => !inv.appointmentId && inv.status === "paid"));
-    }, 0);
-    return () => window.clearTimeout(timer);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const todayAppts = appointments.filter((a) => a.date === today);
