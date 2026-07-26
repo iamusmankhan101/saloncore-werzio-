@@ -17,7 +17,7 @@ import {
 } from "@/lib/storage";
 import {
   createSalonInvoice, calcTotals,
-  localDateKey,
+  localDateKey, getSalonInvoices, saveSalonInvoices,
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
@@ -209,6 +209,8 @@ export default function POSPage() {
   const [completed,        setCompleted]        = useState(false);
   const [lastInvoice,      setLastInvoice]      = useState<SalonInvoice | null>(null);
   const [waStatus,         setWaStatus]         = useState<"idle" | "queued" | "sending" | "sent" | "failed">("idle");
+  const [syncFailed,       setSyncFailed]       = useState(false);
+  const [retryingSync,     setRetryingSync]     = useState(false);
 
   // ── Derived catalog ───────────────────────────────────────────────────────
   const catalogItems = useMemo<CatalogItem[]>(() => {
@@ -371,6 +373,7 @@ export default function POSPage() {
     setCart([]); setDiscount(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod(null);
     setSelectedClient(null); setClientQ(""); setSelectedStaffId("");
     setCompleted(false); setLastInvoice(null); setWaStatus("idle"); setIsCredit(false);
+    setSyncFailed(false);
   }
 
   // ── Complete sale ─────────────────────────────────────────────────────────
@@ -383,7 +386,7 @@ export default function POSPage() {
     try {
       const today = localDateKey();
       const staffMember = staff.find(s => s.id === selectedStaffId);
-      const invoice = createSalonInvoice({
+      const { invoice, dbSaved } = await createSalonInvoice({
         appointmentId: checkoutAppointmentId || undefined,
         clientId:      selectedClient?.id || undefined,
         clientName:    selectedClient?.name || "Walk-in Customer",
@@ -397,6 +400,10 @@ export default function POSPage() {
         notes: saleNotes.trim(),
         source: "pos",
       });
+      // The sale is already final (payment collected, receipt about to send) so a
+      // failed sync doesn't block checkout — but it must not go unnoticed the way
+      // it did before, silently leaving the invoice missing on every other device.
+      setSyncFailed(!dbSaved);
 
       // Checking out from a booked appointment doesn't otherwise touch the
       // appointment record — mark it completed so it's reflected in the
@@ -455,6 +462,16 @@ export default function POSPage() {
       setCompleted(true);
     } finally {
       setCompleting(false);
+    }
+  }
+
+  async function retrySync() {
+    setRetryingSync(true);
+    try {
+      const dbSaved = await saveSalonInvoices(getSalonInvoices());
+      setSyncFailed(!dbSaved);
+    } finally {
+      setRetryingSync(false);
     }
   }
 
@@ -583,9 +600,16 @@ export default function POSPage() {
               {waStatus === "queued" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#7C3AED", fontWeight: 700 }}><Clock size={11} /> WhatsApp queued</span>}
               {waStatus === "sending" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#7C3AED", fontWeight: 700 }}><RefreshCw size={11} /> Queueing PDF…</span>}
               {waStatus === "failed" && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#d97706", fontWeight: 700 }}><AlertCircle size={11} /> WhatsApp failed</span>}
+              {syncFailed && <span style={{ display: "flex", alignItems: "center", gap: 3, color: "#dc2626", fontWeight: 700 }}><AlertCircle size={11} /> Not synced to server — saved on this device only</span>}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
+            {syncFailed && (
+              <button type="button" onClick={retrySync} disabled={retryingSync}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #dc2626", background: "#fff", color: "#dc2626", fontSize: 12, fontWeight: 700, cursor: retryingSync ? "default" : "pointer", opacity: retryingSync ? 0.6 : 1 }}>
+                <RefreshCw size={14} /> {retryingSync ? "Retrying…" : "Retry Sync"}
+              </button>
+            )}
             <button type="button" onClick={() => setPrintInvoice(lastInvoice)}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: `1.5px solid ${lastInvoice.status === "unpaid" ? "#d97706" : "#059669"}`, background: "#fff", color: lastInvoice.status === "unpaid" ? "#d97706" : "#059669", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               <Printer size={14} /> Print

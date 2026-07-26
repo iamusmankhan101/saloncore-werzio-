@@ -81,11 +81,18 @@ export function getSalonInvoices(): SalonInvoice[] {
   }
 }
 
-export function saveSalonInvoices(list: SalonInvoice[]): void {
+/**
+ * Saves locally (always) and returns the Turso write's outcome so a caller
+ * that needs to know whether the save actually reached the shared database
+ * (POS checkout) can await it. Callers that don't care can call this without
+ * awaiting — same fire-and-forget behavior as before.
+ */
+export function saveSalonInvoices(list: SalonInvoice[]): Promise<boolean> {
   if (typeof window !== "undefined") {
     localStorage.setItem(locationUserKey(BASE_KEY), JSON.stringify(list));
-    saveToDB("salon_invoices", list);
+    return saveToDB("salon_invoices", list);
   }
+  return Promise.resolve(false);
 }
 
 function nextInvoiceNumber(): string {
@@ -99,9 +106,17 @@ function nextInvoiceNumber(): string {
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
-export function createSalonInvoice(
+/**
+ * Creates the invoice and awaits the Turso write, reporting whether it
+ * actually landed — checkout can then warn the cashier on failure instead of
+ * silently leaving the sale invisible on every device but the one that rang
+ * it up (the previous fire-and-forget save could fail with nothing but a
+ * console warning, which is how invoices went missing from the shared DB
+ * while their WhatsApp receipts still sent).
+ */
+export async function createSalonInvoice(
   draft: Omit<SalonInvoice, "id" | "number" | "createdAt">
-): SalonInvoice {
+): Promise<{ invoice: SalonInvoice; dbSaved: boolean }> {
   const invoice: SalonInvoice = {
     ...draft,
     id: crypto.randomUUID(),
@@ -109,8 +124,8 @@ export function createSalonInvoice(
     createdAt: new Date().toISOString(),
   };
   const list = [invoice, ...getSalonInvoices()];
-  saveSalonInvoices(list);
-  return invoice;
+  const dbSaved = await saveSalonInvoices(list);
+  return { invoice, dbSaved };
 }
 
 export function updateSalonInvoice(updated: SalonInvoice): void {

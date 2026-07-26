@@ -115,18 +115,22 @@ export async function syncFromDB(): Promise<void> {
 }
 
 /**
- * After every save: push the updated list to Turso under the user-scoped key.
- * Fire-and-forget — never blocks the UI. Retries up to 3 times with exponential back-off.
+ * Push the updated list to Turso under the user-scoped key. Retries up to 3
+ * times with exponential back-off and resolves true/false with the outcome —
+ * most callers don't await it (fire-and-forget, doesn't block the UI), but a
+ * caller that needs to know whether the write actually landed (e.g. POS
+ * checkout, so it can warn the cashier instead of silently losing the sale
+ * from every device but the one that rang it up) can await the result.
  */
-export function saveToDB(entity: Entity, data: unknown[]): void {
+export function saveToDB(entity: Entity, data: unknown[]): Promise<boolean> {
   const user = getCurrentUser();
-  if (!user) return;
+  if (!user) return Promise.resolve(false);
   const dataOwnerId = user.salonOwnerId || user.id;
   const locationId = getActiveLocationFilter();
 
   const body = JSON.stringify({ entity, data, userId: dataOwnerId, locationId });
 
-  async function attempt(tries: number): Promise<void> {
+  async function attempt(tries: number): Promise<boolean> {
     try {
       const r = await fetch("/api/db", {
         method: "POST",
@@ -134,10 +138,11 @@ export function saveToDB(entity: Entity, data: unknown[]): void {
         body,
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return true;
     } catch (err) {
       if (tries <= 1) {
         console.warn(`[saveToDB] ${entity} failed after all retries:`, err);
-        return;
+        return false;
       }
       const delay = 2 ** (3 - tries) * 1000; // 1s, 2s, 4s
       await new Promise(res => setTimeout(res, delay));
@@ -145,7 +150,7 @@ export function saveToDB(entity: Entity, data: unknown[]): void {
     }
   }
 
-  attempt(3);
+  return attempt(3);
 }
 
 /**
