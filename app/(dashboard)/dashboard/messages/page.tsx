@@ -10,6 +10,7 @@ import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { getStoredClients } from "@/lib/storage";
+import { getActiveSection } from "@/lib/sections";
 import { getWaLogs, WaLogEntry, WaMsgType, checkBirthdayReminders, getPendingWhatsAppQueue, PendingQueueItem } from "@/lib/whatsapp-scheduler";
 import { isFakePlaceholderPhone } from "@/lib/whatsapp-provider";
 import { getCurrentUser } from "@/lib/auth";
@@ -417,7 +418,7 @@ export default function MessagesPage() {
             if (data.ok && Array.isArray(data.logs) && data.logs.length > 0) {
               setLogs(data.logs.filter(isVisibleWaLog));
               setLoadingLogs(false);
-              setClients(getStoredClients());
+              setClients(getStoredClients().filter(c => getActiveSection() === "all" || c.section === getActiveSection()));
               return;
             }
           }
@@ -425,7 +426,7 @@ export default function MessagesPage() {
       }
       // Fallback: localStorage
       setLogs(getWaLogs().filter(isVisibleWaLog));
-      setClients(getStoredClients());
+      setClients(getStoredClients().filter(c => getActiveSection() === "all" || c.section === getActiveSection()));
       setLoadingLogs(false);
     }
     load();

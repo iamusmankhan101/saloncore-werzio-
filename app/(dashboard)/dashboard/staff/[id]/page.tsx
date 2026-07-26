@@ -13,6 +13,7 @@ import { fmtCurrency as fmt } from "@/lib/format";
 import { Check, X, Plus, FileDown } from "lucide-react";
 import { exportStaffPdf } from "@/lib/export-pdf";
 import { settingsStore } from "@/lib/settings-store";
+import { getActiveSection } from "@/lib/sections";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   owner:            { color: "#7C3AED", bg: "#EDE9FE" },
@@ -281,10 +282,14 @@ export default function StaffProfilePage() {
   useEffect(() => {
     const staffList = getStoredStaff();
     const found = staffList.find((s) => s.id === id);
-    if (!found) { setNotFound(true); return; }
+    // Strict-locked, same as the Staff list — a staff member belonging to
+    // another section is treated as not found rather than leaking through a
+    // direct link, and their appointments/services list is scoped too.
+    const activeSection = getActiveSection();
+    if (!found || (activeSection !== "all" && found.section !== activeSection)) { setNotFound(true); return; }
     setStaff(found);
-    setServices(getStoredServices());
-    setAppointments(getStoredAppointments());
+    setServices(getStoredServices().filter(sv => activeSection === "all" || sv.section === activeSection));
+    setAppointments(getStoredAppointments().filter(a => activeSection === "all" || a.section === activeSection));
   }, [id]);
 
   const handleSave = (updated: Staff, assignedServiceIds: string[]) => {

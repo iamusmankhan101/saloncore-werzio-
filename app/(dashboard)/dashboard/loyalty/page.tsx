@@ -10,6 +10,7 @@ import {
   type LoyaltySettings,
 } from "@/lib/loyalty";
 import { settingsStore, saveSettings } from "@/lib/settings-store";
+import { getActiveSection } from "@/lib/sections";
 import { getCurrentUser } from "@/lib/auth";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
@@ -676,6 +677,9 @@ export default function LoyaltyPage() {
   const [qrCopied, setQrCopied]       = useState(false);
 
   const settings = settingsStore.loyalty as LoyaltySettings;
+  // Strict-locked to the active dashboard section — the leaderboard/points
+  // system is built from clients, same rule as the Clients page.
+  const activeSection = getActiveSection();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -702,8 +706,10 @@ export default function LoyaltyPage() {
         return { ...c, loyaltyPointsEarned: newEarned, loyaltyPoints: Math.max(0, newEarned - redeemed) };
       });
 
+      // The point-correction save always writes the full, unfiltered list —
+      // only the displayed leaderboard is scoped to the active section.
       if (changed) saveClients(corrected);
-      setClients(corrected);
+      setClients(activeSection === "all" ? corrected : corrected.filter((c) => c.section === activeSection));
       setAllAppts(storedAppts);
       setAllInvoices(storedInvoices);
 
@@ -776,7 +782,7 @@ export default function LoyaltyPage() {
     <div className="dash-page dashboard-polish desktop-only" style={{ minHeight: "100vh", background: "#ffffff", padding: "28px 32px 48px", display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <PageTitle icon={<Gift size={24} />} title="Loyalty Program" subtitle="Reward your clients, grow retention" />
+        <PageTitle icon={<Gift size={24} />} title="Loyalty Program" subtitle={activeSection === "all" ? "Reward your clients, grow retention" : `Restricted to ${activeSection} only`} />
         <div style={{ display: "flex", gap: 12 }}>
           <button onClick={() => setShowSettings(true)} style={{
             display: "flex", alignItems: "center", gap: 6, padding: "10px 18px",

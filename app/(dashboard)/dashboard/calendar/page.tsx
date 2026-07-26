@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, X, Clock, User, Scissors, Tag, CalendarDays 
 import { fmtCurrency as fmt } from "@/lib/format";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
+import { getActiveSection } from "@/lib/sections";
 
 const HOURS  = Array.from({ length: 24 }, (_, i) => i);
 const SLOT_H = 64;
@@ -220,15 +221,19 @@ export default function CalendarPage() {
   const [nowMin, setNowMin]           = useState(0);
   const [mobileDay, setMobileDay]     = useState(""); // YYYY-MM-DD — single-day agenda view on mobile, navigated independently of the desktop week grid
   const scrollRef                     = useRef<HTMLDivElement>(null);
+  const activeSection = getActiveSection();
 
   useEffect(() => {
     const todayStr = new Date().toLocaleDateString("en-CA");
     setToday(todayStr);
     setAnchor(parseDate(todayStr));
     setMobileDay(todayStr);
-    setAppointments(getStoredAppointments());
-    setStaffList(getStoredStaff());
-    setServices(getStoredServices());
+    // Strict-locked to the active dashboard section, same rule as
+    // Appointments/Staff/Services — this is effectively a second view of the
+    // same appointment data.
+    setAppointments(getStoredAppointments().filter(a => activeSection === "all" || a.section === activeSection));
+    setStaffList(getStoredStaff().filter(s => activeSection === "all" || s.section === activeSection));
+    setServices(getStoredServices().filter(sv => activeSection === "all" || sv.section === activeSection));
 
     const tick = () => {
       const n = new Date();
@@ -284,7 +289,7 @@ export default function CalendarPage() {
 
       {/* ── Header ── */}
       <div className="dashboard-topbar page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <PageTitle icon={<CalendarDays size={24} />} title="Calendar" subtitle={`${weekStart} – ${weekEnd}`} />
+        <PageTitle icon={<CalendarDays size={24} />} title="Calendar" subtitle={`${weekStart} – ${weekEnd}${activeSection === "all" ? "" : ` · ${activeSection} only`}`} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button

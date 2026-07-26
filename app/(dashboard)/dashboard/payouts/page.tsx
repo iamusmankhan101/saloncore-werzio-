@@ -12,6 +12,7 @@ import {
 import PageTitle from "@/components/page-title";
 import PayoutSlipPrint from "@/components/payout-slip-print";
 import { settingsStore } from "@/lib/settings-store";
+import { getActiveSection } from "@/lib/sections";
 
 const PAY_METHOD_OPTIONS = ["cash", "bank", "jazzcash", "easypaisa", "card", "other"];
 
@@ -297,17 +298,34 @@ export default function PayoutsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Payout | null>(null);
   const [viewingSlipFor, setViewingSlipFor] = useState<Payout | null>(null);
   const [historyFilter, setHistoryFilter] = useState<"all" | PayoutStatus>("all");
+  // Strict-locked to the active dashboard section, same rule as Staff —
+  // Payout records have no section of their own, so relevance is derived
+  // from which section their staff member currently belongs to.
+  const activeSection = getActiveSection();
 
   useEffect(() => {
-    setStaffList(getStoredStaff());
-    setAppointments(getStoredAppointments());
-    setServices(getStoredServices());
-    setPayouts(getPayouts());
-  }, []);
+    const allStaff = getStoredStaff();
+    const scopedStaffIds = new Set(
+      allStaff.filter(s => activeSection === "all" || s.section === activeSection).map(s => s.id)
+    );
+    setStaffList(allStaff.filter(s => scopedStaffIds.has(s.id)));
+    setAppointments(getStoredAppointments().filter(a => activeSection === "all" || a.section === activeSection));
+    setServices(getStoredServices().filter(sv => activeSection === "all" || sv.section === activeSection));
+    setPayouts(getPayouts().filter(p => scopedStaffIds.has(p.staffId)));
+  }, [activeSection]);
 
-  const persistPayouts = (list: Payout[]) => {
-    setPayouts(list);
-    savePayouts(list);
+  const persistPayouts = (updatedScoped: Payout[]) => {
+    setPayouts(updatedScoped);
+    // `payouts` state only ever holds the active section's subset, so saving
+    // it directly would silently wipe out every other section's payout
+    // history. Merge the updated scoped list back against a fresh read of
+    // everything else instead of persisting the subset on its own.
+    const allStaff = getStoredStaff();
+    const scopedStaffIds = new Set(
+      allStaff.filter(s => activeSection === "all" || s.section === activeSection).map(s => s.id)
+    );
+    const otherSectionPayouts = getPayouts().filter(p => !scopedStaffIds.has(p.staffId));
+    savePayouts([...updatedScoped, ...otherSectionPayouts]);
   };
 
   const handleAddPayout = (data: Omit<Payout, "id" | "createdAt">) => {
@@ -381,7 +399,7 @@ export default function PayoutsPage() {
       <PageTitle
         icon={<Wallet size={24} />}
         title="Payouts"
-        subtitle={<>{activeStaff.length} staff on payroll · <span style={{ color: "var(--accent)", fontWeight: 700 }}>{stats.pendingCount} pending payouts</span></>}
+        subtitle={<>{activeStaff.length} staff on payroll · <span style={{ color: "var(--accent)", fontWeight: 700 }}>{stats.pendingCount} pending payouts</span>{activeSection !== "all" && <> · {activeSection} only</>}</>}
       />
 
       {/* Stats */}

@@ -12,7 +12,7 @@ import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySett
 import { settingsStore } from "@/lib/settings-store";
 import { exportClientPdf } from "@/lib/export-pdf";
 import { locationUserKey } from "@/lib/locations";
-import { getSectionOptions } from "@/lib/sections";
+import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import {
   ArrowLeft, Phone, Mail, Calendar, Heart, Star, Camera, X,
@@ -97,7 +97,10 @@ export default function ClientProfilePage() {
     const allAppts   = getStoredAppointments();
     const allInvoices = getSalonInvoices();
     const found = allClients.find((c) => c.id === clientId);
-    if (found) {
+    // Strict-locked, same as the Clients list — a client belonging to another
+    // section is treated as not found rather than leaking through a direct link.
+    const activeSection = getActiveSection();
+    if (found && (activeSection === "all" || found.section === activeSection)) {
       // Recalculate loyalty points from source data (same logic as loyalty page)
       // so this page always agrees with the loyalty leaderboard.
       const ls = settingsStore.loyalty as LoyaltySettings;

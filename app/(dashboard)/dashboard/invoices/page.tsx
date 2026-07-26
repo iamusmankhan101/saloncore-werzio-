@@ -17,6 +17,7 @@ import SalonInvoicePrint from "@/components/salon-invoice-print";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import { fmtCurrency as fmt } from "@/lib/format";
+import { getActiveSection } from "@/lib/sections";
 
 function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-PK", { month: "short", day: "numeric", year: "numeric" });
@@ -81,11 +82,17 @@ export default function InvoicesPage() {
   const [editDateValue, setEditDateValue] = useState("");
 
   const salon = settingsStore.salon;
+  // Strict-locked to the active dashboard section, same rule as Revenue/Cash
+  // Flow/POS — "All Sections" sees everything, a specific section sees only
+  // its own invoices.
+  const activeSection = getActiveSection();
 
   function reload() {
     // Only show POS-originated invoices (source === "pos", or legacy ones with no source)
     const all = getSalonInvoices();
-    const pos = all.filter((inv) => !inv.source || inv.source === "pos");
+    const pos = all
+      .filter((inv) => !inv.source || inv.source === "pos")
+      .filter((inv) => activeSection === "all" || inv.section === activeSection);
     setInvoices(pos);
   }
 
@@ -382,7 +389,7 @@ export default function InvoicesPage() {
         <PageTitle
           icon={<ShoppingCart size={24} />}
           title="POS Invoices"
-          subtitle="Receipts from completed POS transactions"
+          subtitle={activeSection === "all" ? "Receipts from completed POS transactions" : `Restricted to ${activeSection} only`}
         />
 
         {/* Stats */}
