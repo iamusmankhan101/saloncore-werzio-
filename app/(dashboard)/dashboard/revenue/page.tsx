@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { getStoredAppointments } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
 import { getExpenses, type Expense, type ExpenseCategory } from "@/lib/expenses";
+import { getManualCashIncome, type ManualCashIncome } from "@/lib/cash-flow-income";
 import type { Appointment } from "@/lib/types";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
@@ -117,6 +118,7 @@ export default function RevenuePage() {
   const [period, setPeriod]             = useState<Period>("today");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [posInvoices, setPosInvoices]   = useState<ReturnType<typeof getSalonInvoices>>([]);
+  const [manualIncome, setManualIncome] = useState<ManualCashIncome[]>([]);
   const [expenses, setExpenses]         = useState<Expense[]>([]);
   const [today, setToday]               = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
@@ -138,6 +140,11 @@ export default function RevenuePage() {
       getSalonInvoices()
         .filter(inv => !inv.appointmentId && inv.status === "paid" && (!inv.source || inv.source === "pos"))
     );
+    // Cash Flow's "Import" feature records income (e.g. bulk-uploaded past
+    // sales) as ManualCashIncome entries rather than salon invoices — Cash
+    // Flow already counts these, so Revenue needs the same source or it
+    // undercounts every imported entry.
+    setManualIncome(getManualCashIncome());
     setExpenses(getExpenses());
   }, []);
 
@@ -184,16 +191,26 @@ export default function RevenuePage() {
     posInvoices.filter(inv => inv.date >= prevStart && inv.date <= prevEnd),
     [posInvoices, prevStart, prevEnd]);
 
+  // Imported/manual cash income in current / previous range (see Cash Flow's
+  // identical manualIncome filtering)
+  const currentManual = useMemo(() =>
+    manualIncome.filter(entry => entry.date >= rangeStart && entry.date <= filterEnd),
+    [manualIncome, rangeStart, filterEnd]);
+
+  const prevManual = useMemo(() =>
+    manualIncome.filter(entry => entry.date >= prevStart && entry.date <= prevEnd),
+    [manualIncome, prevStart, prevEnd]);
+
   const totalRevenue = useMemo(() =>
-    currentAppts.reduce((s, a) => s + a.totalAmount, 0) + currentPos.reduce((s, inv) => s + inv.total, 0),
-    [currentAppts, currentPos]);
+    currentAppts.reduce((s, a) => s + a.totalAmount, 0) + currentPos.reduce((s, inv) => s + inv.total, 0) + currentManual.reduce((s, e) => s + e.amount, 0),
+    [currentAppts, currentPos, currentManual]);
 
   const prevRevenue = useMemo(() =>
-    prevAppts.reduce((s, a) => s + a.totalAmount, 0) + prevPos.reduce((s, inv) => s + inv.total, 0),
-    [prevAppts, prevPos]);
+    prevAppts.reduce((s, a) => s + a.totalAmount, 0) + prevPos.reduce((s, inv) => s + inv.total, 0) + prevManual.reduce((s, e) => s + e.amount, 0),
+    [prevAppts, prevPos, prevManual]);
 
-  const totalCount = currentAppts.length + currentPos.length;
-  const prevCount  = prevAppts.length  + prevPos.length;
+  const totalCount = currentAppts.length + currentPos.length + currentManual.length;
+  const prevCount  = prevAppts.length  + prevPos.length  + prevManual.length;
   const avgTicket  = totalCount ? totalRevenue / totalCount : 0;
   const prevAvg    = prevCount  ? prevRevenue  / prevCount  : 0;
 
@@ -218,6 +235,7 @@ export default function RevenuePage() {
         if (a.status === "completed") { const k = a.date.substring(0, 7); if (k in monthMap) monthMap[k] += a.totalAmount; }
       });
       posInvoices.forEach(inv => { const k = inv.date.substring(0, 7); if (k in monthMap) monthMap[k] += inv.total; });
+      manualIncome.forEach(entry => { const k = entry.date.substring(0, 7); if (k in monthMap) monthMap[k] += entry.amount; });
       const keys = Object.keys(monthMap).sort();
       return keys.map((key, idx) => {
         const d = new Date(key + "-01T12:00:00");
@@ -235,6 +253,7 @@ export default function RevenuePage() {
       days.forEach(d => { byDay[d] = 0; });
       appointments.forEach(a => { if (a.status === "completed" && a.date in byDay) byDay[a.date] += a.totalAmount; });
       posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += inv.total; });
+      manualIncome.forEach(entry => { if (entry.date in byDay) byDay[entry.date] += entry.amount; });
       return days.map((date, idx) => {
         const d = new Date(date + "T12:00:00");
         const label = days.length > 14 ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
@@ -247,12 +266,13 @@ export default function RevenuePage() {
     days.forEach(d => { byDay[d] = 0; });
     appointments.forEach(a => { if (a.status === "completed" && a.date in byDay) byDay[a.date] += a.totalAmount; });
     posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += inv.total; });
+    manualIncome.forEach(entry => { if (entry.date in byDay) byDay[entry.date] += entry.amount; });
     return days.map((date, idx) => {
       const d = new Date(date + "T12:00:00");
       const label = period === "30d" ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
       return { label, value: byDay[date], isCurrentPeriod: idx === days.length - 1, monthKey: date };
     });
-  }, [appointments, posInvoices, period, today, rangeStart, customStart, customEnd]);
+  }, [appointments, posInvoices, manualIncome, period, today, rangeStart, customStart, customEnd]);
 
   // ── Drill-down: daily rows for the selected month ─────────────────────────
   const drillRows = useMemo(() => {
@@ -264,15 +284,16 @@ export default function RevenuePage() {
       const date = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const appts = appointments.filter(a => a.status === "completed" && a.date === date);
       const pos   = posInvoices.filter(inv => inv.date === date);
+      const manual = manualIncome.filter(entry => entry.date === date);
       const dow   = new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" });
       rows.push({
         date, dow,
-        count:   appts.length + pos.length,
-        revenue: appts.reduce((s, a) => s + a.totalAmount, 0) + pos.reduce((s, inv) => s + inv.total, 0),
+        count:   appts.length + pos.length + manual.length,
+        revenue: appts.reduce((s, a) => s + a.totalAmount, 0) + pos.reduce((s, inv) => s + inv.total, 0) + manual.reduce((s, e) => s + e.amount, 0),
       });
     }
     return rows.reverse();
-  }, [selectedMonth, appointments, posInvoices]);
+  }, [selectedMonth, appointments, posInvoices, manualIncome]);
 
   // Drill-down totals
   const drillTotal   = drillRows ? drillRows.reduce((s, r) => s + r.revenue, 0) : 0;
@@ -306,12 +327,15 @@ export default function RevenuePage() {
     currentPos.forEach(inv => {
       if (inv.date in byDay) { byDay[inv.date].count++; byDay[inv.date].revenue += inv.total; }
     });
+    currentManual.forEach(entry => {
+      if (entry.date in byDay) { byDay[entry.date].count++; byDay[entry.date].revenue += entry.amount; }
+    });
     return days.map(date => ({
       date,
       dow: new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" }),
       ...byDay[date],
     })).reverse();
-  }, [currentAppts, currentPos, period, today, customStart, customEnd]);
+  }, [currentAppts, currentPos, currentManual, period, today, customStart, customEnd]);
 
   const methodBreakdown = useMemo(() => {
     const invoices = getSalonInvoices().filter((inv) => {
@@ -348,8 +372,14 @@ export default function RevenuePage() {
       .sort((a, b) => `${a.date}T${a.createdAt}`.localeCompare(`${b.date}T${b.createdAt}`)),
     [posInvoices, reportStart, reportEnd]);
 
-  const reportRevenue = reportAppts.reduce((s, a) => s + a.totalAmount, 0) + reportPos.reduce((s, inv) => s + inv.total, 0);
-  const reportCount   = reportAppts.length + reportPos.length;
+  const reportManual = useMemo(() =>
+    manualIncome
+      .filter(entry => entry.date >= reportStart && entry.date <= reportEnd)
+      .sort((a, b) => `${a.date}T${a.createdAt}`.localeCompare(`${b.date}T${b.createdAt}`)),
+    [manualIncome, reportStart, reportEnd]);
+
+  const reportRevenue = reportAppts.reduce((s, a) => s + a.totalAmount, 0) + reportPos.reduce((s, inv) => s + inv.total, 0) + reportManual.reduce((s, e) => s + e.amount, 0);
+  const reportCount   = reportAppts.length + reportPos.length + reportManual.length;
   const reportAvg     = reportCount ? reportRevenue / reportCount : 0;
 
   const reportMethodBreakdown = useMemo(() => {
@@ -422,8 +452,12 @@ export default function RevenuePage() {
       const h = new Date(inv.createdAt).getHours();
       if (h >= 0 && h < 24) byHour[h] += inv.total;
     });
+    currentManual.forEach(entry => {
+      const h = new Date(entry.createdAt).getHours();
+      if (h >= 0 && h < 24) byHour[h] += entry.amount;
+    });
     return byHour.map((value, hour) => ({ hour, label: hourLabel(hour), value }));
-  }, [period, currentAppts, currentPos]);
+  }, [period, currentAppts, currentPos, currentManual]);
 
   const maxHourly = Math.max(...hourlyChartData.map(d => d.value), 1);
   const hourlyYLabels = useMemo(() => computeYLabels(maxHourly), [maxHourly]);
@@ -480,6 +514,10 @@ export default function RevenuePage() {
         const key = inv.date.substring(0, 7);
         if (key in monthlyMap) { monthlyMap[key].count++; monthlyMap[key].revenue += inv.total; }
       });
+      currentManual.forEach(entry => {
+        const key = entry.date.substring(0, 7);
+        if (key in monthlyMap) { monthlyMap[key].count++; monthlyMap[key].revenue += entry.amount; }
+      });
       tableRows = Object.keys(monthlyMap).sort().reverse().map(key => ({
         date: key,
         dow: new Date(key + "-01T12:00:00").toLocaleDateString("en-PK", { month: "long", year: "numeric" }),
@@ -496,6 +534,9 @@ export default function RevenuePage() {
       });
       currentPos.forEach(inv => {
         if (inv.date in byDay) { byDay[inv.date].count++; byDay[inv.date].revenue += inv.total; }
+      });
+      currentManual.forEach(entry => {
+        if (entry.date in byDay) { byDay[entry.date].count++; byDay[entry.date].revenue += entry.amount; }
       });
       tableRows = days.map(date => ({
         date,
@@ -875,7 +916,7 @@ export default function RevenuePage() {
       {tab === "overview" && (
       <>
       {/* Empty state banner */}
-      {appointments.filter(a => a.status === "completed").length === 0 && posInvoices.length === 0 && (
+      {appointments.filter(a => a.status === "completed").length === 0 && posInvoices.length === 0 && manualIncome.length === 0 && (
         <div style={{ background: "#f8f9ff", border: "1px solid #e0e0f8", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "#6b6b8a", display: "flex", alignItems: "center", gap: 10 }}>
           <TrendingUp size={16} color="#a0a0c8" />
           No completed appointments yet — revenue figures will appear here once you complete your first appointment.
@@ -949,7 +990,7 @@ export default function RevenuePage() {
             </div>
 
             {/* Appointment rows */}
-            {reportAppts.length === 0 && reportPos.length === 0 ? (
+            {reportAppts.length === 0 && reportPos.length === 0 && reportManual.length === 0 ? (
               <div style={{ padding: "32px 24px", textAlign: "center", fontSize: 13, color: "#c0c0d0" }}>
                 No transactions found for {reportHasMultipleDays ? `${reportStart} to ${reportEnd}` : reportStart}
               </div>
@@ -992,6 +1033,22 @@ export default function RevenuePage() {
                       </span>
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(inv.total)}</div>
+                  </div>
+                ))}
+
+                {reportManual.map((entry) => (
+                  <div key={entry.id} style={{ display: "grid", gridTemplateColumns: "90px 1.4fr 1.4fr 1fr 1fr 110px", padding: "11px 24px", borderBottom: "1px solid #f8f8fc", alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b6b8a" }}>
+                      <Clock size={12} color="#c0c0d0" />
+                      {reportHasMultipleDays ? fmtShortDate(entry.date) : "—"}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{entry.category || "Imported Income"}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{entry.description || "—"}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>—</div>
+                    <div>
+                      <span style={{ fontSize: 11, background: "#F5F3FF", color: "#7C3AED", padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Imported</span>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>{fmt(entry.amount)}</div>
                   </div>
                 ))}
 
