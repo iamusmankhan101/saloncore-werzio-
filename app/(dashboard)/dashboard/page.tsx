@@ -116,16 +116,19 @@ export default function DashboardPage() {
       // Appointment-linked invoices are excluded because the completed
       // appointment already carries the same revenue and would otherwise be
       // counted twice.
-      setPosInvoices(getSalonInvoices().filter(inv => !inv.appointmentId && inv.status === "paid"));
+      setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos")));
     });
     return () => { cancelled = true; };
   }, []);
 
+  const paidPosAppointmentIds = useMemo(() =>
+    new Set(posInvoices.map((invoice) => invoice.appointmentId).filter(Boolean)),
+    [posInvoices]);
   const todayAppts = appointments.filter((a) => a.date === today);
   const revenueLast7Days = useMemo(() => {
     const totals = new Map<string, number>();
     appointments.forEach((appointment) => {
-      if (appointment.status === "completed") {
+      if (appointment.status === "completed" && !paidPosAppointmentIds.has(appointment.id)) {
         totals.set(appointment.date, (totals.get(appointment.date) ?? 0) + appointment.totalAmount);
       }
     });
@@ -143,14 +146,14 @@ export default function DashboardPage() {
       const dateKey = date.toLocaleDateString("en-CA");
       return { date: dateKey, total: totals.get(dateKey) ?? 0 };
     });
-  }, [appointments, posInvoices, today]);
+  }, [appointments, paidPosAppointmentIds, posInvoices, today]);
 
   const maxRevenue = Math.max(...revenueLast7Days.map((day) => day.total), 0);
   const axisMax = maxRevenue > 0 ? Math.ceil((maxRevenue * 1.2) / 1000) * 1000 : 60000;
   const yAxisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0]
     .map((value) => value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(Math.round(value)));
   const topClients = [...clients].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
-  const todayCompletedAppts = todayAppts.filter((appointment) => appointment.status === "completed");
+  const todayCompletedAppts = todayAppts.filter((appointment) => appointment.status === "completed" && !paidPosAppointmentIds.has(appointment.id));
   const todayPosInvoices = posInvoices.filter((invoice) => (invoice.paidDate || invoice.date) === today);
   const todayTotal = todayCompletedAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPosInvoices.reduce((s, invoice) => s + invoice.total, 0);
   const todayTransactionCount = todayCompletedAppts.length + todayPosInvoices.length;

@@ -134,15 +134,12 @@ export default function RevenuePage() {
       if (cancelled) return;
       setToday(toDateStr(new Date()));
       setAppointments(getStoredAppointments());
-      // Only paid invoices count as revenue — an unpaid/credit invoice isn't
-      // money in hand yet. Appointment-linked invoices stay excluded because
-      // their completed appointment is already included and counting both would
-      // duplicate revenue. Source filter and date field (raw `.date`, the issue
-      // date) mirror the Cash Flow page's identical filter exactly, so the two
-      // reports reconcile for the same range instead of silently diverging.
+      // Match Cash Flow: count paid POS invoices as the source of truth, then
+      // exclude any completed appointment that has already been paid through POS
+      // so appointment-linked sales show up without double-counting revenue.
       setPosInvoices(
         getSalonInvoices()
-          .filter(inv => !inv.appointmentId && inv.status === "paid" && (!inv.source || inv.source === "pos"))
+          .filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos"))
       );
       // Cash Flow's "Import" feature records income (e.g. bulk-uploaded past
       // sales) as ManualCashIncome entries rather than salon invoices — Cash
@@ -180,13 +177,17 @@ export default function RevenuePage() {
     return toDateStr(d);
   }, [period, today]);
 
+  const paidPosAppointmentIds = useMemo(() =>
+    new Set(posInvoices.map(inv => inv.appointmentId).filter(Boolean)),
+    [posInvoices]);
+
   const currentAppts = useMemo(() =>
-    appointments.filter(a => a.status === "completed" && a.date >= rangeStart && a.date <= filterEnd),
-    [appointments, rangeStart, filterEnd]);
+    appointments.filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date >= rangeStart && a.date <= filterEnd),
+    [appointments, paidPosAppointmentIds, rangeStart, filterEnd]);
 
   const prevAppts = useMemo(() =>
-    appointments.filter(a => a.status === "completed" && a.date >= prevStart && a.date <= prevEnd),
-    [appointments, prevStart, prevEnd]);
+    appointments.filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date >= prevStart && a.date <= prevEnd),
+    [appointments, paidPosAppointmentIds, prevStart, prevEnd]);
 
   // POS invoices in current / previous range
   const currentPos = useMemo(() =>
@@ -238,7 +239,7 @@ export default function RevenuePage() {
         cur.setMonth(cur.getMonth() + 1); cur.setDate(1);
       }
       appointments.forEach(a => {
-        if (a.status === "completed") { const k = a.date.substring(0, 7); if (k in monthMap) monthMap[k] += a.totalAmount; }
+        if (a.status === "completed" && !paidPosAppointmentIds.has(a.id)) { const k = a.date.substring(0, 7); if (k in monthMap) monthMap[k] += a.totalAmount; }
       });
       posInvoices.forEach(inv => { const k = inv.date.substring(0, 7); if (k in monthMap) monthMap[k] += inv.total; });
       manualIncome.forEach(entry => { const k = entry.date.substring(0, 7); if (k in monthMap) monthMap[k] += entry.amount; });
@@ -257,7 +258,7 @@ export default function RevenuePage() {
       if (days.length > 62) return monthlyBars(customStart, customEnd);
       const byDay: Record<string, number> = {};
       days.forEach(d => { byDay[d] = 0; });
-      appointments.forEach(a => { if (a.status === "completed" && a.date in byDay) byDay[a.date] += a.totalAmount; });
+      appointments.forEach(a => { if (a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date in byDay) byDay[a.date] += a.totalAmount; });
       posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += inv.total; });
       manualIncome.forEach(entry => { if (entry.date in byDay) byDay[entry.date] += entry.amount; });
       return days.map((date, idx) => {
@@ -270,7 +271,7 @@ export default function RevenuePage() {
     const days = getDaysArray(cfg.days);
     const byDay: Record<string, number> = {};
     days.forEach(d => { byDay[d] = 0; });
-    appointments.forEach(a => { if (a.status === "completed" && a.date in byDay) byDay[a.date] += a.totalAmount; });
+    appointments.forEach(a => { if (a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date in byDay) byDay[a.date] += a.totalAmount; });
     posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += inv.total; });
     manualIncome.forEach(entry => { if (entry.date in byDay) byDay[entry.date] += entry.amount; });
     return days.map((date, idx) => {
@@ -278,7 +279,7 @@ export default function RevenuePage() {
       const label = period === "30d" ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
       return { label, value: byDay[date], isCurrentPeriod: idx === days.length - 1, monthKey: date };
     });
-  }, [appointments, posInvoices, manualIncome, period, today, rangeStart, customStart, customEnd]);
+  }, [appointments, paidPosAppointmentIds, posInvoices, manualIncome, period, today, rangeStart, customStart, customEnd]);
 
   // ── Drill-down: daily rows for the selected month ─────────────────────────
   const drillRows = useMemo(() => {
@@ -288,7 +289,7 @@ export default function RevenuePage() {
     const rows: { date: string; dow: string; count: number; revenue: number }[] = [];
     for (let day = 1; day <= daysInMonth; day++) {
       const date = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const appts = appointments.filter(a => a.status === "completed" && a.date === date);
+      const appts = appointments.filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date === date);
       const pos   = posInvoices.filter(inv => inv.date === date);
       const manual = manualIncome.filter(entry => entry.date === date);
       const dow   = new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" });
@@ -299,7 +300,7 @@ export default function RevenuePage() {
       });
     }
     return rows.reverse();
-  }, [selectedMonth, appointments, posInvoices, manualIncome]);
+  }, [selectedMonth, appointments, paidPosAppointmentIds, posInvoices, manualIncome]);
 
   // Drill-down totals
   const drillTotal   = drillRows ? drillRows.reduce((s, r) => s + r.revenue, 0) : 0;
@@ -368,9 +369,9 @@ export default function RevenuePage() {
   const reportHasMultipleDays = reportStart !== reportEnd;
   const reportAppts = useMemo(() =>
     appointments
-      .filter(a => a.status === "completed" && a.date >= reportStart && a.date <= reportEnd)
+      .filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date >= reportStart && a.date <= reportEnd)
       .sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`)),
-    [appointments, reportStart, reportEnd]);
+    [appointments, paidPosAppointmentIds, reportStart, reportEnd]);
 
   const reportPos = useMemo(() =>
     posInvoices

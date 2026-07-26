@@ -56,9 +56,13 @@ export default function PayoutSlipPrint({
   const initials = salonName.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
 
   const rows: { label: string; amount?: string }[] = [];
-  if (payout.payType === "commission") {
+  if (payout.payType === "commission" || payout.payType === "both") {
+    const commissionAmount = Math.round(payout.revenueGenerated * (payout.commissionRate ?? 0) / 100);
     rows.push({ label: `Revenue Generated (${fmtDate(payout.periodStart)} – ${fmtDate(payout.periodEnd)})`, amount: fmt(payout.revenueGenerated) });
-    rows.push({ label: `Commission (${payout.commissionRate ?? 0}%)`, amount: fmt(payout.baseAmount) });
+    rows.push({ label: `Commission (${payout.commissionRate ?? 0}%)`, amount: fmt(commissionAmount) });
+    if (payout.payType === "both") {
+      rows.push({ label: "Base Salary", amount: fmt(payout.baseAmount - commissionAmount) });
+    }
   } else {
     rows.push({ label: "Base Salary", amount: fmt(payout.baseAmount) });
   }
@@ -132,7 +136,7 @@ export default function PayoutSlipPrint({
                     <tbody>
                       {[
                         ["Pay Period:", `${fmtDate(payout.periodStart)} – ${fmtDate(payout.periodEnd)}`],
-                        ["Pay Type:", payout.payType === "commission" ? "Commission" : "Fixed Salary"],
+                        ["Pay Type:", payout.payType === "commission" ? "Commission" : payout.payType === "both" ? "Commission + Salary" : "Fixed Salary"],
                         ["Payment:", payout.paymentMethod ? (METHOD_LABELS[payout.paymentMethod] ?? payout.paymentMethod) : "—"],
                         ["Status:", isPaid ? "PAID" : "PENDING"],
                       ].map(([label, value]) => (
