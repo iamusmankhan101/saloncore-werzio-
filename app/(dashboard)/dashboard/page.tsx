@@ -11,6 +11,7 @@ import MobilePageHeader from "@/components/mobile-page-header";
 import { MoreHorizontal, TrendingUp, Calendar, Users, Award, Clock, ArrowUpRight, Tag, Star } from "lucide-react";
 import { fmtCurrency as fmt } from "@/lib/format";
 import { syncFromDB } from "@/lib/turso-sync";
+import { getActiveSection } from "@/lib/sections";
 
 function fmtTime(t: string) {
   const [hourValue, minuteValue] = t.split(":").map(Number);
@@ -125,6 +126,15 @@ export default function DashboardPage() {
     new Set(posInvoices.map((invoice) => invoice.appointmentId).filter(Boolean)),
     [posInvoices]);
   const todayAppts = appointments.filter((a) => a.date === today);
+  // Everything on this page is scoped to the active dashboard section EXCEPT
+  // the actual revenue figures (Today's Revenue, Average Ticket, Revenue
+  // Trend) — those stay computed from the unfiltered arrays below so the
+  // owner always sees the whole business's money regardless of which section
+  // dashboard is currently active.
+  const activeSection = getActiveSection();
+  const todayApptsScoped = activeSection === "all" ? todayAppts : todayAppts.filter((a) => a.section === activeSection);
+  const staffListScoped = activeSection === "all" ? staffList : staffList.filter((s) => s.section === activeSection);
+  const clientsScoped = activeSection === "all" ? clients : clients.filter((c) => c.section === activeSection);
   const revenueLast7Days = useMemo(() => {
     const totals = new Map<string, number>();
     appointments.forEach((appointment) => {
@@ -152,13 +162,16 @@ export default function DashboardPage() {
   const axisMax = maxRevenue > 0 ? Math.ceil((maxRevenue * 1.2) / 1000) * 1000 : 60000;
   const yAxisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0]
     .map((value) => value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(Math.round(value)));
-  const topClients = [...clients].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
+  const topClients = [...clientsScoped].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
+  // Revenue-family figures — intentionally computed from the unfiltered
+  // (combined) arrays, not the *Scoped ones above.
   const todayCompletedAppts = todayAppts.filter((appointment) => appointment.status === "completed" && !paidPosAppointmentIds.has(appointment.id));
   const todayPosInvoices = posInvoices.filter((invoice) => (invoice.paidDate || invoice.date) === today);
   const todayTotal = todayCompletedAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPosInvoices.reduce((s, invoice) => s + invoice.total, 0);
   const todayTransactionCount = todayCompletedAppts.length + todayPosInvoices.length;
   const avgTicket = todayTransactionCount > 0 ? todayTotal / todayTransactionCount : 0;
-  const activeStaffCount = staffList.length;
+  const activeStaffCount = staffListScoped.length;
+  const scopedTodayTotal = todayApptsScoped.reduce((s, a) => s + a.totalAmount, 0);
 
   return (
     <div className="dash-page dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
@@ -237,9 +250,9 @@ export default function DashboardPage() {
           </div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#a0a0b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Today's Bookings</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: "#1a1a2e", marginTop: 6 }}>{todayAppts.length}</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: "#1a1a2e", marginTop: 6 }}>{todayApptsScoped.length}</div>
             <div style={{ fontSize: 11, color: "#6b6b8a", fontWeight: 600, marginTop: 4 }}>
-              {todayAppts.filter(a => a.status === 'completed').length} completed today
+              {todayApptsScoped.filter(a => a.status === 'completed').length} completed today
             </div>
           </div>
           <div style={{
@@ -347,13 +360,13 @@ export default function DashboardPage() {
       <div className="dash-grid-3">
 
         {/* Card 1: Today Appointments */}
-        <Card title="Today's Appointments" subtitle={`${todayAppts.length} scheduled`} icon={Calendar}>
-          {todayAppts.length === 0 ? (
+        <Card title="Today's Appointments" subtitle={`${todayApptsScoped.length} scheduled`} icon={Calendar}>
+          {todayApptsScoped.length === 0 ? (
             <div style={{ padding: "40px 20px", textAlign: "center", color: "#a0a0b8", fontSize: 12 }}>
               No appointments scheduled for today.
             </div>
           ) : (
-            todayAppts.slice(0, 5).map((appt) => {
+            todayApptsScoped.slice(0, 5).map((appt) => {
               const cfg = STATUS_CONFIG[appt.status] || { color: "#6b7280", bg: "#f9fafb", label: appt.status };
               return (
                 <div
@@ -409,13 +422,13 @@ export default function DashboardPage() {
 
         {/* Card 2: Staff Status */}
         <Card title="Staff Status" subtitle="Active stylists today" icon={Users}>
-          {staffList.length === 0 ? (
+          {staffListScoped.length === 0 ? (
             <div style={{ padding: "40px 20px", textAlign: "center", color: "#a0a0b8", fontSize: 12 }}>
               No staff members registered.
             </div>
           ) : (
-            staffList.map((s) => {
-              const staffTodayAppts = todayAppts.filter((a) => a.staffId === s.id);
+            staffListScoped.map((s) => {
+              const staffTodayAppts = todayApptsScoped.filter((a) => a.staffId === s.id);
               const busy = staffTodayAppts.some((a) => a.status === "in-progress" || a.status === "arrived");
               return (
                 <div
@@ -691,7 +704,7 @@ export default function DashboardPage() {
               <span style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e", letterSpacing: "-0.01em" }}>Today's Services</span>
             </div>
             <span style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", background: "#f4f4f9", padding: "4px 10px", borderRadius: 20 }}>
-              {todayAppts.length} total
+              {todayApptsScoped.length} total
             </span>
           </div>
           
@@ -710,12 +723,12 @@ export default function DashboardPage() {
 
           {/* Rows */}
           <div style={{ flex: 1, overflowY: "auto", maxHeight: 260 }}>
-            {todayAppts.length === 0 ? (
+            {todayApptsScoped.length === 0 ? (
               <div style={{ padding: "40px 20px", textAlign: "center", color: "#a0a0b8", fontSize: 12 }}>
                 No services logged for today.
               </div>
             ) : (
-              todayAppts.map((appt) => {
+              todayApptsScoped.map((appt) => {
                 const cfg = STATUS_CONFIG[appt.status] || { color: "#6b7280", bg: "#f9fafb", label: appt.status };
                 return (
                   <div key={appt.id}>
@@ -791,8 +804,10 @@ export default function DashboardPage() {
             )}
           </div>
           
-          {/* Footer total */}
-          {todayAppts.length > 0 && (
+          {/* Footer total — sum of the rows actually shown above (scoped to the
+              active section), not the combined business-wide total; that
+              figure lives in the "Today's Revenue" stat card instead. */}
+          {todayApptsScoped.length > 0 && (
             <div style={{
               padding: "16px 20px",
               borderTop: "1px solid #eef0f5",
@@ -801,8 +816,8 @@ export default function DashboardPage() {
               justifyContent: "space-between",
               alignItems: "center"
             }}>
-              <span style={{ fontSize: 12, fontWeight: 750, color: "#6b6b8a" }}>Total Revenue</span>
-              <span style={{ fontSize: 16, fontWeight: 900, color: "var(--accent)" }}>{fmt(todayTotal)}</span>
+              <span style={{ fontSize: 12, fontWeight: 750, color: "#6b6b8a" }}>{activeSection === "all" ? "Total Revenue" : `${activeSection} Total`}</span>
+              <span style={{ fontSize: 16, fontWeight: 900, color: "var(--accent)" }}>{fmt(scopedTodayTotal)}</span>
             </div>
           )}
         </div>
