@@ -131,15 +131,12 @@ export default function RevenuePage() {
     // Only paid invoices count as revenue — an unpaid/credit invoice isn't
     // money in hand yet. Appointment-linked invoices stay excluded because
     // their completed appointment is already included and counting both would
-    // duplicate revenue. `.date` is remapped to the actual paid date (falling
-    // back to the issue date for invoices paid at creation, or paid before
-    // paidDate existed) so every date-bucketed total below — which already
-    // treats `.date` as "the day this revenue counts toward" — lands on the
-    // day the money actually came in, not the day the invoice was written up.
+    // duplicate revenue. Source filter and date field (raw `.date`, the issue
+    // date) mirror the Cash Flow page's identical filter exactly, so the two
+    // reports reconcile for the same range instead of silently diverging.
     setPosInvoices(
       getSalonInvoices()
-        .filter(inv => !inv.appointmentId && inv.status === "paid")
-        .map(inv => ({ ...inv, date: inv.paidDate || inv.date }))
+        .filter(inv => !inv.appointmentId && inv.status === "paid" && (!inv.source || inv.source === "pos"))
     );
     setExpenses(getExpenses());
   }, []);
@@ -319,8 +316,8 @@ export default function RevenuePage() {
   const methodBreakdown = useMemo(() => {
     const invoices = getSalonInvoices().filter((inv) => {
       if (inv.status !== "paid") return false;
-      const revenueDate = inv.paidDate || inv.date;
-      return revenueDate >= rangeStart && revenueDate <= filterEnd;
+      if (inv.source && inv.source !== "pos") return false;
+      return inv.date >= rangeStart && inv.date <= filterEnd;
     });
     const totals: Record<string, number> = {};
     invoices.forEach(inv => {
