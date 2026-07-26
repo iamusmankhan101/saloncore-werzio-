@@ -383,7 +383,7 @@ function DashboardSectionSwitcher({ onSectionChange }: { onSectionChange: (secti
             Active Section
           </div>
           <div style={{ fontSize: 12, color: "#777792", fontWeight: 650, marginTop: 2 }}>
-            Staff, services, inventory, clients, and appointments filter to this section. Revenue always shows both.
+            Everything, including revenue, filters to this section. Switch to "All Sections" to see both combined.
           </div>
         </div>
       </div>

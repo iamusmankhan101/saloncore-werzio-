@@ -129,12 +129,11 @@ export default function RevenuePage() {
   const [customStart, setCustomStart]   = useState(() => toDateStr(new Date()));
   const [customEnd, setCustomEnd]       = useState(() => toDateStr(new Date()));
 
-  // Revenue visibility by dashboard section: "Men's" acts as the owner's main
-  // view and sees everything combined (with per-row section tags, added
-  // below); any other specific section (e.g. "Women's") is restricted to
-  // only its own revenue. "All Sections" also sees everything, same as Men's.
+  // Revenue visibility by dashboard section: only "All Sections" sees
+  // everything combined (with per-row section tags, added below) — Men's and
+  // Women's are each restricted to their own revenue, symmetrically.
   const activeSection = getActiveSection();
-  const revenueScoped = activeSection !== "all" && activeSection !== "Men's";
+  const revenueScoped = activeSection !== "all";
 
   useEffect(() => {
     let cancelled = false;

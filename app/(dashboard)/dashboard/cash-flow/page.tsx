@@ -131,12 +131,11 @@ export default function CashFlowPage() {
   const importInputRef                 = useRef<HTMLInputElement>(null);
   const expenseFormRef                 = useRef<HTMLDivElement>(null);
 
-  // Cash flow visibility by dashboard section: "Men's" acts as the owner's
-  // main view and sees everything combined; any other specific section (e.g.
-  // "Women's") is restricted to only its own income and expenses. "All
-  // Sections" also sees everything, same as Men's. Matches Revenue's rule.
+  // Cash flow visibility by dashboard section: only "All Sections" sees
+  // everything combined — Men's and Women's are each restricted to their own
+  // income and expenses, symmetrically. Matches Revenue's rule.
   const activeSection = getActiveSection();
-  const cashFlowScoped = activeSection !== "all" && activeSection !== "Men's";
+  const cashFlowScoped = activeSection !== "all";
 
   useEffect(() => {
     let cancelled = false;

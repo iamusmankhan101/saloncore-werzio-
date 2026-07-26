@@ -123,19 +123,16 @@ export default function DashboardPage() {
   }, []);
 
   const todayAppts = appointments.filter((a) => a.date === today);
-  // Everything on this page is strictly scoped to the active dashboard
-  // section EXCEPT the revenue figures (Today's Revenue, Average Ticket,
-  // Revenue Trend), which follow a different rule: "Men's" acts as the
-  // owner's main view and sees revenue combined across both sections, while
-  // any other specific section (e.g. "Women's") is restricted to only its
-  // own revenue. "All Sections" also sees everything, same as Men's. This
-  // matches the Revenue and Cash Flow pages' identical rule.
+  // Everything on this page, including the revenue figures, is scoped to the
+  // active dashboard section: only "All Sections" sees everything combined —
+  // Men's and Women's are each restricted to their own data, symmetrically.
+  // Matches the Revenue and Cash Flow pages' identical rule.
   const activeSection = getActiveSection();
   const todayApptsScoped = activeSection === "all" ? todayAppts : todayAppts.filter((a) => a.section === activeSection);
   const staffListScoped = activeSection === "all" ? staffList : staffList.filter((s) => s.section === activeSection);
   const clientsScoped = activeSection === "all" ? clients : clients.filter((c) => c.section === activeSection);
 
-  const revenueScoped = activeSection !== "all" && activeSection !== "Men's";
+  const revenueScoped = activeSection !== "all";
   const appointmentsForRevenue = revenueScoped ? appointments.filter((a) => a.section === activeSection) : appointments;
   const posInvoicesForRevenue = revenueScoped ? posInvoices.filter((inv) => inv.section === activeSection) : posInvoices;
   const todayApptsForRevenue = revenueScoped ? todayAppts.filter((a) => a.section === activeSection) : todayAppts;
