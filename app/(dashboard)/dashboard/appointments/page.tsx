@@ -9,7 +9,7 @@ import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCa
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
-import { getSectionOptions } from "@/lib/sections";
+import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -1022,7 +1022,7 @@ export default function AppointmentsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<AppointmentStatus | "all">("all");
   const [staffFilter, setStaffFilter] = useState<string>("all");
-  const [sectionFilter, setSectionFilter] = useState<string>("all");
+  const [sectionFilter, setSectionFilter] = useState<string>(() => getActiveSection());
   const [dateFilter, setDateFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<"apptDateDesc" | "apptDateAsc" | "createdDesc" | "createdAsc">("apptDateDesc");
   const [selected, setSelected] = useState<Appointment | null>(null);

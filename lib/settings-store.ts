@@ -34,6 +34,10 @@ const defaults = {
       },
     ],
   },
+  // Persistent "which salon section am I working" context (e.g. "Men's" /
+  // "Women's") — distinct from locations, which are separate physical
+  // branches. "all" means every page shows both sections combined.
+  activeSection: "all",
   wasender: {
     provider: "wasender" as "wasender" | "botsailor",
     apiKey: "",
@@ -175,6 +179,7 @@ function load() {
           ? saved.locations.items
           : dynamicDefaults.locations.items,
       },
+      activeSection: typeof saved.activeSection === "string" ? saved.activeSection : dynamicDefaults.activeSection,
       hours: saved.hours ?? structuredClone(dynamicDefaults.hours),
       notifications: { ...dynamicDefaults.notifications, ...saved.notifications },
       appearance: { ...dynamicDefaults.appearance, ...saved.appearance },

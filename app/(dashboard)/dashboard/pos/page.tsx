@@ -24,7 +24,7 @@ import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, fillTemplate } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
-import { getSectionOptions } from "@/lib/sections";
+import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ export default function POSPage() {
   // ── Catalog ───────────────────────────────────────────────────────────────
   const [catalogTab,    setCatalogTab]    = useState<CatalogTab>("all");
   const [catalogSearch, setCatalogSearch] = useState("");
-  const [catalogSectionFilter, setCatalogSectionFilter] = useState("all");
+  const [catalogSectionFilter, setCatalogSectionFilter] = useState(() => getActiveSection());
   const [barcodeInput, setBarcodeInput] = useState("");
   const [scanFeedback, setScanFeedback] = useState<{ ok: boolean; message: string } | null>(null);
   const scannerBuffer = useRef("");
@@ -394,10 +394,13 @@ export default function POSPage() {
       // Prefer the assigned staff member's section; with no staff chosen, fall
       // back to the cart's section only when every line item agrees — a mixed
       // cart (e.g. a men's haircut + a women's product) has no single section,
-      // so leave it unset rather than guess.
+      // so leave it unset rather than guess. Last resort: whichever section the
+      // dashboard is currently active on (the cashier's working context).
       const cartSections = cart.map(e => catalogItems.find(ci => ci.id === e.itemId)?.section).filter((s): s is string => !!s);
+      const activeSection = getActiveSection();
       const saleSection = staffMember?.section
-        ?? (new Set(cartSections).size === 1 ? cartSections[0] : undefined);
+        ?? (new Set(cartSections).size === 1 ? cartSections[0] : undefined)
+        ?? (activeSection !== "all" ? activeSection : undefined);
       const { invoice, dbSaved } = await createSalonInvoice({
         appointmentId: checkoutAppointmentId || undefined,
         clientId:      selectedClient?.id || undefined,

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Search, Eye, Trash2, CheckCircle, Clock, X, Pencil,
+  Search, Eye, Trash2, CheckCircle, Clock, Pencil,
   ReceiptText, ShoppingCart, TrendingUp, Users,
 } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ import {
 import type { PaymentMethod } from "@/lib/types";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients } from "@/lib/storage";
 import { settingsStore } from "@/lib/settings-store";
+import { syncFromDB } from "@/lib/turso-sync";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
@@ -88,10 +89,19 @@ export default function InvoicesPage() {
     setInvoices(pos);
   }
 
-  useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    syncFromDB().finally(() => {
+      if (!cancelled) reload();
+    });
+    return () => { cancelled = true; };
+  }, []);
   // Reset to today each time the prompt opens for a new invoice, so a
   // previously-picked backdate doesn't silently carry over to the next one.
-  useEffect(() => { if (markPaidPromptId) setMarkPaidDate(localDateKey()); }, [markPaidPromptId]);
+  useEffect(() => {
+    if (!markPaidPromptId) return;
+    queueMicrotask(() => setMarkPaidDate(localDateKey()));
+  }, [markPaidPromptId]);
 
   // Deep-link support: opening /dashboard/invoices?id=<invoiceId> (e.g. from a
   // notification) auto-opens that invoice's detail view once data has loaded.
@@ -100,7 +110,7 @@ export default function InvoicesPage() {
     const id = new URLSearchParams(window.location.search).get("id");
     if (!id) return;
     const inv = invoices.find((i) => i.id === id);
-    if (inv) setViewingInvoice(inv);
+    if (inv) queueMicrotask(() => setViewingInvoice(inv));
   }, [invoices]);
 
   const stats = useMemo(() => {

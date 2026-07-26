@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, LayoutDashboard, User, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff, MapPin, Plus } from "lucide-react";
+import { AlertTriangle, CreditCard, LayoutDashboard, User, Users, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff, MapPin, Plus } from "lucide-react";
 import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser } from "@/lib/auth";
@@ -11,7 +11,8 @@ import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings, settin
 import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
 import { syncFromDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
-import { getStoredInventory } from "@/lib/storage";
+import { getStoredInventory, getStoredStaff, getStoredServices } from "@/lib/storage";
+import { getActiveSection, setActiveSection, getSectionOptions } from "@/lib/sections";
 import type { Invoice } from "@/lib/invoices";
 import { PLAN_CONFIGS, getCurrentPlanId, type PlanId } from "@/lib/plan-limits";
 import { setActivePlan } from "@/lib/payment-requests";
@@ -316,6 +317,102 @@ function DashboardLocationSwitcher({ onLocationChange }: { onLocationChange: (lo
   );
 }
 
+// A persistent "which section am I working" switcher — same-branch equivalent
+// of DashboardLocationSwitcher, but far lighter: no separate data partition,
+// just a default filter value every section-aware page (Staff, Services,
+// Inventory, Clients, Appointments, POS) initializes from on mount. Only
+// rendered once at least one staff member or service is actually tagged, so
+// salons that don't use sections never see it.
+function DashboardSectionSwitcher({ onSectionChange }: { onSectionChange: (section: string) => void }) {
+  const [options, setOptions] = useState<string[]>(() => getSectionOptions([...getStoredStaff(), ...getStoredServices()]));
+  const [hasTagged, setHasTagged] = useState(() => [...getStoredStaff(), ...getStoredServices()].some((r) => r.section));
+  const [activeSection, setActiveSectionState] = useState(() => getActiveSection());
+
+  useEffect(() => {
+    function refresh() {
+      const records = [...getStoredStaff(), ...getStoredServices()];
+      setOptions(getSectionOptions(records));
+      setHasTagged(records.some((r) => r.section));
+      setActiveSectionState(getActiveSection());
+    }
+    window.addEventListener(SETTINGS_CHANGED_EVENT, refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener(SETTINGS_CHANGED_EVENT, refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
+
+  if (!hasTagged) return null;
+
+  function changeSection(section: string) {
+    if (section === activeSection) return;
+    setActiveSection(section);
+    setActiveSectionState(section);
+    onSectionChange(section);
+  }
+
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      margin: "10px 20px 0",
+      padding: "12px 14px",
+      border: "1px solid rgba(124,58,237,0.13)",
+      borderRadius: 16,
+      background: "linear-gradient(135deg, rgba(124,58,237,0.06), rgba(255,255,255,0.95))",
+      boxShadow: "0 10px 28px rgba(35,20,70,0.045)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <div style={{
+          width: 36,
+          height: 36,
+          borderRadius: 12,
+          display: "grid",
+          placeItems: "center",
+          background: "var(--accent-gradient)",
+          boxShadow: "0 5px 16px var(--accent-glow)",
+          flexShrink: 0,
+        }}>
+          <Users size={17} color="#fff" />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 850, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.09em" }}>
+            Active Section
+          </div>
+          <div style={{ fontSize: 12, color: "#777792", fontWeight: 650, marginTop: 2 }}>
+            Staff, services, inventory, clients, and appointments filter to this section. Revenue always shows both.
+          </div>
+        </div>
+      </div>
+
+      <select
+        value={activeSection}
+        onChange={(e) => changeSection(e.target.value)}
+        style={{
+          minWidth: 160,
+          padding: "9px 34px 9px 12px",
+          borderRadius: 12,
+          border: "1px solid #ddd6fe",
+          background: "#fff",
+          color: "#1a1a2e",
+          fontSize: 13,
+          fontWeight: 800,
+          outline: "none",
+          cursor: "pointer",
+          boxShadow: "0 3px 10px rgba(38,25,75,0.04)",
+        }}
+        aria-label="Select active dashboard section"
+      >
+        <option value="all">All Sections</option>
+        {options.map((s) => <option key={s} value={s}>{s}</option>)}
+      </select>
+    </div>
+  );
+}
+
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -343,10 +440,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [waStatus,      setWaStatus]       = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
   const [locationRenderKey, setLocationRenderKey] = useState(() => getActiveLocationFilter());
+  const [sectionRenderKey, setSectionRenderKey] = useState(() => getActiveSection());
 
   async function handleLocationChange(locationId: string) {
     await syncFromDB();
     setLocationRenderKey(locationId);
+  }
+
+  function handleSectionChange(section: string) {
+    setSectionRenderKey(section);
   }
 
   // Auth guard
@@ -737,7 +839,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {getCurrentUser()?.role !== "staff" && getCurrentPlanId() === "premium" && (
           <DashboardLocationSwitcher onLocationChange={handleLocationChange} />
         )}
-        <div key={locationRenderKey}>{children}</div>
+        <DashboardSectionSwitcher onSectionChange={handleSectionChange} />
+        <div key={`${locationRenderKey}::${sectionRenderKey}`}>{children}</div>
       </main>
 
       {/* Mobile Bottom Navigation Bar */}

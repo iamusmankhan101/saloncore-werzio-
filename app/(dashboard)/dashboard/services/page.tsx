@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
 import type { Service, Staff } from "@/lib/types";
 import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search } from "lucide-react";
-import { getSectionOptions } from "@/lib/sections";
+import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -406,7 +406,7 @@ export default function ServicesPage() {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const [filter, setFilter] = useState("all");
-  const [sectionFilter, setSectionFilter] = useState("all");
+  const [sectionFilter, setSectionFilter] = useState(() => getActiveSection());
   const [search, setSearch] = useState("");
 
   useEffect(() => {

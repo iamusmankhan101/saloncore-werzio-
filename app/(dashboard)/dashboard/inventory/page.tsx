@@ -5,7 +5,7 @@ import { getStoredInventory, saveInventory } from "@/lib/storage";
 import { checkLowStockAlerts } from "@/lib/whatsapp-scheduler";
 import { settingsStore } from "@/lib/settings-store";
 import type { InventoryItem, InventoryCategory, InventoryUnit } from "@/lib/types";
-import { getSectionOptions } from "@/lib/sections";
+import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import {
@@ -525,7 +525,7 @@ export default function InventoryPage() {
   const [search, setSearch]             = useState("");
   const [catFilter, setCatFilter]       = useState<InventoryCategory | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "low" | "out" | "ok">("all");
-  const [sectionFilter, setSectionFilter] = useState("all");
+  const [sectionFilter, setSectionFilter] = useState(() => getActiveSection());
   const [showFilters, setShowFilters]   = useState(false);
   const [showAdd, setShowAdd]           = useState(false);
   const [editItem, setEditItem]         = useState<InventoryItem | null>(null);

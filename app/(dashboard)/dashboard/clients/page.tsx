@@ -11,7 +11,7 @@ import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
-import { getSectionOptions } from "@/lib/sections";
+import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -928,7 +928,7 @@ export default function ClientsPage() {
   const [tagFilter, setTagFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState(() => getActiveLocationFilter());
-  const [sectionFilter, setSectionFilter] = useState("all");
+  const [sectionFilter, setSectionFilter] = useState(() => getActiveSection());
   const [sortFilter, setSortFilter] = useState("none");
   const [selected, setSelected] = useState<Client | null>(null);
   const [showAdd, setShowAdd] = useState(false);

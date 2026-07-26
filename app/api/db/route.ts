@@ -15,6 +15,39 @@ async function ensureTable() {
   `);
 }
 
+function itemId(item: unknown): string | null {
+  return item && typeof item === "object" && "id" in item ? String((item as { id?: unknown }).id || "") || null : null;
+}
+
+async function mergeQueuedPosInvoices(userId: string, stored: unknown[]): Promise<unknown[]> {
+  const byId = new Map<string, unknown>();
+  for (const item of stored) {
+    const id = itemId(item);
+    if (id) byId.set(id, item);
+  }
+
+  try {
+    const queued = await db.execute({
+      sql: `SELECT invoice_json FROM wa_pos_receipt_queue
+            WHERE user_id = ? AND status IN ('pending', 'sent', 'failed')
+            ORDER BY created_at DESC`,
+      args: [userId],
+    });
+
+    for (const row of queued.rows) {
+      try {
+        const invoice = JSON.parse(row.invoice_json as string) as unknown;
+        const id = itemId(invoice);
+        if (id && !byId.has(id)) byId.set(id, invoice);
+      } catch { /* skip malformed queue rows */ }
+    }
+  } catch {
+    // The queue table may not exist on older deployments yet.
+  }
+
+  return Array.from(byId.values());
+}
+
 /**
  * GET /api/db?entity=clients&userId=user_123
  *
@@ -40,8 +73,17 @@ export async function GET(req: NextRequest) {
       sql: "SELECT data FROM salon_data WHERE entity = ?",
       args: [key],
     });
-    if (result.rows.length === 0) return Response.json([]);
-    return Response.json(JSON.parse(result.rows[0].data as string));
+    const stored = result.rows.length === 0 ? [] : JSON.parse(result.rows[0].data as string) as unknown[];
+    if (entity !== "salon_invoices") return Response.json(stored);
+
+    const merged = await mergeQueuedPosInvoices(userId, Array.isArray(stored) ? stored : []);
+    if (merged.length !== (Array.isArray(stored) ? stored.length : 0)) {
+      await db.execute({
+        sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
+        args: [key, JSON.stringify(merged), new Date().toISOString()],
+      });
+    }
+    return Response.json(merged);
   } catch (err) {
     console.error("[db] GET error:", err);
     return Response.json([]);

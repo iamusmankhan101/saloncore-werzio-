@@ -5,7 +5,24 @@
 // Revenue/Cash Flow/Dashboard intentionally never filter by it, so combined
 // totals fall out of simply not touching those pages.
 
+import { saveSettings, settingsStore } from "./settings-store";
+
 export const SECTION_SEED = ["Men's", "Women's"] as const;
+
+/**
+ * The persistent "which section am I working" context set via the dashboard
+ * switcher (mirrors lib/locations.ts's getActiveLocationFilter/setActiveLocationFilter,
+ * but with no storage partitioning — just a default filter value every
+ * section-aware page initializes from). "all" = both sections combined.
+ */
+export function getActiveSection(): string {
+  return (settingsStore as { activeSection?: string }).activeSection || "all";
+}
+
+export function setActiveSection(section: string): void {
+  (settingsStore as { activeSection?: string }).activeSection = section;
+  saveSettings();
+}
 
 /**
  * Seed values first, then any custom section strings already present in the

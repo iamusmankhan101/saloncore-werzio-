@@ -6,7 +6,7 @@ import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAp
 import type { Staff, Service, StaffRole, Appointment } from "@/lib/types";
 import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
-import { getSectionOptions } from "@/lib/sections";
+import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -237,7 +237,7 @@ export default function StaffPage() {
   const [servicesList, setServicesList] = useState<Service[]>([]);
   const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
-  const [sectionFilter, setSectionFilter] = useState("all");
+  const [sectionFilter, setSectionFilter] = useState(() => getActiveSection());
 
   const plan        = getCurrentPlan();
   const activeCount = staffList.filter((s) => s.isActive).length;
