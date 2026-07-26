@@ -5,6 +5,7 @@ import { getStoredAppointments } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
 import { getExpenses, type Expense, type ExpenseCategory } from "@/lib/expenses";
 import { getManualCashIncome, type ManualCashIncome } from "@/lib/cash-flow-income";
+import { getActiveSection } from "@/lib/sections";
 import type { Appointment } from "@/lib/types";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
@@ -128,28 +129,40 @@ export default function RevenuePage() {
   const [customStart, setCustomStart]   = useState(() => toDateStr(new Date()));
   const [customEnd, setCustomEnd]       = useState(() => toDateStr(new Date()));
 
+  // Revenue visibility by dashboard section: "Men's" acts as the owner's main
+  // view and sees everything combined (with per-row section tags, added
+  // below); any other specific section (e.g. "Women's") is restricted to
+  // only its own revenue. "All Sections" also sees everything, same as Men's.
+  const activeSection = getActiveSection();
+  const revenueScoped = activeSection !== "all" && activeSection !== "Men's";
+
   useEffect(() => {
     let cancelled = false;
     syncFromDB().finally(() => {
       if (cancelled) return;
       setToday(toDateStr(new Date()));
-      setAppointments(getStoredAppointments());
+      setAppointments(
+        getStoredAppointments()
+          .filter(a => !revenueScoped || a.section === activeSection)
+      );
       // Match Cash Flow: count paid POS invoices as the source of truth, then
       // exclude any completed appointment that has already been paid through POS
       // so appointment-linked sales show up without double-counting revenue.
       setPosInvoices(
         getSalonInvoices()
           .filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos"))
+          .filter(inv => !revenueScoped || inv.section === activeSection)
       );
       // Cash Flow's "Import" feature records income (e.g. bulk-uploaded past
       // sales) as ManualCashIncome entries rather than salon invoices — Cash
       // Flow already counts these, so Revenue needs the same source or it
-      // undercounts every imported entry.
-      setManualIncome(getManualCashIncome());
+      // undercounts every imported entry. These have no section of their own,
+      // so a section-restricted view can't attribute them and excludes them.
+      setManualIncome(revenueScoped ? [] : getManualCashIncome());
       setExpenses(getExpenses());
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [revenueScoped, activeSection]);
 
   // Reset drill-down when period changes
   useEffect(() => { setSelectedMonth(null); }, [period]);
@@ -348,6 +361,7 @@ export default function RevenuePage() {
     const invoices = getSalonInvoices().filter((inv) => {
       if (inv.status !== "paid") return false;
       if (inv.source && inv.source !== "pos") return false;
+      if (revenueScoped && inv.section !== activeSection) return false;
       return inv.date >= rangeStart && inv.date <= filterEnd;
     });
     const totals: Record<string, number> = {};
@@ -359,7 +373,7 @@ export default function RevenuePage() {
     return Object.entries(totals)
       .map(([method, amount]) => ({ method, amount, pct: (amount / grand) * 100 }))
       .sort((a, b) => b.amount - a.amount);
-  }, [rangeStart, filterEnd]);
+  }, [rangeStart, filterEnd, revenueScoped, activeSection]);
 
   // Custom selections drive a combined report for their entire date range.
   // Preset periods keep this card as today's operational snapshot.
@@ -858,7 +872,7 @@ export default function RevenuePage() {
         <PageTitle
           icon={<TrendingUp size={24} />}
           title="Revenue"
-          subtitle="Track your salon's financial performance"
+          subtitle={revenueScoped ? `Restricted to ${activeSection} revenue only` : "Track your salon's financial performance — combined across all sections"}
         />
         <div className="rev-header-controls" style={{ display: "flex", gap: 12 }}>
           <div className="rev-period-selector segment-control">
