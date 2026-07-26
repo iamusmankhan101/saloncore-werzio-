@@ -589,7 +589,7 @@ export default function InventoryPage() {
     });
   }, [items, search, catFilter, statusFilter, sectionFilter]);
 
-  const activeFilters = [catFilter !== "all", statusFilter !== "all", sectionFilter !== "all"].filter(Boolean).length;
+  const activeFilters = [catFilter !== "all", statusFilter !== "all", getActiveSection() === "all" && sectionFilter !== "all"].filter(Boolean).length;
 
   return (
     <div className="dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
@@ -1151,20 +1151,26 @@ export default function InventoryPage() {
                   options: [["all", "All"], ["ok", "In Stock"], ["low", "Low Stock"], ["out", "Out of Stock"]] as [string, string][],
                 },
                 {
+                  // Locked to the active dashboard section when one is set — the
+                  // only way to see other sections' inventory is to switch the
+                  // global "Active Section" control, not this filter.
                   label: "Section", value: sectionFilter,
                   onChange: (v: string) => setSectionFilter(v),
-                  options: [["all", "All Sections"], ...getSectionOptions(items).map((s) => [s, s])] as [string, string][],
+                  options: getActiveSection() !== "all"
+                    ? [[getActiveSection(), `${getActiveSection()} (locked)`]] as [string, string][]
+                    : [["all", "All Sections"], ...getSectionOptions(items).map((s) => [s, s])] as [string, string][],
+                  locked: getActiveSection() !== "all",
                 },
-              ].map(({ label, value, onChange, options }) => (
+              ].map(({ label, value, onChange, options, locked }) => (
                 <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   <label style={{ fontSize: 11, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
-                  <select value={value} onChange={(e) => onChange(e.target.value)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e3e0eb", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff", cursor: "pointer" }}>
+                  <select value={value} onChange={(e) => onChange(e.target.value)} disabled={locked} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e3e0eb", fontSize: 13, color: "#1a1a2e", outline: "none", background: locked ? "#faf9fd" : "#fff", cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.75 : 1 }}>
                     {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                 </div>
               ))}
               {activeFilters > 0 && (
-                <button onClick={() => { setCatFilter("all"); setStatusFilter("all"); setSectionFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>
+                <button onClick={() => { setCatFilter("all"); setStatusFilter("all"); if (getActiveSection() === "all") setSectionFilter("all"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>
                   Clear all
                 </button>
               )}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
 import type { Service, Staff } from "@/lib/types";
-import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search } from "lucide-react";
+import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search, Lock } from "lucide-react";
 import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -552,29 +552,37 @@ export default function ServicesPage() {
         })}
       </div>
 
-      {/* Section filter */}
-      <div className="filter-tabs" style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 12, padding: 4, alignSelf: "flex-start", marginBottom: 4 }}>
-        {tabSections.map((sec) => {
-          const active = sectionFilter === sec;
-          return (
-            <button key={sec} onClick={() => setSectionFilter(sec)}
-              style={{
-                padding: "7px 16px",
-                borderRadius: 9,
-                border: "none",
-                background: active ? "var(--accent-gradient)" : "transparent",
-                color: active ? "#fff" : "#6b6b8a",
-                fontSize: 13,
-                fontWeight: 750,
-                cursor: "pointer",
-                boxShadow: active ? "0 4px 10px var(--accent-glow)" : "none",
-                transition: "all 0.18s ease"
-              }}>
-              {sec === "all" ? "All Sections" : sec}
-            </button>
-          );
-        })}
-      </div>
+      {/* Section filter — locked to the active dashboard section when one is
+          set; switch the global "Active Section" control to see another. */}
+      {getActiveSection() !== "all" ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, alignSelf: "flex-start", padding: "8px 14px", borderRadius: 12, background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
+          <Lock size={13} color="#7C3AED" />
+          <span style={{ fontSize: 12, fontWeight: 750, color: "#7C3AED" }}>Showing {getActiveSection()} services only</span>
+        </div>
+      ) : (
+        <div className="filter-tabs" style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 12, padding: 4, alignSelf: "flex-start", marginBottom: 4 }}>
+          {tabSections.map((sec) => {
+            const active = sectionFilter === sec;
+            return (
+              <button key={sec} onClick={() => setSectionFilter(sec)}
+                style={{
+                  padding: "7px 16px",
+                  borderRadius: 9,
+                  border: "none",
+                  background: active ? "var(--accent-gradient)" : "transparent",
+                  color: active ? "#fff" : "#6b6b8a",
+                  fontSize: 13,
+                  fontWeight: 750,
+                  cursor: "pointer",
+                  boxShadow: active ? "0 4px 10px var(--accent-glow)" : "none",
+                  transition: "all 0.18s ease"
+                }}>
+                {sec === "all" ? "All Sections" : sec}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Service cards */}
       {filteredServices.length === 0 ? (

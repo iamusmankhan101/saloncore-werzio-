@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments } from "@/lib/storage";
 import type { Staff, Service, StaffRole, StaffPayType, Appointment } from "@/lib/types";
-import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil } from "lucide-react";
+import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil, Lock } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
@@ -353,8 +353,15 @@ export default function StaffPage() {
         </div>
       )}
 
-      {/* Section filter */}
-      {(() => {
+      {/* Section filter — locked to the active dashboard section when one is
+          set; the only way to see another section's staff is to switch the
+          global "Active Section" control, not from this page. */}
+      {getActiveSection() !== "all" ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, alignSelf: "flex-start", padding: "8px 14px", borderRadius: 12, background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
+          <Lock size={13} color="#7C3AED" />
+          <span style={{ fontSize: 12, fontWeight: 750, color: "#7C3AED" }}>Showing {getActiveSection()} staff only</span>
+        </div>
+      ) : (() => {
         const sectionTabs = ["all", ...getSectionOptions(staffList)];
         return (
           <div className="filter-tabs" style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 12, padding: 4, alignSelf: "flex-start", marginBottom: 4 }}>

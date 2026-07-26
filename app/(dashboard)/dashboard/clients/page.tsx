@@ -1007,7 +1007,7 @@ export default function ClientsPage() {
 
   const allTags = Array.from(new Set(clients.flatMap((c) => c.tags)));
   const allSources = Array.from(new Set(clients.map((c) => c.source)));
-  const activeFilters = [tagFilter !== "all", sourceFilter !== "all", sectionFilter !== "all", sortFilter !== "none"].filter(Boolean).length;
+  const activeFilters = [tagFilter !== "all", sourceFilter !== "all", getActiveSection() === "all" && sectionFilter !== "all", sortFilter !== "none"].filter(Boolean).length;
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
   const someFilteredSelected = filtered.some((c) => selectedIds.has(c.id));
@@ -1274,18 +1274,26 @@ export default function ClientsPage() {
           {[
             { label: "Tag", value: tagFilter, onChange: setTagFilter, options: [["all", "All Tags"], ...allTags.map((t) => [t, t])] },
             { label: "Source", value: sourceFilter, onChange: setSourceFilter, options: [["all", "All Sources"], ...allSources.map((s) => [s, s])] },
-            { label: "Section", value: sectionFilter, onChange: setSectionFilter, options: [["all", "All Sections"], ...getSectionOptions(clients).map((s) => [s, s])] },
+            {
+              // Locked to the active dashboard section when one is set — switch
+              // the global "Active Section" control to see other clients.
+              label: "Section", value: sectionFilter, onChange: setSectionFilter,
+              options: getActiveSection() !== "all"
+                ? [[getActiveSection(), `${getActiveSection()} (locked)`]]
+                : [["all", "All Sections"], ...getSectionOptions(clients).map((s) => [s, s])],
+              locked: getActiveSection() !== "all",
+            },
             { label: "Sort By", value: sortFilter, onChange: setSortFilter, options: [["none", "Default"], ["topSpend", "Top Spenders"], ["lowSpend", "Low Spenders"], ["topVisits", "Top Visits"]] },
-          ].map(({ label, value, onChange, options }) => (
+          ].map(({ label, value, onChange, options, locked }) => (
             <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <label style={{ fontSize: 11, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
-              <select value={value} onChange={(e) => onChange(e.target.value)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e3e0eb", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff", cursor: "pointer" }}>
+              <select value={value} onChange={(e) => onChange(e.target.value)} disabled={locked} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e3e0eb", fontSize: 13, color: "#1a1a2e", outline: "none", background: locked ? "#faf9fd" : "#fff", cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.75 : 1 }}>
                 {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
           ))}
           {activeFilters > 0 && (
-            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); setSectionFilter("all"); setSortFilter("none"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
+            <button onClick={() => { setTagFilter("all"); setSourceFilter("all"); if (getActiveSection() === "all") setSectionFilter("all"); setSortFilter("none"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>Clear all</button>
           )}
         </div>
       )}

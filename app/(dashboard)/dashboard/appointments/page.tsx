@@ -111,11 +111,11 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-function FilterSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
+function FilterSelect({ label, value, onChange, children, disabled }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode; disabled?: boolean }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
       <label style={{ fontSize: 11, fontWeight: 600, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff", cursor: "pointer" }}>
+      <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: disabled ? "#faf9fd" : "#fff", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.75 : 1 }}>
         {children}
       </select>
     </div>
@@ -1091,7 +1091,7 @@ export default function AppointmentsPage() {
   const totalRevenue = filtered
     .filter((a) => a.status === "completed")
     .reduce((s, a) => s + a.totalAmount, 0);
-  const activeFilters = [statusFilter !== "all", staffFilter !== "all", sectionFilter !== "all", !!dateFilter].filter(Boolean).length;
+  const activeFilters = [statusFilter !== "all", staffFilter !== "all", getActiveSection() === "all" && sectionFilter !== "all", !!dateFilter].filter(Boolean).length;
 
   const allChecked = filtered.length > 0 && filtered.every(a => checkedIds.has(a.id));
   const someChecked = filtered.some(a => checkedIds.has(a.id));
@@ -1417,9 +1417,17 @@ export default function AppointmentsPage() {
             <option value="all">All Stylists</option>
             {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </FilterSelect>
-          <FilterSelect label="Section" value={sectionFilter} onChange={setSectionFilter}>
-            <option value="all">All Sections</option>
-            {getSectionOptions(appointments).map((s) => <option key={s} value={s}>{s}</option>)}
+          {/* Locked to the active dashboard section when one is set — switch
+              the global "Active Section" control to see other appointments. */}
+          <FilterSelect label="Section" value={sectionFilter} onChange={setSectionFilter} disabled={getActiveSection() !== "all"}>
+            {getActiveSection() !== "all" ? (
+              <option value={getActiveSection()}>{getActiveSection()} (locked)</option>
+            ) : (
+              <>
+                <option value="all">All Sections</option>
+                {getSectionOptions(appointments).map((s) => <option key={s} value={s}>{s}</option>)}
+              </>
+            )}
           </FilterSelect>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <label style={{ fontSize: 11, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Date</label>
@@ -1432,7 +1440,7 @@ export default function AppointmentsPage() {
             <option value="createdAsc">Created (oldest first)</option>
           </FilterSelect>
           {activeFilters > 0 && (
-            <button onClick={() => { setStatusFilter("all"); setStaffFilter("all"); setSectionFilter("all"); setDateFilter(""); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>
+            <button onClick={() => { setStatusFilter("all"); setStaffFilter("all"); if (getActiveSection() === "all") setSectionFilter("all"); setDateFilter(""); }} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer", transition: "all 0.15s" }}>
               Clear all
             </button>
           )}

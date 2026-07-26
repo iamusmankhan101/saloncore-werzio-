@@ -7,7 +7,7 @@ import {
   Smartphone, Zap, Tag, UserPlus, CheckCircle2, Printer,
   MessageSquare, RefreshCw, User, ChevronRight, Sparkles,
   Clock, AlertCircle, Gift,
-  ScanBarcode,
+  ScanBarcode, Lock,
 } from "lucide-react";
 import { awardPoints, redeemPoints, type LoyaltySettings } from "@/lib/loyalty";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
@@ -906,8 +906,15 @@ export default function POSPage() {
               })}
             </div>
 
-            {/* Section filter — only shown once at least one service/product is actually tagged */}
-            {[...services, ...inventory].some(x => x.section) && (
+            {/* Section filter — locked to the active dashboard section when one is
+                set (no picker needed, only that section is valid here); shown as
+                an interactive picker otherwise, only once something is tagged. */}
+            {getActiveSection() !== "all" ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+                <Lock size={11} color="#7C3AED" />
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED" }}>Showing {getActiveSection()} catalog only</span>
+              </div>
+            ) : [...services, ...inventory].some(x => x.section) && (
               <div style={{ display: "flex", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", marginTop: 8 }}>
                 {["all", ...getSectionOptions([...services, ...inventory])].map(sec => {
                   const active = catalogSectionFilter === sec;
