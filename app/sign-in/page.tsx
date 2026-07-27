@@ -150,7 +150,7 @@ export default function SignInPage() {
               <span className={styles.label}>Email</span>
               <div className={styles.inputWrap}>
                 <Mail size={16} className={styles.inputIcon} />
-                <input className={styles.input} type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
+                <input className={styles.input} type="email" autoComplete="username" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
               </div>
             </label>
 
@@ -158,7 +158,7 @@ export default function SignInPage() {
               <span className={styles.label}>Password</span>
               <div className={styles.inputWrap}>
                 <LockKeyhole size={16} className={styles.inputIcon} />
-                <input className={`${styles.input} ${styles.passwordInput}`} type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
+                <input className={`${styles.input} ${styles.passwordInput}`} type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
                 <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"} className={styles.iconButton}>
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
