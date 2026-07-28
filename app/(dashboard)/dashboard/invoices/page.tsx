@@ -136,14 +136,18 @@ export default function InvoicesPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return invoices.filter((inv) => {
-      const matchSearch = !q ||
-        inv.clientName.toLowerCase().includes(q) ||
-        inv.number.toLowerCase().includes(q) ||
-        inv.staffName.toLowerCase().includes(q);
-      const matchStatus = filterStatus === "all" || inv.status === filterStatus;
-      return matchSearch && matchStatus;
-    });
+    return invoices
+      .filter((inv) => {
+        const matchSearch = !q ||
+          inv.clientName.toLowerCase().includes(q) ||
+          inv.number.toLowerCase().includes(q) ||
+          inv.staffName.toLowerCase().includes(q);
+        const matchStatus = filterStatus === "all" || inv.status === filterStatus;
+        return matchSearch && matchStatus;
+      })
+      // Newest first — explicit rather than relying on storage order, which
+      // can get reshuffled by a DB sync merge (see syncFromDB in turso-sync.ts).
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [invoices, search, filterStatus]);
 
   function confirmMarkPaid(method: PaymentMethod) {

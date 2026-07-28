@@ -37,6 +37,7 @@ const links = [
   { label: "Why Salon Central",   href: "/#why" },
   { label: "Testimonials", href: "/#testimonials" },
   { label: "Pricing",      href: "/#pricing" },
+  { label: "Blog",         href: "/blog" },
 ];
 
 export default function Navbar({ forceSolid = false, dark = false }: { forceSolid?: boolean; dark?: boolean }) {
