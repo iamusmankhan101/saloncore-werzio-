@@ -363,6 +363,10 @@ export default function MessagesPage() {
   const [filter, setFilter]     = useState<WaMsgType | "all">("all");
   const [refreshKey, setRefreshKey] = useState(0);
   const [loadingLogs, setLoadingLogs] = useState(true);
+  // Accurate stat-card counts, computed server-side over the FULL log table
+  // (see /api/wa/messages `stats` mode) — not derived from the row-limited
+  // `logs` list below, which is only ever a recent slice for the table.
+  const [serverStats, setServerStats] = useState<{ todayCount: number; weekSent: number; weekFailed: number; weekCount: number } | null>(null);
 
   // Birthday reminder settings
   const bdDefaults = settingsStore.birthday as { autoBirthday: boolean; birthdayDiscount: string; birthdayDiscountEnabled?: boolean };
@@ -419,6 +423,7 @@ export default function MessagesPage() {
               setLogs(data.logs.filter(isVisibleWaLog));
               setLoadingLogs(false);
               setClients(getStoredClients().filter(c => getActiveSection() === "all" || c.section === getActiveSection()));
+              void loadStats(user.id);
               return;
             }
           }
@@ -428,6 +433,21 @@ export default function MessagesPage() {
       setLogs(getWaLogs().filter(isVisibleWaLog));
       setClients(getStoredClients().filter(c => getActiveSection() === "all" || c.section === getActiveSection()));
       setLoadingLogs(false);
+      setServerStats(null); // no server to ask — stat cards fall back to the (capped) local log list
+    }
+    async function loadStats(userId: string) {
+      // "Today" is the salon's local calendar day, not the server's UTC day —
+      // computed here in the browser so it matches whatever timezone the
+      // owner is actually in.
+      const todaySince = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+      const weekSince = new Date(Date.now() - 7 * 86_400_000).toISOString();
+      try {
+        const res = await fetch(`/api/wa/messages?userId=${encodeURIComponent(userId)}&stats=1&todaySince=${encodeURIComponent(todaySince)}&weekSince=${encodeURIComponent(weekSince)}`);
+        const data = await res.json() as { ok: boolean; todayCount?: number; weekSent?: number; weekFailed?: number; weekCount?: number };
+        if (data.ok) {
+          setServerStats({ todayCount: data.todayCount ?? 0, weekSent: data.weekSent ?? 0, weekFailed: data.weekFailed ?? 0, weekCount: data.weekCount ?? 0 });
+        }
+      } catch { /* stat cards fall back to the (capped) local log list */ }
     }
     load();
   }, [refreshKey]);
@@ -552,14 +572,17 @@ export default function MessagesPage() {
     [logs, filter],
   );
 
-  // Stats
-  const todayStr    = new Date().toISOString().slice(0, 10);
+  // Stats — prefer serverStats (accurate, computed over the full log table);
+  // fall back to deriving from the row-limited `logs` list only when the
+  // server call didn't come back (e.g. offline, using the localStorage log).
+  const localTodayStart = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
   const weekAgo     = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const todayCount  = logs.filter((l) => l.timestamp.startsWith(todayStr)).length;
-  const weekCount   = logs.filter((l) => l.timestamp >= weekAgo).length;
-  const failCount   = logs.filter((l) => l.status === "failed").length;
-  const sentCount   = logs.filter((l) => l.status === "sent").length;
-  const successRate = logs.length > 0 ? Math.round((sentCount / logs.length) * 100) : 100;
+  const todayCount  = serverStats ? serverStats.todayCount : logs.filter((l) => l.timestamp >= localTodayStart).length;
+  const weekSent    = serverStats ? serverStats.weekSent   : logs.filter((l) => l.timestamp >= weekAgo && l.status === "sent").length;
+  const weekFailed  = serverStats ? serverStats.weekFailed : logs.filter((l) => l.timestamp >= weekAgo && l.status === "failed").length;
+  const weekCount   = serverStats ? serverStats.weekCount  : weekSent + weekFailed;
+  const failCount   = weekFailed;
+  const successRate = weekCount > 0 ? Math.round((weekSent / weekCount) * 100) : 100;
   const totalQueue = queueCounts.confirm + queueCounts.followup + queueCounts.booking + queueCounts.pos;
 
   // Group logs by day
@@ -744,7 +767,7 @@ export default function MessagesPage() {
             { label: "Sent Today",    value: todayCount,  icon: Send,        color: "#7C3AED", sub: "messages dispatched" },
             { label: "This Week",     value: weekCount,   icon: TrendingUp,  color: "#0284c7", sub: "last 7 days" },
             { label: "Failed",        value: failCount,   icon: XCircle,     color: "#dc2626", sub: failCount > 0 ? "check API credentials" : "all clear ✓" },
-            { label: "Success Rate",  value: `${successRate}%`, icon: Zap,   color: "#059669", sub: `${sentCount} of ${logs.length} sent` },
+            { label: "Success Rate",  value: `${successRate}%`, icon: Zap,   color: "#059669", sub: `${weekSent} of ${weekCount} sent this week` },
           ].map(({ label, value, icon: Icon, color, sub }) => (
             <div key={label} style={{ background: "#fff", border: "1px solid #ebebf5", borderRadius: 16, padding: "20px 22px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: 0, right: 0, width: 80, height: 80, borderRadius: "0 16px 0 100%", background: color + "08" }} />

@@ -1,14 +1,28 @@
 /**
  * /api/wa/messages
  *
- * GET  ?userId=xxx&limit=200         — fetch WA message log for a user from Turso
- * GET  ?userId=xxx&apptId=yyy&type=z — check whether a log already exists for
- *                                      that appointment/type (used to dedup a
- *                                      send across browsers/devices)
- * POST { userId, entry }             — persist a single WA log entry to Turso
+ * GET  ?userId=xxx&limit=200                    — fetch WA message log for a user from Turso
+ * GET  ?userId=xxx&apptId=yyy&type=z            — check whether a log already exists for
+ *                                                  that appointment/type (used to dedup a
+ *                                                  send across browsers/devices)
+ * GET  ?userId=xxx&stats=1&todaySince=..&weekSince=..
+ *                                                — aggregate counts (today/week/failed/sent),
+ *                                                  computed via SQL over the FULL table, not
+ *                                                  capped by `limit` — see note below.
+ * POST { userId, entry }                        — persist a single WA log entry to Turso
  *
  * This gives every salon owner their own message history that survives
  * localStorage clears and is visible across devices.
+ *
+ * The stat cards on the Messages page used to be derived client-side from the
+ * same `limit`-capped row list used to render the log table. Once a salon
+ * accumulates more than `limit` log rows total, "This Week" / "Success Rate"
+ * silently became "over whatever fit in the last `limit` rows ever" instead
+ * of the real period — wrong for any moderately active salon. The `stats`
+ * mode below runs COUNT()s against the whole table so these numbers are
+ * accurate regardless of how many rows exist. `todaySince`/`weekSince` are
+ * ISO timestamps computed client-side (in the browser's local timezone) so
+ * "today" means the salon's local calendar day, not the server's UTC day.
  */
 
 import { NextRequest } from "next/server";
@@ -52,6 +66,30 @@ export async function GET(req: NextRequest) {
         args: [userId, apptId, type],
       });
       return Response.json({ ok: true, exists: result.rows.length > 0 });
+    }
+
+    if (req.nextUrl.searchParams.get("stats")) {
+      const todaySince = req.nextUrl.searchParams.get("todaySince") || new Date().toISOString();
+      const weekSince = req.nextUrl.searchParams.get("weekSince") || new Date(Date.now() - 7 * 86_400_000).toISOString();
+      const [todayResult, weekResult] = await Promise.all([
+        db.execute({
+          sql: "SELECT COUNT(*) AS n FROM wa_message_logs WHERE user_id = ? AND timestamp >= ?",
+          args: [userId, todaySince],
+        }),
+        db.execute({
+          sql: "SELECT status, COUNT(*) AS n FROM wa_message_logs WHERE user_id = ? AND timestamp >= ? GROUP BY status",
+          args: [userId, weekSince],
+        }),
+      ]);
+      const todayCount = Number(todayResult.rows[0]?.n ?? 0);
+      let weekSent = 0;
+      let weekFailed = 0;
+      for (const row of weekResult.rows) {
+        const n = Number(row.n ?? 0);
+        if (row.status === "sent") weekSent += n;
+        else if (row.status === "failed") weekFailed += n;
+      }
+      return Response.json({ ok: true, todayCount, weekSent, weekFailed, weekCount: weekSent + weekFailed });
     }
 
     const limit = Math.min(parseInt(req.nextUrl.searchParams.get("limit") || "200"), 500);
