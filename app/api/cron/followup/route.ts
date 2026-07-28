@@ -202,6 +202,7 @@ async function runFollowupCron() {
         botSailorApiToken: s?.wasender?.botSailorApiToken,
         botSailorPhoneNumberId: s?.wasender?.botSailorPhoneNumberId,
         zaptickApiKey: s?.wasender?.zaptickApiKey,
+        chakraAccessToken: s?.wasender?.chakraAccessToken,
       };
       const autoFollowup = s?.wasender?.autoFollowup;
       const rawFollowupDelayMinutes = Number(s?.wasender?.followupDelayMinutes ?? 1440);

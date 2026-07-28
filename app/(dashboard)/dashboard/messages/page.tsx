@@ -526,13 +526,14 @@ export default function MessagesPage() {
   }, []);
 
   const ws = settingsStore.wasender as {
-    enabled?: boolean; provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; ownerPhone: string;
+    enabled?: boolean; provider?: "wasender" | "botsailor" | "zaptick" | "chakra"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; chakraAccessToken?: string; chakraPluginId?: string; chakraWhatsappPhoneNumberId?: string; ownerPhone: string;
     autoReminder: boolean; autoConfirmation: boolean; autoFollowup: boolean;
     autoCancellation: boolean; autoLowStock: boolean;
   };
-  const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey;
+  const activeCredential = ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.provider === "chakra" ? ws.chakraAccessToken : ws.apiKey;
   const isConfigured = !!activeCredential
-    && (ws.provider !== "botsailor" || !!ws.botSailorPhoneNumberId);
+    && (ws.provider !== "botsailor" || !!ws.botSailorPhoneNumberId)
+    && (ws.provider !== "chakra" || (!!ws.chakraPluginId && !!ws.chakraWhatsappPhoneNumberId));
   const [testingConn, setTestingConn] = useState(false);
   const [connStatus, setConnStatus] = useState<{ ok: boolean; message?: string; status?: string } | null>(null);
   // Use the real API result when available; null = still checking, true/false = known
@@ -549,6 +550,9 @@ export default function MessagesPage() {
         botSailorApiToken: ws.botSailorApiToken || "",
         botSailorPhoneNumberId: ws.botSailorPhoneNumberId || "",
         zaptickApiKey: ws.zaptickApiKey || "",
+        chakraAccessToken: ws.chakraAccessToken || "",
+        chakraPluginId: ws.chakraPluginId || "",
+        chakraWhatsappPhoneNumberId: ws.chakraWhatsappPhoneNumberId || "",
         force: "1",
       });
       const res = await fetch(`/api/whatsapp/status?${params}`);

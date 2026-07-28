@@ -1,4 +1,4 @@
-export type WhatsAppProvider = "wasender" | "botsailor" | "zaptick";
+export type WhatsAppProvider = "wasender" | "botsailor" | "zaptick" | "chakra";
 
 export interface WhatsAppProviderConfig {
   provider?: WhatsAppProvider;
@@ -11,6 +11,14 @@ export interface WhatsAppProviderConfig {
   botSailorTemplateCancellation?: string;
   botSailorTemplateBirthday?: string;
   zaptickApiKey?: string;
+  chakraAccessToken?: string;
+  chakraPluginId?: string;
+  chakraWhatsappPhoneNumberId?: string;
+  chakraTemplateReminder?: string;
+  chakraTemplateConfirmation?: string;
+  chakraTemplateFollowup?: string;
+  chakraTemplateCancellation?: string;
+  chakraTemplateBirthday?: string;
 }
 
 export interface WhatsAppSendResult {
@@ -24,6 +32,7 @@ export interface WhatsAppSendResult {
 export function activeWhatsAppCredential(config: WhatsAppProviderConfig): string {
   if (config.provider === "botsailor") return config.botSailorApiToken || "";
   if (config.provider === "zaptick") return config.zaptickApiKey || "";
+  if (config.provider === "chakra") return config.chakraAccessToken || "";
   return config.apiKey || "";
 }
 
@@ -115,6 +124,58 @@ export async function sendWhatsAppMessage(
         status: 500, 
         errorReason: err instanceof Error ? err.message : "Failed to connect to Zaptick API" 
       };
+    }
+  }
+
+  // ─── ChakraHQ Provider ──────────────────────────────────────────────────────
+  // ChakraHQ is a Meta Cloud API partner (like BotSailor) — business-initiated
+  // messages outside the 24h customer service window require an approved
+  // WhatsApp template, so this always sends via send-template-message rather
+  // than free text. See https://apidocs.chakrahq.com (chakra-chat-sdk source).
+  if (provider === "chakra") {
+    const accessToken = config.chakraAccessToken || "";
+    const pluginId = config.chakraPluginId || "";
+    const whatsappPhoneNumberId = config.chakraWhatsappPhoneNumberId || "";
+    if (!accessToken || !pluginId || !whatsappPhoneNumberId) {
+      return { ok: false, status: 500, errorReason: "Chakra access token, Plugin ID, and WhatsApp Phone Number ID are required." };
+    }
+    if (phone.endsWith("@g.us")) {
+      return { ok: false, status: 400, errorReason: "ChakraHQ (Meta Cloud API) does not support WhatsApp group recipients." };
+    }
+
+    const messageType = options?.messageType;
+    let templateName = "";
+    if (messageType === "reminder") templateName = config.chakraTemplateReminder || "";
+    else if (messageType === "confirmation") templateName = config.chakraTemplateConfirmation || "";
+    else if (messageType === "followup") templateName = config.chakraTemplateFollowup || "";
+    else if (messageType === "cancellation") templateName = config.chakraTemplateCancellation || "";
+    else if (messageType === "birthday") templateName = config.chakraTemplateBirthday || "";
+    if (!templateName) {
+      return { ok: false, status: 500, errorReason: `No ChakraHQ template configured for message type "${messageType || "manual"}".` };
+    }
+
+    const toPhoneNumber = phone.replace(/\D/g, "");
+    const path = `/v1/ext/plugin/whatsapp/${encodeURIComponent(pluginId)}/phoneNumber/${encodeURIComponent(toPhoneNumber)}/send-template-message`;
+
+    try {
+      const response = await fetch(`https://api.chakrahq.com${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          whatsappPhoneNumberId,
+          templateName,
+          mapping: [{ schemaPropertyName: "1", schemaPropertyValue: text }],
+        }),
+      });
+
+      const data = await response.json().catch(() => ({})) as { _data?: unknown; _errors?: string[] };
+      const ok = response.ok && !data._errors?.length;
+      return { ok, status: response.status, data, errorReason: ok ? undefined : (data._errors?.[0] || `HTTP ${response.status}`) };
+    } catch (err) {
+      return { ok: false, status: 500, errorReason: err instanceof Error ? err.message : "Failed to connect to ChakraHQ API" };
     }
   }
 
@@ -226,6 +287,36 @@ export async function checkWhatsAppProvider(config: WhatsAppProviderConfig) {
     }
   }
   
+  // ─── ChakraHQ Provider Status ───────────────────────────────────────────────
+  if (provider === "chakra") {
+    const accessToken = config.chakraAccessToken || "";
+    if (!accessToken) return { connected: false, status: "NOT_CONFIGURED", message: "Chakra access token is required." };
+    if (!config.chakraPluginId || !config.chakraWhatsappPhoneNumberId) {
+      return { connected: false, status: "NOT_CONFIGURED", message: "Chakra Plugin ID and WhatsApp Phone Number ID are required." };
+    }
+
+    try {
+      // No dedicated health-check endpoint is documented — validate the
+      // access token itself against the account-level config endpoint.
+      const response = await fetch("https://api.chakrahq.com/v1/ext/config", {
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+        cache: "no-store",
+        signal: AbortSignal.timeout(8000),
+      });
+      return {
+        connected: response.ok,
+        status: response.ok ? "CONNECTED" : "DISCONNECTED",
+        message: response.ok ? "Chakra access token is valid." : `Chakra authentication failed (HTTP ${response.status}).`,
+      };
+    } catch (err) {
+      return {
+        connected: false,
+        status: "ERROR",
+        message: err instanceof Error ? err.message : "Failed to check Chakra status.",
+      };
+    }
+  }
+
   // ─── BotSailor Provider Status ──────────────────────────────────────────────
   if (provider === "botsailor") {
     const apiToken = config.botSailorApiToken || "";

@@ -381,6 +381,14 @@ function providerFromSettings(settings: Record<string, unknown> | null): WhatsAp
     botSailorApiToken: wasender.botSailorApiToken as string | undefined,
     botSailorPhoneNumberId: wasender.botSailorPhoneNumberId as string | undefined,
     zaptickApiKey: wasender.zaptickApiKey as string | undefined,
+    chakraAccessToken: wasender.chakraAccessToken as string | undefined,
+    chakraPluginId: wasender.chakraPluginId as string | undefined,
+    chakraWhatsappPhoneNumberId: wasender.chakraWhatsappPhoneNumberId as string | undefined,
+    chakraTemplateReminder: wasender.chakraTemplateReminder as string | undefined,
+    chakraTemplateConfirmation: wasender.chakraTemplateConfirmation as string | undefined,
+    chakraTemplateFollowup: wasender.chakraTemplateFollowup as string | undefined,
+    chakraTemplateCancellation: wasender.chakraTemplateCancellation as string | undefined,
+    chakraTemplateBirthday: wasender.chakraTemplateBirthday as string | undefined,
   };
 }
 

@@ -286,6 +286,7 @@ export async function POST(req: NextRequest) {
       botSailorApiToken: settings?.wasender?.botSailorApiToken,
       botSailorPhoneNumberId: settings?.wasender?.botSailorPhoneNumberId,
       zaptickApiKey: settings?.wasender?.zaptickApiKey,
+      chakraAccessToken: settings?.wasender?.chakraAccessToken,
     };
     if (!activeWhatsAppCredential(providerConfig)) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "missing-provider-credentials" });

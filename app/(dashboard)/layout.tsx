@@ -592,8 +592,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // WhatsApp connection status check
   useEffect(() => {
     if (!isReady) return;
-    const config = settingsStore.wasender as { provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string };
-    const credential = config.provider === "botsailor" ? config.botSailorApiToken : config.provider === "zaptick" ? config.zaptickApiKey : config.apiKey;
+    const config = settingsStore.wasender as { provider?: "wasender" | "botsailor" | "zaptick" | "chakra"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; chakraAccessToken?: string; chakraPluginId?: string; chakraWhatsappPhoneNumberId?: string };
+    const credential = config.provider === "botsailor" ? config.botSailorApiToken : config.provider === "zaptick" ? config.zaptickApiKey : config.provider === "chakra" ? config.chakraAccessToken : config.apiKey;
     if (!credential) return;
 
     async function checkWa() {
@@ -604,6 +604,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           botSailorApiToken: config.botSailorApiToken || "",
           botSailorPhoneNumberId: config.botSailorPhoneNumberId || "",
           zaptickApiKey: config.zaptickApiKey || "",
+          chakraAccessToken: config.chakraAccessToken || "",
+          chakraPluginId: config.chakraPluginId || "",
+          chakraWhatsappPhoneNumberId: config.chakraWhatsappPhoneNumberId || "",
         });
         const res  = await fetch(`/api/whatsapp/status?${params}`);
         if (!res.ok) return; // server error — keep current status, don't flip to disconnected

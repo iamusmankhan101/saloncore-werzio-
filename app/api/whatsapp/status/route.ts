@@ -18,15 +18,18 @@ export async function GET(request: NextRequest) {
   const botSailorApiToken = searchParams.get("botSailorApiToken") || "";
   const botSailorPhoneNumberId = searchParams.get("botSailorPhoneNumberId") || "";
   const zaptickApiKey = searchParams.get("zaptickApiKey") || "";
+  const chakraAccessToken = searchParams.get("chakraAccessToken") || "";
+  const chakraPluginId = searchParams.get("chakraPluginId") || "";
+  const chakraWhatsappPhoneNumberId = searchParams.get("chakraWhatsappPhoneNumberId") || "";
   const force  = searchParams.get("force") === "1"; // manual "Test Connection" click
 
-  const credential = provider === "botsailor" ? botSailorApiToken : provider === "zaptick" ? zaptickApiKey : apiKey;
+  const credential = provider === "botsailor" ? botSailorApiToken : provider === "zaptick" ? zaptickApiKey : provider === "chakra" ? chakraAccessToken : apiKey;
   if (!credential) {
     return Response.json({ ok: false, connected: false, error: "No API key configured" });
   }
 
   // Return cached result unless a manual test is requested
-  const cacheKey = `${provider}:${credential}:${botSailorPhoneNumberId || ""}`;
+  const cacheKey = `${provider}:${credential}:${botSailorPhoneNumberId || chakraWhatsappPhoneNumberId || ""}`;
   const cached = cache.get(cacheKey);
   if (cached && !force && Date.now() - cached.ts < CACHE_TTL_MS) {
     return Response.json({ ok: cached.connected, connected: cached.connected, status: cached.status, message: cached.message, cached: true });
@@ -39,6 +42,9 @@ export async function GET(request: NextRequest) {
       botSailorApiToken: botSailorApiToken || undefined,
       botSailorPhoneNumberId: botSailorPhoneNumberId || undefined,
       zaptickApiKey: zaptickApiKey || undefined,
+      chakraAccessToken: chakraAccessToken || undefined,
+      chakraPluginId: chakraPluginId || undefined,
+      chakraWhatsappPhoneNumberId: chakraWhatsappPhoneNumberId || undefined,
     });
     cache.set(cacheKey, { ...result, ts: Date.now() });
     return Response.json({ ok: result.connected, ...result });
@@ -48,7 +54,7 @@ export async function GET(request: NextRequest) {
     if (cached) {
       return Response.json({ ok: cached.connected, connected: cached.connected, status: cached.status, message: cached.message, stale: true });
     }
-    const providerName = provider === "botsailor" ? "BotSailor" : "WaSender";
+    const providerName = provider === "botsailor" ? "BotSailor" : provider === "zaptick" ? "Zaptick" : provider === "chakra" ? "ChakraHQ" : "WaSender";
     return Response.json({ ok: false, connected: false, status: "UNKNOWN", message: `Could not reach ${providerName}.`, error: String(err) }, { status: 502 });
   }
 }

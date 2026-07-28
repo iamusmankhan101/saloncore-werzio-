@@ -139,7 +139,20 @@ export async function createBooking(
       apiKey: settings?.wasender?.apiKey,
       botSailorApiToken: settings?.wasender?.botSailorApiToken,
       botSailorPhoneNumberId: settings?.wasender?.botSailorPhoneNumberId,
+      botSailorTemplateReminder: settings?.wasender?.botSailorTemplateReminder,
+      botSailorTemplateConfirmation: settings?.wasender?.botSailorTemplateConfirmation,
+      botSailorTemplateFollowup: settings?.wasender?.botSailorTemplateFollowup,
+      botSailorTemplateCancellation: settings?.wasender?.botSailorTemplateCancellation,
+      botSailorTemplateBirthday: settings?.wasender?.botSailorTemplateBirthday,
       zaptickApiKey: settings?.wasender?.zaptickApiKey,
+      chakraAccessToken: settings?.wasender?.chakraAccessToken,
+      chakraPluginId: settings?.wasender?.chakraPluginId,
+      chakraWhatsappPhoneNumberId: settings?.wasender?.chakraWhatsappPhoneNumberId,
+      chakraTemplateReminder: settings?.wasender?.chakraTemplateReminder,
+      chakraTemplateConfirmation: settings?.wasender?.chakraTemplateConfirmation,
+      chakraTemplateFollowup: settings?.wasender?.chakraTemplateFollowup,
+      chakraTemplateCancellation: settings?.wasender?.chakraTemplateCancellation,
+      chakraTemplateBirthday: settings?.wasender?.chakraTemplateBirthday,
     };
     const autoConfirmation: boolean = settings?.wasender?.autoConfirmation !== false; // default true
     const bookingGroupJid: string = settings?.wasender?.bookingGroupJid?.trim() || "";

@@ -100,6 +100,7 @@ async function runLowStockCron() {
         botSailorApiToken: s?.wasender?.botSailorApiToken,
         botSailorPhoneNumberId: s?.wasender?.botSailorPhoneNumberId,
         zaptickApiKey: s?.wasender?.zaptickApiKey,
+        chakraAccessToken: s?.wasender?.chakraAccessToken,
       };
       const ownerPhone   = s?.wasender?.ownerPhone;
       const autoLowStock = s?.wasender?.autoLowStock;

@@ -216,6 +216,7 @@ async function runReminderCron() {
         botSailorApiToken: s?.wasender?.botSailorApiToken,
         botSailorPhoneNumberId: s?.wasender?.botSailorPhoneNumberId,
         zaptickApiKey: s?.wasender?.zaptickApiKey,
+        chakraAccessToken: s?.wasender?.chakraAccessToken,
       };
       const autoReminder = s?.wasender?.autoReminder;
       const notificationsEnabled = s?.notifications?.apptReminder !== false;

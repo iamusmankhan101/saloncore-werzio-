@@ -286,7 +286,7 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
   const [sending, setSending] = useState(false);
   const [apiResult, setApiResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const ws = settingsStore.wasender as { provider?: "wasender" | "botsailor" | "zaptick"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; ownerPhone: string };
+  const ws = settingsStore.wasender as { provider?: "wasender" | "botsailor" | "zaptick" | "chakra"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; chakraAccessToken?: string; ownerPhone: string };
   const salonName = settingsStore.salon.name as string;
 
   const message = [
@@ -316,7 +316,7 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
   };
 
   const sendViaApi = async () => {
-    if (!(ws.provider === "botsailor" ? ws.botSailorApiToken && ws.botSailorPhoneNumberId : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey)) {
+    if (!(ws.provider === "botsailor" ? ws.botSailorApiToken && ws.botSailorPhoneNumberId : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.provider === "chakra" ? ws.chakraAccessToken : ws.apiKey)) {
       setApiResult({ ok: false, msg: "WhatsApp provider credentials are not set in Account → WhatsApp Settings" });
       return;
     }
@@ -347,7 +347,7 @@ function ReminderModal({ alertItems, onClose }: { alertItems: InventoryItem[]; o
       }
       setApiResult(data.ok
         ? { ok: true, msg: `Sent to ${phone}` }
-        : { ok: false, msg: `Failed — check your ${ws.provider === "botsailor" ? "BotSailor" : "WaSender"} credentials` });
+        : { ok: false, msg: `Failed — check your ${ws.provider === "botsailor" ? "BotSailor" : ws.provider === "zaptick" ? "Zaptick" : ws.provider === "chakra" ? "ChakraHQ" : "WaSender"} credentials` });
     } catch (err) {
       setApiResult({ ok: false, msg: String(err) });
     }

@@ -445,6 +445,7 @@ export async function sendGroupBookingAlert(appt: {
     apiKey: string;
     botSailorApiToken?: string;
     zaptickApiKey?: string;
+    chakraAccessToken?: string;
     bookingGroupJid?: string;
     autoGroupBooking?: boolean;
     enabled?: boolean;
@@ -457,8 +458,9 @@ export async function sendGroupBookingAlert(appt: {
   if (ws.enabled === false) return;
 
   if (ws.provider === "botsailor") { console.warn("⚠️ New Booking group alert skipped — BotSailor doesn't support sending to groups."); return; }
+  if (ws.provider === "chakra") { console.warn("⚠️ New Booking group alert skipped — ChakraHQ (Meta Cloud API) doesn't support sending to groups."); return; }
   if (!ws.autoGroupBooking) { console.warn("⚠️ New Booking group alert disabled — enable \"New Booking Group Alert\" in Account → WhatsApp Settings"); return; }
-  const hasCredentials = ws.provider === "zaptick" ? !!ws.zaptickApiKey : !!ws.apiKey;
+  const hasCredentials = ws.provider === "zaptick" ? !!ws.zaptickApiKey : ws.provider === "chakra" ? !!ws.chakraAccessToken : !!ws.apiKey;
   if (!hasCredentials) { console.warn("⚠️ New Booking group alert skipped — no WhatsApp provider credentials set"); return; }
   if (!ws.bookingGroupJid?.endsWith("@g.us")) { console.warn("⚠️ New Booking group alert skipped — no WhatsApp group linked in Account → WhatsApp Settings"); return; }
 
@@ -606,6 +608,9 @@ type ProviderConfig = WhatsAppSafetyConfig & {
   botSailorApiToken?: string;
   botSailorPhoneNumberId?: string;
   zaptickApiKey?: string;
+  chakraAccessToken?: string;
+  chakraPluginId?: string;
+  chakraWhatsappPhoneNumberId?: string;
 };
 
 // Natural, randomized pacing applied before *every* logged outcome — a successful
@@ -676,11 +681,14 @@ async function callSendApi(
 ): Promise<boolean> {
   if (!phone.trim()) return false;
   const providerConfig = settingsStore.wasender as WhatsAppSafetyConfig & {
-    provider?: "wasender" | "botsailor" | "zaptick";
+    provider?: "wasender" | "botsailor" | "zaptick" | "chakra";
     apiKey: string;
     botSailorApiToken?: string;
     botSailorPhoneNumberId?: string;
     zaptickApiKey?: string;
+    chakraAccessToken?: string;
+    chakraPluginId?: string;
+    chakraWhatsappPhoneNumberId?: string;
   };
 
   await applyPacingGate(providerConfig, logMeta.type);
@@ -781,7 +789,7 @@ function birthdaySpreadDelay(index: number, total: number): number {
 export async function checkBirthdayReminders(force = false, queueNewBirthdays = true): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const ws = settingsStore.wasender as { provider?: string; apiKey: string; botSailorApiToken?: string; zaptickApiKey?: string; autoReminder: boolean; enabled?: boolean };
+  const ws = settingsStore.wasender as { provider?: string; apiKey: string; botSailorApiToken?: string; zaptickApiKey?: string; chakraAccessToken?: string; autoReminder: boolean; enabled?: boolean };
   const bd = settingsStore.birthday as {
     autoBirthday: boolean;
     birthdayDiscountEnabled?: boolean;
@@ -793,7 +801,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
   // override, so it still works even while automation is paused.
   if (!force && ws.enabled === false) return;
   if (!force && !bd.autoBirthday) return;
-  if (!force && !(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey)) return;
+  if (!force && !(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.provider === "chakra" ? ws.chakraAccessToken : ws.apiKey)) return;
 
   const birthdayTemplate = (settingsStore.whatsapp as { birthday: string; birthdayNoDiscount?: string })[
     bd.birthdayDiscountEnabled === false ? "birthdayNoDiscount" : "birthday"
@@ -909,6 +917,7 @@ async function runSchedulerInternal(): Promise<void> {
     apiKey: string;
     botSailorApiToken?: string;
     zaptickApiKey?: string;
+    chakraAccessToken?: string;
     ownerPhone: string;
     autoReminder: boolean;
     reminderHours: number;
@@ -921,7 +930,7 @@ async function runSchedulerInternal(): Promise<void> {
   // Check if WhatsApp automation is enabled
   if (ws.enabled === false) return;
 
-  if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey)) return;
+  if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.provider === "chakra" ? ws.chakraAccessToken : ws.apiKey)) return;
 
   const waTpl = settingsStore.whatsapp as {
     reminder: string;
@@ -1135,18 +1144,19 @@ export async function checkLowStockAlerts(): Promise<void> {
   if (typeof window === "undefined") return;
 
   const ws = settingsStore.wasender as {
-    provider?: string; apiKey: string; botSailorApiToken?: string; zaptickApiKey?: string; autoLowStock: boolean; ownerPhone: string; bookingGroupJid?: string; enabled?: boolean;
+    provider?: string; apiKey: string; botSailorApiToken?: string; zaptickApiKey?: string; chakraAccessToken?: string; autoLowStock: boolean; ownerPhone: string; bookingGroupJid?: string; enabled?: boolean;
   };
   // Master "WhatsApp Automation" toggle — this function is called directly from
   // the inventory page too (not just the gated scheduler tick), so it needs its
   // own check.
   if (ws.enabled === false) return;
   if (!ws.autoLowStock) { console.warn("⚠️ Low stock alerts disabled — enable in Account → WhatsApp Settings"); return; }
-  // BotSailor doesn't support sending to groups (same restriction as the New Booking
-  // group alert), so the group target only applies for the WaSender provider.
-  const groupJid = ws.provider !== "botsailor" && ws.bookingGroupJid?.endsWith("@g.us") ? ws.bookingGroupJid : "";
+  // BotSailor and ChakraHQ (both Meta Cloud API) don't support sending to groups
+  // (same restriction as the New Booking group alert), so the group target only
+  // applies for the WaSender/Zaptick providers.
+  const groupJid = ws.provider !== "botsailor" && ws.provider !== "chakra" && ws.bookingGroupJid?.endsWith("@g.us") ? ws.bookingGroupJid : "";
   if (!ws.ownerPhone && !groupJid) { console.warn("⚠️ No owner phone or linked WhatsApp group set — add one in Account → WhatsApp Settings"); return; }
-  if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.apiKey)) { console.warn("⚠️ No WhatsApp provider credentials set — add them in Account → WhatsApp Settings"); return; }
+  if (!(ws.provider === "botsailor" ? ws.botSailorApiToken : ws.provider === "zaptick" ? ws.zaptickApiKey : ws.provider === "chakra" ? ws.chakraAccessToken : ws.apiKey)) { console.warn("⚠️ No WhatsApp provider credentials set — add them in Account → WhatsApp Settings"); return; }
 
   const lowstockTemplate = (settingsStore.whatsapp as { lowstock: string }).lowstock;
   if (!lowstockTemplate) { console.warn("⚠️ No low stock template found in WhatsApp Settings"); return; }

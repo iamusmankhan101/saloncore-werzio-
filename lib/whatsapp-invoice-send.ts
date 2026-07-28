@@ -80,6 +80,13 @@ export async function sendSalonInvoiceWhatsApp({
     return { ok: false, provider, error: "Zaptick PDF invoice sending is not supported yet." };
   }
 
+  if (provider === "chakra") {
+    // Sending a PDF via Chakra's Cloud API requires an approved document-header
+    // template (with its own template name), which isn't part of the current
+    // Chakra template set (reminder/confirmation/followup/cancellation/birthday).
+    return { ok: false, provider, error: "ChakraHQ PDF invoice sending is not supported yet." };
+  }
+
   const apiKey = providerConfig.apiKey || "";
   if (!apiKey) return { ok: false, provider, error: "WaSender API key is not configured." };
 

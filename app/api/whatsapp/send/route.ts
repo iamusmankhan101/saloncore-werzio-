@@ -11,12 +11,25 @@ export async function POST(request: NextRequest) {
   if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { provider, apiKey, botSailorApiToken, botSailorPhoneNumberId, zaptickApiKey, phone, text, messageIntent, messageType, recipientOptedIn, safety } = body as {
+  const {
+    provider, apiKey, botSailorApiToken, botSailorPhoneNumberId, zaptickApiKey,
+    chakraAccessToken, chakraPluginId, chakraWhatsappPhoneNumberId,
+    chakraTemplateReminder, chakraTemplateConfirmation, chakraTemplateFollowup, chakraTemplateCancellation, chakraTemplateBirthday,
+    phone, text, messageIntent, messageType, recipientOptedIn, safety,
+  } = body as {
     provider?: WhatsAppProvider;
     apiKey?: string;
     botSailorApiToken?: string;
     botSailorPhoneNumberId?: string;
     zaptickApiKey?: string;
+    chakraAccessToken?: string;
+    chakraPluginId?: string;
+    chakraWhatsappPhoneNumberId?: string;
+    chakraTemplateReminder?: string;
+    chakraTemplateConfirmation?: string;
+    chakraTemplateFollowup?: string;
+    chakraTemplateCancellation?: string;
+    chakraTemplateBirthday?: string;
     phone: string;
     text: string;
     messageIntent?: WhatsAppMessageIntent;
@@ -44,7 +57,11 @@ export async function POST(request: NextRequest) {
     // inside this request would block the serverless function for minutes and
     // risk hitting the platform's execution timeout.
     const result = await sendWhatsAppMessage(
-      { provider, apiKey, botSailorApiToken, botSailorPhoneNumberId, zaptickApiKey },
+      {
+        provider, apiKey, botSailorApiToken, botSailorPhoneNumberId, zaptickApiKey,
+        chakraAccessToken, chakraPluginId, chakraWhatsappPhoneNumberId,
+        chakraTemplateReminder, chakraTemplateConfirmation, chakraTemplateFollowup, chakraTemplateCancellation, chakraTemplateBirthday,
+      },
       phone,
       text,
       messageType ? { messageType } : undefined

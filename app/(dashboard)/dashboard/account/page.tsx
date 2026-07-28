@@ -470,7 +470,7 @@ function Security() {
 
 interface WhatsAppSettings {
   enabled: boolean;
-  provider: "wasender" | "botsailor" | "zaptick";
+  provider: "wasender" | "botsailor" | "zaptick" | "chakra";
   apiKey: string;
   botSailorApiToken: string;
   botSailorPhoneNumberId: string;
@@ -480,6 +480,14 @@ interface WhatsAppSettings {
   botSailorTemplateCancellation?: string;
   botSailorTemplateBirthday?: string;
   zaptickApiKey: string;
+  chakraAccessToken: string;
+  chakraPluginId: string;
+  chakraWhatsappPhoneNumberId: string;
+  chakraTemplateReminder?: string;
+  chakraTemplateConfirmation?: string;
+  chakraTemplateFollowup?: string;
+  chakraTemplateCancellation?: string;
+  chakraTemplateBirthday?: string;
   ownerPhone: string;
   bookingGroupJid: string;
   autoReminder: boolean;
@@ -844,13 +852,16 @@ function WhatsAppSection() {
   }
 
   async function testConnection() {
-    const credential = form.provider === "botsailor" ? form.botSailorApiToken : form.provider === "zaptick" ? form.zaptickApiKey : form.apiKey;
-    const missingProviderFields = form.provider === "botsailor" && !form.botSailorPhoneNumberId;
+    const credential = form.provider === "botsailor" ? form.botSailorApiToken : form.provider === "zaptick" ? form.zaptickApiKey : form.provider === "chakra" ? form.chakraAccessToken : form.apiKey;
+    const missingProviderFields = (form.provider === "botsailor" && !form.botSailorPhoneNumberId)
+      || (form.provider === "chakra" && (!form.chakraPluginId || !form.chakraWhatsappPhoneNumberId));
     if (!credential || missingProviderFields) {
       const msg = form.provider === "botsailor"
         ? "Enter your BotSailor API token and phone number ID first."
         : form.provider === "zaptick"
         ? "Enter your Zaptick API key first."
+        : form.provider === "chakra"
+        ? "Enter your Chakra access token, Plugin ID, and WhatsApp Phone Number ID first."
         : "Enter your WaSender API key first.";
       setTestResult({ ok: false, msg });
       return;
@@ -865,6 +876,9 @@ function WhatsAppSection() {
         botSailorApiToken: form.botSailorApiToken,
         botSailorPhoneNumberId: form.botSailorPhoneNumberId,
         zaptickApiKey: form.zaptickApiKey,
+        chakraAccessToken: form.chakraAccessToken,
+        chakraPluginId: form.chakraPluginId,
+        chakraWhatsappPhoneNumberId: form.chakraWhatsappPhoneNumberId,
       });
       const res = await fetch(`/api/whatsapp/status?${params}`);
       const data = await res.json();
@@ -873,11 +887,11 @@ function WhatsAppSection() {
         setTestResult({ ok: true, msg: "Connected! The salon WhatsApp session is active." });
       } else {
         setConnectionState("disconnected");
-        setTestResult({ ok: false, msg: data.message || `${form.provider === "botsailor" ? "BotSailor" : form.provider === "zaptick" ? "Zaptick" : "WaSender"} connection failed.` });
+        setTestResult({ ok: false, msg: data.message || `${form.provider === "botsailor" ? "BotSailor" : form.provider === "zaptick" ? "Zaptick" : form.provider === "chakra" ? "ChakraHQ" : "WaSender"} connection failed.` });
       }
     } catch {
       setConnectionState("disconnected");
-      setTestResult({ ok: false, msg: `Could not reach ${form.provider === "botsailor" ? "BotSailor" : form.provider === "zaptick" ? "Zaptick" : "WaSender"}. Check your internet connection.` });
+      setTestResult({ ok: false, msg: `Could not reach ${form.provider === "botsailor" ? "BotSailor" : form.provider === "zaptick" ? "Zaptick" : form.provider === "chakra" ? "ChakraHQ" : "WaSender"}. Check your internet connection.` });
     }
     setTesting(false);
   }
@@ -1039,7 +1053,7 @@ function WhatsAppSection() {
   const totalSelectedCount = filteredContacts.filter((contact) => selectedContactKeys.has(contactKey(contact)) && !isExistingClient(contact.phone)).length;
   const allVisibleSelected = visibleSelectableContacts.length > 0 && selectedVisibleCount === visibleSelectableContacts.length;
 
-  const activeCredential = form.provider === "botsailor" ? form.botSailorApiToken : form.provider === "zaptick" ? form.zaptickApiKey : form.apiKey;
+  const activeCredential = form.provider === "botsailor" ? form.botSailorApiToken : form.provider === "zaptick" ? form.zaptickApiKey : form.provider === "chakra" ? form.chakraAccessToken : form.apiKey;
   const isConnected = !!activeCredential && connectionState !== "disconnected";
   const isEnabled = form.enabled !== false; // Default to true if not set
 
@@ -1071,7 +1085,7 @@ function WhatsAppSection() {
         <div style={{ flex: 1 }}>
           <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>WhatsApp Automation</h2>
           <p style={{ margin: 0, color: "#9999b0", fontSize: 12 }}>
-            Choose WaSenderAPI, BotSailor, or Zaptick as the active provider. All automated and manual messages use the selected connection.
+            Choose WaSenderAPI, BotSailor, Zaptick, or ChakraHQ as the active provider. All automated and manual messages use the selected connection.
           </p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
@@ -1124,6 +1138,7 @@ function WhatsAppSection() {
               <option value="wasender">WaSenderAPI</option>
               <option value="botsailor">BotSailor</option>
               <option value="zaptick">Zaptick.io</option>
+              <option value="chakra">ChakraHQ</option>
             </select>
           </Field>
           {form.provider === "wasender" ? <Field label="WaSender API Key" hint="wasenderapi.com → Dashboard → API Keys">
@@ -1273,6 +1288,41 @@ function WhatsAppSection() {
                 💡 <strong>Official Meta Partner:</strong> Zaptick connects via Facebook Business integration, giving you access to WhatsApp Business API with approved message templates, instant activation, and end-to-end encryption. Works with existing or new WhatsApp Business numbers.
               </div>
             </>
+          ) : form.provider === "chakra" ? (
+            <>
+              <Field label="Chakra Access Token" hint="ChakraHQ → Admin → API Keys (chakrahq.com)">
+                <input style={inputStyle} type="password" value={form.chakraAccessToken} onChange={(e) => set("chakraAccessToken", e.target.value)} placeholder="your-chakra-access-token" />
+              </Field>
+              <Field label="Plugin ID" hint="WhatsApp Setup page → ⋮ menu → Copy Plugin Id">
+                <input style={inputStyle} value={form.chakraPluginId} onChange={(e) => set("chakraPluginId", e.target.value)} placeholder="e.g. 6f2a1c9e-..." />
+              </Field>
+              <Field label="WhatsApp Phone Number ID" hint="WhatsApp Setup page → ⚙️ next to Phone Numbers → Meta ID">
+                <input style={inputStyle} value={form.chakraWhatsappPhoneNumberId} onChange={(e) => set("chakraWhatsappPhoneNumberId", e.target.value)} placeholder="e.g. 119060000000000" />
+              </Field>
+              <div style={{ fontSize: 12, color: "#6b7280", background: "#fef3c7", padding: "12px 16px", borderRadius: 10, border: "1px solid #fcd34d", marginTop: 8 }}>
+                ℹ️ <strong>ChakraHQ uses Meta Message Templates:</strong> Like BotSailor, ChakraHQ is a Meta Cloud API partner — proactive messages (reminders, confirmations, etc.) require an approved WhatsApp template. Create and get approval for templates in ChakraHQ / Meta Business Manager, then enter each template name below.
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 8 }}>
+                <Field label="Reminder Template Name" hint="Template for appointment reminders">
+                  <input style={inputStyle} value={form.chakraTemplateReminder || ""} onChange={(e) => set("chakraTemplateReminder", e.target.value)} placeholder="e.g. appointment_reminder" />
+                </Field>
+                <Field label="Confirmation Template Name" hint="Template for booking confirmations">
+                  <input style={inputStyle} value={form.chakraTemplateConfirmation || ""} onChange={(e) => set("chakraTemplateConfirmation", e.target.value)} placeholder="e.g. booking_confirmation" />
+                </Field>
+                <Field label="Follow-up Template Name" hint="Template for post-visit follow-ups">
+                  <input style={inputStyle} value={form.chakraTemplateFollowup || ""} onChange={(e) => set("chakraTemplateFollowup", e.target.value)} placeholder="e.g. followup_message" />
+                </Field>
+                <Field label="Cancellation Template Name" hint="Template for cancellation win-backs">
+                  <input style={inputStyle} value={form.chakraTemplateCancellation || ""} onChange={(e) => set("chakraTemplateCancellation", e.target.value)} placeholder="e.g. cancellation_winback" />
+                </Field>
+                <Field label="Birthday Template Name" hint="Template for birthday greetings">
+                  <input style={inputStyle} value={form.chakraTemplateBirthday || ""} onChange={(e) => set("chakraTemplateBirthday", e.target.value)} placeholder="e.g. birthday_greeting" />
+                </Field>
+              </div>
+              <div style={{ fontSize: 12, color: "#6b7280", background: "#f9fafb", padding: "12px 16px", borderRadius: 10, border: "1px solid #e5e7eb", gridColumn: "1 / -1" }}>
+                💡 Each template's first body variable (<code style={{ fontFamily: "monospace", background: "#ededf4", padding: "1px 5px", borderRadius: 3 }}>{"{{1}}"}</code>) receives the full composed message text. Docs: <a href="https://apidocs.chakrahq.com" target="_blank" rel="noopener noreferrer" style={{ color: "#7C3AED" }}>apidocs.chakrahq.com</a>
+              </div>
+            </>
           ) : null}
           <Field label="Your WhatsApp Number" hint="International format — e.g. 923001234567 (for owner alerts)">
             <input
@@ -1396,9 +1446,9 @@ function WhatsAppSection() {
             </div>
           }
         />}
-        {form.provider === "botsailor" && (
+        {(form.provider === "botsailor" || form.provider === "chakra") && (
           <div style={{ border: "1px solid #e0e7ff", borderRadius: 12, padding: "13px 16px", background: "#f5f7ff", color: "#5b5b78", fontSize: 11, lineHeight: 1.6 }}>
-            BotSailor sends to individual phone numbers. Booking-group alerts remain available when WaSenderAPI is selected.
+            {form.provider === "botsailor" ? "BotSailor" : "ChakraHQ"} sends to individual phone numbers. Booking-group alerts remain available when WaSenderAPI is selected.
           </div>
         )}
         <AutoRow
