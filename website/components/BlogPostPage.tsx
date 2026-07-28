@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ArrowLeft, Calendar, Clock } from "lucide-react";
@@ -8,6 +9,49 @@ import type { BlogPost } from "@/lib/blog";
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+function flattenText(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(flattenText).join("");
+  if (node && typeof node === "object" && "props" in node) {
+    return flattenText((node as { props: { children?: ReactNode } }).props.children);
+  }
+  return "";
+}
+
+// Ranked-listicle headings ("## #1 Salon Central -- Best Overall...") read as a
+// dense wall of bold display-font text at sentence length. Split them into a
+// rank badge + bold product name + a lighter tagline instead of one run-on line.
+const RANK_HEADING_RE = /^#(\d+)\s+(.+?)\s+(?:--|—)\s+(.+)$/;
+
+function RankedHeading({ children }: { children?: ReactNode }) {
+  const text = flattenText(children).trim();
+  const match = text.match(RANK_HEADING_RE);
+  if (!match) return <h2>{children}</h2>;
+  const [, rank, name, tagline] = match;
+  return (
+    <h2 style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+      <span
+        style={{
+          flexShrink: 0, width: 38, height: 38, borderRadius: 11,
+          background: "linear-gradient(135deg, var(--purple), var(--indigo))", color: "#fff",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: "'Clash Display', 'Inter', sans-serif", fontWeight: 600, fontSize: 17,
+        }}
+      >
+        {rank}
+      </span>
+      <span style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 2 }}>
+        <span style={{ fontFamily: "'Clash Display', 'Inter', sans-serif", fontWeight: 600, fontSize: "1.3rem", color: "var(--text)", lineHeight: 1.3 }}>
+          {name}
+        </span>
+        <span style={{ fontFamily: "'Montserrat', 'Inter', sans-serif", fontWeight: 500, fontSize: "0.95rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+          {tagline}
+        </span>
+      </span>
+    </h2>
+  );
 }
 
 function readingTime(md: string) {
@@ -62,7 +106,7 @@ export default function BlogPostPage({ post }: { post: BlogPost }) {
         )}
 
         <div className="blog-markdown">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.contentMd}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ h2: RankedHeading }}>{post.contentMd}</ReactMarkdown>
         </div>
       </main>
       <Footer />

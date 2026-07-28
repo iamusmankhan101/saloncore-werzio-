@@ -141,11 +141,11 @@ h1, h2, h3, h4, h5, h6,
 .blog-markdown { font-size: 1.0625rem; line-height: 1.8; color: var(--text-muted); }
 .blog-markdown > *:first-child { margin-top: 0; }
 .blog-markdown h1, .blog-markdown h2, .blog-markdown h3, .blog-markdown h4 {
-  color: var(--text); font-weight: 600; line-height: 1.3;
+  color: var(--text); font-weight: 600; line-height: 1.4; letter-spacing: -0.005em;
   margin: 1.9em 0 0.7em;
 }
 .blog-markdown h1 { font-size: 1.7rem; }
-.blog-markdown h2 { font-size: 1.4rem; padding-top: 0.75em; border-top: 1px solid var(--border); }
+.blog-markdown h2 { font-size: 1.35rem; padding-top: 0.9em; border-top: 1px solid var(--border); }
 .blog-markdown h3 { font-size: 1.15rem; }
 .blog-markdown h4 { font-size: 1.05rem; }
 .blog-markdown p { margin: 0 0 1.3em; }
