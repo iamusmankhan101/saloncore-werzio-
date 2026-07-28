@@ -2005,6 +2005,7 @@ const PERMISSION_OPTIONS = [
   { key: "inventory", label: "Inventory" },
   { key: "services", label: "Services" },
   { key: "staff", label: "Staff" },
+  { key: "attendance", label: "Attendance" },
   { key: "payouts", label: "Payouts" },
   { key: "messages", label: "WhatsApp" },
   { key: "try-on", label: "Virtual Try-On" },

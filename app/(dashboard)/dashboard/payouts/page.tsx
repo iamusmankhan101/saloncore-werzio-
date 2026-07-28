@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { getStoredStaff, getStoredAppointments, getStoredServices } from "@/lib/storage";
 import { getPayouts, savePayouts, lastPayoutEnd, revenueInPeriod, type Payout, type PayoutStatus } from "@/lib/payouts";
+import { getAttendanceSummary, type AttendanceSummary } from "@/lib/attendance";
 import type { Staff, Appointment, Service, StaffPayType } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
@@ -66,9 +67,20 @@ function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, o
   const rate = Number(form.commissionRate) || 0;
   const commissionAmount = Math.round(revenue * rate / 100);
   const salaryAmount = Number(form.salaryAmount) || 0;
+
+  // Pro-rate the entered salary by attendance for this exact period — only
+  // when at least one day was actually marked, so a staff member with no
+  // attendance records at all still gets paid the full entered amount
+  // (no behavior change for salons that don't use attendance).
+  const attendance: AttendanceSummary = useMemo(
+    () => getAttendanceSummary(staff.id, form.periodStart, form.periodEnd),
+    [staff.id, form.periodStart, form.periodEnd],
+  );
+  const proratedSalary = attendance.markedDays > 0 ? Math.round(salaryAmount * attendance.creditFactor) : salaryAmount;
+
   const baseAmount = form.payType === "commission" ? commissionAmount
-    : form.payType === "both" ? commissionAmount + salaryAmount
-    : salaryAmount;
+    : form.payType === "both" ? commissionAmount + proratedSalary
+    : proratedSalary;
   const adjustment = Number(form.adjustment) || 0;
   const total = baseAmount + adjustment;
 
@@ -174,14 +186,32 @@ function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, o
             </>
           )}
           {(form.payType === "salary" || form.payType === "both") && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={label}>Salary Amount (PKR)</label>
-              <input type="number" min="0" style={inp} value={form.salaryAmount} onChange={(e) => set("salaryAmount", e.target.value)} placeholder="e.g. 30000" />
-            </div>
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={label}>Salary Amount (PKR)</label>
+                <input type="number" min="0" style={inp} value={form.salaryAmount} onChange={(e) => set("salaryAmount", e.target.value)} placeholder="e.g. 30000" />
+              </div>
+              <div style={{ padding: "12px 14px", borderRadius: 10, background: "#f9f9fb", border: "1px solid #f0f0f8", display: "flex", flexDirection: "column", gap: 6 }}>
+                {attendance.markedDays === 0 ? (
+                  <div style={{ fontSize: 12, color: "#6b6b8a" }}>No attendance recorded for this period — paying full salary.</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>
+                      {attendance.present} present · {attendance.late} late · {attendance.halfDay} half-day · {attendance.absent} absent · {attendance.leave} leave
+                      <span style={{ color: "#b0b0c8" }}> ({attendance.markedDays} day{attendance.markedDays === 1 ? "" : "s"} marked)</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b6b8a" }}>
+                      <span>Salary × attendance ({Math.round(attendance.creditFactor * 100)}%)</span>
+                      <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{fmt(salaryAmount)} → {fmt(proratedSalary)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
           )}
           {form.payType === "both" && (
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b6b8a", padding: "0 2px" }}>
-              <span>Commission + Salary</span><span style={{ fontWeight: 700, color: "#1a1a2e" }}>{fmt(commissionAmount)} + {fmt(salaryAmount)} = {fmt(baseAmount)}</span>
+              <span>Commission + Salary</span><span style={{ fontWeight: 700, color: "#1a1a2e" }}>{fmt(commissionAmount)} + {fmt(proratedSalary)} = {fmt(baseAmount)}</span>
             </div>
           )}
 
@@ -435,9 +465,11 @@ export default function PayoutsPage() {
             const lastEnd = lastPayoutEnd(s.id, payouts);
             const periodStart = lastEnd ? addDays(lastEnd, 1) : startOfMonth();
             const revenue = revenueInPeriod(s.id, appointments, services, periodStart, todayStr());
+            const estAttendance = getAttendanceSummary(s.id, periodStart, todayStr());
+            const estSalary = estAttendance.markedDays > 0 ? Math.round((s.baseSalary ?? 0) * estAttendance.creditFactor) : (s.baseSalary ?? 0);
             const estimated = payType === "commission" ? Math.round(revenue * (s.commissionRate ?? 0) / 100)
-              : payType === "both" ? Math.round(revenue * (s.commissionRate ?? 0) / 100) + (s.baseSalary ?? 0)
-              : (s.baseSalary ?? 0);
+              : payType === "both" ? Math.round(revenue * (s.commissionRate ?? 0) / 100) + estSalary
+              : estSalary;
             return (
               <div key={s.id} style={{ background: "#fff", padding: "20px", display: "flex", flexDirection: "column", gap: 14, border: "1px solid #ebebf0", borderRadius: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
