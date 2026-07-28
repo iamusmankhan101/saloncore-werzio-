@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Upload, Loader2, ImageOff } from "lucide-react";
 import type { BlogPost } from "@/lib/blog";
 
@@ -199,7 +200,7 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
         <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 8px" }}>{title || "Untitled post"}</h1>
         {excerpt && <p style={{ color: "#6b6b8a", fontSize: 14, marginBottom: 16 }}>{excerpt}</p>}
         <div className="blog-markdown">
-          <ReactMarkdown>{contentMd || "*Start writing to see a preview…*"}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{contentMd || "*Start writing to see a preview…*"}</ReactMarkdown>
         </div>
       </div>
     </div>
