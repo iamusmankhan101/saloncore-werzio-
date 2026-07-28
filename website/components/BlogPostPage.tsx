@@ -31,22 +31,22 @@ function RankedHeading({ children }: { children?: ReactNode }) {
   if (!match) return <h2>{children}</h2>;
   const [, rank, name, tagline] = match;
   return (
-    <h2 style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+    <h2 style={{ display: "flex", alignItems: "flex-start", gap: 18 }}>
       <span
         style={{
-          flexShrink: 0, width: 38, height: 38, borderRadius: 11,
+          flexShrink: 0, width: 52, height: 52, borderRadius: 14,
           background: "linear-gradient(135deg, var(--purple), var(--indigo))", color: "#fff",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontFamily: "'Clash Display', 'Inter', sans-serif", fontWeight: 600, fontSize: 17,
+          fontFamily: "'Clash Display', 'Inter', sans-serif", fontWeight: 600, fontSize: 22,
         }}
       >
         {rank}
       </span>
-      <span style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 2 }}>
-        <span style={{ fontFamily: "'Clash Display', 'Inter', sans-serif", fontWeight: 600, fontSize: "1.3rem", color: "var(--text)", lineHeight: 1.3 }}>
+      <span style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 2 }}>
+        <span style={{ fontFamily: "'Clash Display', 'Inter', sans-serif", fontWeight: 600, fontSize: "1.75rem", color: "var(--text)", lineHeight: 1.25 }}>
           {name}
         </span>
-        <span style={{ fontFamily: "'Montserrat', 'Inter', sans-serif", fontWeight: 500, fontSize: "0.95rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+        <span style={{ fontFamily: "'Montserrat', 'Inter', sans-serif", fontWeight: 500, fontSize: "1.1rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
           {tagline}
         </span>
       </span>
