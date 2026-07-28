@@ -73,8 +73,8 @@ function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, o
   // attendance records at all still gets paid the full entered amount
   // (no behavior change for salons that don't use attendance).
   const attendance: AttendanceSummary = useMemo(
-    () => getAttendanceSummary(staff.id, form.periodStart, form.periodEnd),
-    [staff.id, form.periodStart, form.periodEnd],
+    () => getAttendanceSummary(staff.id, form.periodStart, form.periodEnd, undefined, staff.paidLeavesPerMonth ?? 0),
+    [staff.id, form.periodStart, form.periodEnd, staff.paidLeavesPerMonth],
   );
   const proratedSalary = attendance.markedDays > 0 ? Math.round(salaryAmount * attendance.creditFactor) : salaryAmount;
 
@@ -198,7 +198,8 @@ function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, o
                   <>
                     <div style={{ fontSize: 12, color: "#6b6b8a" }}>
                       {attendance.present} present · {attendance.late} late · {attendance.halfDay} half-day · {attendance.absent} absent · {attendance.leave} leave
-                      <span style={{ color: "#b0b0c8" }}> ({attendance.markedDays} day{attendance.markedDays === 1 ? "" : "s"} marked)</span>
+                      {attendance.leave > 0 && <span style={{ color: "#b0b0c8" }}> ({attendance.paidLeave} paid{staff.paidLeavesPerMonth ? ` of ${staff.paidLeavesPerMonth} allowed` : ""})</span>}
+                      <span style={{ color: "#b0b0c8" }}> · {attendance.markedDays} day{attendance.markedDays === 1 ? "" : "s"} marked</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b6b8a" }}>
                       <span>Salary × attendance ({Math.round(attendance.creditFactor * 100)}%)</span>
@@ -465,7 +466,7 @@ export default function PayoutsPage() {
             const lastEnd = lastPayoutEnd(s.id, payouts);
             const periodStart = lastEnd ? addDays(lastEnd, 1) : startOfMonth();
             const revenue = revenueInPeriod(s.id, appointments, services, periodStart, todayStr());
-            const estAttendance = getAttendanceSummary(s.id, periodStart, todayStr());
+            const estAttendance = getAttendanceSummary(s.id, periodStart, todayStr(), undefined, s.paidLeavesPerMonth ?? 0);
             const estSalary = estAttendance.markedDays > 0 ? Math.round((s.baseSalary ?? 0) * estAttendance.creditFactor) : (s.baseSalary ?? 0);
             const estimated = payType === "commission" ? Math.round(revenue * (s.commissionRate ?? 0) / 100)
               : payType === "both" ? Math.round(revenue * (s.commissionRate ?? 0) / 100) + estSalary

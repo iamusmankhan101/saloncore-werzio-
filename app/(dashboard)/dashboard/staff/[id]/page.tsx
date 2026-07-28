@@ -75,6 +75,7 @@ function EditModal({
     payType: staff.payType ?? "commission",
     commissionRate: staff.commissionRate ? String(staff.commissionRate) : "",
     baseSalary: staff.baseSalary ? String(staff.baseSalary) : "",
+    paidLeavesPerMonth: staff.paidLeavesPerMonth != null ? String(staff.paidLeavesPerMonth) : "",
   });
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
     servicesList.filter((s) => s.assignedStaffIds.includes(staff.id)).map((s) => s.id),
@@ -100,6 +101,7 @@ function EditModal({
       payType: form.payType as StaffPayType,
       commissionRate: (form.payType === "commission" || form.payType === "both") && form.commissionRate ? Number(form.commissionRate) : undefined,
       baseSalary: (form.payType === "salary" || form.payType === "both") && form.baseSalary ? Number(form.baseSalary) : undefined,
+      paidLeavesPerMonth: (form.payType === "salary" || form.payType === "both") && form.paidLeavesPerMonth ? Number(form.paidLeavesPerMonth) : undefined,
     };
     onSave(updatedStaff, selectedServiceIds);
     setDone(true);
@@ -170,10 +172,16 @@ function EditModal({
             </div>
           )}
           {(form.payType === "salary" || form.payType === "both") && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Base Salary (PKR / pay period)</label>
-              <input type="number" min="0" style={inp} value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value)} placeholder="e.g. 30000" />
-            </div>
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Base Salary (PKR / pay period)</label>
+                <input type="number" min="0" style={inp} value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value)} placeholder="e.g. 30000" />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Paid Leaves / Month</label>
+                <input type="number" min="0" style={inp} value={form.paidLeavesPerMonth} onChange={(e) => set("paidLeavesPerMonth", e.target.value)} placeholder="e.g. 2" />
+              </div>
+            </>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Assigned Services</label>

@@ -51,6 +51,8 @@ export interface Staff {
   commissionRate?: number;
   /** Fixed pay-period amount (PKR). Used when payType is "salary" or "both". */
   baseSalary?: number;
+  /** How many "Leave" attendance days per month/pay period count as fully paid before further leaves start reducing salary. Defaults to 0 (unpaid) when unset. */
+  paidLeavesPerMonth?: number;
 }
 
 export interface Service {
