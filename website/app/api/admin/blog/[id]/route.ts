@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json().catch(() => null) as {
     title?: string; slug?: string; excerpt?: string; contentMd?: string;
     coverImage?: string | null; author?: string; tags?: string[];
-    status?: PostStatus; seoTitle?: string | null; seoDescription?: string | null;
+    status?: PostStatus; seoTitle?: string | null; seoDescription?: string | null; seoKeywords?: string[];
   } | null;
 
   if (!body?.title?.trim() || !body?.contentMd?.trim()) {
@@ -46,6 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     status: body.status === "published" ? "published" : "draft",
     seoTitle: body.seoTitle?.trim() || null,
     seoDescription: body.seoDescription?.trim() || null,
+    seoKeywords: Array.isArray(body.seoKeywords) ? body.seoKeywords : [],
   });
   return NextResponse.json({ ok: true, post });
 }

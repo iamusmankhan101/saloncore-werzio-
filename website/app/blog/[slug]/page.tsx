@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title: post.seoTitle || post.title,
     description: post.seoDescription || post.excerpt || post.title,
     path: `/blog/${post.slug}`,
-    keywords: post.tags,
+    keywords: post.seoKeywords.length > 0 ? post.seoKeywords : post.tags,
   });
 }
 

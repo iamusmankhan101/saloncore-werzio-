@@ -14,6 +14,8 @@ export interface BlogPost {
   status: PostStatus;
   seoTitle: string | null;
   seoDescription: string | null;
+  /** Meta keywords for search engines — distinct from `tags`, which are the reader-facing topic labels shown on the post. */
+  seoKeywords: string[];
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -31,6 +33,7 @@ type Row = {
   status: string;
   seo_title: string | null;
   seo_description: string | null;
+  seo_keywords: string | null;
   published_at: string | null;
   created_at: string;
   updated_at: string;
@@ -39,6 +42,8 @@ type Row = {
 function fromRow(r: Row): BlogPost {
   let tags: string[] = [];
   try { tags = JSON.parse(r.tags); } catch { /* keep empty */ }
+  let seoKeywords: string[] = [];
+  try { seoKeywords = r.seo_keywords ? JSON.parse(r.seo_keywords) : []; } catch { /* keep empty */ }
   return {
     id: r.id,
     slug: r.slug,
@@ -51,6 +56,7 @@ function fromRow(r: Row): BlogPost {
     status: r.status === "published" ? "published" : "draft",
     seoTitle: r.seo_title,
     seoDescription: r.seo_description,
+    seoKeywords,
     publishedAt: r.published_at,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -77,7 +83,11 @@ function ensureTable(): Promise<void> {
         created_at      TEXT NOT NULL,
         updated_at      TEXT NOT NULL
       )
-    `).then(() => undefined);
+    `).then(async () => {
+      // Added after the table's initial release — backfill for any deployment
+      // whose blog_posts table was created before this column existed.
+      await db.execute(`ALTER TABLE blog_posts ADD COLUMN seo_keywords TEXT NOT NULL DEFAULT '[]'`).catch(() => {});
+    });
   }
   return tableReady;
 }
@@ -140,6 +150,7 @@ export interface PostInput {
   status: PostStatus;
   seoTitle: string | null;
   seoDescription: string | null;
+  seoKeywords: string[];
 }
 
 export async function createPost(input: PostInput): Promise<BlogPost> {
@@ -148,12 +159,12 @@ export async function createPost(input: PostInput): Promise<BlogPost> {
   const id = crypto.randomUUID();
   await db.execute({
     sql: `INSERT INTO blog_posts
-            (id, slug, title, excerpt, content_md, cover_image, author, tags, status, seo_title, seo_description, published_at, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            (id, slug, title, excerpt, content_md, cover_image, author, tags, status, seo_title, seo_description, seo_keywords, published_at, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       id, input.slug, input.title, input.excerpt, input.contentMd, input.coverImage,
       input.author, JSON.stringify(input.tags), input.status, input.seoTitle, input.seoDescription,
-      input.status === "published" ? now : null, now, now,
+      JSON.stringify(input.seoKeywords), input.status === "published" ? now : null, now, now,
     ],
   });
   const created = await getPostByIdForAdmin(id);
@@ -173,11 +184,11 @@ export async function updatePost(id: string, input: PostInput): Promise<BlogPost
   await db.execute({
     sql: `UPDATE blog_posts SET
             slug = ?, title = ?, excerpt = ?, content_md = ?, cover_image = ?, author = ?,
-            tags = ?, status = ?, seo_title = ?, seo_description = ?, published_at = ?, updated_at = ?
+            tags = ?, status = ?, seo_title = ?, seo_description = ?, seo_keywords = ?, published_at = ?, updated_at = ?
           WHERE id = ?`,
     args: [
       input.slug, input.title, input.excerpt, input.contentMd, input.coverImage, input.author,
-      JSON.stringify(input.tags), input.status, input.seoTitle, input.seoDescription, publishedAt, now,
+      JSON.stringify(input.tags), input.status, input.seoTitle, input.seoDescription, JSON.stringify(input.seoKeywords), publishedAt, now,
       id,
     ],
   });

@@ -35,6 +35,7 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
   const [status, setStatus] = useState<"draft" | "published">(initial?.status ?? "draft");
   const [seoTitle, setSeoTitle] = useState(initial?.seoTitle ?? "");
   const [seoDescription, setSeoDescription] = useState(initial?.seoDescription ?? "");
+  const [seoKeywordsInput, setSeoKeywordsInput] = useState((initial?.seoKeywords ?? []).join(", "));
 
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -87,6 +88,7 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
       status: publishOverride ?? status,
       seoTitle: seoTitle.trim() || null,
       seoDescription: seoDescription.trim() || null,
+      seoKeywords: seoKeywordsInput.split(",").map((k) => k.trim()).filter(Boolean),
     };
     try {
       const url = isEditing ? `/api/admin/blog/${initial!.id}` : "/api/admin/blog";
@@ -161,6 +163,10 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
         <div style={field}>
           <label style={label}>SEO Description <span style={{ fontWeight: 500, textTransform: "none" }}>(optional — falls back to Excerpt)</span></label>
           <textarea style={{ ...inp, resize: "vertical" }} rows={2} value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} />
+        </div>
+        <div style={field}>
+          <label style={label}>Keywords <span style={{ fontWeight: 500, textTransform: "none" }}>(optional — for search engines, comma-separated)</span></label>
+          <input style={inp} value={seoKeywordsInput} onChange={(e) => setSeoKeywordsInput(e.target.value)} placeholder="salon pos, appointment scheduling, no-show reduction" />
         </div>
 
         <div style={field}>
