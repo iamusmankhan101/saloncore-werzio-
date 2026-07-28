@@ -5,11 +5,16 @@ import Features      from "../components/Features";
 import HowItWorks    from "../components/HowItWorks";
 import WhySalonCentral from "../components/WhySalonCentral";
 import Testimonials  from "../components/Testimonials";
+import BlogSection   from "../components/BlogSection";
 import Pricing       from "../components/Pricing";
 import Footer        from "../components/Footer";
 import ScrollReveal  from "../components/ScrollReveal";
+import { getPublishedPosts } from "../lib/blog";
 
-export default function Home() {
+export const revalidate = 60;
+
+export default async function Home() {
+  const posts = await getPublishedPosts();
   return (
     <>
       <ScrollReveal />
@@ -20,6 +25,7 @@ export default function Home() {
       <HowItWorks />
       <WhySalonCentral />
       <Testimonials />
+      <BlogSection posts={posts} />
       <Pricing />
       <Footer />
     </>
