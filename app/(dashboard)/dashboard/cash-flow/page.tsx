@@ -385,8 +385,11 @@ export default function CashFlowPage() {
   async function retryExpenseSync() {
     setRetryingExpenseSync(true);
     try {
-      const dbSaved = await saveExpenses(getExpenses());
-      setExpenseSyncFailed(!dbSaved);
+      const [expensesSaved, incomeSaved] = await Promise.all([
+        saveExpenses(getExpenses()),
+        saveManualCashIncome(getManualCashIncome()),
+      ]);
+      setExpenseSyncFailed(!expensesSaved || !incomeSaved);
     } finally {
       setRetryingExpenseSync(false);
     }
@@ -585,9 +588,12 @@ export default function CashFlowPage() {
 
       const mergedExpenses = [...expenses, ...uniqueExpenses];
       const mergedIncome = [...manualIncome, ...uniqueIncome];
-      saveExpenses(mergedExpenses);
-      saveManualCashIncome(mergedIncome);
-      
+      const [expensesSaved, incomeSaved] = await Promise.all([
+        saveExpenses(mergedExpenses),
+        saveManualCashIncome(mergedIncome),
+      ]);
+      setExpenseSyncFailed(!expensesSaved || !incomeSaved);
+
       console.log("✅ Cash Flow Import Complete:", {
         importedIncome: uniqueIncome.length,
         importedExpenses: uniqueExpenses.length,

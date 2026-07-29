@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { resolveActor } from "@/lib/api-auth";
 import { backupExistingSalonData } from "@/lib/data-backup";
 
-const ALLOWED = new Set(["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses", "attendance"]);
+const ALLOWED = new Set(["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses", "attendance", "payouts", "cash_flow_income"]);
 
 async function ensureTable() {
   await db.execute(`

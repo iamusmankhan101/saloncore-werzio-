@@ -8,7 +8,7 @@ import type { Staff, Appointment, Service, StaffPayType } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
   Wallet, X, Trash2, Clock, TrendingUp, Users as UsersIcon,
-  CheckCircle2, Banknote, FileDown,
+  CheckCircle2, Banknote, FileDown, AlertCircle, RefreshCw,
 } from "lucide-react";
 import PageTitle from "@/components/page-title";
 import PayoutSlipPrint from "@/components/payout-slip-print";
@@ -329,6 +329,8 @@ export default function PayoutsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Payout | null>(null);
   const [viewingSlipFor, setViewingSlipFor] = useState<Payout | null>(null);
   const [historyFilter, setHistoryFilter] = useState<"all" | PayoutStatus>("all");
+  const [syncFailed, setSyncFailed] = useState(false);
+  const [retryingSync, setRetryingSync] = useState(false);
   // Strict-locked to the active dashboard section, same rule as Staff —
   // Payout records have no section of their own, so relevance is derived
   // from which section their staff member currently belongs to.
@@ -345,7 +347,7 @@ export default function PayoutsPage() {
     setPayouts(getPayouts().filter(p => scopedStaffIds.has(p.staffId)));
   }, [activeSection]);
 
-  const persistPayouts = (updatedScoped: Payout[]) => {
+  const persistPayouts = async (updatedScoped: Payout[]) => {
     setPayouts(updatedScoped);
     // `payouts` state only ever holds the active section's subset, so saving
     // it directly would silently wipe out every other section's payout
@@ -356,8 +358,19 @@ export default function PayoutsPage() {
       allStaff.filter(s => activeSection === "all" || s.section === activeSection).map(s => s.id)
     );
     const otherSectionPayouts = getPayouts().filter(p => !scopedStaffIds.has(p.staffId));
-    savePayouts([...updatedScoped, ...otherSectionPayouts]);
+    const dbSaved = await savePayouts([...updatedScoped, ...otherSectionPayouts]);
+    setSyncFailed(!dbSaved);
   };
+
+  async function retrySync() {
+    setRetryingSync(true);
+    try {
+      const dbSaved = await savePayouts(getPayouts());
+      setSyncFailed(!dbSaved);
+    } finally {
+      setRetryingSync(false);
+    }
+  }
 
   const handleAddPayout = (data: Omit<Payout, "id" | "createdAt">) => {
     const entry: Payout = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
@@ -430,7 +443,17 @@ export default function PayoutsPage() {
       <PageTitle
         icon={<Wallet size={24} />}
         title="Payouts"
-        subtitle={<>{activeStaff.length} staff on payroll · <span style={{ color: "var(--accent)", fontWeight: 700 }}>{stats.pendingCount} pending payouts</span>{activeSection !== "all" && <> · {activeSection} only</>}</>}
+        subtitle={<>{activeStaff.length} staff on payroll · <span style={{ color: "var(--accent)", fontWeight: 700 }}>{stats.pendingCount} pending payouts</span>{activeSection !== "all" && <> · {activeSection} only</>}{syncFailed && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, marginLeft: 10, color: "#dc2626", fontWeight: 700 }}>
+            <AlertCircle size={11} /> Not synced to server — saved on this device only
+          </span>
+        )}</>}
+        right={syncFailed && (
+          <button type="button" onClick={retrySync} disabled={retryingSync}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10, border: "1.5px solid #dc2626", background: "#fff", color: "#dc2626", fontSize: 12, fontWeight: 750, cursor: retryingSync ? "default" : "pointer", opacity: retryingSync ? 0.6 : 1 }}>
+            <RefreshCw size={14} /> {retryingSync ? "Retrying…" : "Retry Sync"}
+          </button>
+        )}
       />
 
       {/* Stats */}

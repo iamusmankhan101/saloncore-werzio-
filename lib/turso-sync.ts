@@ -1,7 +1,7 @@
 import { getCurrentUser, userKey } from "./auth";
 import { getActiveLocationFilter, locationUserKey } from "./locations";
 
-const ENTITIES = ["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses", "attendance"] as const;
+const ENTITIES = ["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses", "attendance", "payouts", "cash_flow_income"] as const;
 type Entity = typeof ENTITIES[number];
 
 /**

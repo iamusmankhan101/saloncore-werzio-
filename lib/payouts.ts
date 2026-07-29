@@ -1,4 +1,5 @@
 import { locationUserKey } from "./locations";
+import { saveToDB } from "./turso-sync";
 import type { Appointment, Service, StaffPayType } from "./types";
 
 export type PayoutStatus = "pending" | "paid";
@@ -35,21 +36,27 @@ export function getPayouts(): Payout[] {
   try { return JSON.parse(localStorage.getItem(locationUserKey(KEY)) ?? "[]"); } catch { return []; }
 }
 
-export function savePayouts(list: Payout[]): void {
-  if (typeof window === "undefined") return;
+/**
+ * Saves locally (always) and returns the Turso write's outcome so a caller
+ * can await it and warn the user instead of payout records staying invisible
+ * on every device but the one they were processed on.
+ */
+export function savePayouts(list: Payout[]): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
   localStorage.setItem(locationUserKey(KEY), JSON.stringify(list));
+  return saveToDB("payouts", list);
 }
 
-export function addPayout(data: Omit<Payout, "id" | "createdAt">): Payout {
+export async function addPayout(data: Omit<Payout, "id" | "createdAt">): Promise<{ payout: Payout; dbSaved: boolean }> {
   const entry: Payout = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
   const list = getPayouts();
   list.push(entry);
-  savePayouts(list);
-  return entry;
+  const dbSaved = await savePayouts(list);
+  return { payout: entry, dbSaved };
 }
 
-export function updatePayout(id: string, patch: Partial<Omit<Payout, "id" | "createdAt">>): void {
-  savePayouts(getPayouts().map((p) => p.id === id ? { ...p, ...patch } : p));
+export async function updatePayout(id: string, patch: Partial<Omit<Payout, "id" | "createdAt">>): Promise<boolean> {
+  return savePayouts(getPayouts().map((p) => p.id === id ? { ...p, ...patch } : p));
 }
 
 export function deletePayout(id: string): void {

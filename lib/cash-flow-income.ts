@@ -18,8 +18,15 @@ export function getManualCashIncome(): ManualCashIncome[] {
   }
 }
 
-export function saveManualCashIncome(entries: ManualCashIncome[]): void {
-  if (typeof window === "undefined") return;
+/**
+ * Saves locally (always) and returns the Turso write's outcome so a caller
+ * can await it and warn the user instead of these entries staying invisible
+ * on every device but the one they were imported/entered on.
+ */
+export function saveManualCashIncome(entries: ManualCashIncome[]): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
   localStorage.setItem(locationUserKey(KEY), JSON.stringify(entries));
+  return saveToDB("cash_flow_income", entries);
 }
 import { locationUserKey } from "./locations";
+import { saveToDB } from "./turso-sync";
