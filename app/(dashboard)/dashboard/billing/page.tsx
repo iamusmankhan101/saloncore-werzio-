@@ -201,6 +201,7 @@ export default function BillingPage() {
   const [viewInvoice,  setViewInvoice] = useState<Invoice | null>(null);
   const [actualPrice,  setActualPrice] = useState<number | null>(null);
   const [trialStart,   setTrialStart]  = useState<string | null>(null);
+  const [isDemoSignup, setIsDemoSignup] = useState(false);
   const [planLoaded,   setPlanLoaded]  = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -219,6 +220,7 @@ export default function BillingPage() {
           // prefer it over the static plan-tier price when displaying.
           if (typeof data.planPrice === "number") setActualPrice(data.planPrice);
           if (typeof data.trialStart === "string") setTrialStart(data.trialStart);
+          setIsDemoSignup(data.isDemoSignup === true);
 
           // Also update localStorage for backward compatibility
           if (planId !== "free") {
@@ -251,7 +253,10 @@ export default function BillingPage() {
   const currentPlan = PLAN_CONFIGS[activePlanId];
   const displayPrice = actualPrice ?? currentPlan.price;
   const demoEndsAt = trialStart ? addDays(trialStart, DEMO_DAYS) : null;
-  const isDemoActive = activePlanId !== "free" && !!demoEndsAt && new Date().toISOString().slice(0, 10) < demoEndsAt;
+  // Only accounts that actually picked "7-Day Demo" at sign-up get the demo
+  // window — someone who paid for Starter/Pro/Premium directly is billed
+  // from day one and should never see "no pricing shown" hide their price.
+  const isDemoActive = isDemoSignup && !!demoEndsAt && new Date().toISOString().slice(0, 10) < demoEndsAt;
   // Until the authoritative plan/trial data has loaded, assume pricing should
   // stay hidden rather than flashing real prices for accounts that turn out
   // to be in an active demo window.

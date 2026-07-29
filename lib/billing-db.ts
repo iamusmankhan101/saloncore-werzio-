@@ -39,6 +39,7 @@ export async function ensureBillingTables(): Promise<void> {
       plan_name         TEXT NOT NULL,
       plan_price        INTEGER NOT NULL,
       trial_start       TEXT NOT NULL,
+      is_demo_signup    INTEGER NOT NULL DEFAULT 0,
       billing_anchor    TEXT,
       suspended         INTEGER NOT NULL DEFAULT 0,
       suspension_reason TEXT,
@@ -79,6 +80,7 @@ export async function ensureBillingTables(): Promise<void> {
   // ── Migrations: add columns that may not exist in older deployments ──────────
   for (const [table, column, def] of [
     ["billing_users",    "billing_anchor",    "TEXT"],
+    ["billing_users",    "is_demo_signup",    "INTEGER NOT NULL DEFAULT 0"],
     ["billing_invoices", "period_start",      "TEXT NOT NULL DEFAULT ''"],
   ] as const) {
     await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`)
@@ -98,6 +100,9 @@ export interface BillingUser {
   planName: string;
   planPrice: number;
   trialStart: string;     // YYYY-MM-DD
+  /** True only for accounts that picked "7-Day Demo" at sign-up — everyone
+   *  else (Starter/Pro/Premium chosen directly) is billed from day one. */
+  isDemoSignup: boolean;
   billingAnchor: string | null; // YYYY-MM-DD — set on first invoice, null until then
   suspended: boolean;
   suspensionReason: string | null;
@@ -142,6 +147,7 @@ function rowToUser(r: any): BillingUser {
     planName:         r.plan_name as string,
     planPrice:        r.plan_price as number,
     trialStart:       r.trial_start as string,
+    isDemoSignup:     (r.is_demo_signup as number) === 1,
     billingAnchor:    (r.billing_anchor as string) ?? null,
     suspended:        (r.suspended as number) === 1,
     suspensionReason: (r.suspension_reason as string) ?? null,
@@ -183,15 +189,21 @@ function daysDiff(a: string, b: string): number {
   return Math.floor(ms / 86_400_000);
 }
 
-/** Compute the billing anchor. The very first invoice is issued on this date. */
-export function computeBillingAnchor(signupDate: string): string {
-  return addDays(signupDate, TRIAL_DAYS);
+/**
+ * Compute the billing anchor. The very first invoice is issued on this date.
+ * Only accounts that actually picked "7-Day Demo" at sign-up get the trial
+ * week — everyone who chose Starter/Pro/Premium directly is billed from
+ * their signup date with no free period.
+ */
+export function computeBillingAnchor(signupDate: string, isDemoSignup: boolean): string {
+  return isDemoSignup ? addDays(signupDate, TRIAL_DAYS) : signupDate;
 }
 
 /** Returns true if today is still within the demo period before first billing. */
-export function isInTrial(signupDate: string): boolean {
+export function isInTrial(signupDate: string, isDemoSignup: boolean): boolean {
+  if (!isDemoSignup) return false;
   const today  = new Date().toISOString().slice(0, 10);
-  const anchor = computeBillingAnchor(signupDate);
+  const anchor = computeBillingAnchor(signupDate, isDemoSignup);
   return today < anchor;
 }
 
@@ -214,8 +226,8 @@ export async function upsertBillingUser(
 ): Promise<void> {
   await db.execute({
     sql: `
-      INSERT INTO billing_users (id, email, owner_name, salon_name, phone, plan_id, plan_name, plan_price, trial_start, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO billing_users (id, email, owner_name, salon_name, phone, plan_id, plan_name, plan_price, trial_start, is_demo_signup, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         email       = excluded.email,
         owner_name  = excluded.owner_name,
@@ -227,7 +239,7 @@ export async function upsertBillingUser(
     `,
     args: [
       user.id, user.email, user.ownerName, user.salonName, user.phone,
-      user.planId, user.planName, user.planPrice, user.trialStart,
+      user.planId, user.planName, user.planPrice, user.trialStart, user.isDemoSignup ? 1 : 0,
       new Date().toISOString(),
     ],
   });
@@ -256,6 +268,7 @@ export async function getBillingAdminSummaries(userIds: string[]): Promise<Map<s
         bu.plan_id,
         bu.plan_name,
         bu.trial_start,
+        bu.is_demo_signup,
         (
           SELECT bi.due_date
           FROM billing_invoices bi
@@ -274,7 +287,8 @@ export async function getBillingAdminSummaries(userIds: string[]): Promise<Map<s
   for (const row of res.rows) {
     const userId = row.id as string;
     const trialStart = row.trial_start as string;
-    const invoiceDueDate = (row.invoice_due_date as string | null) ?? addDays(computeBillingAnchor(trialStart), INVOICE_DUE_DAYS);
+    const isDemoSignup = (row.is_demo_signup as number) === 1;
+    const invoiceDueDate = (row.invoice_due_date as string | null) ?? addDays(computeBillingAnchor(trialStart, isDemoSignup), INVOICE_DUE_DAYS);
     summaries.set(userId, {
       userId,
       planId: row.plan_id as string,
@@ -334,7 +348,7 @@ function invoiceNumber(periodStart: string): string {
 export async function getOrCreate30DayInvoice(
   user: BillingUser
 ): Promise<{ invoice: BillingInvoice; created: boolean } | null> {
-  const anchor = user.billingAnchor ?? computeBillingAnchor(user.trialStart);
+  const anchor = user.billingAnchor ?? computeBillingAnchor(user.trialStart, user.isDemoSignup);
   const periodStart = currentPeriodStart(anchor);
   if (!periodStart) return null;  // still in trial
 
@@ -373,7 +387,7 @@ export async function getCurrentCycleInvoice(userId: string): Promise<BillingInv
   const user = await getBillingUser(userId);
   if (!user) return null;
 
-  const anchor = user.billingAnchor ?? computeBillingAnchor(user.trialStart);
+  const anchor = user.billingAnchor ?? computeBillingAnchor(user.trialStart, user.isDemoSignup);
   const periodStart = currentPeriodStart(anchor);
   if (!periodStart) return null;
 

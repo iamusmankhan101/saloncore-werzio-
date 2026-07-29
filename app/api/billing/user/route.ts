@@ -16,12 +16,13 @@ export async function GET(req: NextRequest) {
     
     if (!billingUser) {
       // User not found in billing DB - they're on free plan
-      return Response.json({ 
-        ok: true, 
+      return Response.json({
+        ok: true,
         planId: "free",
         planName: "Free",
         planPrice: 0,
         suspended: false,
+        isDemoSignup: false,
       });
     }
 
@@ -33,6 +34,7 @@ export async function GET(req: NextRequest) {
       suspended: billingUser.suspended,
       suspensionReason: billingUser.suspensionReason,
       trialStart: billingUser.trialStart,
+      isDemoSignup: billingUser.isDemoSignup,
     });
   } catch (err) {
     console.error("[billing/user] Error fetching billing user:", err);

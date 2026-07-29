@@ -41,6 +41,11 @@ export async function POST(req: NextRequest) {
   }
 
   const { userId, email, ownerName, salonName, phone, trialStart } = body;
+  // Capture this before normalizing — normalizePlanId collapses "demo" into
+  // "starter" for pricing purposes, which would otherwise erase the one
+  // signal that distinguishes a genuine 7-day-trial signup from someone who
+  // paid for Starter directly (both end up with planId "starter").
+  const isDemoSignup = body.planId === "demo";
   const planId = normalizePlanId(body.planId);
   if (!userId || !email || !planId) {
     return Response.json({ ok: false, error: "Missing required fields." }, { status: 400 });
@@ -64,6 +69,7 @@ export async function POST(req: NextRequest) {
       planName,
       planPrice,
       trialStart: trialStart || new Date().toISOString().slice(0, 10),
+      isDemoSignup,
     });
     console.log(`[billing/register] registered user ${userId} (${email}) on ${planName} plan`);
     return Response.json({ ok: true });
