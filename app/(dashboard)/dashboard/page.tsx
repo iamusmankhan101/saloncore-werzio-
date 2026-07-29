@@ -103,6 +103,7 @@ export default function DashboardPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [posInvoices, setPosInvoices] = useState<SalonInvoice[]>([]);
+  const [posInvoiceAppointmentIds, setPosInvoiceAppointmentIds] = useState<string[]>([]);
   const [today] = useState(() => new Date().toLocaleDateString("en-CA"));
 
   useEffect(() => {
@@ -112,12 +113,12 @@ export default function DashboardPage() {
       setAppointments(getStoredAppointments());
       setClients(getStoredClients());
       setStaffList(getStoredStaff());
-      // Revenue is only recognized once an invoice is actually paid, not when
-      // it's merely issued — an unpaid/credit invoice isn't money in hand yet.
-      // Appointment-linked invoices are excluded because the completed
-      // appointment already carries the same revenue and would otherwise be
-      // counted twice.
-      setPosInvoices(getSalonInvoices().filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos")));
+      // Revenue is only recognized once an invoice is actually paid. Keep every
+      // POS-linked appointment id separately, including unpaid invoices, so
+      // unpaid/credit invoices do not leak in through completed appointments.
+      const allPosInvoices = getSalonInvoices().filter(inv => !inv.source || inv.source === "pos");
+      setPosInvoiceAppointmentIds(allPosInvoices.map(inv => inv.appointmentId).filter((id): id is string => !!id));
+      setPosInvoices(allPosInvoices.filter(inv => inv.status === "paid"));
     });
     return () => { cancelled = true; };
   }, []);
@@ -137,13 +138,13 @@ export default function DashboardPage() {
   const posInvoicesForRevenue = revenueScoped ? posInvoices.filter((inv) => inv.section === activeSection) : posInvoices;
   const todayApptsForRevenue = revenueScoped ? todayAppts.filter((a) => a.section === activeSection) : todayAppts;
 
-  const paidPosAppointmentIds = useMemo(() =>
-    new Set(posInvoicesForRevenue.map((invoice) => invoice.appointmentId).filter(Boolean)),
-    [posInvoicesForRevenue]);
+  const posLinkedAppointmentIds = useMemo(() =>
+    new Set(posInvoiceAppointmentIds),
+    [posInvoiceAppointmentIds]);
   const revenueLast7Days = useMemo(() => {
     const totals = new Map<string, number>();
     appointmentsForRevenue.forEach((appointment) => {
-      if (appointment.status === "completed" && !paidPosAppointmentIds.has(appointment.id)) {
+      if (appointment.status === "completed" && !posLinkedAppointmentIds.has(appointment.id)) {
         totals.set(appointment.date, (totals.get(appointment.date) ?? 0) + appointment.totalAmount);
       }
     });
@@ -161,14 +162,14 @@ export default function DashboardPage() {
       const dateKey = date.toLocaleDateString("en-CA");
       return { date: dateKey, total: totals.get(dateKey) ?? 0 };
     });
-  }, [appointmentsForRevenue, paidPosAppointmentIds, posInvoicesForRevenue, today]);
+  }, [appointmentsForRevenue, posLinkedAppointmentIds, posInvoicesForRevenue, today]);
 
   const maxRevenue = Math.max(...revenueLast7Days.map((day) => day.total), 0);
   const axisMax = maxRevenue > 0 ? Math.ceil((maxRevenue * 1.2) / 1000) * 1000 : 60000;
   const yAxisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0]
     .map((value) => value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(Math.round(value)));
   const topClients = [...clientsScoped].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
-  const todayCompletedAppts = todayApptsForRevenue.filter((appointment) => appointment.status === "completed" && !paidPosAppointmentIds.has(appointment.id));
+  const todayCompletedAppts = todayApptsForRevenue.filter((appointment) => appointment.status === "completed" && !posLinkedAppointmentIds.has(appointment.id));
   const todayPosInvoices = posInvoicesForRevenue.filter((invoice) => (invoice.paidDate || invoice.date) === today);
   const todayTotal = todayCompletedAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPosInvoices.reduce((s, invoice) => s + invoice.total, 0);
   const todayTransactionCount = todayCompletedAppts.length + todayPosInvoices.length;

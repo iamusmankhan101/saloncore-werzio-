@@ -120,6 +120,7 @@ export default function RevenuePage() {
   const [period, setPeriod]             = useState<Period>("today");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [posInvoices, setPosInvoices]   = useState<ReturnType<typeof getSalonInvoices>>([]);
+  const [posInvoiceAppointmentIds, setPosInvoiceAppointmentIds] = useState<string[]>([]);
   const [manualIncome, setManualIncome] = useState<ManualCashIncome[]>([]);
   const [expenses, setExpenses]         = useState<Expense[]>([]);
   const [today, setToday]               = useState("");
@@ -144,14 +145,14 @@ export default function RevenuePage() {
         getStoredAppointments()
           .filter(a => !revenueScoped || a.section === activeSection)
       );
-      // Match Cash Flow: count paid POS invoices as the source of truth, then
-      // exclude any completed appointment that has already been paid through POS
-      // so appointment-linked sales show up without double-counting revenue.
-      setPosInvoices(
-        getSalonInvoices()
-          .filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos"))
-          .filter(inv => !revenueScoped || inv.section === activeSection)
-      );
+      // Match Cash Flow: count paid POS invoices as the source of truth. Keep
+      // every POS-linked appointment id separately, including unpaid invoices,
+      // so unpaid/credit invoices do not leak in through completed appointments.
+      const allPosInvoices = getSalonInvoices()
+        .filter(inv => !inv.source || inv.source === "pos")
+        .filter(inv => !revenueScoped || inv.section === activeSection);
+      setPosInvoiceAppointmentIds(allPosInvoices.map(inv => inv.appointmentId).filter((id): id is string => !!id));
+      setPosInvoices(allPosInvoices.filter(inv => inv.status === "paid"));
       // Cash Flow's "Import" feature records income (e.g. bulk-uploaded past
       // sales) as ManualCashIncome entries rather than salon invoices — Cash
       // Flow already counts these, so Revenue needs the same source or it
@@ -195,17 +196,17 @@ export default function RevenuePage() {
     return toDateStr(d);
   }, [period, today]);
 
-  const paidPosAppointmentIds = useMemo(() =>
-    new Set(posInvoices.map(inv => inv.appointmentId).filter(Boolean)),
-    [posInvoices]);
+  const posLinkedAppointmentIds = useMemo(() =>
+    new Set(posInvoiceAppointmentIds),
+    [posInvoiceAppointmentIds]);
 
   const currentAppts = useMemo(() =>
-    appointments.filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date >= rangeStart && a.date <= filterEnd),
-    [appointments, paidPosAppointmentIds, rangeStart, filterEnd]);
+    appointments.filter(a => a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date >= rangeStart && a.date <= filterEnd),
+    [appointments, posLinkedAppointmentIds, rangeStart, filterEnd]);
 
   const prevAppts = useMemo(() =>
-    appointments.filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date >= prevStart && a.date <= prevEnd),
-    [appointments, paidPosAppointmentIds, prevStart, prevEnd]);
+    appointments.filter(a => a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date >= prevStart && a.date <= prevEnd),
+    [appointments, posLinkedAppointmentIds, prevStart, prevEnd]);
 
   // POS invoices in current / previous range
   const currentPos = useMemo(() =>
@@ -257,7 +258,7 @@ export default function RevenuePage() {
         cur.setMonth(cur.getMonth() + 1); cur.setDate(1);
       }
       appointments.forEach(a => {
-        if (a.status === "completed" && !paidPosAppointmentIds.has(a.id)) { const k = a.date.substring(0, 7); if (k in monthMap) monthMap[k] += a.totalAmount; }
+        if (a.status === "completed" && !posLinkedAppointmentIds.has(a.id)) { const k = a.date.substring(0, 7); if (k in monthMap) monthMap[k] += a.totalAmount; }
       });
       posInvoices.forEach(inv => { const k = inv.date.substring(0, 7); if (k in monthMap) monthMap[k] += inv.total; });
       manualIncome.forEach(entry => { const k = entry.date.substring(0, 7); if (k in monthMap) monthMap[k] += entry.amount; });
@@ -276,7 +277,7 @@ export default function RevenuePage() {
       if (days.length > 62) return monthlyBars(customStart, customEnd);
       const byDay: Record<string, number> = {};
       days.forEach(d => { byDay[d] = 0; });
-      appointments.forEach(a => { if (a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date in byDay) byDay[a.date] += a.totalAmount; });
+      appointments.forEach(a => { if (a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date in byDay) byDay[a.date] += a.totalAmount; });
       posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += inv.total; });
       manualIncome.forEach(entry => { if (entry.date in byDay) byDay[entry.date] += entry.amount; });
       return days.map((date, idx) => {
@@ -289,7 +290,7 @@ export default function RevenuePage() {
     const days = getDaysArray(cfg.days);
     const byDay: Record<string, number> = {};
     days.forEach(d => { byDay[d] = 0; });
-    appointments.forEach(a => { if (a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date in byDay) byDay[a.date] += a.totalAmount; });
+    appointments.forEach(a => { if (a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date in byDay) byDay[a.date] += a.totalAmount; });
     posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += inv.total; });
     manualIncome.forEach(entry => { if (entry.date in byDay) byDay[entry.date] += entry.amount; });
     return days.map((date, idx) => {
@@ -297,7 +298,7 @@ export default function RevenuePage() {
       const label = period === "30d" ? String(d.getDate()) : d.toLocaleDateString("en-PK", { weekday: "short" });
       return { label, value: byDay[date], isCurrentPeriod: idx === days.length - 1, monthKey: date };
     });
-  }, [appointments, paidPosAppointmentIds, posInvoices, manualIncome, period, today, rangeStart, customStart, customEnd]);
+  }, [appointments, posLinkedAppointmentIds, posInvoices, manualIncome, period, today, rangeStart, customStart, customEnd]);
 
   // ── Drill-down: daily rows for the selected month ─────────────────────────
   const drillRows = useMemo(() => {
@@ -307,7 +308,7 @@ export default function RevenuePage() {
     const rows: { date: string; dow: string; count: number; revenue: number }[] = [];
     for (let day = 1; day <= daysInMonth; day++) {
       const date = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const appts = appointments.filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date === date);
+      const appts = appointments.filter(a => a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date === date);
       const pos   = posInvoices.filter(inv => inv.date === date);
       const manual = manualIncome.filter(entry => entry.date === date);
       const dow   = new Date(date + "T12:00:00").toLocaleDateString("en-PK", { weekday: "short" });
@@ -318,7 +319,7 @@ export default function RevenuePage() {
       });
     }
     return rows.reverse();
-  }, [selectedMonth, appointments, paidPosAppointmentIds, posInvoices, manualIncome]);
+  }, [selectedMonth, appointments, posLinkedAppointmentIds, posInvoices, manualIncome]);
 
   // Drill-down totals
   const drillTotal   = drillRows ? drillRows.reduce((s, r) => s + r.revenue, 0) : 0;
@@ -388,9 +389,9 @@ export default function RevenuePage() {
   const reportHasMultipleDays = reportStart !== reportEnd;
   const reportAppts = useMemo(() =>
     appointments
-      .filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date >= reportStart && a.date <= reportEnd)
+      .filter(a => a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date >= reportStart && a.date <= reportEnd)
       .sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`)),
-    [appointments, paidPosAppointmentIds, reportStart, reportEnd]);
+    [appointments, posLinkedAppointmentIds, reportStart, reportEnd]);
 
   const reportPos = useMemo(() =>
     posInvoices
