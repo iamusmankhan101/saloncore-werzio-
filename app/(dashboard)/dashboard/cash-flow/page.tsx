@@ -119,6 +119,7 @@ export default function CashFlowPage() {
   const [expenses, setExpenses]       = useState<Expense[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [posInvoices, setPosInvoices] = useState<ReturnType<typeof getSalonInvoices>>([]);
+  const [posInvoiceAppointmentIds, setPosInvoiceAppointmentIds] = useState<string[]>([]);
   const [manualIncome, setManualIncome] = useState<ManualCashIncome[]>([]);
   const [today, setToday]             = useState("");
   const [showForm, setShowForm]       = useState(false);
@@ -153,11 +154,15 @@ export default function CashFlowPage() {
       // which has no section field to filter by at all.
       setExpenses(getExpenses().filter(e => !cashFlowScoped || e.section === activeSection));
       setAppointments(getStoredAppointments().filter(a => !cashFlowScoped || a.section === activeSection));
-      setPosInvoices(
-        getSalonInvoices()
-          .filter(inv => inv.status === "paid" && (!inv.source || inv.source === "pos"))
-          .filter(inv => !cashFlowScoped || inv.section === activeSection)
-      );
+      // Keep every POS-linked appointment id separately, including unpaid
+      // invoices, so an appointment checked out as "unpaid" doesn't leak into
+      // the completed-appointment income fallback below just because its
+      // invoice was excluded from the paid-only posInvoices list.
+      const allPosInvoices = getSalonInvoices()
+        .filter(inv => !inv.source || inv.source === "pos")
+        .filter(inv => !cashFlowScoped || inv.section === activeSection);
+      setPosInvoiceAppointmentIds(allPosInvoices.map(inv => inv.appointmentId).filter((id): id is string => !!id));
+      setPosInvoices(allPosInvoices.filter(inv => inv.status === "paid"));
       setManualIncome(cashFlowScoped ? [] : getManualCashIncome());
     });
     return () => { cancelled = true; };
@@ -186,20 +191,22 @@ export default function CashFlowPage() {
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     [expenses, rangeStart, filterEnd]);
 
+  const posLinkedAppointmentIds = useMemo(() =>
+    new Set(posInvoiceAppointmentIds),
+    [posInvoiceAppointmentIds]);
+
   const periodIncome = useMemo(() => {
     if (period === "custom" && (!customStart || !customEnd || customStart > customEnd)) return 0;
-    const paidPosAppointmentIds = new Set(posInvoices.map(inv => inv.appointmentId).filter(Boolean));
-    const appts = appointments.filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date >= rangeStart && a.date <= filterEnd);
+    const appts = appointments.filter(a => a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date >= rangeStart && a.date <= filterEnd);
     const pos   = posInvoices.filter(inv => inv.date >= rangeStart && inv.date <= filterEnd);
     const manual = manualIncome.filter(entry => entry.date >= rangeStart && entry.date <= filterEnd);
     return appts.reduce((s, a) => s + a.totalAmount, 0) + pos.reduce((s, inv) => s + inv.total, 0) + manual.reduce((s, entry) => s + entry.amount, 0);
-  }, [appointments, posInvoices, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
+  }, [appointments, posInvoices, posLinkedAppointmentIds, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
 
   const periodIncomeRows = useMemo(() => {
     if (period === "custom" && (!customStart || !customEnd || customStart > customEnd)) return [];
-    const paidPosAppointmentIds = new Set(posInvoices.map(inv => inv.appointmentId).filter(Boolean));
     const apptRows = appointments
-      .filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date >= rangeStart && a.date <= filterEnd)
+      .filter(a => a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date >= rangeStart && a.date <= filterEnd)
       .map(a => ({
         id: a.id,
         date: a.date,
@@ -235,15 +242,14 @@ export default function CashFlowPage() {
         sortKey: entry.date + "T" + entry.createdAt.slice(11, 16),
       }));
     return [...apptRows, ...posRows, ...manualRows].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
-  }, [appointments, posInvoices, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
+  }, [appointments, posInvoices, posLinkedAppointmentIds, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
 
   // Income split by how it was actually collected. Appointments completed without a
   // POS checkout and manual/imported entries carry no payment method — bucketed as
   // cash, the same "untracked → cash" convention the Excel export already uses.
   const periodIncomeSplit = useMemo(() => {
     if (period === "custom" && (!customStart || !customEnd || customStart > customEnd)) return { cash: 0, online: 0 };
-    const paidPosAppointmentIds = new Set(posInvoices.map(inv => inv.appointmentId).filter(Boolean));
-    const appts = appointments.filter(a => a.status === "completed" && !paidPosAppointmentIds.has(a.id) && a.date >= rangeStart && a.date <= filterEnd);
+    const appts = appointments.filter(a => a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date >= rangeStart && a.date <= filterEnd);
     const pos    = posInvoices.filter(inv => inv.date >= rangeStart && inv.date <= filterEnd);
     const manual = manualIncome.filter(entry => entry.date >= rangeStart && entry.date <= filterEnd);
     let cash = appts.reduce((s, a) => s + a.totalAmount, 0) + manual.reduce((s, e) => s + e.amount, 0);
@@ -253,7 +259,7 @@ export default function CashFlowPage() {
       else online += inv.total;
     });
     return { cash, online };
-  }, [appointments, posInvoices, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
+  }, [appointments, posInvoices, posLinkedAppointmentIds, manualIncome, rangeStart, filterEnd, period, customStart, customEnd]);
 
   const paidPeriodExpenses = useMemo(
     () => periodExpenses.filter(expense => expensePaymentStatus(expense) === "paid"),
