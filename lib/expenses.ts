@@ -37,24 +37,31 @@ export function getExpenses(): Expense[] {
   try { return JSON.parse(localStorage.getItem(locationUserKey(KEY)) ?? "[]"); } catch { return []; }
 }
 
-export function saveExpenses(list: Expense[]): void {
-  if (typeof window === "undefined") return;
+/**
+ * Saves locally (always) and returns the Turso write's outcome so a caller
+ * that needs to know whether the save actually reached the shared database
+ * can await it and warn the user instead of silently leaving the expense
+ * invisible on every device but the one it was added on (the previous
+ * fire-and-forget save could fail with nothing but a console warning).
+ */
+export function saveExpenses(list: Expense[]): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
   localStorage.setItem(locationUserKey(KEY), JSON.stringify(list));
-  saveToDB("expenses", list);
+  return saveToDB("expenses", list);
 }
 
-export function addExpense(data: Omit<Expense, "id" | "createdAt">): Expense {
+export async function addExpense(data: Omit<Expense, "id" | "createdAt">): Promise<{ expense: Expense; dbSaved: boolean }> {
   const entry: Expense = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
   const list = getExpenses();
   list.push(entry);
-  saveExpenses(list);
-  return entry;
+  const dbSaved = await saveExpenses(list);
+  return { expense: entry, dbSaved };
 }
 
 export function deleteExpense(id: string): void {
   saveExpenses(getExpenses().filter(e => e.id !== id));
 }
 
-export function updateExpense(id: string, patch: Partial<Omit<Expense, "id" | "createdAt">>): void {
-  saveExpenses(getExpenses().map(e => e.id === id ? { ...e, ...patch } : e));
+export async function updateExpense(id: string, patch: Partial<Omit<Expense, "id" | "createdAt">>): Promise<boolean> {
+  return saveExpenses(getExpenses().map(e => e.id === id ? { ...e, ...patch } : e));
 }

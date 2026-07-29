@@ -14,7 +14,7 @@ import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import {
   Plus, Trash2, TrendingUp, TrendingDown,
   Wallet, X, Download, Pencil, Check, CalendarCheck, ShoppingBag, Upload, FileSpreadsheet,
-  Banknote, CreditCard, Lock,
+  Banknote, CreditCard, Lock, AlertCircle, RefreshCw,
 } from "lucide-react";
 
 type Period = "today" | "7d" | "30d" | "1y" | "custom";
@@ -128,6 +128,8 @@ export default function CashFlowPage() {
   const [hoveredBar, setHoveredBar]   = useState<number | null>(null);
   const [fileMessage, setFileMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; title: string } | null>(null);
+  const [expenseSyncFailed, setExpenseSyncFailed] = useState(false);
+  const [retryingExpenseSync, setRetryingExpenseSync] = useState(false);
   const importInputRef                 = useRef<HTMLInputElement>(null);
   const expenseFormRef                 = useRef<HTMLDivElement>(null);
 
@@ -374,7 +376,17 @@ export default function CashFlowPage() {
     reader.readAsDataURL(file);
   }
 
-  function handleSave() {
+  async function retryExpenseSync() {
+    setRetryingExpenseSync(true);
+    try {
+      const dbSaved = await saveExpenses(getExpenses());
+      setExpenseSyncFailed(!dbSaved);
+    } finally {
+      setRetryingExpenseSync(false);
+    }
+  }
+
+  async function handleSave() {
     const amt = parseFloat(form.amount);
     if (!form.date) {
       setFormError("Please select an expense date.");
@@ -398,11 +410,13 @@ export default function CashFlowPage() {
     const expenseSection = cashFlowScoped ? activeSection : (form.section || undefined);
 
     try {
+      let dbSaved: boolean;
       if (editId) {
-        updateExpense(editId, { date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, ...billImagePatch, notes: form.notes.trim() || undefined, section: expenseSection });
+        dbSaved = await updateExpense(editId, { date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, ...billImagePatch, notes: form.notes.trim() || undefined, section: expenseSection });
       } else {
-        addExpense({ date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, ...billImagePatch, notes: form.notes.trim() || undefined, section: expenseSection });
+        ({ dbSaved } = await addExpense({ date: form.date, category: form.category, description, amount: amt, paymentMethod: form.paymentMethod, paymentStatus: form.paymentStatus, ...billImagePatch, notes: form.notes.trim() || undefined, section: expenseSection }));
       }
+      setExpenseSyncFailed(!dbSaved);
       setExpenses(getExpenses().filter(e => !cashFlowScoped || e.section === activeSection));
       setFormError("");
       setShowForm(false);
@@ -1231,13 +1245,26 @@ export default function CashFlowPage() {
                 <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e", letterSpacing: "-0.01em" }}>
                   Expenses
                   <span style={{ fontSize: 12, fontWeight: 600, color: "#9898b0", marginLeft: 8 }}>{periodExpenses.length} entries · {fmt(totalExpense)} paid{pendingExpense > 0 ? ` · ${fmt(pendingExpense)} pending` : ""}</span>
+                  {expenseSyncFailed && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, marginLeft: 10, fontSize: 11, fontWeight: 700, color: "#dc2626" }}>
+                      <AlertCircle size={11} /> Not synced to server — saved on this device only
+                    </span>
+                  )}
                 </div>
               </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {expenseSyncFailed && (
+                <button type="button" onClick={retryExpenseSync} disabled={retryingExpenseSync}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10, border: "1.5px solid #dc2626", background: "#fff", color: "#dc2626", fontSize: 12, fontWeight: 750, cursor: retryingExpenseSync ? "default" : "pointer", opacity: retryingExpenseSync ? 0.6 : 1 }}>
+                  <RefreshCw size={14} /> {retryingExpenseSync ? "Retrying…" : "Retry Sync"}
+                </button>
+              )}
               {!showForm && (
                 <button onClick={openAdd} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10, border: "1.5px solid #ef4444", background: "transparent", color: "#ef4444", fontSize: 12, fontWeight: 750, cursor: "pointer", transition: "all 0.15s" }} className="hover-bg-light">
                   <Plus size={14} /> Add
                 </button>
               )}
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "80px 110px 1fr 70px 92px 80px 32px 32px", padding: "10px 20px", background: "#faf9fd", borderBottom: "1px solid #f0f0f5" }}>
