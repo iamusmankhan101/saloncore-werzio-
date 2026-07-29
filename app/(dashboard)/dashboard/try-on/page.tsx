@@ -128,13 +128,12 @@ function UpgradeWall() {
 }
 
 export default function TryOnPage() {
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  // Feature isn't launched yet — show the Coming Soon screen to every user
+  // regardless of plan, rather than only gating it behind plan.tryOn.
+  return <UpgradeWall />;
+}
 
-  useEffect(() => {
-    const plan = getCurrentPlan();
-    setIsAdmin(plan.tryOn);
-  }, []);
-
+function TryOnTool() {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [hairMask, setHairMask] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
@@ -259,9 +258,6 @@ export default function TryOnPage() {
   }
 
   const category = CATEGORIES[activeCategory];
-
-  if (isAdmin === null) return null;
-  if (!isAdmin) return <UpgradeWall />;
 
   return (
     <div className="dash-page dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
