@@ -22,8 +22,14 @@ export interface ResolvedActor {
 /**
  * Verifies the session cookie and resolves the caller's data scope.
  * Staff are pinned to their salon owner's id and their assigned location.
- * Owners/managers are pinned to their own id; a client-requested location is
- * honored since it only scopes their own account's data.
+ * Managers resolve to their owner's id the same way — a manager row has its
+ * own distinct id (upsertStaffUser mints "staff_user_...", separate from the
+ * owner's id), so falling through to `actor.id` here would scope every read
+ * and write to an empty salon under the manager's own account instead of the
+ * real one. A manager assigned a specific branch is likewise pinned to it,
+ * exactly like staff — only when a manager has no assigned branch (a
+ * cross-branch manager, if that's ever configured) is the client-requested
+ * location honored. Only an actual owner/admin can freely browse branches.
  * Returns null when there's no valid session — callers must respond 401.
  */
 export async function resolveActor(
@@ -40,6 +46,13 @@ export async function resolveActor(
     return {
       userId: actor.salonOwnerId || actor.id,
       locationId: actor.locationId || "main",
+      role: actor.role,
+    };
+  }
+  if (actor.role === "manager") {
+    return {
+      userId: actor.salonOwnerId || actor.id,
+      locationId: actor.locationId || requestedLocationId,
       role: actor.role,
     };
   }

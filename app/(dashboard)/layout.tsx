@@ -481,6 +481,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       
       // Manager can access most pages, but not owner-only pages
       if (user.role === "manager") {
+        // Pinned to their assigned branch client-side too, matching the
+        // server-side pin in resolveActor() — otherwise the branch switcher
+        // (or a stale local selection) could point local reads/writes at a
+        // different branch than what the server actually scopes their data to.
+        if (user.locationId) setActiveLocationFilter(user.locationId);
         const key = pathname === "/dashboard"
           ? "dashboard"
           : pathname.replace("/dashboard/", "").split("/")[0];
@@ -861,7 +866,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           </div>
         )}
-        {getCurrentUser()?.role !== "staff" && getCurrentPlanId() === "premium" && (
+        {/* Branch switching is an owner/admin-only capability — a manager is
+            always pinned to their one assigned branch (server-enforced in
+            resolveActor()), so showing them a switcher that can't actually
+            move their data anywhere would just be a dead, confusing control. */}
+        {(getCurrentUser()?.role === "owner" || getCurrentUser()?.role === "admin") && getCurrentPlanId() === "premium" && (
           <DashboardLocationSwitcher onLocationChange={handleLocationChange} />
         )}
         <DashboardSectionSwitcher onSectionChange={handleSectionChange} />
