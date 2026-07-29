@@ -219,6 +219,29 @@ export async function updateCurrentPassword(currentPassword: string, nextPasswor
   if (!data.ok) throw new Error(data.error || "Password could not be updated.");
 }
 
+/**
+ * Verifies the session cookie is still valid against the server (the 7-day
+ * expiry is enforced server-side; getCurrentUser() only reads a local cache
+ * and has no way to notice the cookie has died). Without this check, a tab
+ * left open past expiry keeps rendering normally while every background
+ * save silently 401s — the write reaches nothing but this browser's
+ * localStorage for as long as nobody notices. Call this periodically so an
+ * expired session surfaces as a re-login prompt instead of days of silently
+ * un-synced data.
+ */
+export async function checkServerSession(): Promise<boolean> {
+  if (!canUseStorage()) return true;
+  try {
+    const res = await fetch("/api/auth/user", { cache: "no-store", credentials: "same-origin" });
+    if (res.status === 401) return false;
+    const data = await res.json() as { ok?: boolean };
+    return data.ok === true;
+  } catch {
+    // Network hiccup, not a session problem — don't force a sign-out for it.
+    return true;
+  }
+}
+
 export async function signOut() {
   if (!canUseStorage()) return;
   const sessionId = localStorage.getItem(SESSION_KEY);

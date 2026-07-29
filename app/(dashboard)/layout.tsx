@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { AlertTriangle, CreditCard, LayoutDashboard, User, Users, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff, MapPin, Plus } from "lucide-react";
 import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
 import Sidebar from "@/components/sidebar";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, checkServerSession, signOut } from "@/lib/auth";
 import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings, settingsStore } from "@/lib/settings-store";
 import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
 import { syncFromDB } from "@/lib/turso-sync";
@@ -514,6 +514,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, 0);
     return () => window.clearTimeout(timer);
   }, [router, pathname]);
+
+  // Session liveness check — getCurrentUser() above only reads a local cache
+  // and can't tell the 7-day session cookie has died server-side, so a tab
+  // left open past expiry would otherwise keep rendering normally while
+  // every background save (expenses, invoices, etc.) silently 401s for as
+  // long as nobody notices. Check right away, then periodically, so a dead
+  // session surfaces as a re-login prompt instead of days of un-synced data.
+  useEffect(() => {
+    if (!isReady) return;
+    let cancelled = false;
+
+    async function verify() {
+      const alive = await checkServerSession();
+      if (cancelled || alive) return;
+      await signOut();
+      router.replace("/sign-in?expired=1");
+    }
+
+    verify();
+    const interval = window.setInterval(verify, 30 * 60 * 1000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [isReady, router]);
 
   // Appearance
   useEffect(() => {

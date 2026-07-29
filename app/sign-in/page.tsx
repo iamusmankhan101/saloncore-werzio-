@@ -29,6 +29,7 @@ export default function SignInPage() {
       else if (oauthErr === "account_pending") setError("Your account has been created and is waiting for admin approval.");
       else if (oauthErr === "account_rejected") setError("Your account request was not approved. Please contact Salon Central support.");
       else if (oauthErr) setError("Google sign-in failed. Please try again.");
+      else if (params.get("expired") === "1") setError("Your session expired. Please sign in again to keep your data syncing.");
     });
   }, [router]);
 
