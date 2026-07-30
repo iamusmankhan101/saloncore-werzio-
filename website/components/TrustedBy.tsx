@@ -15,6 +15,15 @@ export default function TrustedBy() {
             className={styles.logoImage}
           />
         </div>
+        <div className={styles.logoCard} data-animate data-delay="0.16">
+          <Image
+            src="/sonias-bridal-experts-logo.png"
+            alt="Sonia's The Bridal Experts"
+            width={500}
+            height={500}
+            className={styles.logoImage}
+          />
+        </div>
       </div>
     </div>
   );
