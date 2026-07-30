@@ -12,6 +12,7 @@ import {
   Search, X, Plus, AlertTriangle, Package, ChevronDown,
   Edit2, Trash2, Bell, Copy, CheckCircle, TrendingDown,
   MessageCircle, DollarSign, Tag, ToggleLeft, ToggleRight,
+  Upload, Download, FileSpreadsheet, Check,
 } from "lucide-react";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -186,6 +187,282 @@ function priceFieldsValid(form: ItemForm): boolean {
   const min = Number(form.priceRangeMin);
   const max = Number(form.priceRangeMax);
   return Boolean(form.priceRangeMin && form.priceRangeMax && min > 0 && max >= min);
+}
+
+// ── Import / Export ────────────────────────────────────────────────────────────
+const INVENTORY_EXPORT_COLS = [
+  "Item ID", "Name", "Brand", "Category", "Section", "Unit", "Current Stock", "Min Stock",
+  "Cost Price", "Variable Price", "Retail Price", "Min Price", "Max Price", "Barcode", "Supplier", "Last Restocked", "Notes",
+];
+
+type InventoryImportRecord = { item: InventoryItem; mode: "add" | "update" };
+type InventoryImportResult = { added: number; updated: number; skipped: number; errors: string[] };
+
+function parseBool(value: unknown): boolean {
+  return ["true", "yes", "1"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function normalizeCategory(value: unknown): InventoryCategory {
+  const raw = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "-");
+  return (CATEGORIES as string[]).includes(raw) ? (raw as InventoryCategory) : "consumables";
+}
+
+function normalizeUnit(value: unknown): InventoryUnit {
+  const raw = String(value ?? "").trim().toLowerCase();
+  return (UNITS as string[]).includes(raw) ? (raw as InventoryUnit) : "pcs";
+}
+
+function itemsToRows(list: InventoryItem[]) {
+  return list.map((item) => ({
+    "Item ID": item.id,
+    "Name": item.name,
+    "Brand": item.brand,
+    "Category": item.category,
+    "Section": item.section ?? "",
+    "Unit": item.unit,
+    "Current Stock": item.currentStock,
+    "Min Stock": item.minStock,
+    "Cost Price": item.costPrice,
+    "Variable Price": item.variablePrice ? "Yes" : "No",
+    "Retail Price": item.variablePrice ? "" : (item.retailPrice ?? ""),
+    "Min Price": item.variablePrice ? (item.priceRangeMin ?? "") : "",
+    "Max Price": item.variablePrice ? (item.priceRangeMax ?? "") : "",
+    "Barcode": item.barcode ?? "",
+    "Supplier": item.supplier ?? "",
+    "Last Restocked": item.lastRestocked ?? "",
+    "Notes": item.notes ?? "",
+  }));
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function exportInventory(list: InventoryItem[], format: "xlsx" | "csv") {
+  const XLSX = await import("xlsx");
+  const ws = XLSX.utils.json_to_sheet(itemsToRows(list), { header: INVENTORY_EXPORT_COLS });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+  const date = new Date().toISOString().slice(0, 10);
+  if (format === "csv") {
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `inventory-${date}.csv`);
+  } else {
+    XLSX.writeFile(wb, `inventory-${date}.xlsx`);
+  }
+}
+
+// ── Import Modal ──────────────────────────────────────────────────────────────
+function InventoryImportModal({ existing, onClose, onImport }: {
+  existing: InventoryItem[];
+  onClose: () => void;
+  onImport: (records: InventoryImportRecord[]) => InventoryImportResult;
+}) {
+  const [step, setStep] = useState<"pick" | "preview" | "done">("pick");
+  const [parsed, setParsed] = useState<InventoryImportRecord[]>([]);
+  const [result, setResult] = useState<InventoryImportResult | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleFile(file: File) {
+    setError("");
+    setLoading(true);
+    try {
+      const XLSX = await import("xlsx");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+      if (rows.length === 0) {
+        setError("File is empty or unreadable.");
+        setLoading(false);
+        return;
+      }
+
+      const byId = new Map(existing.map((i) => [i.id, i]));
+      const byBarcode = new Map(existing.filter((i) => i.barcode).map((i) => [i.barcode!.trim(), i]));
+      const byNameBrand = new Map(existing.map((i) => [`${i.name.trim().toLowerCase()}|${i.brand.trim().toLowerCase()}`, i]));
+      const records: InventoryImportRecord[] = [];
+      const usedIds = new Set(existing.map((i) => i.id));
+
+      for (const row of rows) {
+        const name = String(row["Name"] ?? row["name"] ?? "").trim();
+        if (!name) continue;
+        const brand = String(row["Brand"] ?? row["brand"] ?? "").trim();
+
+        const rawId = String(row["Item ID"] ?? row["ID"] ?? row["id"] ?? "").trim();
+        const barcode = String(row["Barcode"] ?? row["barcode"] ?? row["SKU"] ?? "").trim();
+        const nameBrandKey = `${name.toLowerCase()}|${brand.toLowerCase()}`;
+        const existingItem = (rawId && byId.get(rawId)) || (barcode && byBarcode.get(barcode)) || byNameBrand.get(nameBrandKey);
+        const id = existingItem?.id ?? (rawId || `inv_imp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+        if (!existingItem && usedIds.has(id)) continue;
+        usedIds.add(id);
+
+        const variablePrice = parseBool(row["Variable Price"] ?? row["Variable"]);
+        const priceRangeMin = Number(row["Min Price"] ?? row["Price Range Min"] ?? "");
+        const priceRangeMax = Number(row["Max Price"] ?? row["Price Range Max"] ?? "");
+        const retailPriceRaw = Number(row["Retail Price"] ?? row["Price"] ?? "");
+        const currentStock = Number(row["Current Stock"] ?? row["Stock"] ?? "");
+        const minStock = Number(row["Min Stock"] ?? "");
+        const costPrice = Number(row["Cost Price"] ?? row["Cost"] ?? "");
+
+        records.push({
+          mode: existingItem ? "update" : "add",
+          item: {
+            id,
+            name,
+            brand: brand || existingItem?.brand || "",
+            category: normalizeCategory(row["Category"] ?? row["category"]),
+            section: String(row["Section"] ?? row["section"] ?? "").trim() || undefined,
+            unit: normalizeUnit(row["Unit"] ?? row["unit"]),
+            currentStock: Number.isFinite(currentStock) ? currentStock : (existingItem?.currentStock ?? 0),
+            minStock: Number.isFinite(minStock) ? minStock : (existingItem?.minStock ?? 0),
+            costPrice: Number.isFinite(costPrice) ? costPrice : (existingItem?.costPrice ?? 0),
+            retailPrice: variablePrice
+              ? (Number.isFinite(priceRangeMin) && priceRangeMin > 0 ? priceRangeMin : undefined)
+              : (Number.isFinite(retailPriceRaw) && retailPriceRaw > 0 ? retailPriceRaw : existingItem?.retailPrice),
+            variablePrice,
+            priceRangeMin: variablePrice && Number.isFinite(priceRangeMin) ? priceRangeMin : undefined,
+            priceRangeMax: variablePrice && Number.isFinite(priceRangeMax) ? priceRangeMax : undefined,
+            barcode: barcode || existingItem?.barcode || undefined,
+            supplier: String(row["Supplier"] ?? row["supplier"] ?? "").trim() || existingItem?.supplier,
+            notes: String(row["Notes"] ?? row["notes"] ?? "").trim() || existingItem?.notes,
+            lastRestocked: String(row["Last Restocked"] ?? "").trim() || existingItem?.lastRestocked || new Date().toLocaleDateString("en-CA"),
+          },
+        });
+      }
+
+      setParsed(records);
+      setStep("preview");
+    } catch (e) {
+      setError(`Could not read file: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function downloadTemplate() {
+    const XLSX = await import("xlsx");
+    const sample = [{
+      "Item ID": "",
+      "Name": "Argan Oil Shampoo",
+      "Brand": "Wella",
+      "Category": "hair-color",
+      "Section": "",
+      "Unit": "bottle",
+      "Current Stock": 24,
+      "Min Stock": 5,
+      "Cost Price": 850,
+      "Variable Price": "No",
+      "Retail Price": 1500,
+      "Min Price": "",
+      "Max Price": "",
+      "Barcode": "8901234567890",
+      "Supplier": "Wella Pakistan",
+      "Last Restocked": "",
+      "Notes": "",
+    }];
+    const ws = XLSX.utils.json_to_sheet(sample, { header: INVENTORY_EXPORT_COLS });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory Template");
+    XLSX.writeFile(wb, "inventory-import-template.xlsx");
+  }
+
+  function confirmImport() {
+    const importResult = onImport(parsed);
+    setResult(importResult);
+    setStep("done");
+  }
+
+  const addCount = parsed.filter((record) => record.mode === "add").length;
+  const updateCount = parsed.filter((record) => record.mode === "update").length;
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 540, padding: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <FileSpreadsheet size={18} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>Import Inventory</div>
+              <div style={{ fontSize: 11, color: "#9898b0" }}>XLSX or CSV file</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#9898b0" /></button>
+        </div>
+
+        {step === "pick" && (
+          <>
+            <label style={{ display: "block", border: "2px dashed #ddd6fe", borderRadius: 14, padding: "32px 20px", textAlign: "center", cursor: "pointer", background: "#faf9ff" }} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}>
+              <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              <Upload size={28} color="#7C3AED" style={{ marginBottom: 10 }} />
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#5B21B6", marginBottom: 4 }}>Click to choose file or drag & drop</div>
+              <div style={{ fontSize: 12, color: "#9898b0" }}>Supports .xlsx, .xls, .csv</div>
+            </label>
+            {loading && <div style={{ textAlign: "center", marginTop: 16, color: "#7C3AED", fontSize: 13, fontWeight: 600 }}>Reading file...</div>}
+            {error && <div style={{ marginTop: 12, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, fontSize: 13, color: "#dc2626" }}>{error}</div>}
+
+            <div style={{ marginTop: 18, padding: "14px 16px", background: "#f5f3ff", borderRadius: 12, fontSize: 12, color: "#5B21B6", lineHeight: 1.8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <strong style={{ fontSize: 12 }}>Column format</strong>
+                <button onClick={downloadTemplate} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 8, border: "1px solid #c4b5fd", background: "#fff", fontSize: 11, fontWeight: 700, color: "#5B21B6", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  <Download size={12} /> Download Template
+                </button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 16px", fontSize: 11 }}>
+                {[
+                  ["Name", "Required"], ["Brand", "Optional"], ["Category", CATEGORIES.join(" / ")], ["Unit", UNITS.join(" / ")],
+                  ["Current Stock", "Number"], ["Min Stock", "Alert threshold"], ["Cost Price", "Number"], ["Barcode", "Used to match existing items"],
+                ].map(([col, hint]) => <div key={col}><strong>{col}</strong>: {hint}</div>)}
+              </div>
+            </div>
+          </>
+        )}
+
+        {step === "preview" && (
+          <>
+            <div style={{ padding: "14px 16px", background: "#f8f7ff", border: "1px solid #e9d5ff", borderRadius: 12, marginBottom: 14 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e" }}>{parsed.length} item{parsed.length === 1 ? "" : "s"} ready</div>
+              <div style={{ fontSize: 12, color: "#6b6b8a", marginTop: 4 }}>{addCount} new, {updateCount} update{updateCount === 1 ? "" : "s"}</div>
+            </div>
+            <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #f0f0f8", borderRadius: 12 }}>
+              {parsed.slice(0, 8).map((record) => (
+                <div key={record.item.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 12px", borderBottom: "1px solid #f8f8fc" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>{record.item.name}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0" }}>{record.item.brand || "—"} · {CATEGORY_CONFIG[record.item.category].label} · {record.item.currentStock} {record.item.unit}</div>
+                  </div>
+                  <span style={{ alignSelf: "center", fontSize: 10, fontWeight: 800, borderRadius: 999, padding: "3px 8px", background: record.mode === "add" ? "#ecfdf5" : "#eff6ff", color: record.mode === "add" ? "#059669" : "#2563eb" }}>{record.mode === "add" ? "Add" : "Update"}</span>
+                </div>
+              ))}
+              {parsed.length > 8 && <div style={{ padding: "10px 12px", fontSize: 12, color: "#9898b0" }}>+{parsed.length - 8} more</div>}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <button onClick={() => setStep("pick")} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: "pointer" }}>Back</button>
+              <button onClick={confirmImport} disabled={parsed.length === 0} style={{ flex: 2, padding: "10px 0", borderRadius: 10, border: "none", background: parsed.length ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 700, color: parsed.length ? "#fff" : "#b0b0c8", cursor: parsed.length ? "pointer" : "not-allowed" }}>Import Inventory</button>
+            </div>
+          </>
+        )}
+
+        {step === "done" && result && (
+          <div style={{ textAlign: "center", padding: "24px 8px 8px" }}>
+            <div style={{ width: 60, height: 60, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><Check size={28} color="#059669" /></div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#1a1a2e", marginBottom: 6 }}>Import Complete</div>
+            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 20 }}>{result.added} added, {result.updated} updated{result.skipped ? `, ${result.skipped} skipped` : ""}.</div>
+            <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Done</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ── Add Modal ─────────────────────────────────────────────────────────────────
@@ -532,6 +809,8 @@ export default function InventoryPage() {
   const [deleteItem, setDeleteItem]     = useState<InventoryItem | null>(null);
   const [showReminder, setShowReminder] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     setItems(getStoredInventory());
@@ -561,6 +840,22 @@ export default function InventoryPage() {
       ? { ...i, retailPrice: i.retailPrice ? undefined : (i.costPrice || 0) }
       : i
     ));
+  }, [items, persist]);
+
+  const handleImportInventory = useCallback((records: InventoryImportRecord[]): InventoryImportResult => {
+    const byId = new Map(items.map((i) => [i.id, i]));
+    let added = 0;
+    let updated = 0;
+    const skipped = 0;
+
+    for (const record of records) {
+      if (byId.has(record.item.id)) updated += 1;
+      else added += 1;
+      byId.set(record.item.id, record.item);
+    }
+
+    persist(Array.from(byId.values()));
+    return { added, updated, skipped, errors: [] };
   }, [items, persist]);
 
   const retailItems = useMemo(() => items.filter(i => (i.retailPrice ?? 0) > 0), [items]);
@@ -599,6 +894,13 @@ export default function InventoryPage() {
       {editItem   && <EditModal   item={editItem} onClose={() => setEditItem(null)} onSave={(updated) => persist(items.map((i) => i.id === updated.id ? updated : i))} items={items} />}
       {deleteItem && <DeleteModal item={deleteItem} onClose={() => setDeleteItem(null)} onDelete={() => persist(getStoredInventory().filter((i) => i.id !== deleteItem.id))} />}
       {showReminder && <ReminderModal alertItems={alertItems} onClose={() => setShowReminder(false)} />}
+      {showImport && (
+        <InventoryImportModal
+          existing={items}
+          onClose={() => setShowImport(false)}
+          onImport={handleImportInventory}
+        />
+      )}
 
       {/* ══════════ MOBILE LAYOUT ══════════ */}
 
@@ -891,6 +1193,38 @@ export default function InventoryPage() {
                 <Bell size={14} /> Send Reminder
               </button>
             )}
+            <button
+              onClick={() => setShowImport(true)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 12, border: "1px solid #e3e0eb", background: "#fff", fontSize: 13, fontWeight: 750, color: "#6b6b8a", cursor: "pointer", transition: "all 0.18s ease" }}
+              className="hover-bg-light"
+            >
+              <Upload size={15} /> Import
+            </button>
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setShowExportMenu((open) => !open)}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 12, border: "1px solid #bbf7d0", background: "#f0fdf4", fontSize: 13, fontWeight: 750, color: "#059669", cursor: "pointer", transition: "all 0.18s ease" }}
+              >
+                <Download size={15} /> Export <ChevronDown size={12} style={{ transform: showExportMenu ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+              </button>
+              {showExportMenu && (
+                <>
+                  <div onClick={() => setShowExportMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 10 }} />
+                  <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 20, width: 188, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, boxShadow: "0 12px 34px rgba(16, 24, 40, 0.12)", padding: 6 }}>
+                    {[
+                      { fmt: "xlsx" as const, label: "Excel (.xlsx)" },
+                      { fmt: "csv" as const, label: "CSV (.csv)" },
+                    ].map(({ fmt, label }) => (
+                      <button key={fmt} onClick={() => { setShowExportMenu(false); exportInventory(filtered, fmt); }}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", border: "none", background: "transparent", borderRadius: 8, fontSize: 12, fontWeight: 700, color: "#1a1a2e", cursor: "pointer", textAlign: "left" }} className="hover-bg-light">
+                        <FileSpreadsheet size={14} color="#059669" /> {label}
+                      </button>
+                    ))}
+                    <div style={{ padding: "7px 10px 4px", fontSize: 10, color: "#9898b0", borderTop: "1px solid #f0f0f8", marginTop: 4 }}>Exports {filtered.length} visible items</div>
+                  </div>
+                </>
+              )}
+            </div>
             <button onClick={() => setShowAdd(true)}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 12, border: "none", background: "var(--accent-gradient)", fontSize: 13, fontWeight: 750, color: "#fff", cursor: "pointer", boxShadow: "0 4px 14px var(--accent-glow)", transition: "all 0.18s ease" }}
               className="page-header-btn hover-scale"
