@@ -16,11 +16,11 @@ import {
   PLAN_CONFIGS, ORDERED_PLANS, getCurrentPlanId,
   type PlanId, type PlanConfig,
 } from "@/lib/plan-limits";
+import { DEFAULT_BANK_DETAILS } from "@/lib/billing-constants";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const EP_DETAILS  = { name: "Muhammad Usman Khan", phone: "03058562523" };
-const BANK_DETAILS = { name: "TAREEZ TECH", account: "02291011176553", iban: "PK90ALFH0229001011176553" };
 const CONTACT_SALES_URL = "https://wa.me/+923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
 const DEMO_DAYS = 7;
 
@@ -208,6 +208,7 @@ export default function BillingPage() {
   const [trialStart,   setTrialStart]  = useState<string | null>(null);
   const [isDemoSignup, setIsDemoSignup] = useState(false);
   const [planLoaded,   setPlanLoaded]  = useState(false);
+  const [bankDetails,  setBankDetails] = useState(DEFAULT_BANK_DETAILS);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -227,6 +228,9 @@ export default function BillingPage() {
           if (typeof data.billingTermMonths === "number") setBillingTermMonths(Math.max(1, Math.floor(data.billingTermMonths)));
           if (typeof data.trialStart === "string") setTrialStart(data.trialStart);
           setIsDemoSignup(data.isDemoSignup === true);
+          if (data.bankTitle && data.bankAccountNumber && data.bankIban) {
+            setBankDetails({ title: data.bankTitle, accountNumber: data.bankAccountNumber, iban: data.bankIban });
+          }
 
           // Also update localStorage for backward compatibility
           if (planId !== "free") {
@@ -342,7 +346,7 @@ export default function BillingPage() {
     <div className="dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
 
       {/* Shared overlays */}
-      {viewInvoice && <InvoiceViewer invoice={viewInvoice} onClose={() => setViewInvoice(null)} />}
+      {viewInvoice && <InvoiceViewer invoice={viewInvoice} onClose={() => setViewInvoice(null)} bankDetails={bankDetails} />}
 
       {/* ── Payment modal (bottom-sheet on mobile) ── */}
       {showModal && upgradePlan && (
@@ -418,9 +422,9 @@ export default function BillingPage() {
                       <div style={{ fontSize: 11, color: "#6b8fa8" }}>Transfer to this account</div>
                     </div>
                   </div>
-                  <CopyField label="Account Title" value={BANK_DETAILS.name} />
-                  <CopyField label="Account Number" value={BANK_DETAILS.account} />
-                  <CopyField label="IBAN" value={BANK_DETAILS.iban} />
+                  <CopyField label="Account Title" value={bankDetails.title} />
+                  <CopyField label="Account Number" value={bankDetails.accountNumber} />
+                  <CopyField label="IBAN" value={bankDetails.iban} />
                 </div>
               )}
 

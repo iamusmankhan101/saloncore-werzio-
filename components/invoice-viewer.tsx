@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X, Printer } from "lucide-react";
 import SalonCentralWordmark from "@/components/salon-central-wordmark";
 import type { Invoice } from "@/lib/invoices";
+import { DEFAULT_BANK_DETAILS } from "@/lib/billing-constants";
 
 function fmt(n: number) { return "PKR " + n.toLocaleString("en-PK"); }
 function fmtDate(d: string) {
@@ -15,12 +16,6 @@ const STATUS_STYLE: Record<string, { color: string; label: string }> = {
   paid:    { color: "#059669", label: "PAID"    },
   unpaid:  { color: "#d97706", label: "UNPAID"  },
   overdue: { color: "#dc2626", label: "OVERDUE" },
-};
-
-const BANK_DETAILS = {
-  title: "TAREEZ TECH",
-  accountNumber: "02291011176553",
-  iban: "PK90ALFH0229001011176553",
 };
 
 const PRINT_STYLES = `
@@ -38,7 +33,14 @@ const PRINT_STYLES = `
   }
 `;
 
-export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
+interface Props {
+  invoice: Invoice;
+  onClose: () => void;
+  /** Per-salon bank account override — defaults to the platform's if omitted. */
+  bankDetails?: { title: string; accountNumber: string; iban: string };
+}
+
+export default function InvoiceViewer({ invoice, onClose, bankDetails = DEFAULT_BANK_DETAILS }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   if (!mounted) return null;
@@ -181,9 +183,9 @@ export default function InvoiceViewer({ invoice, onClose }: { invoice: Invoice; 
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <tbody>
                     {[
-                      ["Account Title:", BANK_DETAILS.title],
-                      ["Account Number:", BANK_DETAILS.accountNumber],
-                      ["IBAN:", BANK_DETAILS.iban],
+                      ["Account Title:", bankDetails.title],
+                      ["Account Number:", bankDetails.accountNumber],
+                      ["IBAN:", bankDetails.iban],
                     ].map(([label, value]) => (
                       <tr key={label}>
                         <td style={{ padding: "4px 0", color: "#555", width: "34%" }}>{label}</td>

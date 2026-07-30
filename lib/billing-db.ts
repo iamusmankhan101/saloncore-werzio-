@@ -16,6 +16,9 @@
 
 import { db } from "@/lib/db";
 import type { InValue } from "@libsql/client";
+import { DEFAULT_BANK_DETAILS } from "@/lib/billing-constants";
+
+export { DEFAULT_BANK_DETAILS };
 
 // ─── Billing constants ────────────────────────────────────────────────────────
 export const TRIAL_DAYS = 7;
@@ -84,6 +87,11 @@ export async function ensureBillingTables(): Promise<void> {
     ["billing_users",    "is_demo_signup",    "INTEGER NOT NULL DEFAULT 0"],
     ["billing_users",    "billing_term_months", "INTEGER NOT NULL DEFAULT 1"],
     ["billing_invoices", "period_start",      "TEXT NOT NULL DEFAULT ''"],
+    // Per-salon override of the bank account shown on their invoice — null/empty
+    // means "use DEFAULT_BANK_DETAILS below", so existing accounts are unaffected.
+    ["billing_users",    "payment_bank_title",     "TEXT"],
+    ["billing_users",    "payment_account_number", "TEXT"],
+    ["billing_users",    "payment_iban",           "TEXT"],
   ] as const) {
     await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`)
       .catch(() => { /* column already exists — ignore */ });
@@ -110,6 +118,10 @@ export interface BillingUser {
   suspended: boolean;
   suspensionReason: string | null;
   createdAt: string;
+  /** Per-salon bank account override for their invoice — null means "use DEFAULT_BANK_DETAILS". */
+  paymentBankTitle: string | null;
+  paymentAccountNumber: string | null;
+  paymentIban: string | null;
 }
 
 export interface BillingInvoice {
@@ -158,6 +170,9 @@ function rowToUser(r: any): BillingUser {
     suspended:        (r.suspended as number) === 1,
     suspensionReason: (r.suspension_reason as string) ?? null,
     createdAt:        r.created_at as string,
+    paymentBankTitle:     (r.payment_bank_title as string) || null,
+    paymentAccountNumber: (r.payment_account_number as string) || null,
+    paymentIban:          (r.payment_iban as string) || null,
   };
 }
 
@@ -233,7 +248,7 @@ function billingCycleDays(termMonths: number): number {
 // ─── Billing Users ─────────────────────────────────────────────────────────────
 
 export async function upsertBillingUser(
-  user: Omit<BillingUser, "billingTermMonths" | "billingAnchor" | "suspended" | "suspensionReason" | "createdAt"> & { billingTermMonths?: BillingUser["billingTermMonths"] }
+  user: Omit<BillingUser, "billingTermMonths" | "billingAnchor" | "suspended" | "suspensionReason" | "createdAt" | "paymentBankTitle" | "paymentAccountNumber" | "paymentIban"> & { billingTermMonths?: BillingUser["billingTermMonths"] }
 ): Promise<void> {
   await db.execute({
     sql: `
@@ -327,6 +342,17 @@ export async function setCustomPlanPrice(userId: string, price: number, billingT
   await db.execute({
     sql: "UPDATE billing_users SET plan_price = ?, billing_term_months = ? WHERE id = ?",
     args: [price, billingTermMonths, userId],
+  });
+}
+
+/** Admin override: set (or clear, by passing empty strings) this salon's invoice bank details. */
+export async function setPaymentDetails(
+  userId: string,
+  details: { bankTitle: string; accountNumber: string; iban: string }
+): Promise<void> {
+  await db.execute({
+    sql: `UPDATE billing_users SET payment_bank_title = ?, payment_account_number = ?, payment_iban = ? WHERE id = ?`,
+    args: [details.bankTitle.trim() || null, details.accountNumber.trim() || null, details.iban.trim() || null, userId],
   });
 }
 

@@ -4,7 +4,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { getBillingUser } from "@/lib/billing-db";
+import { DEFAULT_BANK_DETAILS, getBillingUser } from "@/lib/billing-db";
 import { resolveActor } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const billingUser = await getBillingUser(actor.userId);
-    
+
     if (!billingUser) {
       // User not found in billing DB - they're on free plan
       return Response.json({
@@ -24,6 +24,9 @@ export async function GET(req: NextRequest) {
         billingTermMonths: 1,
         suspended: false,
         isDemoSignup: false,
+        bankTitle: DEFAULT_BANK_DETAILS.title,
+        bankAccountNumber: DEFAULT_BANK_DETAILS.accountNumber,
+        bankIban: DEFAULT_BANK_DETAILS.iban,
       });
     }
 
@@ -37,6 +40,11 @@ export async function GET(req: NextRequest) {
       suspensionReason: billingUser.suspensionReason,
       trialStart: billingUser.trialStart,
       isDemoSignup: billingUser.isDemoSignup,
+      // Per-salon override if the admin set one, else the platform default —
+      // callers don't need to know which.
+      bankTitle: billingUser.paymentBankTitle || DEFAULT_BANK_DETAILS.title,
+      bankAccountNumber: billingUser.paymentAccountNumber || DEFAULT_BANK_DETAILS.accountNumber,
+      bankIban: billingUser.paymentIban || DEFAULT_BANK_DETAILS.iban,
     });
   } catch (err) {
     console.error("[billing/user] Error fetching billing user:", err);
