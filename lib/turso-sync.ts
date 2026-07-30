@@ -109,9 +109,19 @@ export async function syncFromDB(): Promise<void> {
   try {
     const res = await fetch(`/api/settings?userId=${encodeURIComponent(dataOwnerId)}`);
     if (res.ok) {
-      const { data } = await res.json() as { data: object | null };
+      const { data, updatedAt } = await res.json() as { data: object | null; updatedAt: string | null };
       if (data && typeof data === "object") {
-        localStorage.setItem(userKey("werzio_settings"), JSON.stringify(data));
+        // saveSettingsToDB() (lib/turso-sync.ts) is fire-and-forget from most
+        // callers and can still be in flight — or can have failed outright —
+        // when syncFromDB() runs on the very next page load/navigation. Without
+        // this check, a just-saved edit (salon name, logo, etc.) gets silently
+        // overwritten by the stale row this GET just fetched, which is exactly
+        // what "settings revert after refresh" looks like from the outside.
+        const localSavedAt = localStorage.getItem(userKey("werzio_settings_saved_at"));
+        const localIsNewer = !!localSavedAt && !!updatedAt && localSavedAt > updatedAt;
+        if (!localIsNewer) {
+          localStorage.setItem(userKey("werzio_settings"), JSON.stringify(data));
+        }
       }
     }
   } catch { /* keep localStorage */ }
@@ -168,17 +178,38 @@ export function saveToDB(entity: Entity, data: unknown[]): Promise<boolean> {
 }
 
 /**
- * Save settings object to Turso. Fire-and-forget.
+ * Save settings object to Turso. Retries like saveToDB above — most callers
+ * still don't await it, but the caller does need to know whether the write
+ * actually landed (see saveSettings() in lib/settings-store.ts) since a
+ * silently-failed save previously looked identical to a successful one until
+ * the next refresh quietly reverted it.
  */
-export function saveSettingsToDB(data: object): void {
+export function saveSettingsToDB(data: object): Promise<boolean> {
   const user = getCurrentUser();
-  if (!user) return;
+  if (!user) return Promise.resolve(false);
+  const body = JSON.stringify({ userId: user.salonOwnerId || user.id, data });
 
-  fetch("/api/settings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: user.salonOwnerId || user.id, data }),
-  }).catch(() => {});
+  async function attempt(tries: number): Promise<boolean> {
+    try {
+      const r = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return true;
+    } catch (err) {
+      if (tries <= 1) {
+        console.warn("[saveSettingsToDB] failed after all retries:", err);
+        return false;
+      }
+      const delay = 2 ** (3 - tries) * 1000; // 1s, 2s, 4s
+      await new Promise(res => setTimeout(res, delay));
+      return attempt(tries - 1);
+    }
+  }
+
+  return attempt(3);
 }
 
 /**

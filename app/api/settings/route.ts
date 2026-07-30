@@ -30,11 +30,15 @@ export async function GET(req: NextRequest) {
   try {
     await ensureTable();
     const result = await db.execute({
-      sql: "SELECT data FROM salon_data WHERE entity = ?",
+      sql: "SELECT data, updated_at FROM salon_data WHERE entity = ?",
       args: [`${actor.userId}_settings`],
     });
-    if (result.rows.length === 0) return Response.json({ ok: true, data: null });
-    return Response.json({ ok: true, data: JSON.parse(result.rows[0].data as string) });
+    if (result.rows.length === 0) return Response.json({ ok: true, data: null, updatedAt: null });
+    return Response.json({
+      ok: true,
+      data: JSON.parse(result.rows[0].data as string),
+      updatedAt: result.rows[0].updated_at as string,
+    });
   } catch (err) {
     console.error("[settings] GET error:", err);
     return Response.json({ ok: true, data: null });

@@ -288,14 +288,21 @@ function SalonProfile() {
     return s;
   });
   const [saved, setSaved] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   function setField(field: keyof SalonSettings, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
-  function save() {
+  async function save() {
+    setSaving(true);
+    setSaveFailed(false);
     Object.assign(settingsStore.salon, form);
-    saveSettings();
+    // Awaited (unlike most saveSettings() callers) so a failed write is
+    // reported instead of silently reverting on the next refresh/navigation —
+    // see the settings block in lib/turso-sync.ts's syncFromDB().
+    const dbSaved = await saveSettings();
     updateCurrentUser({ salonName: form.name, phone: form.phone });
     // Sync to Turso
     const u = getCurrentUser();
@@ -306,8 +313,13 @@ function SalonProfile() {
         body: JSON.stringify({ userId: u.id, salonName: form.name, phone: form.phone }),
       }).catch(() => {});
     }
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2200);
+    setSaving(false);
+    if (dbSaved) {
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2200);
+    } else {
+      setSaveFailed(true);
+    }
   }
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -388,7 +400,12 @@ function SalonProfile() {
         </Field>
       </div>
       {saved && <div style={{ marginTop: 16 }}><SavedBanner /></div>}
-      <SaveButton onClick={save} />
+      {saveFailed && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "#fef2f2", borderRadius: 10, fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 16 }}>
+          Couldn&apos;t save to the server — saved on this device only. Check your connection and save again, or it may revert on refresh.
+        </div>
+      )}
+      <SaveButton onClick={save} label={saving ? "Saving…" : "Save Changes"} disabled={saving} />
     </section>
   );
 }

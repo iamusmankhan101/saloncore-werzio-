@@ -4,6 +4,7 @@ import { userKey, getCurrentUser } from "./auth";
 import { saveSettingsToDB } from "./turso-sync";
 
 const STORAGE_KEY = "werzio_settings";
+const SAVED_AT_KEY = "werzio_settings_saved_at";
 export const SETTINGS_CHANGED_EVENT = "werzio_settings_changed";
 
 const defaults = {
@@ -211,6 +212,11 @@ function load() {
 function persist() {
   if (typeof window === "undefined") return;
   localStorage.setItem(userKey(STORAGE_KEY), JSON.stringify(settingsStore));
+  // Stamped so syncFromDB() can tell a locally-saved edit apart from stale
+  // server data — see the settings block in lib/turso-sync.ts for why this
+  // matters (the DB push below is fire-and-forget and can still be in flight,
+  // or can fail silently, when the next page load's sync runs).
+  localStorage.setItem(userKey(SAVED_AT_KEY), new Date().toISOString());
 }
 
 export const settingsStore = load();
@@ -224,14 +230,22 @@ export function reloadSettings() {
   Object.assign(settingsStore, newSettings);
 }
 
-/** Call after mutating any section to persist changes. */
-export function saveSettings() {
+/**
+ * Call after mutating any section to persist changes. Saves locally (always,
+ * synchronously) and returns the Turso write's outcome — most callers don't
+ * await it (fire-and-forget, doesn't block the UI), but a caller that wants
+ * to confirm the save actually reached the shared database (e.g. the Salon
+ * Profile form) can await the result and warn on failure instead of the
+ * change silently reverting on the next refresh.
+ */
+export function saveSettings(): Promise<boolean> {
   persist();
-  saveSettingsToDB(settingsStore);
+  const dbSaved = saveSettingsToDB(settingsStore);
   applyAppearanceSettings();
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT));
   }
+  return dbSaved;
 }
 
 function hexToRgb(hex: string) {

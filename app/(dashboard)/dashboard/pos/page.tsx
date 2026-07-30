@@ -216,6 +216,7 @@ export default function POSPage() {
   const [completed,        setCompleted]        = useState(false);
   const [lastInvoice,      setLastInvoice]      = useState<SalonInvoice | null>(null);
   const [waStatus,         setWaStatus]         = useState<"idle" | "queued" | "sending" | "sent" | "failed">("idle");
+  const [waPdfStatus,      setWaPdfStatus]       = useState<"idle" | "working" | "shared" | "downloaded" | "failed">("idle");
   const [syncFailed,       setSyncFailed]       = useState(false);
   const [retryingSync,     setRetryingSync]     = useState(false);
 
@@ -551,13 +552,21 @@ export default function POSPage() {
       : `Thank you so much for visiting ${salon.name} today, ${client.name}!`;
     const itemLines = invoice.items.map(it => `• ${it.description}${it.qty > 1 ? ` x${it.qty}` : ""}`).join("\n");
     const dateLabel = new Date(invoice.date + "T00:00:00").toLocaleDateString("en-PK", { day: "numeric", month: "long", year: "numeric" });
-    return [
+    const rawMessage = [
       thankYou,
       "",
-      `🧾 Invoice ${invoice.number} · ${dateLabel}`,
+      `Invoice ${invoice.number} · ${dateLabel}`,
       itemLines,
       `Total: ${pkr(invoice.total)}`,
     ].join("\n");
+    // Emoji survive a JSON body fine (the automated WhatsApp Business API send
+    // above), but a wa.me link passes the message through a URL query string
+    // and several redirects — WhatsApp Web has been seen garbling astral-plane
+    // characters (emoji) picked up there into replacement-character mojibake.
+    // Stripping them here only affects this manual link/share path.
+    return rawMessage
+      .replace(/\p{Extended_Pictographic}/gu, "")
+      .split("\n").map(line => line.trim()).join("\n");
   }
 
   function openWhatsAppThankYou(invoice: SalonInvoice, client: Client | null) {
@@ -576,6 +585,7 @@ export default function POSPage() {
     if (!client?.phone) return;
     const message = buildThankYouMessage(invoice, client);
     const normalizedPhone = normalizePhone(client.phone);
+    setWaPdfStatus("working");
 
     let file: File | null = null;
     try {
@@ -587,17 +597,21 @@ export default function POSPage() {
       if (res.ok) {
         const blob = await res.blob();
         file = new File([blob], `${invoice.number || "invoice"}.pdf`, { type: "application/pdf" });
+      } else {
+        console.error("[sharePdfToWhatsApp] PDF generation failed:", res.status, await res.text().catch(() => ""));
       }
-    } catch {
-      // PDF generation/fetch failed — fall through to the text-only link below.
+    } catch (err) {
+      console.error("[sharePdfToWhatsApp] PDF fetch failed:", err);
     }
 
     if (file && navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], text: message });
+        setWaPdfStatus("shared");
         return;
       } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return; // user cancelled the share sheet
+        if (err instanceof Error && err.name === "AbortError") { setWaPdfStatus("idle"); return; } // user cancelled the share sheet
+        console.error("[sharePdfToWhatsApp] navigator.share failed:", err);
         // otherwise fall through to the manual fallback below
       }
     }
@@ -608,8 +622,15 @@ export default function POSPage() {
       const url = URL.createObjectURL(file);
       const a = document.createElement("a");
       a.href = url; a.download = file.name;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      // Revoking too early can cancel an in-flight download in some browsers —
+      // give it a moment to actually start before freeing the blob URL.
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      setWaPdfStatus("downloaded");
+    } else {
+      setWaPdfStatus("failed");
     }
     window.open(`https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`, "_blank");
   }
@@ -725,11 +746,19 @@ export default function POSPage() {
               </button>
             )}
             {selectedClient?.phone && lastInvoice.status !== "unpaid" && posPlan.id === "starter" && (
-              <button type="button" onClick={() => sharePdfToWhatsApp(lastInvoice, selectedClient)}
-                title="Automated WhatsApp isn't included on your plan — this shares the invoice PDF via WhatsApp (or downloads it and opens WhatsApp with the message ready to send)."
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                <MessageSquare size={14} /> Share via WhatsApp
-              </button>
+              <>
+                <button type="button" onClick={() => sharePdfToWhatsApp(lastInvoice, selectedClient)} disabled={waPdfStatus === "working"}
+                  title="Automated WhatsApp isn't included on your plan — this shares the invoice PDF via WhatsApp (or downloads it and opens WhatsApp with the message ready to send)."
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: waPdfStatus === "working" ? "default" : "pointer", opacity: waPdfStatus === "working" ? 0.6 : 1 }}>
+                  <MessageSquare size={14} /> {waPdfStatus === "working" ? "Preparing…" : "Share via WhatsApp"}
+                </button>
+                {waPdfStatus === "downloaded" && (
+                  <span style={{ fontSize: 11, color: "#059669", fontWeight: 700, alignSelf: "center" }}>PDF downloaded — attach it in the chat</span>
+                )}
+                {waPdfStatus === "failed" && (
+                  <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 700, alignSelf: "center" }}>Couldn&apos;t generate the PDF — opened chat with text only</span>
+                )}
+              </>
             )}
           </div>
         </div>
