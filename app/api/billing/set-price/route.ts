@@ -10,6 +10,7 @@
 
 import { NextRequest } from "next/server";
 import {
+  addDays,
   ensureBillingTables,
   getBillingUser,
   getCurrentCycleInvoice,
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 403 });
   }
 
-  let body: { userId: string; price: number };
+  let body: { userId: string; price: number; termMonths?: number };
   try {
     body = await req.json();
   } catch {
@@ -31,7 +32,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { userId, price } = body;
-  if (!userId || typeof price !== "number" || !Number.isFinite(price) || price < 0) {
+  const termMonths = body.termMonths ?? 1;
+  if (!userId || typeof price !== "number" || !Number.isFinite(price) || price < 0 || ![1, 3, 6, 12].includes(termMonths)) {
     return Response.json({ ok: false, error: "Missing userId or invalid price." }, { status: 400 });
   }
 
@@ -44,16 +46,16 @@ export async function POST(req: NextRequest) {
     }
 
     const rounded = Math.round(price);
-    await setCustomPlanPrice(userId, rounded);
+    await setCustomPlanPrice(userId, rounded, termMonths);
 
     // Re-price the current cycle's invoice too, if it's still unpaid — so the
     // change is visible immediately instead of waiting for the next cycle.
     const currentInvoice = await getCurrentCycleInvoice(userId);
     if (currentInvoice && currentInvoice.status !== "paid") {
-      await updateInvoiceAmount(currentInvoice.id, rounded);
+      await updateInvoiceAmount(currentInvoice.id, rounded, addDays(currentInvoice.periodStart, termMonths * 30));
     }
 
-    console.log(`[billing/set-price] Set custom price for ${userId} (${user.email}) to ${rounded}`);
+    console.log(`[billing/set-price] Set ${termMonths}-month price for ${userId} (${user.email}) to ${rounded}`);
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[billing/set-price] DB error:", err);

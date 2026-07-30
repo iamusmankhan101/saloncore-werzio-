@@ -6,7 +6,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { ensureBillingTables } from "@/lib/billing-db";
+import { addDays, ensureBillingTables, getBillingUser, getCurrentCycleInvoice, updateInvoiceAmount } from "@/lib/billing-db";
 import { PLAN_CONFIGS } from "@/lib/plan-limits";
 import { requireAdmin } from "@/lib/api-auth";
 
@@ -49,16 +49,24 @@ export async function POST(req: NextRequest) {
 
   try {
     await ensureBillingTables();
+    const currentUser = await getBillingUser(userId);
+    const billingTermMonths = currentUser?.billingTermMonths ?? 1;
+    const termPrice = planPrice * billingTermMonths;
     
     // Update the plan in the database
     await db.execute({
       sql: `UPDATE billing_users 
             SET plan_id = ?, plan_name = ?, plan_price = ? 
             WHERE id = ?`,
-      args: [planId, planName, planPrice, userId],
+      args: [planId, planName, termPrice, userId],
     });
 
-    console.log(`[billing/update-plan] Updated user ${userId} to ${planName} plan`);
+    const currentInvoice = await getCurrentCycleInvoice(userId);
+    if (currentInvoice && currentInvoice.status !== "paid") {
+      await updateInvoiceAmount(currentInvoice.id, termPrice, addDays(currentInvoice.periodStart, billingTermMonths * 30));
+    }
+
+    console.log(`[billing/update-plan] Updated user ${userId} to ${planName} plan (${billingTermMonths} months)`);
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[billing/update-plan] DB error:", err);

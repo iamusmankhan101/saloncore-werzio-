@@ -24,6 +24,7 @@ interface BillingUserRow {
   planId: string;
   planName: string;
   planPrice: number;
+  billingTermMonths: 1 | 3 | 6 | 12;
   suspended: boolean;
   suspensionReason: string | null;
 }
@@ -47,6 +48,8 @@ interface AccountUserRow {
 }
 
 const USERS_GRID_COLUMNS = "minmax(240px,1.4fr) minmax(160px,1fr) minmax(140px,0.9fr) 96px 116px 130px 120px 120px 180px";
+const BILLING_TERMS = [1, 3, 6, 12] as const;
+type BillingTermMonths = typeof BILLING_TERMS[number];
 
 const ROLE_META: Record<AccountUserRow["role"], { label: string; color: string; bg: string }> = {
   admin:   { label: "Admin",   color: "#7C3AED", bg: "#f5f3ff" },
@@ -237,23 +240,25 @@ function PlanCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: str
   );
 }
 
-function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: string, price: number) => void }) {
+function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: string, price: number, termMonths: BillingTermMonths) => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(row.planPrice));
+  const [termMonths, setTermMonths] = useState<BillingTermMonths>(row.billingTermMonths ?? 1);
   const [discountPct, setDiscountPct] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const basePrice = PLAN_CONFIGS[row.planId as PlanId]?.price ?? row.planPrice;
+  const monthlyBasePrice = PLAN_CONFIGS[row.planId as PlanId]?.price ?? row.planPrice;
+  const termBasePrice = monthlyBasePrice * termMonths;
 
   function applyDiscount() {
     const pct = Number(discountPct);
     if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
-      setError("Enter a discount between 0–100%");
+      setError("Enter a discount between 0-100%");
       return;
     }
     setError(null);
-    setValue(String(Math.round(basePrice * (1 - pct / 100))));
+    setValue(String(Math.round(termBasePrice * (1 - pct / 100))));
   }
 
   async function save() {
@@ -268,11 +273,11 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
       const res = await fetch("/api/billing/set-price", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: row.id, price }),
+        body: JSON.stringify({ userId: row.id, price, termMonths }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Failed to save");
-      onSaved(row.id, price);
+      onSaved(row.id, price, termMonths);
       setEditing(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
@@ -284,9 +289,12 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
   if (!editing) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{fmt(row.planPrice)}</span>
-        <button onClick={() => { setValue(String(row.planPrice)); setEditing(true); }}
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, color: "#9898b0", display: "flex" }} title="Edit price">
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>{fmt(row.planPrice)}</div>
+          <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{row.billingTermMonths ?? 1} month{(row.billingTermMonths ?? 1) > 1 ? "s" : ""}</div>
+        </div>
+        <button onClick={() => { setValue(String(row.planPrice)); setTermMonths(row.billingTermMonths ?? 1); setEditing(true); }}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, color: "#9898b0", display: "flex" }} title="Edit billing term and price">
           <Pencil size={13} />
         </button>
       </div>
@@ -296,13 +304,25 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <select
+          value={termMonths}
+          onChange={(e) => {
+            const next = Number(e.target.value) as BillingTermMonths;
+            setTermMonths(next);
+            setValue(String(Math.round(monthlyBasePrice * next)));
+          }}
+          disabled={saving}
+          style={{ width: 92, padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4ee", fontSize: 12, outline: "none", background: "#fff" }}
+        >
+          {BILLING_TERMS.map((term) => <option key={term} value={term}>{term} month{term > 1 ? "s" : ""}</option>)}
+        </select>
         <input
           type="number"
           min={0}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           disabled={saving}
-          style={{ width: 90, padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4ee", fontSize: 13, outline: "none" }}
+          style={{ width: 96, padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4ee", fontSize: 13, outline: "none" }}
         />
         <button onClick={save} disabled={saving}
           style={{ background: "#ecfdf5", border: "1px solid #6ee7b7", borderRadius: 8, padding: "6px 8px", cursor: saving ? "not-allowed" : "pointer", color: "#059669", display: "flex" }} title="Save">
@@ -322,11 +342,11 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
           value={discountPct}
           onChange={(e) => setDiscountPct(e.target.value)}
           disabled={saving}
-          title={`Base price: ${fmt(basePrice)}`}
+          title={`Base term price: ${fmt(termBasePrice)}`}
           style={{ width: 90, padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4ee", fontSize: 12, outline: "none" }}
         />
         <button onClick={applyDiscount} disabled={saving}
-          style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 8, padding: "6px 10px", cursor: saving ? "not-allowed" : "pointer", color: "#7C3AED", fontSize: 11, fontWeight: 700 }} title="Apply discount off base plan price">
+          style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 8, padding: "6px 10px", cursor: saving ? "not-allowed" : "pointer", color: "#7C3AED", fontSize: 11, fontWeight: 700 }} title="Apply discount off base term price">
           Apply %
         </button>
       </div>
@@ -531,12 +551,12 @@ function SalonAccountsPanel() {
       .finally(() => setLoading(false));
   }, []);
 
-  function handleSaved(userId: string, price: number) {
-    setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, planPrice: price } : r)));
+  function handleSaved(userId: string, price: number, termMonths: BillingTermMonths) {
+    setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, planPrice: price, billingTermMonths: termMonths } : r)));
   }
 
   function handlePlanSaved(userId: string, planId: string, planName: string, planPrice: number) {
-    setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, planId, planName, planPrice } : r)));
+    setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, planId, planName, planPrice: planPrice * (r.billingTermMonths ?? 1) } : r)));
   }
 
   function handleDeleted(userId: string) {
@@ -571,8 +591,8 @@ function SalonAccountsPanel() {
         style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", maxWidth: 340 }}
       />
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 130px 100px 160px 96px 44px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-          {["SALON", "PLAN", "STATUS", "MONTHLY PRICE", "INVOICES", ""].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 130px 100px 210px 96px 44px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+          {["SALON", "PLAN", "STATUS", "TERM / PRICE", "INVOICES", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
         </div>
@@ -580,7 +600,7 @@ function SalonAccountsPanel() {
           <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No salon accounts found</div>
         ) : (
           filtered.map((row, i) => (
-            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 130px 100px 160px 96px 44px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 130px 100px 210px 96px 44px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{row.salonName}</div>
                 <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{row.ownerName} · {row.email}</div>
