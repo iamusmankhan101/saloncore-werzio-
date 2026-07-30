@@ -1329,6 +1329,8 @@ export default function AppointmentsPage() {
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [tab, setTab] = useState<"appointments" | "cancellations">("appointments");
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
@@ -1453,6 +1455,28 @@ export default function AppointmentsPage() {
     setCheckedIds(new Set());
   }
 
+  const handleImportAppointments = (records: AppointmentImportRecord[]): AppointmentImportResult => {
+    const byId = new Map(appointments.map((a) => [a.id, a]));
+    let added = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const record of records) {
+      if (!record.appt.date || !record.appt.startTime) {
+        skipped += 1;
+        continue;
+      }
+      if (byId.has(record.appt.id)) updated += 1;
+      else added += 1;
+      byId.set(record.appt.id, record.appt);
+    }
+
+    const nextAppointments = Array.from(byId.values());
+    setAppointments(nextAppointments);
+    saveAppointments(nextAppointments);
+    return { added, updated, skipped, errors: [] };
+  };
+
   return (
     <div className="dash-page dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
 
@@ -1537,6 +1561,16 @@ export default function AppointmentsPage() {
           }}
         />
       )}
+      {showImport && (
+        <AppointmentImportModal
+          existing={appointments}
+          clients={clients}
+          staffList={staffList}
+          services={services}
+          onClose={() => setShowImport(false)}
+          onImport={handleImportAppointments}
+        />
+      )}
 
       {/* Page header */}
       <div className="dashboard-topbar page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1545,30 +1579,64 @@ export default function AppointmentsPage() {
           title="Appointments"
           subtitle={<>{filtered.length} appointments · <span style={{ color: "var(--accent)", fontWeight: 700 }}>{fmt(totalRevenue)} total</span></>}
         />
-        <button
-          onClick={() => !apptLimited && setShowCreate(true)}
-          title={apptLimited ? `Free plan: 30 appointments/month limit reached. Upgrade to Pro for unlimited.` : ""}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 20px",
-            borderRadius: 12,
-            border: "none",
-            background: apptLimited ? "#e8e8f0" : "var(--accent-gradient)",
-            fontSize: 13,
-            fontWeight: 750,
-            color: apptLimited ? "#aaaabc" : "#fff",
-            boxShadow: apptLimited ? "none" : "0 4px 14px var(--accent-glow)",
-            cursor: apptLimited ? "not-allowed" : "pointer",
-            transition: "all 0.18s ease"
-          }}
-          className={!apptLimited ? "page-header-btn" : ""}
-        >
-          <Plus size={16} />
-          New Appointment
-          {apptLimited && <span style={{ fontSize: 11, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px", marginLeft: 2 }}>Limit reached</span>}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={() => setShowImport(true)}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 12, border: "1px solid #e3e0eb", background: "#fff", fontSize: 13, fontWeight: 750, color: "#6b6b8a", cursor: "pointer", transition: "all 0.18s ease" }}
+            className="hover-bg-light"
+          >
+            <Upload size={15} /> Import
+          </button>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowExportMenu((open) => !open)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 12, border: "1px solid #bbf7d0", background: "#f0fdf4", fontSize: 13, fontWeight: 750, color: "#059669", cursor: "pointer", transition: "all 0.18s ease" }}
+            >
+              <Download size={15} /> Export <ChevronDown size={12} style={{ transform: showExportMenu ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+            </button>
+            {showExportMenu && (
+              <>
+                <div onClick={() => setShowExportMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 10 }} />
+                <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 20, width: 188, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, boxShadow: "0 12px 34px rgba(16, 24, 40, 0.12)", padding: 6 }}>
+                  {[
+                    { fmt: "xlsx" as const, label: "Excel (.xlsx)" },
+                    { fmt: "csv" as const, label: "CSV (.csv)" },
+                  ].map(({ fmt, label }) => (
+                    <button key={fmt} onClick={() => { setShowExportMenu(false); exportAppointments(filtered, clients, fmt); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", border: "none", background: "transparent", borderRadius: 8, fontSize: 12, fontWeight: 700, color: "#1a1a2e", cursor: "pointer", textAlign: "left" }} className="hover-bg-light">
+                      <FileSpreadsheet size={14} color="#059669" /> {label}
+                    </button>
+                  ))}
+                  <div style={{ padding: "7px 10px 4px", fontSize: 10, color: "#9898b0", borderTop: "1px solid #f0f0f8", marginTop: 4 }}>Exports {filtered.length} visible appointments</div>
+                </div>
+              </>
+            )}
+          </div>
+          <button
+            onClick={() => !apptLimited && setShowCreate(true)}
+            title={apptLimited ? `Free plan: 30 appointments/month limit reached. Upgrade to Pro for unlimited.` : ""}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 20px",
+              borderRadius: 12,
+              border: "none",
+              background: apptLimited ? "#e8e8f0" : "var(--accent-gradient)",
+              fontSize: 13,
+              fontWeight: 750,
+              color: apptLimited ? "#aaaabc" : "#fff",
+              boxShadow: apptLimited ? "none" : "0 4px 14px var(--accent-glow)",
+              cursor: apptLimited ? "not-allowed" : "pointer",
+              transition: "all 0.18s ease"
+            }}
+            className={!apptLimited ? "page-header-btn" : ""}
+          >
+            <Plus size={16} />
+            New Appointment
+            {apptLimited && <span style={{ fontSize: 11, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px", marginLeft: 2 }}>Limit reached</span>}
+          </button>
+        </div>
       </div>
 
       {/* Native mobile app bar */}
