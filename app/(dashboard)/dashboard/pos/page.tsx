@@ -481,7 +481,7 @@ export default function POSPage() {
       setLastInvoice(invoice);
       setPrintInvoice(invoice);
       await sendReceiptWA(invoice, selectedClient);
-      if (!getCurrentPlan().whatsapp) {
+      if (posPlan.id === "starter") {
         // Best-effort: the awaits above may have already used up the click's
         // "user activation" window, so the browser can silently block this —
         // the WhatsApp button in the success banner below is the guaranteed
@@ -718,19 +718,18 @@ export default function POSPage() {
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: `1.5px solid ${lastInvoice.status === "unpaid" ? "#d97706" : "#059669"}`, background: "#fff", color: lastInvoice.status === "unpaid" ? "#d97706" : "#059669", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               <Printer size={14} /> Print
             </button>
-            {selectedClient?.phone && lastInvoice.status !== "unpaid" && (
-              getCurrentPlan().whatsapp ? (
-                <button type="button" onClick={() => sendReceiptWA(lastInvoice, selectedClient)}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  <MessageSquare size={14} /> Resend PDF
-                </button>
-              ) : (
-                <button type="button" onClick={() => sharePdfToWhatsApp(lastInvoice, selectedClient)}
-                  title="Automated WhatsApp isn't included on your plan — this shares the invoice PDF via WhatsApp (or downloads it and opens WhatsApp with the message ready to send)."
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  <MessageSquare size={14} /> Share via WhatsApp
-                </button>
-              )
+            {selectedClient?.phone && lastInvoice.status !== "unpaid" && posPlan.whatsapp && (
+              <button type="button" onClick={() => sendReceiptWA(lastInvoice, selectedClient)}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <MessageSquare size={14} /> Resend PDF
+              </button>
+            )}
+            {selectedClient?.phone && lastInvoice.status !== "unpaid" && posPlan.id === "starter" && (
+              <button type="button" onClick={() => sharePdfToWhatsApp(lastInvoice, selectedClient)}
+                title="Automated WhatsApp isn't included on your plan — this shares the invoice PDF via WhatsApp (or downloads it and opens WhatsApp with the message ready to send)."
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <MessageSquare size={14} /> Share via WhatsApp
+              </button>
             )}
           </div>
         </div>
