@@ -28,9 +28,16 @@ interface BillingUserRow {
   billingTermMonths: number;
   suspended: boolean;
   suspensionReason: string | null;
-  paymentBankTitle: string | null;
-  paymentAccountNumber: string | null;
-  paymentIban: string | null;
+  paymentMethodId: string | null;
+}
+
+interface PaymentMethodRow {
+  id: string;
+  label: string;
+  bankTitle: string;
+  accountNumber: string;
+  iban: string;
+  createdAt: string;
 }
 
 interface AccountUserRow {
@@ -460,30 +467,28 @@ function DeleteAccountModal({ row, onClose, onDeleted }: { row: BillingUserRow; 
   );
 }
 
-function PaymentDetailsModal({ row, onClose, onSaved }: {
+function PaymentMethodModal({ row, methods, onClose, onSaved }: {
   row: BillingUserRow;
+  methods: PaymentMethodRow[];
   onClose: () => void;
-  onSaved: (userId: string, bankTitle: string | null, accountNumber: string | null, iban: string | null) => void;
+  onSaved: (userId: string, paymentMethodId: string | null) => void;
 }) {
-  const [bankTitle, setBankTitle]         = useState(row.paymentBankTitle ?? "");
-  const [accountNumber, setAccountNumber] = useState(row.paymentAccountNumber ?? "");
-  const [iban, setIban]                   = useState(row.paymentIban ?? "");
+  const [selected, setSelected] = useState(row.paymentMethodId ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
-  const usingDefault = !row.paymentBankTitle && !row.paymentAccountNumber && !row.paymentIban;
 
   async function save() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/billing/set-payment-details", {
+      const res = await fetch("/api/billing/set-payment-method", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: row.id, bankTitle, accountNumber, iban }),
+        body: JSON.stringify({ userId: row.id, paymentMethodId: selected || null }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Failed to save");
-      onSaved(row.id, bankTitle.trim() || null, accountNumber.trim() || null, iban.trim() || null);
+      onSaved(row.id, selected || null);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
@@ -491,12 +496,6 @@ function PaymentDetailsModal({ row, onClose, onSaved }: {
       setSaving(false);
     }
   }
-
-  function resetToDefault() {
-    setBankTitle(""); setAccountNumber(""); setIban("");
-  }
-
-  const inputStyle: React.CSSProperties = { width: "100%", padding: "10px 13px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", boxSizing: "border-box" };
 
   return (
     <div onClick={saving ? undefined : onClose} style={{ position: "fixed", inset: 0, background: "rgba(17,17,27,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
@@ -515,31 +514,23 @@ function PaymentDetailsModal({ row, onClose, onSaved }: {
         </div>
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ fontSize: 12, color: "#6b6b8a", lineHeight: 1.6 }}>
-            {usingDefault
-              ? "This salon is currently showing the platform's default bank account on their invoice. Fill in the fields below to show a different account for them specifically."
-              : "This salon has a custom bank account override on their invoice."}
+            Which bank account should show on this salon&apos;s invoice? Manage the list under the <strong>Payment Methods</strong> tab.
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>Account Title</div>
-            <input value={bankTitle} onChange={(e) => setBankTitle(e.target.value)} disabled={saving}
-              placeholder={DEFAULT_BANK_DETAILS.title} style={inputStyle} />
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>Account Number</div>
-            <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} disabled={saving}
-              placeholder={DEFAULT_BANK_DETAILS.accountNumber} style={inputStyle} />
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>IBAN</div>
-            <input value={iban} onChange={(e) => setIban(e.target.value)} disabled={saving}
-              placeholder={DEFAULT_BANK_DETAILS.iban} style={inputStyle} />
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>Payment Method</div>
+            <select value={selected} onChange={(e) => setSelected(e.target.value)} disabled={saving}
+              style={{ width: "100%", padding: "10px 13px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", boxSizing: "border-box", background: "#fff" }}>
+              <option value="">— Platform Default ({DEFAULT_BANK_DETAILS.title}) —</option>
+              {methods.map((m) => (
+                <option key={m.id} value={m.id}>{m.label} ({m.bankTitle})</option>
+              ))}
+            </select>
+            {methods.length === 0 && (
+              <div style={{ fontSize: 11, color: "#d97706", marginTop: 6 }}>No payment methods created yet — add one under the Payment Methods tab first.</div>
+            )}
           </div>
           {error && <div style={{ fontSize: 12, color: "#dc2626" }}>{error}</div>}
           <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={resetToDefault} disabled={saving}
-              style={{ padding: "11px 14px", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: saving ? "not-allowed" : "pointer" }}>
-              Use Default
-            </button>
             <button onClick={onClose} disabled={saving}
               style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: saving ? "not-allowed" : "pointer" }}>
               Cancel
@@ -666,6 +657,7 @@ function InvoicesModal({ row, onClose, onMarkedPaid }: { row: BillingUserRow; on
 
 function SalonAccountsPanel() {
   const [rows, setRows] = useState<BillingUserRow[]>([]);
+  const [methods, setMethods] = useState<PaymentMethodRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<BillingUserRow | null>(null);
@@ -677,6 +669,9 @@ function SalonAccountsPanel() {
       .then((res) => res.json())
       .then((data) => { if (data.ok) setRows(data.users); })
       .finally(() => setLoading(false));
+    fetch("/api/billing/payment-methods")
+      .then((res) => res.json())
+      .then((data) => { if (data.ok) setMethods(data.methods); });
   }, []);
 
   function handleSaved(userId: string, price: number, termMonths: BillingTermMonths) {
@@ -696,8 +691,8 @@ function SalonAccountsPanel() {
     setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, suspended: false, suspensionReason: null } : r)));
   }
 
-  function handlePaymentDetailsSaved(userId: string, bankTitle: string | null, accountNumber: string | null, iban: string | null) {
-    setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, paymentBankTitle: bankTitle, paymentAccountNumber: accountNumber, paymentIban: iban } : r)));
+  function handlePaymentMethodSaved(userId: string, paymentMethodId: string | null) {
+    setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, paymentMethodId } : r)));
   }
 
   const filtered = rows.filter((r) => {
@@ -751,10 +746,10 @@ function SalonAccountsPanel() {
                 <ReceiptText size={12} /> View
               </button>
               <button onClick={() => setPaymentTarget(row)}
-                title={row.paymentBankTitle ? `Custom payment details (${row.paymentBankTitle})` : "Invoice payment details (using platform default)"}
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: row.paymentBankTitle ? "#7C3AED" : "#c4c4d4", display: "flex", justifySelf: "start" }}
+                title={row.paymentMethodId ? `Payment method: ${methods.find(m => m.id === row.paymentMethodId)?.label ?? "custom"}` : "Invoice payment details (using platform default)"}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: row.paymentMethodId ? "#7C3AED" : "#c4c4d4", display: "flex", justifySelf: "start" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "#7C3AED")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = row.paymentBankTitle ? "#7C3AED" : "#c4c4d4")}>
+                onMouseLeave={(e) => (e.currentTarget.style.color = row.paymentMethodId ? "#7C3AED" : "#c4c4d4")}>
                 <Landmark size={14} />
               </button>
               <button onClick={() => setDeleteTarget(row)} title="Delete account"
@@ -775,7 +770,232 @@ function SalonAccountsPanel() {
         <InvoicesModal row={invoiceTarget} onClose={() => setInvoiceTarget(null)} onMarkedPaid={handleMarkedPaid} />
       )}
       {paymentTarget && (
-        <PaymentDetailsModal row={paymentTarget} onClose={() => setPaymentTarget(null)} onSaved={handlePaymentDetailsSaved} />
+        <PaymentMethodModal row={paymentTarget} methods={methods} onClose={() => setPaymentTarget(null)} onSaved={handlePaymentMethodSaved} />
+      )}
+    </div>
+  );
+}
+
+function PaymentMethodFormModal({ editing, onClose, onSaved }: {
+  editing: PaymentMethodRow | null; // null = creating a new one
+  onClose: () => void;
+  onSaved: (method: PaymentMethodRow) => void;
+}) {
+  const [label, setLabel]                 = useState(editing?.label ?? "");
+  const [bankTitle, setBankTitle]         = useState(editing?.bankTitle ?? "");
+  const [accountNumber, setAccountNumber] = useState(editing?.accountNumber ?? "");
+  const [iban, setIban]                   = useState(editing?.iban ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState<string | null>(null);
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/payment-methods", {
+        method: editing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editing ? { id: editing.id, label, bankTitle, accountNumber, iban } : { label, bankTitle, accountNumber, iban }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to save");
+      onSaved(editing ? { id: editing.id, label, bankTitle, accountNumber, iban, createdAt: editing.createdAt } : data.method);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputStyle: React.CSSProperties = { width: "100%", padding: "10px 13px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", boxSizing: "border-box" };
+
+  return (
+    <div onClick={saving ? undefined : onClose} style={{ position: "fixed", inset: 0, background: "rgba(17,17,27,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 440, maxWidth: "100%", boxShadow: "0 24px 64px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Landmark size={18} color="#7C3AED" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>{editing ? "Edit payment method" : "New payment method"}</div>
+          </div>
+          <button onClick={onClose} disabled={saving} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#9898b0" }}>
+            <X size={16} />
+          </button>
+        </div>
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>Label <span style={{ color: "#c4c4d4", fontWeight: 500 }}>(shown in the dropdown, e.g. &quot;Tareez Tech — Alfalah&quot;)</span></div>
+            <input value={label} onChange={(e) => setLabel(e.target.value)} disabled={saving} style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>Account Title</div>
+            <input value={bankTitle} onChange={(e) => setBankTitle(e.target.value)} disabled={saving} style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>Account Number</div>
+            <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} disabled={saving} style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>IBAN</div>
+            <input value={iban} onChange={(e) => setIban(e.target.value)} disabled={saving} style={inputStyle} />
+          </div>
+          {error && <div style={{ fontSize: 12, color: "#dc2626" }}>{error}</div>}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={onClose} disabled={saving}
+              style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: saving ? "not-allowed" : "pointer" }}>
+              Cancel
+            </button>
+            <button onClick={save} disabled={saving || !label.trim() || !bankTitle.trim() || !accountNumber.trim() || !iban.trim()}
+              style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: saving ? "#f4f5f7" : "#7C3AED", fontSize: 13, fontWeight: 700, color: saving ? "#c4c4d4" : "#fff", cursor: saving ? "not-allowed" : "pointer" }}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeletePaymentMethodModal({ method, onClose, onDeleted }: { method: PaymentMethodRow; onClose: () => void; onDeleted: (id: string) => void }) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/billing/payment-methods?id=${encodeURIComponent(method.id)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to delete");
+      onDeleted(method.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete");
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div onClick={deleting ? undefined : onClose} style={{ position: "fixed", inset: 0, background: "rgba(17,17,27,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 400, maxWidth: "100%", boxShadow: "0 24px 64px rgba(0,0,0,0.25)", overflow: "hidden" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <AlertTriangle size={18} color="#dc2626" />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>Delete payment method</div>
+        </div>
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ fontSize: 13, color: "#4a4a6a", lineHeight: 1.6 }}>
+            Delete <strong>{method.label}</strong>? Any salon currently pointed at this method will fall back to the platform default.
+          </div>
+          {error && <div style={{ fontSize: 12, color: "#dc2626" }}>{error}</div>}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={onClose} disabled={deleting}
+              style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: deleting ? "not-allowed" : "pointer" }}>
+              Cancel
+            </button>
+            <button onClick={handleDelete} disabled={deleting}
+              style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: deleting ? "#f4f5f7" : "#dc2626", fontSize: 13, fontWeight: 700, color: deleting ? "#c4c4d4" : "#fff", cursor: deleting ? "not-allowed" : "pointer" }}>
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaymentMethodsPanel() {
+  const [methods, setMethods] = useState<PaymentMethodRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [formTarget, setFormTarget] = useState<PaymentMethodRow | null | "new">(null);
+  const [deleteTarget, setDeleteTarget] = useState<PaymentMethodRow | null>(null);
+
+  useEffect(() => {
+    fetch("/api/billing/payment-methods")
+      .then((res) => res.json())
+      .then((data) => { if (data.ok) setMethods(data.methods); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  function handleSaved(method: PaymentMethodRow) {
+    setMethods((prev) => {
+      const exists = prev.some((m) => m.id === method.id);
+      return exists ? prev.map((m) => (m.id === method.id ? method : m)) : [...prev, method];
+    });
+  }
+
+  function handleDeleted(id: string) {
+    setMethods((prev) => prev.filter((m) => m.id !== id));
+    setDeleteTarget(null);
+  }
+
+  if (loading) {
+    return (
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "48px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>
+        Loading payment methods…
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 13, color: "#6b6b8a" }}>
+          The bank accounts available to assign per-salon on the Salon Accounts tab.
+        </div>
+        <button onClick={() => setFormTarget("new")}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+          <Landmark size={14} /> Add Payment Method
+        </button>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 88px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+          {["LABEL", "ACCOUNT TITLE", "ACCOUNT NUMBER", "IBAN", ""].map((h) => (
+            <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+          ))}
+        </div>
+        {methods.length === 0 ? (
+          <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>
+            No payment methods yet — every salon shows the platform default ({DEFAULT_BANK_DETAILS.title}) until you add one.
+          </div>
+        ) : (
+          methods.map((m, i) => (
+            <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 88px", padding: "14px 20px", alignItems: "center", borderBottom: i < methods.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{m.label}</div>
+              <div style={{ fontSize: 12, color: "#4a4a6a" }}>{m.bankTitle}</div>
+              <div style={{ fontSize: 12, color: "#4a4a6a", fontFamily: "monospace" }}>{m.accountNumber}</div>
+              <div style={{ fontSize: 12, color: "#4a4a6a", fontFamily: "monospace" }}>{m.iban}</div>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button onClick={() => setFormTarget(m)} title="Edit"
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "#9898b0", display: "flex" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#7C3AED")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#9898b0")}>
+                  <Pencil size={13} />
+                </button>
+                <button onClick={() => setDeleteTarget(m)} title="Delete"
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "#9898b0", display: "flex" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#dc2626")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#9898b0")}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {formTarget && (
+        <PaymentMethodFormModal
+          editing={formTarget === "new" ? null : formTarget}
+          onClose={() => setFormTarget(null)}
+          onSaved={handleSaved}
+        />
+      )}
+      {deleteTarget && (
+        <DeletePaymentMethodModal method={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={handleDeleted} />
       )}
     </div>
   );
@@ -938,7 +1158,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [filter, setFilter] = useState<PaymentStatus | "all">("all");
-  const [tab, setTab] = useState<"requests" | "salons" | "users">("requests");
+  const [tab, setTab] = useState<"requests" | "salons" | "paymentMethods" | "users">("requests");
   const [isAdmin, setIsAdmin] = useState(false);
   const [checking, setChecking] = useState(true);
 
@@ -977,6 +1197,7 @@ export default function AdminPage() {
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 1 }}>
             {tab === "requests" ? "Review and approve payment requests"
               : tab === "salons" ? "Manage salon accounts and set custom pricing"
+              : tab === "paymentMethods" ? "Manage the bank accounts shown on salon invoices"
               : "Every login account on the platform"}
           </div>
         </div>
@@ -991,6 +1212,10 @@ export default function AdminPage() {
         <button onClick={() => setTab("salons")}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "salons" ? "#7C3AED" : "#ebebf0"}`, background: tab === "salons" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "salons" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
           <Store size={14} /> Salon Accounts
+        </button>
+        <button onClick={() => setTab("paymentMethods")}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "paymentMethods" ? "#7C3AED" : "#ebebf0"}`, background: tab === "paymentMethods" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "paymentMethods" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
+          <Landmark size={14} /> Payment Methods
         </button>
         <button onClick={() => setTab("users")}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "users" ? "#7C3AED" : "#ebebf0"}`, background: tab === "users" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "users" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
@@ -1028,6 +1253,8 @@ export default function AdminPage() {
         </>
       ) : tab === "salons" ? (
         <SalonAccountsPanel />
+      ) : tab === "paymentMethods" ? (
+        <PaymentMethodsPanel />
       ) : (
         <UsersPanel />
       )}

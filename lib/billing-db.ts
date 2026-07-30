@@ -81,17 +81,30 @@ export async function ensureBillingTables(): Promise<void> {
     )
   `);
 
+  // A reusable library of bank accounts an admin can pick from per salon —
+  // e.g. different DBAs/legal entities — rather than typing one-off details
+  // into every salon's row. A salon with no payment_method_id picked falls
+  // back to DEFAULT_BANK_DETAILS below.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS payment_methods (
+      id              TEXT PRIMARY KEY,
+      label           TEXT NOT NULL,
+      bank_title      TEXT NOT NULL,
+      account_number  TEXT NOT NULL,
+      iban            TEXT NOT NULL,
+      created_at      TEXT NOT NULL
+    )
+  `);
+
   // ── Migrations: add columns that may not exist in older deployments ──────────
   for (const [table, column, def] of [
     ["billing_users",    "billing_anchor",    "TEXT"],
     ["billing_users",    "is_demo_signup",    "INTEGER NOT NULL DEFAULT 0"],
     ["billing_users",    "billing_term_months", "INTEGER NOT NULL DEFAULT 1"],
     ["billing_invoices", "period_start",      "TEXT NOT NULL DEFAULT ''"],
-    // Per-salon override of the bank account shown on their invoice — null/empty
-    // means "use DEFAULT_BANK_DETAILS below", so existing accounts are unaffected.
-    ["billing_users",    "payment_bank_title",     "TEXT"],
-    ["billing_users",    "payment_account_number", "TEXT"],
-    ["billing_users",    "payment_iban",           "TEXT"],
+    // Which payment_methods row (if any) this salon's invoice should show —
+    // null means "use DEFAULT_BANK_DETAILS", so existing accounts are unaffected.
+    ["billing_users",    "payment_method_id", "TEXT"],
   ] as const) {
     await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`)
       .catch(() => { /* column already exists — ignore */ });
@@ -118,10 +131,17 @@ export interface BillingUser {
   suspended: boolean;
   suspensionReason: string | null;
   createdAt: string;
-  /** Per-salon bank account override for their invoice — null means "use DEFAULT_BANK_DETAILS". */
-  paymentBankTitle: string | null;
-  paymentAccountNumber: string | null;
-  paymentIban: string | null;
+  /** Which payment_methods row this salon's invoice shows — null means "use DEFAULT_BANK_DETAILS". */
+  paymentMethodId: string | null;
+}
+
+export interface PaymentMethod {
+  id: string;
+  label: string;         // shown in the admin's dropdown, e.g. "Tareez Tech — Bank Alfalah"
+  bankTitle: string;
+  accountNumber: string;
+  iban: string;
+  createdAt: string;
 }
 
 export interface BillingInvoice {
@@ -170,9 +190,7 @@ function rowToUser(r: any): BillingUser {
     suspended:        (r.suspended as number) === 1,
     suspensionReason: (r.suspension_reason as string) ?? null,
     createdAt:        r.created_at as string,
-    paymentBankTitle:     (r.payment_bank_title as string) || null,
-    paymentAccountNumber: (r.payment_account_number as string) || null,
-    paymentIban:          (r.payment_iban as string) || null,
+    paymentMethodId:  (r.payment_method_id as string) || null,
   };
 }
 
@@ -248,7 +266,7 @@ function billingCycleDays(termMonths: number): number {
 // ─── Billing Users ─────────────────────────────────────────────────────────────
 
 export async function upsertBillingUser(
-  user: Omit<BillingUser, "billingTermMonths" | "billingAnchor" | "suspended" | "suspensionReason" | "createdAt" | "paymentBankTitle" | "paymentAccountNumber" | "paymentIban"> & { billingTermMonths?: BillingUser["billingTermMonths"] }
+  user: Omit<BillingUser, "billingTermMonths" | "billingAnchor" | "suspended" | "suspensionReason" | "createdAt" | "paymentMethodId"> & { billingTermMonths?: BillingUser["billingTermMonths"] }
 ): Promise<void> {
   await db.execute({
     sql: `
@@ -345,15 +363,72 @@ export async function setCustomPlanPrice(userId: string, price: number, billingT
   });
 }
 
-/** Admin override: set (or clear, by passing empty strings) this salon's invoice bank details. */
-export async function setPaymentDetails(
-  userId: string,
-  details: { bankTitle: string; accountNumber: string; iban: string }
-): Promise<void> {
+/** Admin: point this salon's invoice at a payment_methods row (or null to fall back to DEFAULT_BANK_DETAILS). */
+export async function setPaymentMethodForUser(userId: string, paymentMethodId: string | null): Promise<void> {
   await db.execute({
-    sql: `UPDATE billing_users SET payment_bank_title = ?, payment_account_number = ?, payment_iban = ? WHERE id = ?`,
-    args: [details.bankTitle.trim() || null, details.accountNumber.trim() || null, details.iban.trim() || null, userId],
+    sql: `UPDATE billing_users SET payment_method_id = ? WHERE id = ?`,
+    args: [paymentMethodId, userId],
   });
+}
+
+// ─── Payment Methods (admin-managed library of bank accounts) ────────────────
+
+function rowToPaymentMethod(r: Record<string, unknown>): PaymentMethod {
+  return {
+    id:            r.id as string,
+    label:         r.label as string,
+    bankTitle:     r.bank_title as string,
+    accountNumber: r.account_number as string,
+    iban:          r.iban as string,
+    createdAt:     r.created_at as string,
+  };
+}
+
+export async function getPaymentMethods(): Promise<PaymentMethod[]> {
+  await ensureBillingTables();
+  const res = await db.execute("SELECT * FROM payment_methods ORDER BY created_at ASC");
+  return res.rows.map((r) => rowToPaymentMethod(r as unknown as Record<string, unknown>));
+}
+
+export async function createPaymentMethod(input: { label: string; bankTitle: string; accountNumber: string; iban: string }): Promise<PaymentMethod> {
+  await ensureBillingTables();
+  const id = `pm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const createdAt = new Date().toISOString();
+  await db.execute({
+    sql: `INSERT INTO payment_methods (id, label, bank_title, account_number, iban, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [id, input.label.trim(), input.bankTitle.trim(), input.accountNumber.trim(), input.iban.trim(), createdAt],
+  });
+  return { id, label: input.label.trim(), bankTitle: input.bankTitle.trim(), accountNumber: input.accountNumber.trim(), iban: input.iban.trim(), createdAt };
+}
+
+export async function updatePaymentMethod(id: string, input: { label: string; bankTitle: string; accountNumber: string; iban: string }): Promise<void> {
+  await ensureBillingTables();
+  await db.execute({
+    sql: `UPDATE payment_methods SET label = ?, bank_title = ?, account_number = ?, iban = ? WHERE id = ?`,
+    args: [input.label.trim(), input.bankTitle.trim(), input.accountNumber.trim(), input.iban.trim(), id],
+  });
+}
+
+/** Deletes the payment method — salons pointed at it fall back to DEFAULT_BANK_DETAILS. */
+export async function deletePaymentMethod(id: string): Promise<void> {
+  await ensureBillingTables();
+  await db.execute({ sql: `UPDATE billing_users SET payment_method_id = NULL WHERE payment_method_id = ?`, args: [id] });
+  await db.execute({ sql: `DELETE FROM payment_methods WHERE id = ?`, args: [id] });
+}
+
+export async function getPaymentMethod(id: string): Promise<PaymentMethod | null> {
+  await ensureBillingTables();
+  const res = await db.execute({ sql: "SELECT * FROM payment_methods WHERE id = ?", args: [id] });
+  return res.rows.length ? rowToPaymentMethod(res.rows[0] as unknown as Record<string, unknown>) : null;
+}
+
+/** Resolves what should actually be shown on a salon's invoice — their picked method, or the platform default. */
+export async function resolveBankDetailsForUser(user: BillingUser): Promise<{ title: string; accountNumber: string; iban: string }> {
+  if (user.paymentMethodId) {
+    const method = await getPaymentMethod(user.paymentMethodId);
+    if (method) return { title: method.bankTitle, accountNumber: method.accountNumber, iban: method.iban };
+  }
+  return DEFAULT_BANK_DETAILS;
 }
 
 export async function unsuspendUser(userId: string): Promise<void> {

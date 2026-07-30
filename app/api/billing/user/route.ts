@@ -4,7 +4,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { DEFAULT_BANK_DETAILS, getBillingUser } from "@/lib/billing-db";
+import { DEFAULT_BANK_DETAILS, getBillingUser, resolveBankDetailsForUser } from "@/lib/billing-db";
 import { resolveActor } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
@@ -30,6 +30,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Per-salon picked payment method if the admin assigned one, else the
+    // platform default — callers don't need to know which.
+    const bankDetails = await resolveBankDetailsForUser(billingUser);
+
     return Response.json({
       ok: true,
       planId: billingUser.planId,
@@ -40,11 +44,9 @@ export async function GET(req: NextRequest) {
       suspensionReason: billingUser.suspensionReason,
       trialStart: billingUser.trialStart,
       isDemoSignup: billingUser.isDemoSignup,
-      // Per-salon override if the admin set one, else the platform default —
-      // callers don't need to know which.
-      bankTitle: billingUser.paymentBankTitle || DEFAULT_BANK_DETAILS.title,
-      bankAccountNumber: billingUser.paymentAccountNumber || DEFAULT_BANK_DETAILS.accountNumber,
-      bankIban: billingUser.paymentIban || DEFAULT_BANK_DETAILS.iban,
+      bankTitle: bankDetails.title,
+      bankAccountNumber: bankDetails.accountNumber,
+      bankIban: bankDetails.iban,
     });
   } catch (err) {
     console.error("[billing/user] Error fetching billing user:", err);
