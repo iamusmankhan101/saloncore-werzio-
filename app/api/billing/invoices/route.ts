@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
         planId: user.planId,
         planName: user.planName,
         items: [{
-          description: `${user.planName} Plan — ${user.billingTermMonths === 1 ? "Monthly" : `${user.billingTermMonths}-Month`} Subscription`,
+          description: `${user.planName} Plan — ${user.billingTermMonths === 1 ? "Monthly" : `${user.billingTermMonths} Months`} Subscription`,
           qty: 1,
           unitPrice: amount,
           total: amount,

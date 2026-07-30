@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { userId, price } = body;
-  const termMonths = body.termMonths ?? 1;
-  if (!userId || typeof price !== "number" || !Number.isFinite(price) || price < 0 || ![1, 3, 6, 12].includes(termMonths)) {
+  const termMonths = Math.max(1, Math.floor(Number(body.termMonths) || 1));
+  if (!userId || typeof price !== "number" || !Number.isFinite(price) || price < 0) {
     return Response.json({ ok: false, error: "Missing userId or invalid price." }, { status: 400 });
   }
 

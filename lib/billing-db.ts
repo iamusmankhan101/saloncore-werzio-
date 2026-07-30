@@ -101,7 +101,7 @@ export interface BillingUser {
   planId: string;
   planName: string;
   planPrice: number;
-  billingTermMonths: 1 | 3 | 6 | 12;
+  billingTermMonths: number;
   trialStart: string;     // YYYY-MM-DD
   /** True only for accounts that picked "7-Day Demo" at sign-up — everyone
    *  else (Starter/Pro/Premium chosen directly) is billed from day one. */
@@ -132,7 +132,7 @@ export interface BillingAdminSummary {
   userId: string;
   planId: string;
   planName: string;
-  billingTermMonths: 1 | 3 | 6 | 12;
+  billingTermMonths: number;
   trialStart: string;
   invoiceDueDate: string | null;
 }
@@ -141,6 +141,7 @@ export interface BillingAdminSummary {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToUser(r: any): BillingUser {
+  const billingTermMonths = Math.max(1, Math.floor(Number(r.billing_term_months) || 1));
   return {
     id:               r.id as string,
     email:            r.email as string,
@@ -150,7 +151,7 @@ function rowToUser(r: any): BillingUser {
     planId:           r.plan_id as string,
     planName:         r.plan_name as string,
     planPrice:        r.plan_price as number,
-    billingTermMonths: ([1, 3, 6, 12].includes(Number(r.billing_term_months)) ? Number(r.billing_term_months) : 1) as BillingUser["billingTermMonths"],
+    billingTermMonths,
     trialStart:       r.trial_start as string,
     isDemoSignup:     (r.is_demo_signup as number) === 1,
     billingAnchor:    (r.billing_anchor as string) ?? null,
@@ -300,7 +301,7 @@ export async function getBillingAdminSummaries(userIds: string[]): Promise<Map<s
     const userId = row.id as string;
     const trialStart = row.trial_start as string;
     const isDemoSignup = (row.is_demo_signup as number) === 1;
-    const billingTermMonths = ([1, 3, 6, 12].includes(Number(row.billing_term_months)) ? Number(row.billing_term_months) : 1) as BillingUser["billingTermMonths"];
+    const billingTermMonths = Math.max(1, Math.floor(Number(row.billing_term_months) || 1));
     const invoiceDueDate = (row.invoice_due_date as string | null) ?? addDays(computeBillingAnchor(trialStart, isDemoSignup), billingCycleDays(billingTermMonths));
     summaries.set(userId, {
       userId,

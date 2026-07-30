@@ -24,7 +24,7 @@ interface BillingUserRow {
   planId: string;
   planName: string;
   planPrice: number;
-  billingTermMonths: 1 | 3 | 6 | 12;
+  billingTermMonths: number;
   suspended: boolean;
   suspensionReason: string | null;
 }
@@ -49,7 +49,11 @@ interface AccountUserRow {
 
 const USERS_GRID_COLUMNS = "minmax(240px,1.4fr) minmax(160px,1fr) minmax(140px,0.9fr) 96px 116px 130px 120px 120px 180px";
 const BILLING_TERMS = [1, 3, 6, 12] as const;
-type BillingTermMonths = typeof BILLING_TERMS[number];
+type BillingTermMonths = number;
+
+function isPresetBillingTerm(months: number) {
+  return BILLING_TERMS.includes(months as (typeof BILLING_TERMS)[number]);
+}
 
 const ROLE_META: Record<AccountUserRow["role"], { label: string; color: string; bg: string }> = {
   admin:   { label: "Admin",   color: "#7C3AED", bg: "#f5f3ff" },
@@ -244,6 +248,7 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(row.planPrice));
   const [termMonths, setTermMonths] = useState<BillingTermMonths>(row.billingTermMonths ?? 1);
+  const [termMode, setTermMode] = useState(isPresetBillingTerm(row.billingTermMonths ?? 1) ? String(row.billingTermMonths ?? 1) : "custom");
   const [discountPct, setDiscountPct] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -265,6 +270,10 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
     const price = Number(value);
     if (!Number.isFinite(price) || price < 0) {
       setError("Enter a valid amount");
+      return;
+    }
+    if (!Number.isFinite(termMonths) || termMonths < 1) {
+      setError("Enter at least 1 billing month");
       return;
     }
     setSaving(true);
@@ -293,7 +302,7 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
           <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>{fmt(row.planPrice)}</div>
           <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{row.billingTermMonths ?? 1} month{(row.billingTermMonths ?? 1) > 1 ? "s" : ""}</div>
         </div>
-        <button onClick={() => { setValue(String(row.planPrice)); setTermMonths(row.billingTermMonths ?? 1); setEditing(true); }}
+        <button onClick={() => { setValue(String(row.planPrice)); setTermMonths(row.billingTermMonths ?? 1); setTermMode(isPresetBillingTerm(row.billingTermMonths ?? 1) ? String(row.billingTermMonths ?? 1) : "custom"); setEditing(true); }}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, color: "#9898b0", display: "flex" }} title="Edit billing term and price">
           <Pencil size={13} />
         </button>
@@ -305,17 +314,36 @@ function PriceCell({ row, onSaved }: { row: BillingUserRow; onSaved: (userId: st
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <select
-          value={termMonths}
+          value={termMode}
           onChange={(e) => {
-            const next = Number(e.target.value) as BillingTermMonths;
-            setTermMonths(next);
-            setValue(String(Math.round(monthlyBasePrice * next)));
+            const nextMode = e.target.value;
+            setTermMode(nextMode);
+            if (nextMode !== "custom") {
+              const next = Number(nextMode) as BillingTermMonths;
+              setTermMonths(next);
+              setValue(String(Math.round(monthlyBasePrice * next)));
+            }
           }}
           disabled={saving}
-          style={{ width: 92, padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4ee", fontSize: 12, outline: "none", background: "#fff" }}
+          style={{ width: 104, padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4ee", fontSize: 12, outline: "none", background: "#fff" }}
         >
           {BILLING_TERMS.map((term) => <option key={term} value={term}>{term} month{term > 1 ? "s" : ""}</option>)}
+          <option value="custom">Custom</option>
         </select>
+        {termMode === "custom" && (
+          <input
+            type="number"
+            min={1}
+            value={termMonths}
+            onChange={(e) => {
+              const raw = Number(e.target.value);
+              setTermMonths(Number.isFinite(raw) ? Math.floor(raw) : 0);
+            }}
+            disabled={saving}
+            title="Custom billing months"
+            style={{ width: 72, padding: "6px 8px", borderRadius: 8, border: "1px solid #e4e4ee", fontSize: 13, outline: "none" }}
+          />
+        )}
         <input
           type="number"
           min={0}
