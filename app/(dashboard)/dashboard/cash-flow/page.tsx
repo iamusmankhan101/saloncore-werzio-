@@ -858,6 +858,11 @@ export default function CashFlowPage() {
           <td style="text-align:right;font-weight:700;color:${c.color}">${fmt(c.amount)}</td>
           <td style="text-align:right;color:#6b6b8a">${totalExpense > 0 ? ((c.amount / totalExpense) * 100).toFixed(1) : "0"}%</td>
         </tr>`).join("")}
+        <tr class="total-row">
+          <td><strong>Total Expenses</strong></td>
+          <td style="text-align:right"><strong>${fmt(totalExpense)}</strong></td>
+          <td style="text-align:right"><strong>100%</strong></td>
+        </tr>
       </tbody>
     </table>
   </div>` : ""}
