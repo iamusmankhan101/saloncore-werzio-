@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments } from "@/lib/storage";
 import type { Staff, Service, StaffRole, StaffPayType, Appointment } from "@/lib/types";
-import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil, Lock } from "lucide-react";
+import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil, Lock, Upload, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
@@ -27,6 +27,79 @@ function getStaffStats(staffId: string, appointments: Appointment[]) {
   const mine      = appointments.filter((a) => a.staffId === staffId);
   const completed = mine.filter((a) => a.status === "completed");
   return { total: mine.length, revenue: completed.reduce((s, a) => s + (a.totalAmount ?? 0), 0) };
+}
+
+
+const STAFF_EXPORT_COLS = [
+  "Staff ID", "Name", "Phone", "Email", "Role", "Section", "Active", "Pay Type",
+  "Commission Rate", "Base Salary", "Paid Leaves / Month", "Specialties", "Assigned Services", "Color",
+];
+
+const STAFF_ROLES = Object.keys(ROLE_COLORS) as StaffRole[];
+const STAFF_PAY_TYPES: StaffPayType[] = ["commission", "salary", "both"];
+
+type StaffImportRecord = { staff: Staff; assignedServiceNames: string[]; mode: "add" | "update" };
+type StaffImportResult = { added: number; updated: number; skipped: number; errors: string[] };
+
+function splitList(value: unknown): string[] {
+  return String(value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function parseActive(value: unknown): boolean {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return true;
+  return !["false", "no", "inactive", "0"].includes(raw);
+}
+
+function normalizeRole(value: unknown): StaffRole {
+  const role = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "-") as StaffRole;
+  return STAFF_ROLES.includes(role) ? role : "junior-stylist";
+}
+
+function normalizePayType(value: unknown): StaffPayType {
+  const payType = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "-") as StaffPayType;
+  return STAFF_PAY_TYPES.includes(payType) ? payType : "commission";
+}
+
+function staffToRows(list: Staff[], servicesList: Service[]) {
+  return list.map((staff) => {
+    const assignedServices = servicesList.filter((service) => service.assignedStaffIds.includes(staff.id)).map((service) => service.name);
+    return {
+      "Staff ID": staff.id,
+      "Name": staff.name,
+      "Phone": staff.phone,
+      "Email": staff.email ?? "",
+      "Role": staff.role,
+      "Section": staff.section ?? "",
+      "Active": staff.isActive ? "Yes" : "No",
+      "Pay Type": staff.payType ?? "commission",
+      "Commission Rate": staff.commissionRate ?? "",
+      "Base Salary": staff.baseSalary ?? "",
+      "Paid Leaves / Month": staff.paidLeavesPerMonth ?? "",
+      "Specialties": staff.specialties.join(", "),
+      "Assigned Services": assignedServices.join(", "),
+      "Color": staff.color,
+    };
+  });
+}
+
+async function exportStaff(list: Staff[], servicesList: Service[], format: "xlsx" | "csv") {
+  const XLSX = await import("xlsx");
+  const ws = XLSX.utils.json_to_sheet(staffToRows(list, servicesList), { header: STAFF_EXPORT_COLS });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Staff");
+  const date = new Date().toISOString().slice(0, 10);
+  if (format === "csv") {
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `staff-${date}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } else {
+    XLSX.writeFile(wb, `staff-${date}.xlsx`);
+  }
 }
 
 // ── Staff Form Modal (Add & Edit) ─────────────────────────────────────────────
@@ -178,7 +251,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
                 <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Paid Leaves / Month</label>
                 <input type="number" min="0" value={form.paidLeavesPerMonth} onChange={(e) => set("paidLeavesPerMonth", e.target.value)} placeholder="e.g. 2"
                   style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
-                <div style={{ fontSize: 11, color: "#b0b0c8" }}>"Leave" days marked in Attendance, up to this many per pay period, are paid in full. Further leaves reduce salary. Leave blank for no paid leave.</div>
+                <div style={{ fontSize: 11, color: "#b0b0c8" }}>Leave days marked in Attendance, up to this many per pay period, are paid in full. Further leaves reduce salary. Leave blank for no paid leave.</div>
               </div>
             </>
           )}
@@ -218,6 +291,205 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
   );
 }
 
+
+// ── Import Modal ──────────────────────────────────────────────────────────────
+function StaffImportModal({ existing, servicesList, onClose, onImport }: {
+  existing: Staff[];
+  servicesList: Service[];
+  onClose: () => void;
+  onImport: (records: StaffImportRecord[]) => StaffImportResult;
+}) {
+  const [step, setStep] = useState<"pick" | "preview" | "done">("pick");
+  const [parsed, setParsed] = useState<StaffImportRecord[]>([]);
+  const [result, setResult] = useState<StaffImportResult | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleFile(file: File) {
+    setError("");
+    setLoading(true);
+    try {
+      const XLSX = await import("xlsx");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+      if (rows.length === 0) {
+        setError("File is empty or unreadable.");
+        setLoading(false);
+        return;
+      }
+
+      const byId = new Map(existing.map((staff) => [staff.id, staff]));
+      const byPhone = new Map(existing.filter((staff) => staff.phone).map((staff) => [staff.phone.replace(/\s/g, ""), staff]));
+      const records: StaffImportRecord[] = [];
+      const usedIds = new Set(existing.map((staff) => staff.id));
+
+      for (const row of rows) {
+        const name = String(row["Name"] ?? row["name"] ?? "").trim();
+        const phone = String(row["Phone"] ?? row["phone"] ?? row["Phone Number"] ?? "").trim();
+        if (!name || !phone) continue;
+
+        const rawId = String(row["Staff ID"] ?? row["ID"] ?? row["id"] ?? "").trim();
+        const existingStaff = (rawId && byId.get(rawId)) || byPhone.get(phone.replace(/\s/g, ""));
+        const id = existingStaff?.id ?? (rawId || `staff_imp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+        if (!existingStaff && usedIds.has(id)) continue;
+        usedIds.add(id);
+
+        const payType = normalizePayType(row["Pay Type"] ?? row["PayType"]);
+        const commissionRate = Number(row["Commission Rate"] ?? row["Commission"] ?? "");
+        const baseSalary = Number(row["Base Salary"] ?? row["Salary"] ?? "");
+        const paidLeavesPerMonth = Number(row["Paid Leaves / Month"] ?? row["Paid Leaves"] ?? "");
+        const assignedServiceNames = splitList(row["Assigned Services"] ?? row["Services"]);
+        const specialties = splitList(row["Specialties"]).length ? splitList(row["Specialties"]) : assignedServiceNames;
+
+        records.push({
+          mode: existingStaff ? "update" : "add",
+          assignedServiceNames,
+          staff: {
+            id,
+            name,
+            phone,
+            email: String(row["Email"] ?? row["email"] ?? "").trim() || existingStaff?.email || "",
+            role: normalizeRole(row["Role"] ?? row["role"]),
+            section: String(row["Section"] ?? row["section"] ?? "").trim() || undefined,
+            specialties,
+            color: String(row["Color"] ?? row["color"] ?? "").trim() || existingStaff?.color || "#8B5CF6",
+            isActive: parseActive(row["Active"] ?? row["Status"]),
+            payType,
+            commissionRate: (payType === "commission" || payType === "both") && Number.isFinite(commissionRate) ? commissionRate : undefined,
+            baseSalary: (payType === "salary" || payType === "both") && Number.isFinite(baseSalary) ? baseSalary : undefined,
+            paidLeavesPerMonth: (payType === "salary" || payType === "both") && Number.isFinite(paidLeavesPerMonth) ? paidLeavesPerMonth : undefined,
+          },
+        });
+      }
+
+      setParsed(records);
+      setStep("preview");
+    } catch (e) {
+      setError(`Could not read file: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function downloadTemplate() {
+    const XLSX = await import("xlsx");
+    const sample = [{
+      "Staff ID": "",
+      "Name": "Sara Ahmed",
+      "Phone": "923001234567",
+      "Email": "sara@example.com",
+      "Role": "senior-stylist",
+      "Section": "Hair",
+      "Active": "Yes",
+      "Pay Type": "both",
+      "Commission Rate": 30,
+      "Base Salary": 25000,
+      "Paid Leaves / Month": 2,
+      "Specialties": "Haircut, Blowdry",
+      "Assigned Services": "Haircut, Blowdry",
+      "Color": "#8B5CF6",
+    }];
+    const ws = XLSX.utils.json_to_sheet(sample, { header: STAFF_EXPORT_COLS });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Staff Template");
+    XLSX.writeFile(wb, "staff-import-template.xlsx");
+  }
+
+  function confirmImport() {
+    const importResult = onImport(parsed);
+    setResult(importResult);
+    setStep("done");
+  }
+
+  const addCount = parsed.filter((record) => record.mode === "add").length;
+  const updateCount = parsed.filter((record) => record.mode === "update").length;
+  const serviceNames = new Set(servicesList.map((service) => service.name.toLowerCase()));
+  const missingServiceCount = parsed.reduce((count, record) => count + record.assignedServiceNames.filter((name) => !serviceNames.has(name.toLowerCase())).length, 0);
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 540, padding: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <FileSpreadsheet size={18} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>Import Staff</div>
+              <div style={{ fontSize: 11, color: "#9898b0" }}>XLSX or CSV file</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#9898b0" /></button>
+        </div>
+
+        {step === "pick" && (
+          <>
+            <label style={{ display: "block", border: "2px dashed #ddd6fe", borderRadius: 14, padding: "32px 20px", textAlign: "center", cursor: "pointer", background: "#faf9ff" }} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}>
+              <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              <Upload size={28} color="#7C3AED" style={{ marginBottom: 10 }} />
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#5B21B6", marginBottom: 4 }}>Click to choose file or drag & drop</div>
+              <div style={{ fontSize: 12, color: "#9898b0" }}>Supports .xlsx, .xls, .csv</div>
+            </label>
+            {loading && <div style={{ textAlign: "center", marginTop: 16, color: "#7C3AED", fontSize: 13, fontWeight: 600 }}>Reading file...</div>}
+            {error && <div style={{ marginTop: 12, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, fontSize: 13, color: "#dc2626" }}>{error}</div>}
+
+            <div style={{ marginTop: 18, padding: "14px 16px", background: "#f5f3ff", borderRadius: 12, fontSize: 12, color: "#5B21B6", lineHeight: 1.8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <strong style={{ fontSize: 12 }}>Column format</strong>
+                <button onClick={downloadTemplate} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 8, border: "1px solid #c4b5fd", background: "#fff", fontSize: 11, fontWeight: 700, color: "#5B21B6", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  <Download size={12} /> Download Template
+                </button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 16px", fontSize: 11 }}>
+                {[
+                  ["Name", "Required"], ["Phone", "Required"], ["Role", STAFF_ROLES.join(" / ")], ["Pay Type", "commission / salary / both"],
+                  ["Assigned Services", "Comma-separated service names"], ["Specialties", "Comma-separated"], ["Active", "Yes / No"], ["Section", "Optional"],
+                ].map(([col, hint]) => <div key={col}><strong>{col}</strong>: {hint}</div>)}
+              </div>
+            </div>
+          </>
+        )}
+
+        {step === "preview" && (
+          <>
+            <div style={{ padding: "14px 16px", background: "#f8f7ff", border: "1px solid #e9d5ff", borderRadius: 12, marginBottom: 14 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e" }}>{parsed.length} staff record{parsed.length === 1 ? "" : "s"} ready</div>
+              <div style={{ fontSize: 12, color: "#6b6b8a", marginTop: 4 }}>{addCount} new, {updateCount} update{updateCount === 1 ? "" : "s"}{missingServiceCount ? `, ${missingServiceCount} unmatched service assignment${missingServiceCount === 1 ? "" : "s"}` : ""}</div>
+            </div>
+            <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #f0f0f8", borderRadius: 12 }}>
+              {parsed.slice(0, 8).map((record) => (
+                <div key={record.staff.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 12px", borderBottom: "1px solid #f8f8fc" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>{record.staff.name}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0" }}>{record.staff.phone} · {record.staff.role}</div>
+                  </div>
+                  <span style={{ alignSelf: "center", fontSize: 10, fontWeight: 800, borderRadius: 999, padding: "3px 8px", background: record.mode === "add" ? "#ecfdf5" : "#eff6ff", color: record.mode === "add" ? "#059669" : "#2563eb" }}>{record.mode === "add" ? "Add" : "Update"}</span>
+                </div>
+              ))}
+              {parsed.length > 8 && <div style={{ padding: "10px 12px", fontSize: 12, color: "#9898b0" }}>+{parsed.length - 8} more</div>}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <button onClick={() => setStep("pick")} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: "pointer" }}>Back</button>
+              <button onClick={confirmImport} disabled={parsed.length === 0} style={{ flex: 2, padding: "10px 0", borderRadius: 10, border: "none", background: parsed.length ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 700, color: parsed.length ? "#fff" : "#b0b0c8", cursor: parsed.length ? "pointer" : "not-allowed" }}>Import Staff</button>
+            </div>
+          </>
+        )}
+
+        {step === "done" && result && (
+          <div style={{ textAlign: "center", padding: "24px 8px 8px" }}>
+            <div style={{ width: 60, height: 60, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><Check size={28} color="#059669" /></div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#1a1a2e", marginBottom: 6 }}>Import Complete</div>
+            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 20 }}>{result.added} added, {result.updated} updated{result.skipped ? `, ${result.skipped} skipped` : ""}.</div>
+            <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Done</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Delete Confirm Modal ──────────────────────────────────────────────────────
 function DeleteConfirmModal({ name, onConfirm, onCancel }: { name: string; onConfirm: () => void; onCancel: () => void }) {
   return (
@@ -249,15 +521,20 @@ export default function StaffPage() {
   const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
   const [sectionFilter, setSectionFilter] = useState(() => getActiveSection());
+  const [showImport, setShowImport] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const plan        = getCurrentPlan();
   const activeCount = staffList.filter((s) => s.isActive).length;
   const staffLimited = isAtLimit(plan.staffLimit, activeCount);
+  const visibleStaff = staffList.filter((s) => sectionFilter === "all" || s.section === sectionFilter);
 
   useEffect(() => {
-    setStaffList(getStoredStaff());
-    setServicesList(getStoredServices());
-    setAppointmentsList(getStoredAppointments());
+    queueMicrotask(() => {
+      setStaffList(getStoredStaff());
+      setServicesList(getStoredServices());
+      setAppointmentsList(getStoredAppointments());
+    });
   }, []);
 
   const handleSaveStaff = (savedStaff: Staff, assignedServiceIds: string[]) => {
@@ -293,6 +570,46 @@ export default function StaffPage() {
     setDeleteTarget(null);
   };
 
+
+  const handleImportStaff = (records: StaffImportRecord[]): StaffImportResult => {
+    const byId = new Map(staffList.map((staff) => [staff.id, staff]));
+    let added = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const record of records) {
+      if (!record.staff.name || !record.staff.phone) {
+        skipped += 1;
+        continue;
+      }
+      if (byId.has(record.staff.id)) updated += 1;
+      else added += 1;
+      byId.set(record.staff.id, record.staff);
+    }
+
+    const importedIds = new Set(records.map((record) => record.staff.id));
+    const nextStaff = Array.from(byId.values());
+    const nextServices = servicesList.map((service) => ({
+      ...service,
+      assignedStaffIds: service.assignedStaffIds.filter((id) => !importedIds.has(id)),
+    }));
+
+    for (const record of records) {
+      const assignedNames = new Set(record.assignedServiceNames.map((name) => name.toLowerCase()));
+      for (const service of nextServices) {
+        if (assignedNames.has(service.name.toLowerCase()) && !service.assignedStaffIds.includes(record.staff.id)) {
+          service.assignedStaffIds.push(record.staff.id);
+        }
+      }
+    }
+
+    setStaffList(nextStaff);
+    saveStaff(nextStaff);
+    setServicesList(nextServices);
+    saveServices(nextServices);
+    return { added, updated, skipped, errors: [] };
+  };
+
   return (
     <div className="dash-page dashboard-polish" style={{ background: "#ffffff", minHeight: "100vh", display: "flex", flexDirection: "column", gap: 20 }}>
 
@@ -310,6 +627,14 @@ export default function StaffPage() {
           name={deleteTarget.name}
           onConfirm={() => handleDeleteStaff(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+      {showImport && (
+        <StaffImportModal
+          existing={staffList}
+          servicesList={servicesList}
+          onClose={() => setShowImport(false)}
+          onImport={handleImportStaff}
         />
       )}
 
@@ -332,15 +657,49 @@ export default function StaffPage() {
             </>
           }
         />
-        <button
-          onClick={() => !staffLimited && setShowAdd(true)}
-          title={staffLimited ? `Free plan: ${plan.staffLimit} active staff limit reached. Upgrade to Pro for unlimited.` : ""}
-          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 12, border: "none", background: staffLimited ? "#e8e8f0" : "var(--accent-gradient)", fontSize: 13, fontWeight: 750, color: staffLimited ? "#aaaabc" : "#fff", boxShadow: staffLimited ? "none" : "0 4px 14px var(--accent-glow)", cursor: staffLimited ? "not-allowed" : "pointer", transition: "all 0.18s ease" }}
-          className={!staffLimited ? "page-header-btn" : ""}
-        >
-          <Plus size={16} /> Add Staff
-          {staffLimited && <span style={{ fontSize: 10, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px" }}>Limit reached</span>}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={() => setShowImport(true)}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 12, border: "1px solid #e3e0eb", background: "#fff", fontSize: 13, fontWeight: 750, color: "#6b6b8a", cursor: "pointer", transition: "all 0.18s ease" }}
+            className="hover-bg-light"
+          >
+            <Upload size={15} /> Import
+          </button>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowExportMenu((open) => !open)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 12, border: "1px solid #bbf7d0", background: "#f0fdf4", fontSize: 13, fontWeight: 750, color: "#059669", cursor: "pointer", transition: "all 0.18s ease" }}
+            >
+              <Download size={15} /> Export <ChevronDown size={12} style={{ transform: showExportMenu ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+            </button>
+            {showExportMenu && (
+              <>
+                <div onClick={() => setShowExportMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 10 }} />
+                <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 20, width: 188, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, boxShadow: "0 12px 34px rgba(16, 24, 40, 0.12)", padding: 6 }}>
+                  {[
+                    { fmt: "xlsx" as const, label: "Excel (.xlsx)" },
+                    { fmt: "csv" as const, label: "CSV (.csv)" },
+                  ].map(({ fmt, label }) => (
+                    <button key={fmt} onClick={() => { setShowExportMenu(false); exportStaff(visibleStaff, servicesList, fmt); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", border: "none", background: "transparent", borderRadius: 8, fontSize: 12, fontWeight: 700, color: "#1a1a2e", cursor: "pointer", textAlign: "left" }} className="hover-bg-light">
+                      <FileSpreadsheet size={14} color="#059669" /> {label}
+                    </button>
+                  ))}
+                  <div style={{ padding: "7px 10px 4px", fontSize: 10, color: "#9898b0", borderTop: "1px solid #f0f0f8", marginTop: 4 }}>Exports {visibleStaff.length} visible staff</div>
+                </div>
+              </>
+            )}
+          </div>
+          <button
+            onClick={() => !staffLimited && setShowAdd(true)}
+            title={staffLimited ? `Free plan: ${plan.staffLimit} active staff limit reached. Upgrade to Pro for unlimited.` : ""}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 12, border: "none", background: staffLimited ? "#e8e8f0" : "var(--accent-gradient)", fontSize: 13, fontWeight: 750, color: staffLimited ? "#aaaabc" : "#fff", boxShadow: staffLimited ? "none" : "0 4px 14px var(--accent-glow)", cursor: staffLimited ? "not-allowed" : "pointer", transition: "all 0.18s ease" }}
+            className={!staffLimited ? "page-header-btn" : ""}
+          >
+            <Plus size={16} /> Add Staff
+            {staffLimited && <span style={{ fontSize: 10, background: "#dc2626", color: "#fff", borderRadius: 20, padding: "1px 7px" }}>Limit reached</span>}
+          </button>
+        </div>
       </div>
 
       {/* Free-plan staff limit banner */}
@@ -401,7 +760,7 @@ export default function StaffPage() {
 
       {/* Cards grid */}
       <div className="cards-grid-auto">
-        {staffList.filter((s) => sectionFilter === "all" || s.section === sectionFilter).map((s) => {
+        {visibleStaff.map((s) => {
           const stats = getStaffStats(s.id, appointmentsList);
           const role  = ROLE_COLORS[s.role] ?? { color: "#6b7280", bg: "#f9fafb" };
           return (
