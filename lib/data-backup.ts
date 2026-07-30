@@ -13,7 +13,7 @@ export interface SalonDataBackupRow {
   locationId: string;
   dataKind: string;
   data: string;
-  recordCount: number | null;
+  recordCount: number;
   reason: BackupReason;
   sourceUpdatedAt: string | null;
   createdAt: string;
@@ -31,12 +31,16 @@ function backupId(): string {
   return `backup_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function recordCountFor(data: string): number | null {
+function recordCountFor(data: string): number {
+  // 0 rather than null for non-list data (e.g. settings, a single object) —
+  // the live salon_data_backups table has record_count as NOT NULL, and
+  // CREATE TABLE IF NOT EXISTS can't loosen that constraint on a table that
+  // already exists, so passing null here fails the write outright.
   try {
     const parsed = JSON.parse(data) as unknown;
-    return Array.isArray(parsed) ? parsed.length : null;
+    return Array.isArray(parsed) ? parsed.length : 0;
   } catch {
-    return null;
+    return 0;
   }
 }
 
@@ -74,6 +78,23 @@ export async function ensureSalonDataBackupTable(): Promise<void> {
       created_at        TEXT NOT NULL
     )
   `);
+  // Self-healing migration: CREATE TABLE IF NOT EXISTS above is a no-op once
+  // the table already exists, so an older deployment of this table (created
+  // back when this column was named "payload") never picks up a rename made
+  // here in code — every write through backupExistingSalonData() (called
+  // before nearly every salon_data/settings write) then fails outright with
+  // "no column named data". Renaming in place on first use fixes it for good,
+  // on this or any other environment/replica that's still on the old schema,
+  // without a separate manual migration step.
+  try {
+    const cols = await db.execute(`PRAGMA table_info(salon_data_backups)`);
+    const colNames = new Set(cols.rows.map(r => r.name as string));
+    if (colNames.has("payload") && !colNames.has("data")) {
+      await db.execute(`ALTER TABLE salon_data_backups RENAME COLUMN payload TO data`);
+    }
+  } catch (err) {
+    console.error("[data-backup] Failed to migrate salon_data_backups.payload -> data:", err);
+  }
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_salon_data_backups_user_created ON salon_data_backups (user_id, created_at DESC)`).catch(() => {});
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_salon_data_backups_entity_created ON salon_data_backups (entity, created_at DESC)`).catch(() => {});
 }
@@ -238,7 +259,7 @@ export async function restoreSalonDataBackup(backupIdToRestore: string): Promise
     locationId: row.location_id as string,
     dataKind: row.data_kind as string,
     data: row.data as string,
-    recordCount: row.record_count == null ? null : Number(row.record_count),
+    recordCount: row.record_count == null ? 0 : Number(row.record_count),
     reason: row.reason as BackupReason,
     sourceUpdatedAt: (row.source_updated_at as string | null) ?? null,
     createdAt: row.created_at as string,
