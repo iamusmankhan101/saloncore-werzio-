@@ -567,6 +567,53 @@ export default function POSPage() {
     window.open(`https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`, "_blank");
   }
 
+  // Manual, click-driven version: actually attaches the invoice PDF via the
+  // OS share sheet (Web Share API) so WhatsApp receives a real file — a wa.me
+  // link alone can only ever prefill text, never a file. Requires a real user
+  // gesture (unlike openWhatsAppThankYou above), so this is only wired to the
+  // button below, never to the automatic post-checkout attempt.
+  async function sharePdfToWhatsApp(invoice: SalonInvoice, client: Client | null) {
+    if (!client?.phone) return;
+    const message = buildThankYouMessage(invoice, client);
+    const normalizedPhone = normalizePhone(client.phone);
+
+    let file: File | null = null;
+    try {
+      const res = await fetch("/api/invoice-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice, salon }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        file = new File([blob], `${invoice.number || "invoice"}.pdf`, { type: "application/pdf" });
+      }
+    } catch {
+      // PDF generation/fetch failed — fall through to the text-only link below.
+    }
+
+    if (file && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], text: message });
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return; // user cancelled the share sheet
+        // otherwise fall through to the manual fallback below
+      }
+    }
+
+    // No file-sharing support (most desktop browsers) — download the PDF so
+    // it can be attached by hand, and open the chat with the text prefilled.
+    if (file) {
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url; a.download = file.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    window.open(`https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`, "_blank");
+  }
+
   const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string; logo?: string };
   const selectedPayMethod = PAY_METHODS.find(p => p.value === payMethod);
 
@@ -678,10 +725,10 @@ export default function POSPage() {
                   <MessageSquare size={14} /> Resend PDF
                 </button>
               ) : (
-                <button type="button" onClick={() => openWhatsAppThankYou(lastInvoice, selectedClient)}
-                  title="Automated WhatsApp isn't included on your plan — this opens WhatsApp with the message ready to send."
+                <button type="button" onClick={() => sharePdfToWhatsApp(lastInvoice, selectedClient)}
+                  title="Automated WhatsApp isn't included on your plan — this shares the invoice PDF via WhatsApp (or downloads it and opens WhatsApp with the message ready to send)."
                   style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  <MessageSquare size={14} /> WhatsApp Thank You
+                  <MessageSquare size={14} /> Share via WhatsApp
                 </button>
               )
             )}
