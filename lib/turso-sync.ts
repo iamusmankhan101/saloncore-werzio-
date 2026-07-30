@@ -126,25 +126,71 @@ export async function syncFromDB(): Promise<void> {
     }
   } catch { /* keep localStorage */ }
 
-  // Sync loyalty transaction history
+  // Sync loyalty transaction history — same merge-by-id protection as the
+  // ENTITIES loop above (saveLoyaltyHistoryToDB is fire-and-forget from most
+  // callers, so a blind overwrite here could revert a just-awarded/redeemed
+  // transaction the same way settings used to revert on refresh).
   try {
     const res = await fetch(`/api/loyalty?userId=${encodeURIComponent(dataOwnerId)}&locationId=${encodeURIComponent(locationId)}`);
     if (res.ok) {
-      const { data } = await res.json() as { data: unknown[] };
-      if (Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(locationUserKey("werzio_loyalty_history", locationId), JSON.stringify(data));
+      const { data: incoming } = await res.json() as { data: Record<string, unknown>[] };
+      if (Array.isArray(incoming)) {
+        const lsRaw = localStorage.getItem(locationUserKey("werzio_loyalty_history", locationId));
+        const localList: Record<string, unknown>[] = [];
+        if (lsRaw) {
+          try { localList.push(...(JSON.parse(lsRaw) as Record<string, unknown>[])); } catch { /* ignore */ }
+        }
+        const incomingIds = new Set(incoming.map(r => r.id as string));
+        const localOnly = localList.filter(r => !incomingIds.has(r.id as string));
+        const localById: Record<string, Record<string, unknown>> = {};
+        localList.forEach(r => { localById[r.id as string] = r; });
+        const merged = incoming.map(dbRecord => localById[dbRecord.id as string] ?? dbRecord);
+        const union = [...merged, ...localOnly];
+        if (union.length > 0) {
+          localStorage.setItem(locationUserKey("werzio_loyalty_history", locationId), JSON.stringify(union));
+        }
+        if (localOnly.length > 0) {
+          fetch("/api/loyalty", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: dataOwnerId, locationId, data: union }),
+          }).catch(() => {});
+        }
       }
     }
   } catch { /* keep localStorage */ }
 }
 
 /**
- * Push the updated list to Turso under the user-scoped key. Retries up to 3
- * times with exponential back-off and resolves true/false with the outcome —
- * most callers don't await it (fire-and-forget, doesn't block the UI), but a
- * caller that needs to know whether the write actually landed (e.g. POS
- * checkout, so it can warn the cashier instead of silently losing the sale
- * from every device but the one that rang it up) can await the result.
+ * POSTs with up to 3 attempts and exponential back-off (1s/2s/4s), resolving
+ * true/false with the outcome instead of throwing. Every "save to Turso"
+ * function in this file is built on this — a save that silently gives up
+ * after one failed attempt is exactly how data (expenses, invoices, settings)
+ * has gone missing or reverted after a refresh in the past. New save
+ * functions should use this too rather than a bare fire-and-forget fetch.
+ */
+async function retryFetch(url: string, options: RequestInit, label: string, tries = 3): Promise<boolean> {
+  try {
+    const r = await fetch(url, options);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return true;
+  } catch (err) {
+    if (tries <= 1) {
+      console.warn(`[${label}] failed after all retries:`, err);
+      return false;
+    }
+    const delay = 2 ** (3 - tries) * 1000; // 1s, 2s, 4s
+    await new Promise(res => setTimeout(res, delay));
+    return retryFetch(url, options, label, tries - 1);
+  }
+}
+
+/**
+ * Push the updated list to Turso under the user-scoped key. Most callers
+ * don't await it (fire-and-forget, doesn't block the UI), but a caller that
+ * needs to know whether the write actually landed (e.g. POS checkout, so it
+ * can warn the cashier instead of silently losing the sale from every device
+ * but the one that rang it up) can await the result.
  */
 export function saveToDB(entity: Entity, data: unknown[]): Promise<boolean> {
   const user = getCurrentUser();
@@ -153,81 +199,37 @@ export function saveToDB(entity: Entity, data: unknown[]): Promise<boolean> {
   const locationId = getActiveLocationFilter();
 
   const body = JSON.stringify({ entity, data, userId: dataOwnerId, locationId });
-
-  async function attempt(tries: number): Promise<boolean> {
-    try {
-      const r = await fetch("/api/db", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body,
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return true;
-    } catch (err) {
-      if (tries <= 1) {
-        console.warn(`[saveToDB] ${entity} failed after all retries:`, err);
-        return false;
-      }
-      const delay = 2 ** (3 - tries) * 1000; // 1s, 2s, 4s
-      await new Promise(res => setTimeout(res, delay));
-      return attempt(tries - 1);
-    }
-  }
-
-  return attempt(3);
+  return retryFetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body }, `saveToDB:${entity}`);
 }
 
 /**
- * Save settings object to Turso. Retries like saveToDB above — most callers
- * still don't await it, but the caller does need to know whether the write
- * actually landed (see saveSettings() in lib/settings-store.ts) since a
- * silently-failed save previously looked identical to a successful one until
- * the next refresh quietly reverted it.
+ * Save settings object to Turso. Most callers still don't await it, but the
+ * caller does need to know whether the write actually landed (see
+ * saveSettings() in lib/settings-store.ts) since a silently-failed save
+ * previously looked identical to a successful one until the next refresh
+ * quietly reverted it.
  */
 export function saveSettingsToDB(data: object): Promise<boolean> {
   const user = getCurrentUser();
   if (!user) return Promise.resolve(false);
   const body = JSON.stringify({ userId: user.salonOwnerId || user.id, data });
-
-  async function attempt(tries: number): Promise<boolean> {
-    try {
-      const r = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body,
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return true;
-    } catch (err) {
-      if (tries <= 1) {
-        console.warn("[saveSettingsToDB] failed after all retries:", err);
-        return false;
-      }
-      const delay = 2 ** (3 - tries) * 1000; // 1s, 2s, 4s
-      await new Promise(res => setTimeout(res, delay));
-      return attempt(tries - 1);
-    }
-  }
-
-  return attempt(3);
+  return retryFetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body }, "saveSettingsToDB");
 }
 
 /**
- * Save loyalty transaction history to Turso. Fire-and-forget.
+ * Save loyalty transaction history to Turso. Still fire-and-forget from most
+ * callers, but no longer gives up silently on the first network hiccup.
  */
-export function saveLoyaltyHistoryToDB(data: unknown[]): void {
+export function saveLoyaltyHistoryToDB(data: unknown[]): Promise<boolean> {
   const user = getCurrentUser();
-  if (!user) return;
+  if (!user) return Promise.resolve(false);
 
-  fetch("/api/loyalty", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId: user.salonOwnerId || user.id,
-      locationId: getActiveLocationFilter(),
-      data,
-    }),
-  }).catch(() => {});
+  const body = JSON.stringify({
+    userId: user.salonOwnerId || user.id,
+    locationId: getActiveLocationFilter(),
+    data,
+  });
+  return retryFetch("/api/loyalty", { method: "POST", headers: { "Content-Type": "application/json" }, body }, "saveLoyaltyHistoryToDB");
 }
 
 /**
