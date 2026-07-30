@@ -481,6 +481,13 @@ export default function POSPage() {
       setLastInvoice(invoice);
       setPrintInvoice(invoice);
       await sendReceiptWA(invoice, selectedClient);
+      if (!getCurrentPlan().whatsapp) {
+        // Best-effort: the awaits above may have already used up the click's
+        // "user activation" window, so the browser can silently block this —
+        // the WhatsApp button in the success banner below is the guaranteed
+        // fallback for that case.
+        openWhatsAppThankYou(invoice, selectedClient);
+      }
       setCompleted(true);
     } finally {
       setCompleting(false);
@@ -530,6 +537,34 @@ export default function POSPage() {
     } catch {
       setWaStatus("failed");
     }
+  }
+
+  // ── WhatsApp thank-you fallback (Starter/Free plans — no automated WhatsApp) ─
+  // Plans without the `whatsapp` flag have no way to auto-send the PDF receipt
+  // (sendReceiptWA above always bails), so this opens a wa.me deep link instead:
+  // no backend/provider needed, just the client's own WhatsApp with the message
+  // prefilled.
+  function buildThankYouMessage(invoice: SalonInvoice, client: Client): string {
+    const thankYouTpl = (settingsStore.whatsapp as { posThankYou?: string }).posThankYou;
+    const thankYou = thankYouTpl
+      ? fillTemplate(thankYouTpl, { name: client.name, salon_name: salon.name })
+      : `Thank you so much for visiting ${salon.name} today, ${client.name}!`;
+    const itemLines = invoice.items.map(it => `• ${it.description}${it.qty > 1 ? ` x${it.qty}` : ""}`).join("\n");
+    const dateLabel = new Date(invoice.date + "T00:00:00").toLocaleDateString("en-PK", { day: "numeric", month: "long", year: "numeric" });
+    return [
+      thankYou,
+      "",
+      `🧾 Invoice ${invoice.number} · ${dateLabel}`,
+      itemLines,
+      `Total: ${pkr(invoice.total)}`,
+    ].join("\n");
+  }
+
+  function openWhatsAppThankYou(invoice: SalonInvoice, client: Client | null) {
+    if (!client?.phone) return;
+    const message = buildThankYouMessage(invoice, client);
+    const normalizedPhone = normalizePhone(client.phone);
+    window.open(`https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`, "_blank");
   }
 
   const salon = settingsStore.salon as { name: string; phone: string; email: string; address: string; logo?: string };
@@ -637,10 +672,18 @@ export default function POSPage() {
               <Printer size={14} /> Print
             </button>
             {selectedClient?.phone && lastInvoice.status !== "unpaid" && (
-              <button type="button" onClick={() => sendReceiptWA(lastInvoice, selectedClient)}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                <MessageSquare size={14} /> Resend PDF
-              </button>
+              getCurrentPlan().whatsapp ? (
+                <button type="button" onClick={() => sendReceiptWA(lastInvoice, selectedClient)}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  <MessageSquare size={14} /> Resend PDF
+                </button>
+              ) : (
+                <button type="button" onClick={() => openWhatsAppThankYou(lastInvoice, selectedClient)}
+                  title="Automated WhatsApp isn't included on your plan — this opens WhatsApp with the message ready to send."
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1.5px solid #25d366", background: "#fff", color: "#25d366", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  <MessageSquare size={14} /> WhatsApp Thank You
+                </button>
+              )
             )}
           </div>
         </div>
