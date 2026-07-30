@@ -1,7 +1,7 @@
 /**
  * POST /api/billing/set-price
- * Admin-only: overrides a specific salon's monthly price (independent of
- * their plan tier), e.g. for negotiated/custom deals. Future 30-day
+ * Admin-only: overrides a specific salon's billing term price (independent of
+ * their plan tier), e.g. for negotiated/custom deals. Future term
  * invoices for this user will use the new amount. If the current cycle
  * already has an unpaid/overdue invoice, it's re-priced immediately too —
  * otherwise the change wouldn't show up until the next billing cycle,

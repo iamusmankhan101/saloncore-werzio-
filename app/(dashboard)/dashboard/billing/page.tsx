@@ -49,6 +49,10 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function termLabel(months: number) {
+  return `${months} month${months === 1 ? "" : "s"}`;
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function EasypaisaLogo({ size = 28 }: { size?: number }) {
@@ -200,6 +204,7 @@ export default function BillingPage() {
   const [invoices,     setInvoices]    = useState<Invoice[]>([]);
   const [viewInvoice,  setViewInvoice] = useState<Invoice | null>(null);
   const [actualPrice,  setActualPrice] = useState<number | null>(null);
+  const [billingTermMonths, setBillingTermMonths] = useState(1);
   const [trialStart,   setTrialStart]  = useState<string | null>(null);
   const [isDemoSignup, setIsDemoSignup] = useState(false);
   const [planLoaded,   setPlanLoaded]  = useState(false);
@@ -219,6 +224,7 @@ export default function BillingPage() {
           // Admin may have set a custom negotiated price for this salon —
           // prefer it over the static plan-tier price when displaying.
           if (typeof data.planPrice === "number") setActualPrice(data.planPrice);
+          if (typeof data.billingTermMonths === "number") setBillingTermMonths(Math.max(1, Math.floor(data.billingTermMonths)));
           if (typeof data.trialStart === "string") setTrialStart(data.trialStart);
           setIsDemoSignup(data.isDemoSignup === true);
 
@@ -252,6 +258,7 @@ export default function BillingPage() {
 
   const currentPlan = PLAN_CONFIGS[activePlanId];
   const displayPrice = actualPrice ?? currentPlan.price;
+  const billingTermText = termLabel(billingTermMonths);
   const demoEndsAt = trialStart ? addDays(trialStart, DEMO_DAYS) : null;
   // Only accounts that actually picked "7-Day Demo" at sign-up get the demo
   // window — someone who paid for Starter/Pro/Premium directly is billed
@@ -267,14 +274,16 @@ export default function BillingPage() {
       ? `7-day demo active until ${fmtDate(demoEndsAt)}`
       : displayPrice === 0
         ? "Free forever · no billing"
-        : `PKR ${displayPrice.toLocaleString("en-PK")}/month`;
+        : billingTermMonths === 1
+          ? `PKR ${displayPrice.toLocaleString("en-PK")} for 1 month`
+          : `PKR ${displayPrice.toLocaleString("en-PK")} for ${billingTermText}`;
   const desktopPlanSubtitle = !planLoaded
     ? "Loading plan…"
     : isDemoActive
     ? `7-day demo active until ${fmtDate(demoEndsAt)} · no pricing shown`
     : displayPrice === 0
       ? "Free forever · no billing"
-      : `PKR ${displayPrice.toLocaleString("en-PK")}/month · billed every 30 days`;
+      : `PKR ${displayPrice.toLocaleString("en-PK")} for ${billingTermText} · billed every ${billingTermText}`;
   const upgradePlan = showModal ? PLAN_CONFIGS[showModal] : null;
   const latestInvoice = invoices[0];
 
@@ -693,7 +702,7 @@ export default function BillingPage() {
           <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #ebebf0", overflow: "hidden" }}>
             <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #f0f0f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ fontWeight: 800, fontSize: 15, color: "#1a1a2e" }}>Invoice History</div>
-              <div style={{ fontSize: 12, color: "#9898b0" }}>Generated monthly</div>
+              <div style={{ fontSize: 12, color: "#9898b0" }}>Generated every {billingTermText}</div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 110px 100px 48px", padding: "10px 24px", borderBottom: "1px solid #f0f0f8", background: "#fafafa" }}>
               {["INVOICE", "ISSUED", "DUE DATE", "AMOUNT", "STATUS", ""].map(h => (

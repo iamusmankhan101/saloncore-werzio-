@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
         planId: "free",
         planName: "Free",
         planPrice: 0,
+        billingTermMonths: 1,
         suspended: false,
         isDemoSignup: false,
       });
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
       planId: billingUser.planId,
       planName: billingUser.planName,
       planPrice: billingUser.planPrice,
+      billingTermMonths: billingUser.billingTermMonths,
       suspended: billingUser.suspended,
       suspensionReason: billingUser.suspensionReason,
       trialStart: billingUser.trialStart,
