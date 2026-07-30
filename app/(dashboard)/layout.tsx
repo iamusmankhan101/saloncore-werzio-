@@ -9,7 +9,7 @@ import Sidebar from "@/components/sidebar";
 import { getCurrentUser, checkServerSession, signOut } from "@/lib/auth";
 import { applyAppearanceSettings, SETTINGS_CHANGED_EVENT, reloadSettings, settingsStore } from "@/lib/settings-store";
 import { runWhatsAppScheduler } from "@/lib/whatsapp-scheduler";
-import { syncFromDB } from "@/lib/turso-sync";
+import { syncFromDB, syncLocalDataToDB } from "@/lib/turso-sync";
 import { checkInvoiceNotifications } from "@/lib/invoice-notifier";
 import { getStoredInventory, getStoredStaff, getStoredServices } from "@/lib/storage";
 import { getActiveSection, setActiveSection, getSectionOptions } from "@/lib/sections";
@@ -135,7 +135,7 @@ function DashboardLocationSwitcher({ onLocationChange }: { onLocationChange: (lo
   // rounding/precision bug. Blurring on wheel, and blocking the arrow-key
   // step (site-wide, not per-input), stops the value from changing either way.
   useEffect(() => {
-    function blurNumberInputOnWheel(e: WheelEvent) {
+    function blurNumberInputOnWheel() {
       const el = document.activeElement;
       if (el instanceof HTMLInputElement && el.type === "number") el.blur();
     }
@@ -383,7 +383,7 @@ function DashboardSectionSwitcher({ onSectionChange }: { onSectionChange: (secti
             Active Section
           </div>
           <div style={{ fontSize: 12, color: "#777792", fontWeight: 650, marginTop: 2 }}>
-            Everything, including revenue, filters to this section. Switch to "All Sections" to see both combined.
+            Everything, including revenue, filters to this section. Switch to All Sections to see both combined.
           </div>
         </div>
       </div>
@@ -557,7 +557,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!user) return;
     const dataOwnerId = user.salonOwnerId || user.id;
 
-    syncFromDB().then(() => {
+    syncFromDB().then(async () => {
+      await syncLocalDataToDB();
       reloadSettings();
       window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT));
       runWhatsAppScheduler();

@@ -186,6 +186,41 @@ async function retryFetch(url: string, options: RequestInit, label: string, trie
 }
 
 /**
+ * Re-push the browser's currently visible local data to Turso. This runs after
+ * syncFromDB() has merged DB + localStorage, so it does not ask the user to log
+ * out and does not drop records that only existed locally during a sync gap.
+ */
+export async function syncLocalDataToDB(): Promise<boolean> {
+  const user = getCurrentUser();
+  if (!user || typeof window === "undefined") return false;
+  const dataOwnerId = user.salonOwnerId || user.id;
+  const locationId = getActiveLocationFilter();
+
+  const results = await Promise.all(
+    ENTITIES.map(async (entity) => {
+      try {
+        const raw = localStorage.getItem(locationUserKey(`werzio_${entity}`, locationId));
+        if (!raw) return true;
+        const data = JSON.parse(raw) as unknown;
+        if (!Array.isArray(data)) return true;
+
+        const body = JSON.stringify({ entity, data, userId: dataOwnerId, locationId });
+        return retryFetch(
+          "/api/db",
+          { method: "POST", headers: { "Content-Type": "application/json" }, body },
+          `syncLocalDataToDB:${entity}`,
+        );
+      } catch (err) {
+        console.warn(`[syncLocalDataToDB:${entity}] skipped:`, err);
+        return false;
+      }
+    }),
+  );
+
+  return results.every(Boolean);
+}
+
+/**
  * Push the updated list to Turso under the user-scoped key. Most callers
  * don't await it (fire-and-forget, doesn't block the UI), but a caller that
  * needs to know whether the write actually landed (e.g. POS checkout, so it

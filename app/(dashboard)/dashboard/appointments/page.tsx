@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import { getSalonInvoices, saveSalonInvoices } from "@/lib/salon-invoices";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
-import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2 } from "lucide-react";
+import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2, Upload, Download, FileSpreadsheet, Check } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert, purgeQueuedAppointmentMessages, normalizePhone } from "@/lib/whatsapp-scheduler";
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
@@ -87,6 +87,307 @@ const selectStyle: React.CSSProperties = {
   border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e",
   outline: "none", background: "#fff",
 };
+
+// ── Import / Export ────────────────────────────────────────────────────────────
+const APPOINTMENT_EXPORT_COLS = [
+  "Appointment ID", "Date", "Start Time", "End Time", "Client Name", "Client Phone",
+  "Staff Name", "Services", "Status", "Total Amount", "Notes", "Source", "Created At",
+];
+
+type AppointmentImportRecord = {
+  appt: Appointment;
+  mode: "add" | "update";
+  matchedClient: boolean;
+  matchedStaff: boolean;
+  unmatchedServiceNames: string[];
+};
+type AppointmentImportResult = { added: number; updated: number; skipped: number; errors: string[] };
+
+function splitList(value: unknown): string[] {
+  return String(value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function normalizeStatus(value: unknown): AppointmentStatus {
+  const raw = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "-");
+  return (ALL_STATUSES as string[]).includes(raw) ? (raw as AppointmentStatus) : "booked";
+}
+
+function normalizeSource(value: unknown): Appointment["source"] {
+  const raw = String(value ?? "").trim().toLowerCase();
+  const allowed: Appointment["source"][] = ["whatsapp", "walk-in", "web", "manual", "agent"];
+  return (allowed as string[]).includes(raw) ? (raw as Appointment["source"]) : "manual";
+}
+
+function appointmentsToRows(list: Appointment[], clients: Client[]) {
+  const phoneByClientId = new Map(clients.map((c) => [c.id, c.phone]));
+  return list.map((a) => ({
+    "Appointment ID": a.id,
+    "Date": a.date,
+    "Start Time": a.startTime,
+    "End Time": a.endTime,
+    "Client Name": a.clientName,
+    "Client Phone": phoneByClientId.get(a.clientId) ?? "",
+    "Staff Name": a.staffName,
+    "Services": a.serviceNames.join(", "),
+    "Status": STATUS[a.status]?.label ?? a.status,
+    "Total Amount": a.totalAmount,
+    "Notes": a.notes ?? "",
+    "Source": a.source,
+    "Created At": a.createdAt ?? "",
+  }));
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function exportAppointments(list: Appointment[], clients: Client[], format: "xlsx" | "csv") {
+  const XLSX = await import("xlsx");
+  const ws = XLSX.utils.json_to_sheet(appointmentsToRows(list, clients), { header: APPOINTMENT_EXPORT_COLS });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Appointments");
+  const date = new Date().toISOString().slice(0, 10);
+  if (format === "csv") {
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `appointments-${date}.csv`);
+  } else {
+    XLSX.writeFile(wb, `appointments-${date}.xlsx`);
+  }
+}
+
+// ── Import Modal ──────────────────────────────────────────────────────────────
+function AppointmentImportModal({ existing, clients, staffList, services, onClose, onImport }: {
+  existing: Appointment[];
+  clients: Client[];
+  staffList: Staff[];
+  services: Service[];
+  onClose: () => void;
+  onImport: (records: AppointmentImportRecord[]) => AppointmentImportResult;
+}) {
+  const [step, setStep] = useState<"pick" | "preview" | "done">("pick");
+  const [parsed, setParsed] = useState<AppointmentImportRecord[]>([]);
+  const [result, setResult] = useState<AppointmentImportResult | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleFile(file: File) {
+    setError("");
+    setLoading(true);
+    try {
+      const XLSX = await import("xlsx");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+      if (rows.length === 0) {
+        setError("File is empty or unreadable.");
+        setLoading(false);
+        return;
+      }
+
+      const byId = new Map(existing.map((a) => [a.id, a]));
+      const clientByPhone = new Map(clients.filter((c) => c.phone).map((c) => [c.phone.replace(/\s/g, ""), c]));
+      const clientByName = new Map(clients.map((c) => [c.name.trim().toLowerCase(), c]));
+      const staffByName = new Map(staffList.map((s) => [s.name.trim().toLowerCase(), s]));
+      const serviceByName = new Map(services.map((s) => [s.name.trim().toLowerCase(), s]));
+
+      const records: AppointmentImportRecord[] = [];
+      const usedIds = new Set(existing.map((a) => a.id));
+
+      for (const row of rows) {
+        const date = String(row["Date"] ?? row["date"] ?? "").trim();
+        const startTime = String(row["Start Time"] ?? row["StartTime"] ?? row["start time"] ?? "").trim();
+        if (!date || !startTime) continue;
+
+        const rawId = String(row["Appointment ID"] ?? row["ID"] ?? row["id"] ?? "").trim();
+        const existingAppt = rawId ? byId.get(rawId) : undefined;
+        const id = existingAppt?.id ?? (rawId || `a_imp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+        if (!existingAppt && usedIds.has(id)) continue;
+        usedIds.add(id);
+
+        const clientPhone = String(row["Client Phone"] ?? row["Phone"] ?? "").trim();
+        const clientName = String(row["Client Name"] ?? row["Client"] ?? "").trim();
+        const matchedClientObj = (clientPhone && clientByPhone.get(clientPhone.replace(/\s/g, ""))) || (clientName && clientByName.get(clientName.toLowerCase())) || undefined;
+
+        const staffName = String(row["Staff Name"] ?? row["Staff"] ?? "").trim();
+        const matchedStaffObj = staffByName.get(staffName.toLowerCase());
+
+        const serviceNamesRaw = splitList(row["Services"] ?? row["Service"]);
+        const matchedServices = serviceNamesRaw.map((name) => serviceByName.get(name.toLowerCase())).filter((s): s is Service => Boolean(s));
+        const unmatchedServiceNames = serviceNamesRaw.filter((name) => !serviceByName.has(name.toLowerCase()));
+
+        const sumDuration = matchedServices.reduce((s, sv) => s + sv.durationMin, 0);
+        const sumPrice = matchedServices.reduce((s, sv) => s + sv.price, 0);
+
+        const rawEndTime = String(row["End Time"] ?? row["EndTime"] ?? "").trim();
+        const endTime = rawEndTime || addMinutes(startTime, sumDuration || 30);
+
+        const rawTotalText = String(row["Total Amount"] ?? row["Total"] ?? "").trim();
+        const rawTotal = Number(rawTotalText);
+        const totalAmount = rawTotalText !== "" && Number.isFinite(rawTotal) ? rawTotal : sumPrice;
+
+        records.push({
+          mode: existingAppt ? "update" : "add",
+          matchedClient: Boolean(matchedClientObj),
+          matchedStaff: Boolean(matchedStaffObj),
+          unmatchedServiceNames,
+          appt: {
+            id,
+            clientId: matchedClientObj?.id ?? existingAppt?.clientId ?? "",
+            clientName: matchedClientObj?.name ?? clientName ?? existingAppt?.clientName ?? "",
+            staffId: matchedStaffObj?.id ?? existingAppt?.staffId ?? "",
+            staffName: matchedStaffObj?.name ?? staffName ?? existingAppt?.staffName ?? "",
+            section: matchedStaffObj?.section ?? existingAppt?.section,
+            serviceIds: matchedServices.length ? matchedServices.map((s) => s.id) : (existingAppt?.serviceIds ?? []),
+            serviceNames: matchedServices.length ? matchedServices.map((s) => s.name) : (existingAppt?.serviceNames ?? serviceNamesRaw),
+            date,
+            startTime,
+            endTime,
+            status: normalizeStatus(row["Status"] ?? row["status"]),
+            totalAmount,
+            notes: String(row["Notes"] ?? row["notes"] ?? "").trim() || existingAppt?.notes,
+            source: normalizeSource(row["Source"] ?? row["source"]),
+            createdAt: existingAppt?.createdAt ?? new Date().toISOString(),
+          },
+        });
+      }
+
+      setParsed(records);
+      setStep("preview");
+    } catch (e) {
+      setError(`Could not read file: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function downloadTemplate() {
+    const XLSX = await import("xlsx");
+    const sample = [{
+      "Appointment ID": "",
+      "Date": "2026-08-01",
+      "Start Time": "14:00",
+      "End Time": "",
+      "Client Name": "Ayesha Khan",
+      "Client Phone": "923001234567",
+      "Staff Name": "Sara Ahmed",
+      "Services": "Haircut, Blowdry",
+      "Status": "booked",
+      "Total Amount": "",
+      "Notes": "",
+      "Source": "manual",
+      "Created At": "",
+    }];
+    const ws = XLSX.utils.json_to_sheet(sample, { header: APPOINTMENT_EXPORT_COLS });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Appointments Template");
+    XLSX.writeFile(wb, "appointments-import-template.xlsx");
+  }
+
+  function confirmImport() {
+    const importResult = onImport(parsed);
+    setResult(importResult);
+    setStep("done");
+  }
+
+  const addCount = parsed.filter((record) => record.mode === "add").length;
+  const updateCount = parsed.filter((record) => record.mode === "update").length;
+  const missingClientCount = parsed.filter((record) => !record.matchedClient).length;
+  const missingStaffCount = parsed.filter((record) => !record.matchedStaff).length;
+  const missingServiceCount = parsed.reduce((count, record) => count + record.unmatchedServiceNames.length, 0);
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 540, padding: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <FileSpreadsheet size={18} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>Import Appointments</div>
+              <div style={{ fontSize: 11, color: "#9898b0" }}>XLSX or CSV file</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#9898b0" /></button>
+        </div>
+
+        {step === "pick" && (
+          <>
+            <label style={{ display: "block", border: "2px dashed #ddd6fe", borderRadius: 14, padding: "32px 20px", textAlign: "center", cursor: "pointer", background: "#faf9ff" }} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}>
+              <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              <Upload size={28} color="#7C3AED" style={{ marginBottom: 10 }} />
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#5B21B6", marginBottom: 4 }}>Click to choose file or drag & drop</div>
+              <div style={{ fontSize: 12, color: "#9898b0" }}>Supports .xlsx, .xls, .csv</div>
+            </label>
+            {loading && <div style={{ textAlign: "center", marginTop: 16, color: "#7C3AED", fontSize: 13, fontWeight: 600 }}>Reading file...</div>}
+            {error && <div style={{ marginTop: 12, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, fontSize: 13, color: "#dc2626" }}>{error}</div>}
+
+            <div style={{ marginTop: 18, padding: "14px 16px", background: "#f5f3ff", borderRadius: 12, fontSize: 12, color: "#5B21B6", lineHeight: 1.8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <strong style={{ fontSize: 12 }}>Column format</strong>
+                <button onClick={downloadTemplate} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 8, border: "1px solid #c4b5fd", background: "#fff", fontSize: 11, fontWeight: 700, color: "#5B21B6", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  <Download size={12} /> Download Template
+                </button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 16px", fontSize: 11 }}>
+                {[
+                  ["Date", "Required, YYYY-MM-DD"], ["Start Time", "Required, HH:MM (24h)"], ["Client Name / Phone", "At least one, to match a client"], ["Staff Name", "Matched by name"],
+                  ["Services", "Comma-separated service names"], ["Status", ALL_STATUSES.join(" / ")], ["Total Amount", "Optional — sums services if blank"], ["Source", "manual / walk-in / web / whatsapp / agent"],
+                ].map(([col, hint]) => <div key={col}><strong>{col}</strong>: {hint}</div>)}
+              </div>
+            </div>
+          </>
+        )}
+
+        {step === "preview" && (
+          <>
+            <div style={{ padding: "14px 16px", background: "#f8f7ff", border: "1px solid #e9d5ff", borderRadius: 12, marginBottom: 14 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e" }}>{parsed.length} appointment{parsed.length === 1 ? "" : "s"} ready</div>
+              <div style={{ fontSize: 12, color: "#6b6b8a", marginTop: 4 }}>
+                {addCount} new, {updateCount} update{updateCount === 1 ? "" : "s"}
+                {missingClientCount ? `, ${missingClientCount} unmatched client${missingClientCount === 1 ? "" : "s"}` : ""}
+                {missingStaffCount ? `, ${missingStaffCount} unmatched staff` : ""}
+                {missingServiceCount ? `, ${missingServiceCount} unmatched service${missingServiceCount === 1 ? "" : "s"}` : ""}
+              </div>
+            </div>
+            <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #f0f0f8", borderRadius: 12 }}>
+              {parsed.slice(0, 8).map((record) => (
+                <div key={record.appt.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 12px", borderBottom: "1px solid #f8f8fc" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>{record.appt.clientName || "Unmatched client"}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0" }}>{record.appt.date} · {record.appt.startTime} · {record.appt.staffName || "Unassigned"}</div>
+                  </div>
+                  <span style={{ alignSelf: "center", fontSize: 10, fontWeight: 800, borderRadius: 999, padding: "3px 8px", background: record.mode === "add" ? "#ecfdf5" : "#eff6ff", color: record.mode === "add" ? "#059669" : "#2563eb" }}>{record.mode === "add" ? "Add" : "Update"}</span>
+                </div>
+              ))}
+              {parsed.length > 8 && <div style={{ padding: "10px 12px", fontSize: 12, color: "#9898b0" }}>+{parsed.length - 8} more</div>}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <button onClick={() => setStep("pick")} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: "pointer" }}>Back</button>
+              <button onClick={confirmImport} disabled={parsed.length === 0} style={{ flex: 2, padding: "10px 0", borderRadius: 10, border: "none", background: parsed.length ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 700, color: parsed.length ? "#fff" : "#b0b0c8", cursor: parsed.length ? "pointer" : "not-allowed" }}>Import Appointments</button>
+            </div>
+          </>
+        )}
+
+        {step === "done" && result && (
+          <div style={{ textAlign: "center", padding: "24px 8px 8px" }}>
+            <div style={{ width: 60, height: 60, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><Check size={28} color="#059669" /></div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#1a1a2e", marginBottom: 6 }}>Import Complete</div>
+            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 20 }}>{result.added} added, {result.updated} updated{result.skipped ? `, ${result.skipped} skipped` : ""}.</div>
+            <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Done</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
 

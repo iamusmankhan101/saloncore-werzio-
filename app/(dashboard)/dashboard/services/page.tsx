@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
 import type { Service, Staff } from "@/lib/types";
-import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search, Lock } from "lucide-react";
+import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search, Lock, Upload, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
 import { getSectionOptions, getActiveSection } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -21,6 +21,282 @@ const PRESET_CATEGORIES = ["hair", "skin", "nails", "bridal", "piercing", "packa
 const catLabel = (cat: string) => CATEGORY_LABELS[cat]?.label ?? (cat.charAt(0).toUpperCase() + cat.slice(1));
 
 import { fmtCurrency as fmt } from "@/lib/format";
+
+const SERVICE_EXPORT_COLS = [
+  "Service ID", "Name", "Description", "Category", "Section", "Duration (Min)",
+  "Variable Price", "Price", "Min Price", "Max Price", "Included Services", "Assigned Staff", "Active",
+];
+
+type ServiceImportRecord = { service: Service; assignedStaffNames: string[]; includedServiceNames: string[]; mode: "add" | "update" };
+type ServiceImportResult = { added: number; updated: number; skipped: number; errors: string[] };
+
+function splitList(value: unknown): string[] {
+  return String(value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function parseActive(value: unknown): boolean {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return true;
+  return !["false", "no", "inactive", "0"].includes(raw);
+}
+
+function parseBool(value: unknown): boolean {
+  return ["true", "yes", "1"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function servicesToRows(list: Service[], staffList: Staff[]) {
+  return list.map((sv) => {
+    const assignedStaff = staffList.filter((st) => sv.assignedStaffIds.includes(st.id)).map((st) => st.name);
+    const includedServices = (sv.packageServiceIds ?? [])
+      .map((id) => list.find((s) => s.id === id)?.name)
+      .filter((n): n is string => Boolean(n));
+    return {
+      "Service ID": sv.id,
+      "Name": sv.name,
+      "Description": sv.description ?? "",
+      "Category": sv.category,
+      "Section": sv.section ?? "",
+      "Duration (Min)": sv.durationMin,
+      "Variable Price": sv.variablePrice ? "Yes" : "No",
+      "Price": sv.variablePrice ? "" : sv.price,
+      "Min Price": sv.variablePrice ? (sv.priceRangeMin ?? "") : "",
+      "Max Price": sv.variablePrice ? (sv.priceRangeMax ?? "") : "",
+      "Included Services": includedServices.join(", "),
+      "Assigned Staff": assignedStaff.join(", "),
+      "Active": sv.isActive ? "Yes" : "No",
+    };
+  });
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function exportServices(list: Service[], staffList: Staff[], format: "xlsx" | "csv") {
+  const XLSX = await import("xlsx");
+  const ws = XLSX.utils.json_to_sheet(servicesToRows(list, staffList), { header: SERVICE_EXPORT_COLS });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Services");
+  const date = new Date().toISOString().slice(0, 10);
+  if (format === "csv") {
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `services-${date}.csv`);
+  } else {
+    XLSX.writeFile(wb, `services-${date}.xlsx`);
+  }
+}
+
+// ── Import Modal ──────────────────────────────────────────────────────────────
+function ServiceImportModal({ existing, staffList, onClose, onImport }: {
+  existing: Service[];
+  staffList: Staff[];
+  onClose: () => void;
+  onImport: (records: ServiceImportRecord[]) => ServiceImportResult;
+}) {
+  const [step, setStep] = useState<"pick" | "preview" | "done">("pick");
+  const [parsed, setParsed] = useState<ServiceImportRecord[]>([]);
+  const [result, setResult] = useState<ServiceImportResult | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleFile(file: File) {
+    setError("");
+    setLoading(true);
+    try {
+      const XLSX = await import("xlsx");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+      if (rows.length === 0) {
+        setError("File is empty or unreadable.");
+        setLoading(false);
+        return;
+      }
+
+      const byId = new Map(existing.map((sv) => [sv.id, sv]));
+      const byName = new Map(existing.map((sv) => [sv.name.trim().toLowerCase(), sv]));
+      const records: ServiceImportRecord[] = [];
+      const usedIds = new Set(existing.map((sv) => sv.id));
+
+      for (const row of rows) {
+        const name = String(row["Name"] ?? row["name"] ?? "").trim();
+        if (!name) continue;
+
+        const rawId = String(row["Service ID"] ?? row["ID"] ?? row["id"] ?? "").trim();
+        const existingService = (rawId && byId.get(rawId)) || byName.get(name.toLowerCase());
+        const id = existingService?.id ?? (rawId || `sv_imp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+        if (!existingService && usedIds.has(id)) continue;
+        usedIds.add(id);
+
+        const rawCategory = String(row["Category"] ?? row["category"] ?? "").trim().toLowerCase();
+        const isPackage = rawCategory === "package" || rawCategory === "deal" || rawCategory === "deals & packages";
+        const category = isPackage ? "package" : (rawCategory || existingService?.category || "hair");
+        const variablePrice = parseBool(row["Variable Price"] ?? row["Variable"]);
+        const priceRangeMin = Number(row["Min Price"] ?? row["Price Range Min"] ?? "");
+        const priceRangeMax = Number(row["Max Price"] ?? row["Price Range Max"] ?? "");
+        const flatPrice = Number(row["Price"] ?? "");
+        const durationMin = Number(row["Duration (Min)"] ?? row["Duration"] ?? row["Duration Min"] ?? "");
+
+        records.push({
+          mode: existingService ? "update" : "add",
+          assignedStaffNames: splitList(row["Assigned Staff"] ?? row["Staff"]),
+          includedServiceNames: splitList(row["Included Services"] ?? row["Services"]),
+          service: {
+            id,
+            name,
+            description: String(row["Description"] ?? row["description"] ?? "").trim() || existingService?.description,
+            category,
+            section: String(row["Section"] ?? row["section"] ?? "").trim() || undefined,
+            durationMin: Number.isFinite(durationMin) && durationMin > 0 ? durationMin : (existingService?.durationMin ?? 30),
+            price: variablePrice
+              ? (Number.isFinite(priceRangeMin) ? priceRangeMin : 0)
+              : (Number.isFinite(flatPrice) ? flatPrice : (existingService?.price ?? 0)),
+            variablePrice,
+            priceRangeMin: variablePrice && Number.isFinite(priceRangeMin) ? priceRangeMin : undefined,
+            priceRangeMax: variablePrice && Number.isFinite(priceRangeMax) ? priceRangeMax : undefined,
+            packageServiceIds: isPackage ? [] : undefined,
+            customServices: existingService?.customServices,
+            assignedStaffIds: [],
+            multiStylist: existingService?.multiStylist,
+            isActive: parseActive(row["Active"] ?? row["Status"]),
+          },
+        });
+      }
+
+      setParsed(records);
+      setStep("preview");
+    } catch (e) {
+      setError(`Could not read file: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function downloadTemplate() {
+    const XLSX = await import("xlsx");
+    const sample = [
+      {
+        "Service ID": "", "Name": "Hydrafacial Premium", "Description": "Deep hydrating facial treatment",
+        "Category": "skin", "Section": "", "Duration (Min)": 60, "Variable Price": "No",
+        "Price": 3500, "Min Price": "", "Max Price": "", "Included Services": "", "Assigned Staff": "Sara Ahmed", "Active": "Yes",
+      },
+      {
+        "Service ID": "", "Name": "Bridal Glow Combo", "Description": "",
+        "Category": "package", "Section": "", "Duration (Min)": 180, "Variable Price": "No",
+        "Price": 15000, "Min Price": "", "Max Price": "", "Included Services": "Hydrafacial Premium, Haircut", "Assigned Staff": "", "Active": "Yes",
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(sample, { header: SERVICE_EXPORT_COLS });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Services Template");
+    XLSX.writeFile(wb, "services-import-template.xlsx");
+  }
+
+  function confirmImport() {
+    const importResult = onImport(parsed);
+    setResult(importResult);
+    setStep("done");
+  }
+
+  const addCount = parsed.filter((record) => record.mode === "add").length;
+  const updateCount = parsed.filter((record) => record.mode === "update").length;
+  const staffNames = new Set(staffList.map((st) => st.name.toLowerCase()));
+  const serviceNames = new Set([...existing.map((s) => s.name.toLowerCase()), ...parsed.map((r) => r.service.name.toLowerCase())]);
+  const missingStaffCount = parsed.reduce((count, record) => count + record.assignedStaffNames.filter((name) => !staffNames.has(name.toLowerCase())).length, 0);
+  const missingIncludedCount = parsed.reduce((count, record) => count + record.includedServiceNames.filter((name) => !serviceNames.has(name.toLowerCase())).length, 0);
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 540, padding: 28, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#5B21B6,#9333EA)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <FileSpreadsheet size={18} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>Import Services</div>
+              <div style={{ fontSize: 11, color: "#9898b0" }}>XLSX or CSV file</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#9898b0" /></button>
+        </div>
+
+        {step === "pick" && (
+          <>
+            <label style={{ display: "block", border: "2px dashed #ddd6fe", borderRadius: 14, padding: "32px 20px", textAlign: "center", cursor: "pointer", background: "#faf9ff" }} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}>
+              <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              <Upload size={28} color="#7C3AED" style={{ marginBottom: 10 }} />
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#5B21B6", marginBottom: 4 }}>Click to choose file or drag & drop</div>
+              <div style={{ fontSize: 12, color: "#9898b0" }}>Supports .xlsx, .xls, .csv</div>
+            </label>
+            {loading && <div style={{ textAlign: "center", marginTop: 16, color: "#7C3AED", fontSize: 13, fontWeight: 600 }}>Reading file...</div>}
+            {error && <div style={{ marginTop: 12, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, fontSize: 13, color: "#dc2626" }}>{error}</div>}
+
+            <div style={{ marginTop: 18, padding: "14px 16px", background: "#f5f3ff", borderRadius: 12, fontSize: 12, color: "#5B21B6", lineHeight: 1.8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <strong style={{ fontSize: 12 }}>Column format</strong>
+                <button onClick={downloadTemplate} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 8, border: "1px solid #c4b5fd", background: "#fff", fontSize: 11, fontWeight: 700, color: "#5B21B6", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  <Download size={12} /> Download Template
+                </button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 16px", fontSize: 11 }}>
+                {[
+                  ["Name", "Required"], ["Duration (Min)", "Required"], ["Price", "Required unless Variable Price"], ["Category", "hair / skin / nails / bridal / piercing / package / custom"],
+                  ["Included Services", "Comma-separated, for Category = package"], ["Assigned Staff", "Comma-separated staff names"], ["Variable Price", "Yes / No"], ["Active", "Yes / No"],
+                ].map(([col, hint]) => <div key={col}><strong>{col}</strong>: {hint}</div>)}
+              </div>
+            </div>
+          </>
+        )}
+
+        {step === "preview" && (
+          <>
+            <div style={{ padding: "14px 16px", background: "#f8f7ff", border: "1px solid #e9d5ff", borderRadius: 12, marginBottom: 14 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e" }}>{parsed.length} service{parsed.length === 1 ? "" : "s"} ready</div>
+              <div style={{ fontSize: 12, color: "#6b6b8a", marginTop: 4 }}>
+                {addCount} new, {updateCount} update{updateCount === 1 ? "" : "s"}
+                {missingStaffCount ? `, ${missingStaffCount} unmatched staff assignment${missingStaffCount === 1 ? "" : "s"}` : ""}
+                {missingIncludedCount ? `, ${missingIncludedCount} unmatched included service${missingIncludedCount === 1 ? "" : "s"}` : ""}
+              </div>
+            </div>
+            <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #f0f0f8", borderRadius: 12 }}>
+              {parsed.slice(0, 8).map((record) => (
+                <div key={record.service.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 12px", borderBottom: "1px solid #f8f8fc" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>{record.service.name}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0" }}>{catLabel(record.service.category)} · {record.service.durationMin}m</div>
+                  </div>
+                  <span style={{ alignSelf: "center", fontSize: 10, fontWeight: 800, borderRadius: 999, padding: "3px 8px", background: record.mode === "add" ? "#ecfdf5" : "#eff6ff", color: record.mode === "add" ? "#059669" : "#2563eb" }}>{record.mode === "add" ? "Add" : "Update"}</span>
+                </div>
+              ))}
+              {parsed.length > 8 && <div style={{ padding: "10px 12px", fontSize: 12, color: "#9898b0" }}>+{parsed.length - 8} more</div>}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <button onClick={() => setStep("pick")} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: "pointer" }}>Back</button>
+              <button onClick={confirmImport} disabled={parsed.length === 0} style={{ flex: 2, padding: "10px 0", borderRadius: 10, border: "none", background: parsed.length ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 700, color: parsed.length ? "#fff" : "#b0b0c8", cursor: parsed.length ? "pointer" : "not-allowed" }}>Import Services</button>
+            </div>
+          </>
+        )}
+
+        {step === "done" && result && (
+          <div style={{ textAlign: "center", padding: "24px 8px 8px" }}>
+            <div style={{ width: 60, height: 60, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><Check size={28} color="#059669" /></div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#1a1a2e", marginBottom: 6 }}>Import Complete</div>
+            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 20 }}>{result.added} added, {result.updated} updated{result.skipped ? `, ${result.skipped} skipped` : ""}.</div>
+            <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Done</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Add/Edit Service Modal ────────────────────────────────────────────────────
 function AddEditServiceModal({ onClose, onSave, staffList, servicesList, serviceToEdit }: {
@@ -408,6 +684,8 @@ export default function ServicesPage() {
   const [filter, setFilter] = useState("all");
   const [sectionFilter, setSectionFilter] = useState(() => getActiveSection());
   const [search, setSearch] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     setServices(getStoredServices());
@@ -436,6 +714,38 @@ export default function ServicesPage() {
     setServices(updated);
     saveServices(updated);
     setDeleteTarget(null);
+  };
+
+  const handleImportServices = (records: ServiceImportRecord[]): ServiceImportResult => {
+    const byId = new Map(services.map((sv) => [sv.id, sv]));
+    let added = 0;
+    let updated = 0;
+    const skipped = 0;
+
+    for (const record of records) {
+      if (byId.has(record.service.id)) updated += 1;
+      else added += 1;
+      byId.set(record.service.id, record.service);
+    }
+
+    const nextServices = Array.from(byId.values());
+
+    for (const record of records) {
+      const sv = nextServices.find((s) => s.id === record.service.id);
+      if (!sv) continue;
+      sv.assignedStaffIds = record.assignedStaffNames
+        .map((name) => staff.find((st) => st.name.toLowerCase() === name.toLowerCase())?.id)
+        .filter((id): id is string => Boolean(id));
+      if (sv.category === "package") {
+        sv.packageServiceIds = record.includedServiceNames
+          .map((name) => nextServices.find((s) => s.id !== sv.id && s.name.toLowerCase() === name.toLowerCase())?.id)
+          .filter((id): id is string => Boolean(id));
+      }
+    }
+
+    setServices(nextServices);
+    saveServices(nextServices);
+    return { added, updated, skipped, errors: [] };
   };
 
   const filteredServices = services
@@ -469,6 +779,14 @@ export default function ServicesPage() {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
+      {showImport && (
+        <ServiceImportModal
+          existing={services}
+          staffList={staff}
+          onClose={() => setShowImport(false)}
+          onImport={handleImportServices}
+        />
+      )}
 
       {/* Native mobile app bar */}
       <MobilePageHeader
@@ -488,9 +806,43 @@ export default function ServicesPage() {
             </>
           }
         />
-        <button onClick={() => setShowAdd(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 12, border: "none", background: "var(--accent-gradient)", fontSize: 13, fontWeight: 750, color: "#fff", boxShadow: "0 4px 14px var(--accent-glow)", cursor: "pointer", transition: "all 0.18s ease" }} className="page-header-btn">
-          <Plus size={16} /> Add Service
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={() => setShowImport(true)}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 12, border: "1px solid #e3e0eb", background: "#fff", fontSize: 13, fontWeight: 750, color: "#6b6b8a", cursor: "pointer", transition: "all 0.18s ease" }}
+            className="hover-bg-light"
+          >
+            <Upload size={15} /> Import
+          </button>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowExportMenu((open) => !open)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 12, border: "1px solid #bbf7d0", background: "#f0fdf4", fontSize: 13, fontWeight: 750, color: "#059669", cursor: "pointer", transition: "all 0.18s ease" }}
+            >
+              <Download size={15} /> Export <ChevronDown size={12} style={{ transform: showExportMenu ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+            </button>
+            {showExportMenu && (
+              <>
+                <div onClick={() => setShowExportMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 10 }} />
+                <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 20, width: 188, background: "#fff", border: "1px solid #e8e8f0", borderRadius: 12, boxShadow: "0 12px 34px rgba(16, 24, 40, 0.12)", padding: 6 }}>
+                  {[
+                    { fmt: "xlsx" as const, label: "Excel (.xlsx)" },
+                    { fmt: "csv" as const, label: "CSV (.csv)" },
+                  ].map(({ fmt, label }) => (
+                    <button key={fmt} onClick={() => { setShowExportMenu(false); exportServices(filteredServices, staff, fmt); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", border: "none", background: "transparent", borderRadius: 8, fontSize: 12, fontWeight: 700, color: "#1a1a2e", cursor: "pointer", textAlign: "left" }} className="hover-bg-light">
+                      <FileSpreadsheet size={14} color="#059669" /> {label}
+                    </button>
+                  ))}
+                  <div style={{ padding: "7px 10px 4px", fontSize: 10, color: "#9898b0", borderTop: "1px solid #f0f0f8", marginTop: 4 }}>Exports {filteredServices.length} visible services</div>
+                </div>
+              </>
+            )}
+          </div>
+          <button onClick={() => setShowAdd(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 12, border: "none", background: "var(--accent-gradient)", fontSize: 13, fontWeight: 750, color: "#fff", boxShadow: "0 4px 14px var(--accent-glow)", cursor: "pointer", transition: "all 0.18s ease" }} className="page-header-btn">
+            <Plus size={16} /> Add Service
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
