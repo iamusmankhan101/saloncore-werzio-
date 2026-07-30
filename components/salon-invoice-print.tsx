@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Printer, CheckCircle } from "lucide-react";
+import { X, Printer, CheckCircle, Pencil } from "lucide-react";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
 import SalonCentralWordmark from "@/components/salon-central-wordmark";
@@ -42,11 +42,12 @@ interface Props {
   salonAddress: string;
   onClose: () => void;
   onMarkPaid?: () => void;
+  onEdit?: () => void;
 }
 
 export default function SalonInvoicePrint({
   invoice, salonName, salonPhone, salonEmail, salonAddress,
-  onClose, onMarkPaid,
+  onClose, onMarkPaid, onEdit,
 }: Props) {
   const [mounted, setMounted]           = useState(false);
   const [thermalStatus, setThermalStatus] = useState<"idle" | "printing" | "ok" | "error">("idle");
@@ -127,6 +128,12 @@ export default function SalonInvoicePrint({
                 <span style={{ fontSize: 11, color: "#fca5a5", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={thermalError}>
                   {thermalError}
                 </span>
+              )}
+              {onEdit && (
+                <button onClick={e => { e.stopPropagation(); onEdit(); }}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
+                  <Pencil size={14} /> Edit
+                </button>
               )}
               <button onClick={() => window.print()}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
@@ -236,6 +243,11 @@ export default function SalonInvoicePrint({
                   {invoice.discountAmount > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13, color: "#555", borderBottom: "1px solid #e8e8e8" }}>
                       <span>Discount</span><span>−{fmt(invoice.discountAmount)}</span>
+                    </div>
+                  )}
+                  {(invoice.discount2Amount ?? 0) > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13, color: "#555", borderBottom: "1px solid #e8e8e8" }}>
+                      <span>Discount 2</span><span>−{fmt(invoice.discount2Amount!)}</span>
                     </div>
                   )}
                   <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", fontSize: 14, borderTop: "2px solid #111", marginTop: 4 }}>

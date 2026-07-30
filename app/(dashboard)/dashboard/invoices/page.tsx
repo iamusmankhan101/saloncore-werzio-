@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Search, Eye, Trash2, CheckCircle, Clock, Pencil,
+  Search, Eye, Trash2, CheckCircle, Clock, Pencil, FileEdit,
   ReceiptText, ShoppingCart, TrendingUp, Users,
 } from "lucide-react";
 import {
@@ -14,6 +14,7 @@ import { getStoredAppointments, saveAppointments, getStoredClients, saveClients 
 import { settingsStore } from "@/lib/settings-store";
 import { syncFromDB } from "@/lib/turso-sync";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
+import SalonInvoiceEdit from "@/components/salon-invoice-edit";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -80,6 +81,7 @@ export default function InvoicesPage() {
   const [markPaidDate, setMarkPaidDate] = useState(() => localDateKey());
   const [editDateInvoice, setEditDateInvoice] = useState<SalonInvoice | null>(null);
   const [editDateValue, setEditDateValue] = useState("");
+  const [editingInvoice, setEditingInvoice] = useState<SalonInvoice | null>(null);
 
   const salon = settingsStore.salon;
   // Strict-locked to the active dashboard section, same rule as Revenue/Cash
@@ -180,6 +182,11 @@ export default function InvoicesPage() {
     reload();
     if (viewingInvoice?.id === updated.id) setViewingInvoice(updated);
     setEditDateInvoice(null);
+  }
+
+  function handleInvoiceSaved(updated: SalonInvoice) {
+    reload();
+    if (viewingInvoice?.id === updated.id) setViewingInvoice(updated);
   }
 
   function handleDelete(id: string) {
@@ -300,6 +307,14 @@ export default function InvoicesPage() {
           salonAddress={salon.address as string}
           onClose={() => setViewingInvoice(null)}
           onMarkPaid={() => setMarkPaidPromptId(viewingInvoice.id)}
+          onEdit={() => setEditingInvoice(viewingInvoice)}
+        />
+      )}
+      {editingInvoice && (
+        <SalonInvoiceEdit
+          invoice={editingInvoice}
+          onClose={() => setEditingInvoice(null)}
+          onSaved={handleInvoiceSaved}
         />
       )}
       {deleteConfirm && (
@@ -521,6 +536,14 @@ export default function InvoicesPage() {
                         className="hover-bg-light"
                       >
                         <Eye size={14} color="#9898b0" />
+                      </button>
+                      <button
+                        onClick={() => setEditingInvoice(inv)}
+                        title="Edit Invoice"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #e3e0eb", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                        className="hover-bg-light"
+                      >
+                        <FileEdit size={14} color="#9898b0" />
                       </button>
                       {inv.status === "unpaid" && (
                         <button

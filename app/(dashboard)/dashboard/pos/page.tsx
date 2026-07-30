@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { awardPoints, redeemPoints, type LoyaltySettings } from "@/lib/loyalty";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
+import SalonInvoiceEdit from "@/components/salon-invoice-edit";
 import {
   getStoredServices, getStoredClients, getStoredInventory,
   getStoredStaff, getStoredAppointments, saveAppointments, saveClients, saveInventory,
@@ -197,6 +198,8 @@ export default function POSPage() {
   const [cart,          setCart]          = useState<CartEntry[]>([]);
   const [discount,      setDiscount]      = useState<number>(0);
   const [discType,      setDiscType]      = useState<DiscountType>("flat");
+  const [discount2,     setDiscount2]     = useState<number>(0);
+  const [discType2,     setDiscType2]     = useState<DiscountType>("flat");
   const [loyaltyRedeem, setLoyaltyRedeem] = useState<number>(0);
   // No default — staff must actively pick a method (or Pay Later/Credit) before checkout,
   // otherwise sales were silently defaulting to "cash" even when no one confirmed that.
@@ -209,6 +212,7 @@ export default function POSPage() {
   const [isCredit,         setIsCredit]         = useState(false);
   const [completing,       setCompleting]       = useState(false);
   const [printInvoice,     setPrintInvoice]     = useState<SalonInvoice | null>(null);
+  const [editingInvoice,   setEditingInvoice]   = useState<SalonInvoice | null>(null);
   const [completed,        setCompleted]        = useState(false);
   const [lastInvoice,      setLastInvoice]      = useState<SalonInvoice | null>(null);
   const [waStatus,         setWaStatus]         = useState<"idle" | "queued" | "sending" | "sent" | "failed">("idle");
@@ -252,14 +256,16 @@ export default function POSPage() {
   const rawSubtotal    = wholePkr(cartLineItems.reduce((s, i) => s + i.total, 0));
   const baseDiscountAmount = discType === "pct" ? wholePkr(rawSubtotal * discount / 100) : wholePkr(discount);
   const discountAmount = Math.min(baseDiscountAmount, rawSubtotal);
+  const baseDiscountAmount2 = discType2 === "pct" ? wholePkr(rawSubtotal * discount2 / 100) : wholePkr(discount2);
+  const discountAmount2 = Math.min(baseDiscountAmount2, Math.max(0, rawSubtotal - discountAmount));
 
   const loyaltySettings       = settingsStore.loyalty as LoyaltySettings;
   const availableLoyaltyPts   = selectedClient?.id ? (selectedClient.loyaltyPoints ?? 0) : 0;
   const cappedLoyaltyRedeem   = Math.min(loyaltyRedeem, availableLoyaltyPts);
   const loyaltyDiscount       = loyaltySettings.enabled && cappedLoyaltyRedeem > 0
-    ? Math.min(Math.floor(cappedLoyaltyRedeem * loyaltySettings.rupeePerPoint), Math.max(0, rawSubtotal - discountAmount))
+    ? Math.min(Math.floor(cappedLoyaltyRedeem * loyaltySettings.rupeePerPoint), Math.max(0, rawSubtotal - discountAmount - discountAmount2))
     : 0;
-  const totalDiscountAmount   = Math.min(rawSubtotal, wholePkr(discountAmount + loyaltyDiscount));
+  const totalDiscountAmount   = Math.min(rawSubtotal, wholePkr(discountAmount + discountAmount2 + loyaltyDiscount));
 
   const { subtotal, taxAmount, total } = calcTotals(cartLineItems, totalDiscountAmount);
   const totalQty = cart.reduce((s, e) => s + e.qty, 0);
@@ -375,7 +381,7 @@ export default function POSPage() {
 
   // ── New sale reset ────────────────────────────────────────────────────────
   function startNewSale() {
-    setCart([]); setDiscount(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod(null);
+    setCart([]); setDiscount(0); setDiscount2(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod(null);
     setSelectedClient(null); setClientQ(""); setSelectedStaffId("");
     setCompleted(false); setLastInvoice(null); setWaStatus("idle"); setIsCredit(false);
     setSyncFailed(false);
@@ -410,7 +416,7 @@ export default function POSPage() {
         staffName:     staffMember?.name || "",
         section:       saleSection,
         items:         cartLineItems,
-        subtotal, discountAmount: totalDiscountAmount, taxAmount, total,
+        subtotal, discountAmount: wholePkr(discountAmount + loyaltyDiscount), discount2Amount: discountAmount2, taxAmount, total,
         paymentMethod: isCredit ? "" : (payMethod as PaymentMethod),
         date: today, status: isCredit ? "unpaid" : "paid",
         notes: saleNotes.trim(),
@@ -1159,6 +1165,29 @@ export default function POSPage() {
                   </div>
                 )}
 
+                {/* 2nd discount row — stacks on top of the discount above (e.g. a separate promo/staff discount) */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: 9, background: "#fafafe", border: "1px solid #f0f0f8", marginTop: 6 }}>
+                  <Tag size={12} color="#d97706" style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#9999b0" }}>Discount 2</span>
+                  <div style={{ marginLeft: "auto", display: "flex", gap: 5, alignItems: "center" }}>
+                    <input type="number" min={0} value={discount2 || ""} onChange={e => setDiscount2(parseDiscountValue(e.target.value))}
+                      placeholder="0"
+                      style={{ width: 72, height: 30, padding: "0 8px", borderRadius: 8, border: "1.5px solid #e8e8f4", fontSize: 12, textAlign: "right", outline: "none", background: "#fff", fontWeight: 700 }} />
+                    <select value={discType2} onChange={e => setDiscType2(e.target.value as DiscountType)}
+                      style={{ height: 30, borderRadius: 8, border: "1.5px solid #e8e8f4", fontSize: 12, padding: "0 6px", outline: "none", background: "#fff", color: "#5a5a78", fontWeight: 700 }}>
+                      <option value="flat">PKR</option>
+                      <option value="pct">%</option>
+                    </select>
+                  </div>
+                </div>
+
+                {discountAmount2 > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#059669", marginTop: 4, fontWeight: 700, padding: "0 4px" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Tag size={11} />Discount 2 applied</span>
+                    <span>− {pkr(discountAmount2)}</span>
+                  </div>
+                )}
+
                 {/* Loyalty redemption row */}
                 {loyaltySettings.enabled && selectedClient?.id && availableLoyaltyPts > 0 && (
                   <div style={{ marginTop: 8, padding: "10px", borderRadius: 9, background: "#fffbeb", border: "1px solid #fde68a" }}>
@@ -1328,6 +1357,17 @@ export default function POSPage() {
           salonEmail={salon.email}
           salonAddress={salon.address}
           onClose={() => { setPrintInvoice(null); startNewSale(); }}
+          onEdit={() => setEditingInvoice(printInvoice)}
+        />
+      )}
+      {editingInvoice && (
+        <SalonInvoiceEdit
+          invoice={editingInvoice}
+          onClose={() => setEditingInvoice(null)}
+          onSaved={(updated) => {
+            setPrintInvoice(updated);
+            setLastInvoice(updated);
+          }}
         />
       )}
 

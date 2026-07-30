@@ -31,7 +31,8 @@ export interface SalonInvoice {
   staffName: string;
   items: SalonInvoiceItem[];
   subtotal: number;
-  discountAmount: number;   // flat discount in PKR
+  discountAmount: number;   // flat discount in PKR (primary discount + loyalty redemption combined)
+  discount2Amount?: number; // flat discount in PKR — separate, additional discount stacked on top of discountAmount
   taxAmount: number;        // 0 for now; ready for future
   total: number;
   paymentMethod: PaymentMethod | "";

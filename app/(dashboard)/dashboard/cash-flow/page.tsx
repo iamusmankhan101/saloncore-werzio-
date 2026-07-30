@@ -670,6 +670,19 @@ export default function CashFlowPage() {
         else                                                      dayMap[inv.date].cash       += inv.total; // untracked → cash
       });
 
+      // Completed appointments not linked to a POS invoice — same "Appointment" source
+      // income counted in periodIncome/the PDF's Income Log, but with no payment method
+      // of its own, so it falls into Cash like an untracked invoice (same convention as
+      // the untracked-payment-method invoices above). Without this loop the daily sheet's
+      // Total Income column silently omits every appointment-sourced sale.
+      appointments
+        .filter(a => a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date >= (rangeStart || filterEnd) && a.date <= filterEnd
+          && (!cashFlowScoped || a.section === activeSection))
+        .forEach(a => {
+          if (!dayMap[a.date]) dayMap[a.date] = { card: 0, cash: 0, bank: 0, newAccount: 0, expense: 0 };
+          dayMap[a.date].cash += a.totalAmount;
+        });
+
       // Manual imported income → cash column
       manualIncome
         .filter(e => e.date >= (rangeStart || filterEnd) && e.date <= filterEnd)
