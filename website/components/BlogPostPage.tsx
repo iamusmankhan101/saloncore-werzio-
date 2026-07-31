@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import { ArrowLeft, Calendar, Clock } from "lucide-react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -106,7 +108,12 @@ export default function BlogPostPage({ post }: { post: BlogPost }) {
         )}
 
         <div className="blog-markdown">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ h2: RankedHeading }}>{post.contentMd}</ReactMarkdown>
+          {/* Some posts were authored with literal HTML tags (e.g. <h2>) instead of
+              Markdown syntax — rehype-raw parses those back into real elements so they
+              pick up the heading styles below instead of showing as escaped text.
+              rehype-sanitize strips anything unsafe (scripts, event handlers, etc.)
+              since this content is admin-authored but rendered on the public site. */}
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypeSanitize]} components={{ h2: RankedHeading }}>{post.contentMd}</ReactMarkdown>
         </div>
       </main>
       <Footer />
