@@ -1,5 +1,5 @@
 import POSFeaturePage from "../../../components/POSFeaturePage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Salon POS Software & Point of Sale System",
@@ -31,6 +31,17 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Salon POS Software & Point of Sale System | Salon Central",
+  description: "Salon POS software for beauty salons, hair salons, and spas with point of sale, invoicing, inventory management, payments, and CRM by Salon Central.",
+  path: "/features/pos",
+});
+
 export default function POSPage() {
-  return <POSFeaturePage />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <POSFeaturePage />
+    </>
+  );
 }

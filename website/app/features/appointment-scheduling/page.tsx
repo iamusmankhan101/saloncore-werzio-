@@ -1,5 +1,5 @@
 import SchedulingFeaturePage from "../../../components/SchedulingFeaturePage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Salon Appointment & Booking Software",
@@ -18,6 +18,17 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Salon Appointment & Booking Software | Salon Central",
+  description: "Salon appointment software for beauty salons with online booking, staff scheduling, calendars, and automated client reminders by Salon Central.",
+  path: "/features/appointment-scheduling",
+});
+
 export default function AppointmentSchedulingPage() {
-  return <SchedulingFeaturePage />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <SchedulingFeaturePage />
+    </>
+  );
 }

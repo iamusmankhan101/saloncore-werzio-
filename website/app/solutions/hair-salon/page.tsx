@@ -1,5 +1,5 @@
 import HairSalonPage from "../../../components/HairSalonPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Hair Salon POS & Booking Software",
@@ -27,6 +27,17 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Hair Salon POS & Booking Software | Salon Central",
+  description: "Hair salon management software with appointment booking, POS, CRM, inventory, payroll, invoicing, and WhatsApp automation.",
+  path: "/solutions/hair-salon",
+});
+
 export default function HairSalonSolutionPage() {
-  return <HairSalonPage />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <HairSalonPage />
+    </>
+  );
 }

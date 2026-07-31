@@ -1,6 +1,9 @@
 import styles from "./Testimonials.module.css";
 
-const testimonials = [
+// Exported so the homepage can build SoftwareApplication review/aggregateRating
+// structured data straight from this list — one source, so the schema can
+// never drift from what's actually shown here.
+export const testimonials = [
   {
     stars: 5,
     text: "Before Salon Central I was losing PKR 80K bridal bookings because I didn't see Instagram DMs on time. Now every booking comes through WhatsApp and confirms automatically. My no-show rate dropped from 25% to 4%.",

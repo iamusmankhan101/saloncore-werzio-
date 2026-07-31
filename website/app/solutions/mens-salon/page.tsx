@@ -1,5 +1,5 @@
 import MensSalonPage from "../../../components/MensSalonPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Best Men's Salon Management Software in Lahore | Salon Central",
@@ -24,6 +24,17 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Best Men's Salon Management Software in Lahore | Salon Central | Salon Central",
+  description: "Salon Central Provides Best Men's salon software with POS, online booking, and WhatsApp reminders — built for men's salons and mens hair salons in Lahore.",
+  path: "/solutions/mens-salon",
+});
+
 export default function MensSalonSolutionPage() {
-  return <MensSalonPage />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <MensSalonPage />
+    </>
+  );
 }

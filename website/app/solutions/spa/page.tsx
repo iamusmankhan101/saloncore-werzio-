@@ -1,5 +1,5 @@
 import SpaPage from "../../../components/SpaPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Spa POS & Booking Software",
@@ -22,6 +22,17 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Spa POS & Booking Software | Salon Central",
+  description: "Spa management software with appointment scheduling, POS, client management, payroll, inventory, and reports.",
+  path: "/solutions/spa",
+});
+
 export default function SpaSolutionPage() {
-  return <SpaPage />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <SpaPage />
+    </>
+  );
 }

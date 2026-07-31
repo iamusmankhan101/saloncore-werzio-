@@ -6,6 +6,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import DemoModal from "./DemoModal";
 import styles from "./SchedulingFeaturePage.module.css";
+import { siteConfig } from "@/lib/seo";
 
 export interface VerticalFeatureRow {
   eyebrow: string;
@@ -28,6 +29,8 @@ export interface VerticalFaq {
 export interface VerticalPageProps {
   kickerIcon: React.ReactNode;
   kickerLabel: string;
+  /** Route this page is served at, e.g. "/solutions/hair-salon" — used to build breadcrumb schema. */
+  path: string;
   h1: string;
   heroParagraph: string;
   /** Themed background photo behind the hero card (a real, license-free Unsplash photo). */
@@ -85,7 +88,7 @@ function FaqSection({ title, ariaLabel, faqs }: { title: string; ariaLabel: stri
 }
 
 export default function VerticalPage({
-  kickerIcon, kickerLabel, h1, heroParagraph, heroImage,
+  kickerIcon, kickerLabel, path, h1, heroParagraph, heroImage,
   rows, ctaEyebrow, ctaTitle, ctaSubtitle, stats, faqAriaLabel, faqTitle, faqs,
 }: VerticalPageProps) {
   const [demoOpen, setDemoOpen] = useState(false);
@@ -100,9 +103,21 @@ export default function VerticalPage({
     })),
   };
 
+  // No "/solutions" hub page exists to link a middle crumb to, so this is
+  // Home → this page rather than Home → Solutions → this page.
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: siteConfig.url },
+      { "@type": "ListItem", position: 2, name: kickerLabel, item: `${siteConfig.url}${path}` },
+    ],
+  };
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <Navbar />
       <main className={styles.page}>
 

@@ -82,8 +82,38 @@ const jsonLd = {
   "@type": "Organization",
   name: siteConfig.name,
   url: siteConfig.url,
-  description,
   logo: `${siteConfig.url}/salon-central-logo.png`,
+  image: `${siteConfig.url}${siteConfig.ogImage}`,
+  description,
+  foundingDate: "2026",
+  areaServed: { "@type": "Country", name: "Pakistan" },
+  contactPoint: {
+    "@type": "ContactPoint",
+    telephone: "+923058562523",
+    contactType: "sales",
+    availableLanguage: ["English", "Urdu"],
+  },
+  // Matches the WhatsApp number used site-wide in Navbar/Footer/Pricing's
+  // "Contact Sales" links — not the number that was in the schema doc, which
+  // didn't appear anywhere else in the codebase.
+  sameAs: ["https://wa.me/923058562523"],
+  knowsAbout: [
+    "Salon Management Software",
+    "Beauty Salon POS",
+    "Appointment Booking Software",
+    "Salon CRM",
+    "WhatsApp Business Automation",
+    "Payroll Management",
+  ],
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: siteConfig.name,
+  url: siteConfig.url,
+  description: "Salon management software for Pakistan's beauty industry.",
+  inLanguage: "en",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -100,6 +130,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
       </head>
       <body>

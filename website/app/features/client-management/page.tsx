@@ -1,5 +1,5 @@
 import ClientFeaturePage from "../../../components/ClientFeaturePage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Client Management Software & CRM",
@@ -19,6 +19,17 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Client Management Software & CRM | Salon Central",
+  description: "Client management software for salons with CRM, customer profiles, visit history, invoices, loyalty programs, and appointment tracking.",
+  path: "/features/client-management",
+});
+
 export default function ClientManagementPage() {
-  return <ClientFeaturePage />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <ClientFeaturePage />
+    </>
+  );
 }

@@ -18,6 +18,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import DemoModal from "./DemoModal";
 import styles from "./SchedulingFeaturePage.module.css";
+import { siteConfig } from "@/lib/seo";
 
 /* ─── hero WhatsApp card ─────────────────────────────────── */
 function HeroWhatsApp() {
@@ -548,6 +549,16 @@ const faqJsonLd = {
 };
 
 /* ─── page ──────────────────────────────────────────────── */
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: siteConfig.url },
+    { "@type": "ListItem", position: 2, name: "Features", item: `${siteConfig.url}/#features` },
+    { "@type": "ListItem", position: 3, name: "WhatsApp Reminders", item: `${siteConfig.url}/features/whatsapp-reminders` },
+  ],
+};
+
 export default function WhatsAppFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
@@ -555,6 +566,10 @@ export default function WhatsAppFeaturePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <Navbar />
       <main className={styles.page}>

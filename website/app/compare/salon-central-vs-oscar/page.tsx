@@ -1,5 +1,5 @@
 import ComparisonPage from "../../../components/ComparisonPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Salon Central vs Oscar POS Software",
@@ -27,14 +27,23 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Salon Central vs Oscar POS Software | Salon Central",
+  description: "Compare Salon Central and Oscar POS: see which salon software offers appointment scheduling, client profiles, and WhatsApp automation built for salons.",
+  path: "/compare/salon-central-vs-oscar",
+});
+
 export default function SalonCentralVsOscarPage() {
   return (
-    <ComparisonPage
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <ComparisonPage
       competitorName="Oscar"
       competitorUrl="https://oscar.pk"
       competitorLogo="/logos/oscar.png"
       competitorSummary="Oscar is a general POS and business management platform serving restaurants, retail stores, fitness centers, clinics, and beauty salons among many other business types, rather than focusing specifically on salons."
       dataAsOf="July 2026"
+      path="/compare/salon-central-vs-oscar"
       categories={[
         {
           title: "Built for salons",
@@ -101,5 +110,6 @@ export default function SalonCentralVsOscarPage() {
         },
       ]}
     />
+    </>
   );
 }

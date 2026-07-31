@@ -1,5 +1,5 @@
 import ComparisonPage from "../../../components/ComparisonPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Salon Central vs OneClick POS Software",
@@ -22,14 +22,23 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Salon Central vs OneClick POS Software | Salon Central",
+  description: "Compare Salon Central and OneClick POS: see which salon software offers appointment scheduling, client profiles, and WhatsApp automation built for salons.",
+  path: "/compare/salon-central-vs-oneclick",
+});
+
 export default function SalonCentralVsOneClickPage() {
   return (
-    <ComparisonPage
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <ComparisonPage
       competitorName="OneClick"
       competitorUrl="https://oneclickpos.pk"
       competitorLogo="/logos/oneclick.png"
       competitorSummary="OneClick is a general FBR-integrated POS system for retail stores, restaurants, pharmacies, and garment shops, with an Urdu-language interface, but no salon-specific booking or client management tools."
       dataAsOf="July 2026"
+      path="/compare/salon-central-vs-oneclick"
       categories={[
         {
           title: "Built for salons",
@@ -105,5 +114,6 @@ export default function SalonCentralVsOneClickPage() {
         },
       ]}
     />
+    </>
   );
 }

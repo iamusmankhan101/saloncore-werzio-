@@ -1,5 +1,5 @@
 import BridalSalonPage from "../../../components/BridalSalonPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Bridal Salon Software | Lahore's Best Bridal Salon Solution",
@@ -16,6 +16,17 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Bridal Salon Software | Lahore's Best Bridal Salon Solution | Salon Central",
+  description: "Bridal salon software helping bridal salons in Lahore become the best bridal salon in Lahore, with trial scheduling, AI try-on, and WhatsApp automation.",
+  path: "/solutions/bridal-salon",
+});
+
 export default function BridalSalonSolutionPage() {
-  return <BridalSalonPage />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <BridalSalonPage />
+    </>
+  );
 }

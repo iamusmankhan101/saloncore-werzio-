@@ -10,6 +10,21 @@ export const siteConfig = {
   ogImageHeight: 676,
 };
 
+/** Builds a BreadcrumbList JSON-LD object. `items` is root-to-leaf order;
+ * each `path` is relative (e.g. "/features/pos"), resolved against siteConfig.url. */
+export function breadcrumbJsonLd(items: { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      item: `${siteConfig.url}${item.path}`,
+    })),
+  };
+}
+
 export function pageMetadata({
   title,
   description,
@@ -51,5 +66,19 @@ export function pageMetadata({
       description,
       images: [siteConfig.ogImage],
     },
+  };
+}
+
+/** Builds a WebPage JSON-LD object for an inner page (feature/solution/compare). */
+export function webPageJsonLd({ name, description, path }: { name: string; description: string; path: string }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name,
+    description,
+    url: `${siteConfig.url}${path}`,
+    inLanguage: "en",
+    isPartOf: { "@type": "WebSite", name: siteConfig.name, url: siteConfig.url },
+    about: { "@type": "SoftwareApplication", name: siteConfig.name, url: siteConfig.url },
   };
 }

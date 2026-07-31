@@ -1,5 +1,5 @@
 import NailSalonPage from "../../../components/NailSalonPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Nail Salon Software | POS, Booking & Management",
@@ -19,6 +19,17 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Nail Salon Software | POS, Booking & Management | Salon Central",
+  description: "Nail salon software with POS, appointment booking, scheduling, and management. The best POS system for nail salons by Salon Central",
+  path: "/solutions/nail-salon",
+});
+
 export default function NailSalonSolutionPage() {
-  return <NailSalonPage />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <NailSalonPage />
+    </>
+  );
 }

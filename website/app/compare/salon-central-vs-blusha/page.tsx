@@ -1,5 +1,5 @@
 import ComparisonPage from "../../../components/ComparisonPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Salon Central vs Blusha Salon Software",
@@ -39,14 +39,23 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Salon Central vs Blusha Salon Software | Salon Central",
+  description: "Compare Salon Central and Blusha, two salon platforms with WhatsApp automation, loyalty, and staff commission tools, feature by feature.",
+  path: "/compare/salon-central-vs-blusha",
+});
+
 export default function SalonCentralVsBlushaPage() {
   return (
-    <ComparisonPage
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <ComparisonPage
       competitorName="Blusha"
       competitorUrl="https://blusha.app"
       competitorLogo="/logos/blusha.svg"
       competitorSummary="Blusha is a purpose-built salon platform covering appointments, POS, client profiles, loyalty, staff commission, and WhatsApp automation, so this is a closer feature-for-feature comparison than most, based on Blusha's own partnership materials."
       dataAsOf="July 2026"
+      path="/compare/salon-central-vs-blusha"
       categories={[
         {
           title: "Built for salons",
@@ -149,5 +158,6 @@ export default function SalonCentralVsBlushaPage() {
         },
       ]}
     />
+    </>
   );
 }

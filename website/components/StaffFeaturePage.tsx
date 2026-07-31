@@ -10,6 +10,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import DemoModal from "./DemoModal";
 import styles from "./SchedulingFeaturePage.module.css";
+import { siteConfig } from "@/lib/seo";
 
 /* ─── hero staff card ────────────────────────────────────── */
 function HeroStaff() {
@@ -354,6 +355,16 @@ const faqJsonLd = {
 };
 
 /* ─── page ───────────────────────────────────────────────── */
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: siteConfig.url },
+    { "@type": "ListItem", position: 2, name: "Features", item: `${siteConfig.url}/#features` },
+    { "@type": "ListItem", position: 3, name: "Staff Management", item: `${siteConfig.url}/features/staff-management` },
+  ],
+};
+
 export default function StaffFeaturePage() {
   const [demoOpen, setDemoOpen] = useState(false);
   return (
@@ -361,6 +372,10 @@ export default function StaffFeaturePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <Navbar />
       <main className={styles.page}>

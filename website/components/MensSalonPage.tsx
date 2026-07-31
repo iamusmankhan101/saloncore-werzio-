@@ -255,6 +255,7 @@ export default function MensSalonPage() {
       kickerIcon={<Mars size={16} />}
       heroImage="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=900&q=70"
       kickerLabel="Men's Salons"
+      path="/solutions/mens-salon"
       h1="Men's Salon POS & Booking Software"
       heroParagraph="Salon Central is men's salon software built for how a modern salon for men actually runs: barber schedules, grooming profile tracking, an online booking page so clients searching &quot;men's salon near me&quot; can book you directly, WhatsApp reminders, and POS checkout, all in one platform trusted by men's salons in Lahore and DHA."
       rows={rows}

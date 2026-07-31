@@ -1,5 +1,5 @@
 import ComparisonPage from "../../../components/ComparisonPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Salon Central vs Websol POS Software",
@@ -24,14 +24,23 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Salon Central vs Websol POS Software | Salon Central",
+  description: "Compare Salon Central and Websol POS: see which salon software offers appointment scheduling, client profiles, and WhatsApp automation built for salons.",
+  path: "/compare/salon-central-vs-websol",
+});
+
 export default function SalonCentralVsWebsolPage() {
   return (
-    <ComparisonPage
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <ComparisonPage
       competitorName="Websol"
       competitorUrl="https://www.pointofsale.pk"
       competitorLogo="/logos/websol.png"
       competitorSummary="Websol is a general POS and ERP system for retail stores, restaurants, pharmacies, and other businesses, with salons listed as one of many supported industries rather than its core focus."
       dataAsOf="July 2026"
+      path="/compare/salon-central-vs-websol"
       categories={[
         {
           title: "Built for salons",
@@ -109,5 +118,6 @@ export default function SalonCentralVsWebsolPage() {
         },
       ]}
     />
+    </>
   );
 }

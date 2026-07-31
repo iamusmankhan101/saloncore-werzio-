@@ -1,5 +1,5 @@
 import ComparisonPage from "../../../components/ComparisonPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Salon Central vs eHisabKitab POS Software",
@@ -15,14 +15,23 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Salon Central vs eHisabKitab POS Software | Salon Central",
+  description: "Compare Salon Central and eHisabKitab: see which salon software offers appointment scheduling, client profiles, and WhatsApp automation built for salons.",
+  path: "/compare/salon-central-vs-ehisabkitab",
+});
+
 export default function SalonCentralVsEhisabkitabPage() {
   return (
-    <ComparisonPage
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <ComparisonPage
       competitorName="eHisabKitab"
       competitorUrl="https://ehisabkitab.com"
       competitorLogo="/logos/ehisabkitab.svg"
       competitorSummary="eHisabKitab is a feature-heavy, FBR/ZATCA-compliant multi-tenant POS, inventory, accounting, and HRM platform for retail stores, restaurants, pharmacies, supermarkets, wholesalers, and auto parts shops, with salons and spas listed as one supported industry among many."
       dataAsOf="July 2026"
+      path="/compare/salon-central-vs-ehisabkitab"
       categories={[
         {
           title: "Built for salons",
@@ -123,5 +132,6 @@ export default function SalonCentralVsEhisabkitabPage() {
         },
       ]}
     />
+    </>
   );
 }

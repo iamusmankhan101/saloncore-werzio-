@@ -1,5 +1,5 @@
 import ComparisonPage from "../../../components/ComparisonPage";
-import { pageMetadata } from "../../../lib/seo";
+import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
   title: "Salon Central vs Asaan POS Software",
@@ -22,14 +22,23 @@ export const metadata = pageMetadata({
   ],
 });
 
+const webPageSchema = webPageJsonLd({
+  name: "Salon Central vs Asaan POS Software | Salon Central",
+  description: "Asaan POS has been discontinued and isn't available for new customers. See what Salon Central offers salons, hair salons, and spas instead.",
+  path: "/compare/salon-central-vs-asaan-pos",
+});
+
 export default function SalonCentralVsAsaanPosPage() {
   return (
-    <ComparisonPage
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }} />
+      <ComparisonPage
       competitorName="Asaan POS"
       competitorUrl="https://www.asaanpos.pk"
       competitorLogo="/logos/asaan-pos.png"
       competitorSummary="Asaan POS is a general Windows/Android retail POS system for retail stores, restaurants, and pharmacies. Its own website states it has been discontinued and is not available for new customers, though existing users can continue using it."
       dataAsOf="July 2026"
+      path="/compare/salon-central-vs-asaan-pos"
       categories={[
         {
           title: "Availability",
@@ -106,5 +115,6 @@ export default function SalonCentralVsAsaanPosPage() {
         },
       ]}
     />
+    </>
   );
 }

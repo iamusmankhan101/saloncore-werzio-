@@ -5,6 +5,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import DemoModal from "./DemoModal";
 import compareStyles from "./ComparisonPage.module.css";
+import { siteConfig } from "@/lib/seo";
 
 export interface ComparisonRow {
   feature: string;
@@ -32,6 +33,8 @@ export interface ComparisonPageProps {
   verdict: string;
   faqs: ComparisonFaq[];
   dataAsOf: string;
+  /** Route this page is served at, e.g. "/compare/salon-central-vs-blusha" — used to build breadcrumb schema. */
+  path: string;
 }
 
 function Cell({ value, highlighted }: { value: boolean | string; highlighted?: boolean }) {
@@ -60,6 +63,7 @@ export default function ComparisonPage({
   verdict,
   faqs,
   dataAsOf,
+  path,
 }: ComparisonPageProps) {
   const [demoOpen, setDemoOpen] = useState(false);
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -74,11 +78,26 @@ export default function ComparisonPage({
     })),
   };
 
+  // No "/compare" hub page exists to link a middle crumb to, so this is
+  // Home → this page rather than Home → Compare → this page.
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: siteConfig.url },
+      { "@type": "ListItem", position: 2, name: `Salon Central vs ${competitorName}`, item: `${siteConfig.url}${path}` },
+    ],
+  };
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <Navbar forceSolid />
       <main className={compareStyles.page}>
