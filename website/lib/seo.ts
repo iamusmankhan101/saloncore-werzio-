@@ -79,6 +79,10 @@ export function webPageJsonLd({ name, description, path }: { name: string; descr
     url: `${siteConfig.url}${path}`,
     inLanguage: "en",
     isPartOf: { "@type": "WebSite", name: siteConfig.name, url: siteConfig.url },
-    about: { "@type": "SoftwareApplication", name: siteConfig.name, url: siteConfig.url },
+    // No "about" reference to SoftwareApplication here — a stub with just
+    // name/url gets validated as an incomplete SoftwareApplication by
+    // Google (fails the "2 of offers/aggregateRating/applicationCategory/
+    // operatingSystem" rule) on every one of these pages. The one real,
+    // fully-populated SoftwareApplication block lives on the homepage.
   };
 }
