@@ -29,12 +29,18 @@ export default async function BlogSlugPage({ params }: { params: Promise<{ slug:
     "@type": "Article",
     headline: post.title,
     description: post.excerpt || undefined,
-    image: post.coverImage || undefined,
+    image: post.coverImage || `${siteConfig.url}${siteConfig.ogImage}`,
     author: post.author ? { "@type": "Person", name: post.author } : { "@type": "Organization", name: siteConfig.name },
     datePublished: post.publishedAt || post.createdAt,
     dateModified: post.updatedAt,
     mainEntityOfPage: `${siteConfig.url}/blog/${post.slug}`,
-    publisher: { "@type": "Organization", name: siteConfig.name },
+    // Google requires publisher.logo for Article rich-result eligibility —
+    // it was missing here, so every post was failing that check.
+    publisher: {
+      "@type": "Organization",
+      name: siteConfig.name,
+      logo: { "@type": "ImageObject", url: `${siteConfig.url}/salon-central-logo.png` },
+    },
   };
 
   return (
