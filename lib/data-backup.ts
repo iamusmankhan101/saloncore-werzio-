@@ -273,6 +273,136 @@ export async function restoreSalonDataBackup(backupIdToRestore: string): Promise
   return backup;
 }
 
+// ── Bundled per-salon backups ──────────────────────────────────────────────
+//
+// snapshotAllSalonData() above writes one row per entity per salon (clients,
+// appointments, staff, ...) — great for "undo my last edit", but it means a
+// single salon with 11 data types shows up as 11 separate rows in any admin
+// view, once per run. For "what did this salon's data look like on this day"
+// that's noise, not signal. A bundle is the same underlying data, packaged as
+// ONE row per salon per run — one thing to look at, one thing to restore.
+
+export interface SalonBackupBundleSummary {
+  id: string;
+  userId: string;
+  reason: BackupReason;
+  entityCount: number;
+  totalRecords: number;
+  createdAt: string;
+}
+
+interface BundleEntity {
+  entity: string;
+  data: string;
+  updatedAt: string | null;
+}
+
+export async function ensureSalonBackupBundleTable(): Promise<void> {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS salon_backup_bundles (
+      id            TEXT PRIMARY KEY,
+      user_id       TEXT NOT NULL,
+      reason        TEXT NOT NULL,
+      entity_count  INTEGER NOT NULL,
+      total_records INTEGER NOT NULL,
+      data          TEXT NOT NULL,
+      created_at    TEXT NOT NULL
+    )
+  `);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_salon_backup_bundles_user_created ON salon_backup_bundles (user_id, created_at DESC)`).catch(() => {});
+}
+
+async function insertBundle(userId: string, entities: BundleEntity[], reason: BackupReason): Promise<string> {
+  await ensureSalonBackupBundleTable();
+  const id = backupId();
+  const now = new Date().toISOString();
+  const totalRecords = entities.reduce((sum, e) => sum + recordCountFor(e.data), 0);
+  await db.execute({
+    sql: `INSERT INTO salon_backup_bundles (id, user_id, reason, entity_count, total_records, data, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    args: [id, userId, reason, entities.length, totalRecords, JSON.stringify({ entities }), now],
+  });
+  return id;
+}
+
+/** One bundle per salon that currently has data — used by the daily cron and the admin "Run Backup Now" button. */
+export async function snapshotAllSalonBundles(reason: BackupReason = "manual-snapshot"): Promise<{ bundlesCreated: number }> {
+  await ensureSalonBackupBundleTable();
+  const rows = await db.execute("SELECT entity, data, updated_at FROM salon_data ORDER BY entity ASC");
+  const users = await db.execute("SELECT id FROM users").catch(() => ({ rows: [] as Array<{ id: string }> }));
+  const userIds = users.rows.map((row) => String(row.id)).sort((a, b) => b.length - a.length);
+
+  const byUser = new Map<string, BundleEntity[]>();
+  for (const row of rows.rows) {
+    const entity = row.entity as string;
+    const userId = userIds.find((id) => entity === id || entity.startsWith(`${id}_`)) ?? entity.split("_")[0];
+    const list = byUser.get(userId) ?? [];
+    list.push({ entity, data: row.data as string, updatedAt: (row.updated_at as string | undefined) ?? null });
+    byUser.set(userId, list);
+  }
+
+  let bundlesCreated = 0;
+  for (const [userId, entities] of byUser) {
+    if (entities.length === 0) continue;
+    await insertBundle(userId, entities, reason);
+    bundlesCreated++;
+  }
+  return { bundlesCreated };
+}
+
+export async function listSalonBackupBundles(userId?: string, limit = 100): Promise<SalonBackupBundleSummary[]> {
+  await ensureSalonBackupBundleTable();
+  const result = await db.execute(
+    userId
+      ? { sql: `SELECT id, user_id, reason, entity_count, total_records, created_at FROM salon_backup_bundles WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`, args: [userId, limit] }
+      : { sql: `SELECT id, user_id, reason, entity_count, total_records, created_at FROM salon_backup_bundles ORDER BY created_at DESC LIMIT ?`, args: [limit] },
+  );
+  return result.rows.map((row) => ({
+    id: row.id as string,
+    userId: row.user_id as string,
+    reason: row.reason as BackupReason,
+    entityCount: Number(row.entity_count),
+    totalRecords: Number(row.total_records),
+    createdAt: row.created_at as string,
+  }));
+}
+
+export interface RestoredBundleSummary {
+  id: string;
+  userId: string;
+  entityCount: number;
+  createdAt: string;
+}
+
+/** Restores every entity in a bundle — a safety before-write copy of each entity's *current* data is taken first, same as the single-entity restore. */
+export async function restoreSalonBackupBundle(bundleId: string): Promise<RestoredBundleSummary | null> {
+  await ensureSalonBackupBundleTable();
+  const result = await db.execute({
+    sql: "SELECT id, user_id, entity_count, data, created_at FROM salon_backup_bundles WHERE id = ?",
+    args: [bundleId],
+  });
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0];
+  const userId = row.user_id as string;
+  const parsed = JSON.parse(row.data as string) as { entities: BundleEntity[] };
+  const now = new Date().toISOString();
+
+  for (const entry of parsed.entities) {
+    await backupExistingSalonData(entry.entity, userId, "before-write");
+    await db.execute({
+      sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
+      args: [entry.entity, entry.data, now],
+    });
+  }
+
+  return {
+    id: row.id as string,
+    userId,
+    entityCount: Number(row.entity_count),
+    createdAt: row.created_at as string,
+  };
+}
+
 // Reasons intentionally excluded from auto-pruning: "manual-snapshot" (someone
 // deliberately took it) and "before-account-delete" (the one safety net for a
 // destructive, hard-to-notice-in-time action). Both stay forever. Everything
@@ -285,14 +415,17 @@ const RETENTION_DAYS: Partial<Record<BackupReason, number>> = {
 export interface BackupPruneResult {
   salonDataBackupsDeleted: number;
   databaseBackupsDeleted: number;
+  salonBundlesDeleted: number;
 }
 
 export async function pruneOldBackups(): Promise<BackupPruneResult> {
   await ensureSalonDataBackupTable();
   await ensureDatabaseBackupTable();
+  await ensureSalonBackupBundleTable();
 
   let salonDataBackupsDeleted = 0;
   let databaseBackupsDeleted = 0;
+  let salonBundlesDeleted = 0;
 
   for (const [reason, days] of Object.entries(RETENTION_DAYS) as [BackupReason, number][]) {
     const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -308,7 +441,13 @@ export async function pruneOldBackups(): Promise<BackupPruneResult> {
       args: [reason, cutoff],
     });
     databaseBackupsDeleted += Number(dbResult.rowsAffected ?? 0);
+
+    const bundleResult = await db.execute({
+      sql: "DELETE FROM salon_backup_bundles WHERE reason = ? AND created_at < ?",
+      args: [reason, cutoff],
+    });
+    salonBundlesDeleted += Number(bundleResult.rowsAffected ?? 0);
   }
 
-  return { salonDataBackupsDeleted, databaseBackupsDeleted };
+  return { salonDataBackupsDeleted, databaseBackupsDeleted, salonBundlesDeleted };
 }

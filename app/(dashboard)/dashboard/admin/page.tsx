@@ -1162,15 +1162,12 @@ interface DatabaseBackupRow {
   createdAt: string;
 }
 
-interface SalonBackupRow {
+interface SalonBundleRow {
   id: string;
   userId: string;
-  entity: string;
-  locationId: string;
-  dataKind: string;
-  recordCount: number;
   reason: string;
-  sourceUpdatedAt: string | null;
+  entityCount: number;
+  totalRecords: number;
   createdAt: string;
 }
 
@@ -1190,8 +1187,8 @@ function ReasonBadge({ reason }: { reason: string }) {
   );
 }
 
-function RestoreConfirmModal({ backup, userLabel, onClose, onRestored }: {
-  backup: SalonBackupRow;
+function RestoreBundleModal({ bundle, userLabel, onClose, onRestored }: {
+  bundle: SalonBundleRow;
   userLabel: string;
   onClose: () => void;
   onRestored: () => void;
@@ -1206,7 +1203,7 @@ function RestoreConfirmModal({ backup, userLabel, onClose, onRestored }: {
       const res = await fetch("/api/admin/backups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "restore", backupId: backup.id }),
+        body: JSON.stringify({ action: "restore-bundle", bundleId: bundle.id }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Restore failed.");
@@ -1219,13 +1216,13 @@ function RestoreConfirmModal({ backup, userLabel, onClose, onRestored }: {
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 420, maxWidth: "100%", padding: "32px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 440, maxWidth: "100%", padding: "32px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fffbeb", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
           <RotateCcw size={22} color="#d97706" />
         </div>
         <div style={{ fontWeight: 700, fontSize: 17, color: "#1a1a2e", marginBottom: 8 }}>Restore this backup?</div>
         <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 8 }}>
-          This overwrites <strong>{userLabel}</strong>&rsquo;s current <strong>{backup.dataKind}</strong> data ({backup.locationId}) with this snapshot from {fmtDate(backup.createdAt)}.
+          This overwrites <strong>all</strong> of <strong>{userLabel}</strong>&rsquo;s data — {bundle.entityCount} data type{bundle.entityCount === 1 ? "" : "s"}, {bundle.totalRecords.toLocaleString()} records — with the snapshot from {fmtDate(bundle.createdAt)}.
         </div>
         <div style={{ fontSize: 12, color: "#9898b0", marginBottom: 20 }}>
           A safety backup of the current data is taken automatically before restoring, so this itself can be undone.
@@ -1234,7 +1231,7 @@ function RestoreConfirmModal({ backup, userLabel, onClose, onRestored }: {
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onClose} disabled={restoring} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: restoring ? "not-allowed" : "pointer" }}>Cancel</button>
           <button onClick={confirmRestore} disabled={restoring} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: "#d97706", fontSize: 13, fontWeight: 600, color: "#fff", cursor: restoring ? "not-allowed" : "pointer" }}>
-            {restoring ? "Restoring…" : "Restore"}
+            {restoring ? "Restoring…" : "Restore Everything"}
           </button>
         </div>
       </div>
@@ -1244,25 +1241,25 @@ function RestoreConfirmModal({ backup, userLabel, onClose, onRestored }: {
 
 function BackupsPanel() {
   const [dbBackups, setDbBackups] = useState<DatabaseBackupRow[]>([]);
-  const [salonBackups, setSalonBackups] = useState<SalonBackupRow[]>([]);
+  const [bundles, setBundles] = useState<SalonBundleRow[]>([]);
   const [users, setUsers] = useState<AccountUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [userFilter, setUserFilter] = useState("all");
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState("");
-  const [restoreTarget, setRestoreTarget] = useState<SalonBackupRow | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<SalonBundleRow | null>(null);
 
-  function loadSalonBackups(userId: string) {
+  function loadBundles(userId: string) {
     const query = userId === "all" ? "" : `&userId=${encodeURIComponent(userId)}`;
-    return fetch(`/api/admin/backups?limit=200${query}`)
+    return fetch(`/api/admin/backups?limit=100${query}`)
       .then((res) => res.json())
-      .then((data) => { if (data.ok) setSalonBackups(data.backups); });
+      .then((data) => { if (data.ok) setBundles(data.bundles); });
   }
 
   useEffect(() => {
     Promise.all([
       fetch("/api/admin/backups?kind=database&limit=60").then((res) => res.json()).then((data) => { if (data.ok) setDbBackups(data.backups); }),
-      loadSalonBackups("all"),
+      loadBundles("all"),
       fetch("/api/admin/users").then((res) => res.json()).then((data) => { if (data.ok) setUsers(data.users); }),
     ]).finally(() => setLoading(false));
   }, []);
@@ -1283,10 +1280,10 @@ function BackupsPanel() {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Backup failed.");
-      setMessage(`Backup complete — ${data.salonData.backupsCreated} salon records, ${data.database.totalRows} rows archived.`);
+      setMessage(`Backup complete — ${data.salonBundles.bundlesCreated} salon${data.salonBundles.bundlesCreated === 1 ? "" : "s"} backed up, ${data.database.totalRows.toLocaleString()} rows archived.`);
       await Promise.all([
         fetch("/api/admin/backups?kind=database&limit=60").then((res) => res.json()).then((d) => { if (d.ok) setDbBackups(d.backups); }),
-        loadSalonBackups(userFilter),
+        loadBundles(userFilter),
       ]);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Backup failed.");
@@ -1297,7 +1294,7 @@ function BackupsPanel() {
 
   function handleUserFilterChange(userId: string) {
     setUserFilter(userId);
-    loadSalonBackups(userId);
+    loadBundles(userId);
   }
 
   if (loading) {
@@ -1313,18 +1310,18 @@ function BackupsPanel() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {restoreTarget && (
-        <RestoreConfirmModal
-          backup={restoreTarget}
+        <RestoreBundleModal
+          bundle={restoreTarget}
           userLabel={userLabel(restoreTarget.userId)}
           onClose={() => setRestoreTarget(null)}
-          onRestored={() => { setRestoreTarget(null); setMessage("Restored successfully."); loadSalonBackups(userFilter); }}
+          onRestored={() => { setRestoreTarget(null); setMessage("Restored successfully."); loadBundles(userFilter); }}
         />
       )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 13, color: "#6b6b8a", maxWidth: 520 }}>
-          A full database archive plus per-salon, per-data-type snapshots run automatically every day at 4:15 AM.
-          Backups older than 30 days (or 7 days for the automatic before-write copies) are pruned; manual snapshots and pre-delete safety copies are kept forever.
+        <div style={{ fontSize: 13, color: "#6b6b8a", maxWidth: 560 }}>
+          A full database archive plus one backup per salon (everything that salon has — clients, appointments, staff, and the rest — bundled together) run automatically every day at 4:15 AM.
+          Daily backups are kept for 30 days; manual snapshots are kept forever.
         </div>
         <button onClick={runManualBackup} disabled={running}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 700, color: "#fff", cursor: running ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}>
@@ -1366,12 +1363,12 @@ function BackupsPanel() {
         </div>
       </div>
 
-      {/* Per-salon backups */}
+      {/* Daily salon backups */}
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Archive size={15} color="#7C3AED" />
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>Per-Salon Backups</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>Daily Salon Backups</div>
           </div>
           <select value={userFilter} onChange={(e) => handleUserFilterChange(e.target.value)}
             style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 12, color: "#1a1a2e", outline: "none", background: "#fff" }}>
@@ -1380,20 +1377,22 @@ function BackupsPanel() {
           </select>
         </div>
         <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 100px 90px 90px 130px 70px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-            {["SALON", "DATA TYPE", "RECORDS", "REASON", "CREATED", ""].map((h) => (
+          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 110px 100px 130px 70px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+            {["SALON", "DATA TYPES", "RECORDS", "CREATED", ""].map((h) => (
               <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
             ))}
           </div>
-          {salonBackups.length === 0 ? (
+          {bundles.length === 0 ? (
             <div style={{ padding: "32px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No backups for this filter yet.</div>
           ) : (
-            salonBackups.map((b, i) => (
-              <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1.6fr 100px 90px 90px 130px 70px", padding: "12px 20px", alignItems: "center", borderBottom: i < salonBackups.length - 1 ? "1px solid #f4f4f8" : "none" }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userLabel(b.userId)}</div>
-                <div style={{ fontSize: 12, color: "#4a4a6a", textTransform: "capitalize" }}>{b.dataKind.replace(/_/g, " ")}</div>
-                <div style={{ fontSize: 12, color: "#4a4a6a" }}>{b.recordCount}</div>
-                <div><ReasonBadge reason={b.reason} /></div>
+            bundles.map((b, i) => (
+              <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1.6fr 110px 100px 130px 70px", padding: "12px 20px", alignItems: "center", borderBottom: i < bundles.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userLabel(b.userId)}</div>
+                  <ReasonBadge reason={b.reason} />
+                </div>
+                <div style={{ fontSize: 12, color: "#4a4a6a" }}>{b.entityCount}</div>
+                <div style={{ fontSize: 12, color: "#4a4a6a" }}>{b.totalRecords.toLocaleString()}</div>
                 <div style={{ fontSize: 11, color: "#9898b0" }}>{fmtDate(b.createdAt)}</div>
                 <button onClick={() => setRestoreTarget(b)} title="Restore this backup"
                   style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "#9898b0", display: "flex" }}
