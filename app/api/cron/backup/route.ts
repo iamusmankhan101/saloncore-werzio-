@@ -1,13 +1,14 @@
 /**
  * /api/cron/backup
  *
- * Creates daily restore points for salon_data plus a complete database archive.
- * The salon_data backups are easy admin restores for accidental user deletes;
- * the database archive is a full-table safety net.
+ * Creates daily restore points for salon_data plus a complete database archive,
+ * then prunes anything past its retention window (see RETENTION_DAYS in
+ * lib/data-backup.ts) so these tables don't grow forever. Manual snapshots and
+ * before-account-delete backups are never pruned.
  */
 
 import { NextRequest } from "next/server";
-import { snapshotAllSalonData, snapshotFullDatabase } from "@/lib/data-backup";
+import { pruneOldBackups, snapshotAllSalonData, snapshotFullDatabase } from "@/lib/data-backup";
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -25,8 +26,9 @@ export async function GET(req: NextRequest) {
       snapshotAllSalonData("scheduled-snapshot"),
       snapshotFullDatabase("scheduled-snapshot"),
     ]);
-    console.log("[backup] scheduled backup complete:", { salonData, database });
-    return Response.json({ ok: true, salonData, database });
+    const pruned = await pruneOldBackups();
+    console.log("[backup] scheduled backup complete:", { salonData, database, pruned });
+    return Response.json({ ok: true, salonData, database, pruned });
   } catch (err) {
     console.error("[backup] scheduled snapshot error:", err);
     return Response.json({ ok: false, error: "Backup failed." }, { status: 500 });

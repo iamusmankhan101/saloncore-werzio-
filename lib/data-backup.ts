@@ -272,3 +272,43 @@ export async function restoreSalonDataBackup(backupIdToRestore: string): Promise
   });
   return backup;
 }
+
+// Reasons intentionally excluded from auto-pruning: "manual-snapshot" (someone
+// deliberately took it) and "before-account-delete" (the one safety net for a
+// destructive, hard-to-notice-in-time action). Both stay forever. Everything
+// else grows unbounded otherwise — "before-write" alone was ~470 rows/week.
+const RETENTION_DAYS: Partial<Record<BackupReason, number>> = {
+  "before-write": 7,
+  "scheduled-snapshot": 30,
+};
+
+export interface BackupPruneResult {
+  salonDataBackupsDeleted: number;
+  databaseBackupsDeleted: number;
+}
+
+export async function pruneOldBackups(): Promise<BackupPruneResult> {
+  await ensureSalonDataBackupTable();
+  await ensureDatabaseBackupTable();
+
+  let salonDataBackupsDeleted = 0;
+  let databaseBackupsDeleted = 0;
+
+  for (const [reason, days] of Object.entries(RETENTION_DAYS) as [BackupReason, number][]) {
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    const salonResult = await db.execute({
+      sql: "DELETE FROM salon_data_backups WHERE reason = ? AND created_at < ?",
+      args: [reason, cutoff],
+    });
+    salonDataBackupsDeleted += Number(salonResult.rowsAffected ?? 0);
+
+    const dbResult = await db.execute({
+      sql: "DELETE FROM database_backups WHERE reason = ? AND created_at < ?",
+      args: [reason, cutoff],
+    });
+    databaseBackupsDeleted += Number(dbResult.rowsAffected ?? 0);
+  }
+
+  return { salonDataBackupsDeleted, databaseBackupsDeleted };
+}
