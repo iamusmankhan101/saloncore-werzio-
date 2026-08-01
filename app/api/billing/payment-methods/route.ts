@@ -13,10 +13,11 @@ import {
 } from "@/lib/billing-db";
 import { requireAdmin } from "@/lib/api-auth";
 
-interface MethodBody { label: string; bankTitle: string; accountNumber: string; iban: string }
+interface MethodBody { label: string; bankName: string; bankTitle: string; accountNumber: string; iban: string }
 
 function validate(body: Partial<MethodBody>): string | null {
   if (!body.label?.trim()) return "Label is required.";
+  if (!body.bankName?.trim()) return "Bank name is required.";
   if (!body.bankTitle?.trim()) return "Account title is required.";
   if (!body.accountNumber?.trim()) return "Account number is required.";
   if (!body.iban?.trim()) return "IBAN is required.";

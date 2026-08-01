@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, LayoutDashboard, User, Users, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff, MapPin, Plus, RefreshCw } from "lucide-react";
+import { AlertTriangle, CreditCard, LayoutDashboard, User, Users, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff, MapPin, Plus } from "lucide-react";
 import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser, checkServerSession, signOut } from "@/lib/auth";
@@ -439,7 +439,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [invoiceBadgeDismissed, setInvoiceBadgeDismissed] = useState(false);
   const [waStatus,      setWaStatus]       = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
-  const [manualSyncStatus, setManualSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle");
   const [locationRenderKey, setLocationRenderKey] = useState(() => getActiveLocationFilter());
   const [sectionRenderKey, setSectionRenderKey] = useState(() => getActiveSection());
 
@@ -450,22 +449,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   function handleSectionChange(section: string) {
     setSectionRenderKey(section);
-  }
-
-  async function handleManualSync() {
-    if (manualSyncStatus === "syncing") return;
-    setManualSyncStatus("syncing");
-    try {
-      await syncFromDB();
-      const ok = await syncLocalDataToDB();
-      reloadSettings();
-      window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT));
-      setManualSyncStatus(ok ? "success" : "error");
-    } catch {
-      setManualSyncStatus("error");
-    } finally {
-      window.setTimeout(() => setManualSyncStatus("idle"), 3000);
-    }
   }
 
   // Auth guard
@@ -888,31 +871,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             always pinned to their one assigned branch (server-enforced in
             resolveActor()), so showing them a switcher that can't actually
             move their data anywhere would just be a dead, confusing control. */}
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "12px 20px 0" }}>
-          <button
-            type="button"
-            onClick={handleManualSync}
-            disabled={manualSyncStatus === "syncing"}
-            title="Push this browser's visible data to the database"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              padding: "8px 13px",
-              borderRadius: 10,
-              border: manualSyncStatus === "error" ? "1px solid #fecaca" : manualSyncStatus === "success" ? "1px solid #bbf7d0" : "1px solid #e3e0eb",
-              background: manualSyncStatus === "error" ? "#fef2f2" : manualSyncStatus === "success" ? "#f0fdf4" : "#fff",
-              color: manualSyncStatus === "error" ? "#dc2626" : manualSyncStatus === "success" ? "#059669" : "#6b6b8a",
-              fontSize: 12,
-              fontWeight: 800,
-              cursor: manualSyncStatus === "syncing" ? "not-allowed" : "pointer",
-              boxShadow: "0 2px 10px rgba(16,24,40,0.04)",
-            }}
-          >
-            <RefreshCw size={14} style={{ animation: manualSyncStatus === "syncing" ? "spin 0.9s linear infinite" : "none" }} />
-            {manualSyncStatus === "syncing" ? "Syncing..." : manualSyncStatus === "success" ? "Synced" : manualSyncStatus === "error" ? "Sync failed" : "Sync Now"}
-          </button>
-        </div>
         {(getCurrentUser()?.role === "owner" || getCurrentUser()?.role === "admin") && getCurrentPlanId() === "premium" && (
           <DashboardLocationSwitcher onLocationChange={handleLocationChange} />
         )}

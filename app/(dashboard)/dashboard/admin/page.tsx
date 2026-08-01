@@ -34,6 +34,7 @@ interface BillingUserRow {
 interface PaymentMethodRow {
   id: string;
   label: string;
+  bankName: string;
   bankTitle: string;
   accountNumber: string;
   iban: string;
@@ -522,7 +523,7 @@ function PaymentMethodModal({ row, methods, onClose, onSaved }: {
               style={{ width: "100%", padding: "10px 13px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", boxSizing: "border-box", background: "#fff" }}>
               <option value="">— Platform Default ({DEFAULT_BANK_DETAILS.title}) —</option>
               {methods.map((m) => (
-                <option key={m.id} value={m.id}>{m.label} ({m.bankTitle})</option>
+                <option key={m.id} value={m.id}>{m.label} ({m.bankName ? `${m.bankName} — ` : ""}{m.bankTitle})</option>
               ))}
             </select>
             {methods.length === 0 && (
@@ -782,6 +783,7 @@ function PaymentMethodFormModal({ editing, onClose, onSaved }: {
   onSaved: (method: PaymentMethodRow) => void;
 }) {
   const [label, setLabel]                 = useState(editing?.label ?? "");
+  const [bankName, setBankName]           = useState(editing?.bankName ?? "");
   const [bankTitle, setBankTitle]         = useState(editing?.bankTitle ?? "");
   const [accountNumber, setAccountNumber] = useState(editing?.accountNumber ?? "");
   const [iban, setIban]                   = useState(editing?.iban ?? "");
@@ -795,11 +797,11 @@ function PaymentMethodFormModal({ editing, onClose, onSaved }: {
       const res = await fetch("/api/billing/payment-methods", {
         method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editing ? { id: editing.id, label, bankTitle, accountNumber, iban } : { label, bankTitle, accountNumber, iban }),
+        body: JSON.stringify(editing ? { id: editing.id, label, bankName, bankTitle, accountNumber, iban } : { label, bankName, bankTitle, accountNumber, iban }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Failed to save");
-      onSaved(editing ? { id: editing.id, label, bankTitle, accountNumber, iban, createdAt: editing.createdAt } : data.method);
+      onSaved(editing ? { id: editing.id, label, bankName, bankTitle, accountNumber, iban, createdAt: editing.createdAt } : data.method);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
@@ -830,6 +832,10 @@ function PaymentMethodFormModal({ editing, onClose, onSaved }: {
             <input value={label} onChange={(e) => setLabel(e.target.value)} disabled={saving} style={inputStyle} />
           </div>
           <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>Bank Name <span style={{ color: "#c4c4d4", fontWeight: 500 }}>(e.g. &quot;Bank Alfalah&quot;)</span></div>
+            <input value={bankName} onChange={(e) => setBankName(e.target.value)} disabled={saving} style={inputStyle} />
+          </div>
+          <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#6b6b8a", marginBottom: 6 }}>Account Title</div>
             <input value={bankTitle} onChange={(e) => setBankTitle(e.target.value)} disabled={saving} style={inputStyle} />
           </div>
@@ -847,7 +853,7 @@ function PaymentMethodFormModal({ editing, onClose, onSaved }: {
               style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: saving ? "not-allowed" : "pointer" }}>
               Cancel
             </button>
-            <button onClick={save} disabled={saving || !label.trim() || !bankTitle.trim() || !accountNumber.trim() || !iban.trim()}
+            <button onClick={save} disabled={saving || !label.trim() || !bankName.trim() || !bankTitle.trim() || !accountNumber.trim() || !iban.trim()}
               style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: saving ? "#f4f5f7" : "#7C3AED", fontSize: 13, fontWeight: 700, color: saving ? "#c4c4d4" : "#fff", cursor: saving ? "not-allowed" : "pointer" }}>
               {saving ? "Saving…" : "Save"}
             </button>
@@ -952,8 +958,8 @@ function PaymentMethodsPanel() {
       </div>
 
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 88px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-          {["LABEL", "ACCOUNT TITLE", "ACCOUNT NUMBER", "IBAN", ""].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 0.9fr 1fr 1fr 1.2fr 88px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+          {["LABEL", "BANK NAME", "ACCOUNT TITLE", "ACCOUNT NUMBER", "IBAN", ""].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
         </div>
@@ -963,8 +969,9 @@ function PaymentMethodsPanel() {
           </div>
         ) : (
           methods.map((m, i) => (
-            <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 88px", padding: "14px 20px", alignItems: "center", borderBottom: i < methods.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+            <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 0.9fr 1fr 1fr 1.2fr 88px", padding: "14px 20px", alignItems: "center", borderBottom: i < methods.length - 1 ? "1px solid #f4f4f8" : "none" }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{m.label}</div>
+              <div style={{ fontSize: 12, color: "#4a4a6a" }}>{m.bankName || "—"}</div>
               <div style={{ fontSize: 12, color: "#4a4a6a" }}>{m.bankTitle}</div>
               <div style={{ fontSize: 12, color: "#4a4a6a", fontFamily: "monospace" }}>{m.accountNumber}</div>
               <div style={{ fontSize: 12, color: "#4a4a6a", fontFamily: "monospace" }}>{m.iban}</div>

@@ -4,6 +4,7 @@
 
 /** Shown on an invoice for any salon that doesn't have a payment-detail override set. */
 export const DEFAULT_BANK_DETAILS = {
+  bankName: "Bank Alfalah",
   title: "TAREEZ TECH",
   accountNumber: "02291011176553",
   iban: "PK90ALFH0229001011176553",

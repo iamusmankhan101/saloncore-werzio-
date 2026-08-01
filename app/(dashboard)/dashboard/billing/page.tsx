@@ -229,7 +229,7 @@ export default function BillingPage() {
           if (typeof data.trialStart === "string") setTrialStart(data.trialStart);
           setIsDemoSignup(data.isDemoSignup === true);
           if (data.bankTitle && data.bankAccountNumber && data.bankIban) {
-            setBankDetails({ title: data.bankTitle, accountNumber: data.bankAccountNumber, iban: data.bankIban });
+            setBankDetails({ bankName: data.bankName ?? "", title: data.bankTitle, accountNumber: data.bankAccountNumber, iban: data.bankIban });
           }
 
           // Also update localStorage for backward compatibility
@@ -422,6 +422,7 @@ export default function BillingPage() {
                       <div style={{ fontSize: 11, color: "#6b8fa8" }}>Transfer to this account</div>
                     </div>
                   </div>
+                  {bankDetails.bankName && <CopyField label="Bank Name" value={bankDetails.bankName} />}
                   <CopyField label="Account Title" value={bankDetails.title} />
                   <CopyField label="Account Number" value={bankDetails.accountNumber} />
                   <CopyField label="IBAN" value={bankDetails.iban} />

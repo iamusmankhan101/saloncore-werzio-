@@ -37,7 +37,7 @@ interface Props {
   invoice: Invoice;
   onClose: () => void;
   /** Per-salon bank account override — defaults to the platform's if omitted. */
-  bankDetails?: { title: string; accountNumber: string; iban: string };
+  bankDetails?: { bankName: string; title: string; accountNumber: string; iban: string };
 }
 
 export default function InvoiceViewer({ invoice, onClose, bankDetails = DEFAULT_BANK_DETAILS }: Props) {
@@ -183,10 +183,11 @@ export default function InvoiceViewer({ invoice, onClose, bankDetails = DEFAULT_
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <tbody>
                     {[
+                      ["Bank Name:", bankDetails.bankName],
                       ["Account Title:", bankDetails.title],
                       ["Account Number:", bankDetails.accountNumber],
                       ["IBAN:", bankDetails.iban],
-                    ].map(([label, value]) => (
+                    ].filter(([, value]) => value).map(([label, value]) => (
                       <tr key={label}>
                         <td style={{ padding: "4px 0", color: "#555", width: "34%" }}>{label}</td>
                         <td style={{ padding: "4px 0", color: "#111", fontWeight: 800 }}>{value}</td>
