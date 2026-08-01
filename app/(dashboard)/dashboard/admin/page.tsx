@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X, ReceiptText, Users as UsersIcon, BadgeCheck, Landmark } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X, ReceiptText, Users as UsersIcon, BadgeCheck, Landmark, Archive, Database, RotateCcw } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getPaymentRequests,
@@ -1154,11 +1154,267 @@ function UsersPanel() {
   );
 }
 
+interface DatabaseBackupRow {
+  id: string;
+  reason: string;
+  tableCount: number;
+  totalRows: number;
+  createdAt: string;
+}
+
+interface SalonBackupRow {
+  id: string;
+  userId: string;
+  entity: string;
+  locationId: string;
+  dataKind: string;
+  recordCount: number;
+  reason: string;
+  sourceUpdatedAt: string | null;
+  createdAt: string;
+}
+
+const REASON_META: Record<string, { label: string; color: string; bg: string }> = {
+  "scheduled-snapshot": { label: "Daily", color: "#0369a1", bg: "#eff6ff" },
+  "before-write": { label: "Before write", color: "#6b6b8a", bg: "#f4f4f9" },
+  "manual-snapshot": { label: "Manual", color: "#7C3AED", bg: "#f5f3ff" },
+  "before-account-delete": { label: "Before delete", color: "#dc2626", bg: "#fef2f2" },
+};
+
+function ReasonBadge({ reason }: { reason: string }) {
+  const meta = REASON_META[reason] ?? { label: reason, color: "#6b6b8a", bg: "#f4f4f9" };
+  return (
+    <span style={{ fontSize: 10, fontWeight: 800, color: meta.color, background: meta.bg, borderRadius: 20, padding: "3px 9px", textTransform: "uppercase", letterSpacing: "0.03em", whiteSpace: "nowrap" }}>
+      {meta.label}
+    </span>
+  );
+}
+
+function RestoreConfirmModal({ backup, userLabel, onClose, onRestored }: {
+  backup: SalonBackupRow;
+  userLabel: string;
+  onClose: () => void;
+  onRestored: () => void;
+}) {
+  const [restoring, setRestoring] = useState(false);
+  const [error, setError] = useState("");
+
+  async function confirmRestore() {
+    setRestoring(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", backupId: backup.id }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Restore failed.");
+      onRestored();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Restore failed.");
+      setRestoring(false);
+    }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 420, maxWidth: "100%", padding: "32px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fffbeb", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <RotateCcw size={22} color="#d97706" />
+        </div>
+        <div style={{ fontWeight: 700, fontSize: 17, color: "#1a1a2e", marginBottom: 8 }}>Restore this backup?</div>
+        <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 8 }}>
+          This overwrites <strong>{userLabel}</strong>&rsquo;s current <strong>{backup.dataKind}</strong> data ({backup.locationId}) with this snapshot from {fmtDate(backup.createdAt)}.
+        </div>
+        <div style={{ fontSize: 12, color: "#9898b0", marginBottom: 20 }}>
+          A safety backup of the current data is taken automatically before restoring, so this itself can be undone.
+        </div>
+        {error && <div style={{ marginBottom: 14, padding: "8px 12px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, fontSize: 12, color: "#dc2626" }}>{error}</div>}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} disabled={restoring} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: restoring ? "not-allowed" : "pointer" }}>Cancel</button>
+          <button onClick={confirmRestore} disabled={restoring} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: "#d97706", fontSize: 13, fontWeight: 600, color: "#fff", cursor: restoring ? "not-allowed" : "pointer" }}>
+            {restoring ? "Restoring…" : "Restore"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BackupsPanel() {
+  const [dbBackups, setDbBackups] = useState<DatabaseBackupRow[]>([]);
+  const [salonBackups, setSalonBackups] = useState<SalonBackupRow[]>([]);
+  const [users, setUsers] = useState<AccountUserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userFilter, setUserFilter] = useState("all");
+  const [running, setRunning] = useState(false);
+  const [message, setMessage] = useState("");
+  const [restoreTarget, setRestoreTarget] = useState<SalonBackupRow | null>(null);
+
+  function loadSalonBackups(userId: string) {
+    const query = userId === "all" ? "" : `&userId=${encodeURIComponent(userId)}`;
+    return fetch(`/api/admin/backups?limit=200${query}`)
+      .then((res) => res.json())
+      .then((data) => { if (data.ok) setSalonBackups(data.backups); });
+  }
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/admin/backups?kind=database&limit=60").then((res) => res.json()).then((data) => { if (data.ok) setDbBackups(data.backups); }),
+      loadSalonBackups("all"),
+      fetch("/api/admin/users").then((res) => res.json()).then((data) => { if (data.ok) setUsers(data.users); }),
+    ]).finally(() => setLoading(false));
+  }, []);
+
+  function userLabel(userId: string): string {
+    const user = users.find((u) => u.id === userId);
+    return user ? `${user.salonName} (${user.email})` : userId;
+  }
+
+  async function runManualBackup() {
+    setRunning(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/admin/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "snapshot-all" }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Backup failed.");
+      setMessage(`Backup complete — ${data.salonData.backupsCreated} salon records, ${data.database.totalRows} rows archived.`);
+      await Promise.all([
+        fetch("/api/admin/backups?kind=database&limit=60").then((res) => res.json()).then((d) => { if (d.ok) setDbBackups(d.backups); }),
+        loadSalonBackups(userFilter),
+      ]);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Backup failed.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  function handleUserFilterChange(userId: string) {
+    setUserFilter(userId);
+    loadSalonBackups(userId);
+  }
+
+  if (loading) {
+    return (
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "48px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>
+        Loading backups…
+      </div>
+    );
+  }
+
+  const latestDb = dbBackups[0];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {restoreTarget && (
+        <RestoreConfirmModal
+          backup={restoreTarget}
+          userLabel={userLabel(restoreTarget.userId)}
+          onClose={() => setRestoreTarget(null)}
+          onRestored={() => { setRestoreTarget(null); setMessage("Restored successfully."); loadSalonBackups(userFilter); }}
+        />
+      )}
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 13, color: "#6b6b8a", maxWidth: 520 }}>
+          A full database archive plus per-salon, per-data-type snapshots run automatically every day at 4:15 AM.
+          Backups older than 30 days (or 7 days for the automatic before-write copies) are pruned; manual snapshots and pre-delete safety copies are kept forever.
+        </div>
+        <button onClick={runManualBackup} disabled={running}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 700, color: "#fff", cursor: running ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}>
+          <Archive size={14} /> {running ? "Running…" : "Run Backup Now"}
+        </button>
+      </div>
+
+      {message && (
+        <div style={{ padding: "10px 16px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, fontSize: 12, color: "#059669", fontWeight: 600 }}>
+          {message}
+        </div>
+      )}
+
+      {/* Full database archive */}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <Database size={15} color="#7C3AED" />
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>Full Database Archives</div>
+          {latestDb && <span style={{ fontSize: 11, color: "#9898b0" }}>— last run {fmtDate(latestDb.createdAt)}</span>}
+        </div>
+        <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+            {["CREATED", "TABLES", "TOTAL ROWS", "REASON"].map((h) => (
+              <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+            ))}
+          </div>
+          {dbBackups.length === 0 ? (
+            <div style={{ padding: "32px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No full-database archives yet.</div>
+          ) : (
+            dbBackups.map((b, i) => (
+              <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px", padding: "12px 20px", alignItems: "center", borderBottom: i < dbBackups.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+                <div style={{ fontSize: 12, color: "#4a4a6a" }}>{fmtDate(b.createdAt)}</div>
+                <div style={{ fontSize: 12, color: "#4a4a6a" }}>{b.tableCount}</div>
+                <div style={{ fontSize: 12, color: "#4a4a6a" }}>{b.totalRows.toLocaleString()}</div>
+                <div><ReasonBadge reason={b.reason} /></div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Per-salon backups */}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Archive size={15} color="#7C3AED" />
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>Per-Salon Backups</div>
+          </div>
+          <select value={userFilter} onChange={(e) => handleUserFilterChange(e.target.value)}
+            style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 12, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+            <option value="all">All salons</option>
+            {users.map((u) => <option key={u.id} value={u.id}>{u.salonName} ({u.email})</option>)}
+          </select>
+        </div>
+        <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 100px 90px 90px 130px 70px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+            {["SALON", "DATA TYPE", "RECORDS", "REASON", "CREATED", ""].map((h) => (
+              <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+            ))}
+          </div>
+          {salonBackups.length === 0 ? (
+            <div style={{ padding: "32px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No backups for this filter yet.</div>
+          ) : (
+            salonBackups.map((b, i) => (
+              <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1.6fr 100px 90px 90px 130px 70px", padding: "12px 20px", alignItems: "center", borderBottom: i < salonBackups.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userLabel(b.userId)}</div>
+                <div style={{ fontSize: 12, color: "#4a4a6a", textTransform: "capitalize" }}>{b.dataKind.replace(/_/g, " ")}</div>
+                <div style={{ fontSize: 12, color: "#4a4a6a" }}>{b.recordCount}</div>
+                <div><ReasonBadge reason={b.reason} /></div>
+                <div style={{ fontSize: 11, color: "#9898b0" }}>{fmtDate(b.createdAt)}</div>
+                <button onClick={() => setRestoreTarget(b)} title="Restore this backup"
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "#9898b0", display: "flex" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#d97706")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#9898b0")}>
+                  <RotateCcw size={13} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [filter, setFilter] = useState<PaymentStatus | "all">("all");
-  const [tab, setTab] = useState<"requests" | "salons" | "paymentMethods" | "users">("requests");
+  const [tab, setTab] = useState<"requests" | "salons" | "paymentMethods" | "users" | "backups">("requests");
   const [isAdmin, setIsAdmin] = useState(false);
   const [checking, setChecking] = useState(true);
 
@@ -1198,6 +1454,7 @@ export default function AdminPage() {
             {tab === "requests" ? "Review and approve payment requests"
               : tab === "salons" ? "Manage salon accounts and set custom pricing"
               : tab === "paymentMethods" ? "Manage the bank accounts shown on salon invoices"
+              : tab === "backups" ? "Browse, trigger, and restore database backups"
               : "Every login account on the platform"}
           </div>
         </div>
@@ -1220,6 +1477,10 @@ export default function AdminPage() {
         <button onClick={() => setTab("users")}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "users" ? "#7C3AED" : "#ebebf0"}`, background: tab === "users" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "users" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
           <UsersIcon size={14} /> Users
+        </button>
+        <button onClick={() => setTab("backups")}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "backups" ? "#7C3AED" : "#ebebf0"}`, background: tab === "backups" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "backups" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
+          <Archive size={14} /> Backups
         </button>
       </div>
 
@@ -1255,6 +1516,8 @@ export default function AdminPage() {
         <SalonAccountsPanel />
       ) : tab === "paymentMethods" ? (
         <PaymentMethodsPanel />
+      ) : tab === "backups" ? (
+        <BackupsPanel />
       ) : (
         <UsersPanel />
       )}
