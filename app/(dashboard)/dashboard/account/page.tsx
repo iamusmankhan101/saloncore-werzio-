@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Banknote, Bot, Check, ChevronLeft, ChevronRight, Clock, Copy, ImageIcon, KeyRound, Lock, LogOut, MapPin, Plus, Save, Shield, Smartphone, Store, Trash2, User, UserCog, Wand2, Zap } from "lucide-react";
+import { Archive, Banknote, Bot, Check, ChevronLeft, ChevronRight, Clock, Copy, ImageIcon, KeyRound, Lock, LogOut, MapPin, Plus, RotateCcw, Save, Shield, Smartphone, Store, Trash2, User, UserCog, Wand2, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AuthUser, getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
@@ -14,7 +14,7 @@ import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import { getDefaultLocationId, getSalonLocations, type SalonLocation } from "@/lib/locations";
 import { getCurrentPlan } from "@/lib/plan-limits";
 
-type SectionId = "profile" | "salon" | "hours" | "roles" | "security" | "whatsapp" | "mcp" | "decidr" | "tryon";
+type SectionId = "profile" | "salon" | "hours" | "roles" | "security" | "whatsapp" | "mcp" | "backups" | "decidr" | "tryon";
 
 interface SalonSettings {
   name: string;
@@ -2335,6 +2335,187 @@ function RolesPermissionsSection() {
   );
 }
 
+interface OwnBackupRow {
+  id: string;
+  entity: string;
+  locationId: string;
+  dataKind: string;
+  recordCount: number;
+  reason: string;
+  sourceUpdatedAt: string | null;
+  createdAt: string;
+}
+
+const BACKUP_REASON_META: Record<string, { label: string; color: string; bg: string }> = {
+  "scheduled-snapshot": { label: "Daily", color: "#0369a1", bg: "#eff6ff" },
+  "before-write": { label: "Before write", color: "#6b6b8a", bg: "#f4f4f9" },
+  "manual-snapshot": { label: "Manual", color: "#7C3AED", bg: "#f5f3ff" },
+  "before-account-delete": { label: "Before delete", color: "#dc2626", bg: "#fef2f2" },
+};
+
+function fmtBackupDate(iso: string) {
+  return new Date(iso).toLocaleString("en-PK", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function RestoreOwnBackupModal({ backup, onClose, onRestored }: {
+  backup: OwnBackupRow;
+  onClose: () => void;
+  onRestored: () => void;
+}) {
+  const [restoring, setRestoring] = useState(false);
+  const [error, setError] = useState("");
+
+  async function confirmRestore() {
+    setRestoring(true);
+    setError("");
+    try {
+      const res = await fetch("/api/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", backupId: backup.id }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Restore failed.");
+      onRestored();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Restore failed.");
+      setRestoring(false);
+    }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 420, maxWidth: "100%", padding: "32px 28px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fff7ed", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <RotateCcw size={22} color="#c2410c" />
+        </div>
+        <div style={{ fontWeight: 700, fontSize: 17, color: "#1d1d2f", marginBottom: 8 }}>Restore this backup?</div>
+        <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 8 }}>
+          This overwrites your current <strong>{backup.dataKind.replace(/_/g, " ")}</strong> data
+          {backup.locationId !== "main" ? ` (${backup.locationId})` : ""} with the snapshot from {fmtBackupDate(backup.createdAt)}.
+        </div>
+        <div style={{ fontSize: 12, color: "#9999b0", marginBottom: 20 }}>
+          Your current data is backed up automatically right before restoring, so this can be undone too.
+        </div>
+        {error && <div style={{ marginBottom: 14, padding: "8px 12px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, fontSize: 12, color: "#dc2626" }}>{error}</div>}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} disabled={restoring} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e5e3ef", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: restoring ? "not-allowed" : "pointer" }}>Cancel</button>
+          <button onClick={confirmRestore} disabled={restoring} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: "#c2410c", fontSize: 13, fontWeight: 600, color: "#fff", cursor: restoring ? "not-allowed" : "pointer" }}>
+            {restoring ? "Restoring…" : "Restore"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BackupRestoreSection() {
+  const [backups, setBackups] = useState<OwnBackupRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [message, setMessage] = useState("");
+  const [restoreTarget, setRestoreTarget] = useState<OwnBackupRow | null>(null);
+
+  function load() {
+    return fetch("/api/backups?limit=100")
+      .then((res) => res.json())
+      .then((data) => { if (data.ok) setBackups(data.backups); });
+  }
+
+  useEffect(() => { load().finally(() => setLoading(false)); }, []);
+
+  async function runManualBackup() {
+    setRunning(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/backups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "snapshot" }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Backup failed.");
+      setMessage(`Backup complete — ${data.backupsCreated} record${data.backupsCreated === 1 ? "" : "s"} saved.`);
+      await load();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Backup failed.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <section>
+      <h2 style={{ margin: "0 0 6px", color: "#1d1d2f", fontSize: 20, fontWeight: 900 }}>Backup &amp; Restore</h2>
+      <p style={{ margin: "0 0 20px", color: "#9999b0", fontSize: 12 }}>
+        Your salon&apos;s clients, appointments, staff, services, and other data are backed up automatically every day, plus right before every save.
+        You can also back up on demand and restore an earlier snapshot below.
+      </p>
+
+      {restoreTarget && (
+        <RestoreOwnBackupModal
+          backup={restoreTarget}
+          onClose={() => setRestoreTarget(null)}
+          onRestored={() => { setRestoreTarget(null); setMessage("Restored successfully."); load(); }}
+        />
+      )}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        <button onClick={runManualBackup} disabled={running}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 10, border: "none", background: "#7C3AED", fontSize: 13, fontWeight: 700, color: "#fff", cursor: running ? "not-allowed" : "pointer" }}>
+          <Archive size={14} /> {running ? "Backing up…" : "Back Up Now"}
+        </button>
+      </div>
+
+      {message && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#059669", fontSize: 12, fontWeight: 600 }}>
+          {message}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9999b0" }}>Loading backups…</div>
+      ) : (
+        <div style={{ borderRadius: 14, border: "1.5px solid #e5e3ef", overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px 130px 70px", padding: "10px 18px", background: "#faf9fd", borderBottom: "1px solid #e5e3ef" }}>
+            {["DATA TYPE", "RECORDS", "REASON", "CREATED", ""].map((h) => (
+              <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#aaa6b8", letterSpacing: "0.06em" }}>{h}</div>
+            ))}
+          </div>
+          {backups.length === 0 ? (
+            <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9999b0" }}>No backups yet — they&apos;ll appear here after tonight&apos;s automatic run, or click &quot;Back Up Now&quot;.</div>
+          ) : (
+            backups.map((b, i) => {
+              const meta = BACKUP_REASON_META[b.reason] ?? { label: b.reason, color: "#6b6b8a", bg: "#f4f4f9" };
+              return (
+                <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px 130px 70px", padding: "12px 18px", alignItems: "center", borderBottom: i < backups.length - 1 ? "1px solid #f3f2f8" : "none" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#29293d", textTransform: "capitalize" }}>
+                    {b.dataKind.replace(/_/g, " ")}
+                    {b.locationId !== "main" && <span style={{ fontSize: 11, color: "#9999b0", fontWeight: 500 }}> · {b.locationId}</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b6b8a" }}>{b.recordCount}</div>
+                  <div>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: meta.color, background: meta.bg, borderRadius: 20, padding: "3px 9px", textTransform: "uppercase", letterSpacing: "0.03em", whiteSpace: "nowrap" }}>
+                      {meta.label}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#9999b0" }}>{fmtBackupDate(b.createdAt)}</div>
+                  <button onClick={() => setRestoreTarget(b)} title="Restore this backup"
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, color: "#9999b0", display: "flex" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#c2410c")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "#9999b0")}>
+                    <RotateCcw size={13} />
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SectionContent({ active }: { active: SectionId }) {
   if (active === "profile")  return <ProfileSection />;
   if (active === "salon")    return <SalonProfile />;
@@ -2342,6 +2523,7 @@ function SectionContent({ active }: { active: SectionId }) {
   if (active === "roles")    return <RolesPermissionsSection />;
   if (active === "security") return <Security />;
   if (active === "mcp")      return <McpConnectionSection />;
+  if (active === "backups")  return <BackupRestoreSection />;
   if (active === "decidr")   return <DecidrLoyaltySection />;
   if (active === "tryon")    return <VirtualTryOnSection />;
   return <WhatsAppSection />;
@@ -2352,12 +2534,17 @@ export default function AccountPage() {
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === "admin";
   const currentPlan = getCurrentPlan();
-  const SECTIONS = isAdmin
-    ? [...BASE_SECTIONS,
-        { id: "decidr" as SectionId, label: "Loyalty",        icon: Banknote },
-        { id: "tryon"  as SectionId, label: "Virtual Try-On", icon: Wand2    },
-      ]
-    : BASE_SECTIONS;
+  const SECTIONS = [
+    ...BASE_SECTIONS,
+    // Restoring can overwrite live data, so this stays owner-only — managers
+    // and staff share the same underlying salon data but shouldn't be able
+    // to roll it back.
+    ...(currentUser?.role === "owner" ? [{ id: "backups" as SectionId, label: "Backup & Restore", icon: Archive }] : []),
+    ...(isAdmin ? [
+      { id: "decidr" as SectionId, label: "Loyalty",        icon: Banknote },
+      { id: "tryon"  as SectionId, label: "Virtual Try-On", icon: Wand2    },
+    ] : []),
+  ];
   const [active, setActive] = useState<SectionId>(() => {
     if (typeof window === "undefined") return "profile";
     const requested = new URLSearchParams(window.location.search).get("section") as SectionId | null;
@@ -2440,11 +2627,11 @@ export default function AccountPage() {
               const Icon = section.icon;
               const iconBgs: Record<string, string> = {
                 profile: "#EDE9FE", salon: "#e0f2fe", hours: "#fef9c3",
-                roles: "#f5f3ff", security: "#fef2f2", whatsapp: "#dcfce7", decidr: "#ecfdf5", tryon: "#fdf4ff",
+                roles: "#f5f3ff", security: "#fef2f2", whatsapp: "#dcfce7", backups: "#fff7ed", decidr: "#ecfdf5", tryon: "#fdf4ff",
               };
               const iconColors: Record<string, string> = {
                 profile: "#7C3AED", salon: "#0284c7", hours: "#ca8a04",
-                roles: "#6d28d9", security: "#dc2626", whatsapp: "#16a34a", decidr: "#059669", tryon: "#a21caf",
+                roles: "#6d28d9", security: "#dc2626", whatsapp: "#16a34a", backups: "#c2410c", decidr: "#059669", tryon: "#a21caf",
               };
               const isLocked = section.id === "whatsapp" && !currentPlan.whatsapp;
               return (
