@@ -2,9 +2,9 @@ import NailSalonPage from "../../../components/NailSalonPage";
 import { pageMetadata, webPageJsonLd } from "../../../lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Nail Salon Software | POS, Booking & Management",
+  title: "Nail Salon POS Software",
   description:
-    "Nail salon software with POS, appointment booking, scheduling, and management. The best POS system for nail salons by Salon Central",
+    "Salon Central POS software for nail salons: appointment booking, scheduling, and management. Salon Central is the best nail salon POS system and nail salon POS for your business.",
   path: "/solutions/nail-salon",
   keywords: [
     "nail salon software",
@@ -20,8 +20,8 @@ export const metadata = pageMetadata({
 });
 
 const webPageSchema = webPageJsonLd({
-  name: "Nail Salon Software | POS, Booking & Management | Salon Central",
-  description: "Nail salon software with POS, appointment booking, scheduling, and management. The best POS system for nail salons by Salon Central",
+  name: "Nail Salon POS Software | Salon Central",
+  description: "Salon Central POS software for nail salons: appointment booking, scheduling, and management. Salon Central is the best nail salon POS system and nail salon POS for your business.",
   path: "/solutions/nail-salon",
 });
 
