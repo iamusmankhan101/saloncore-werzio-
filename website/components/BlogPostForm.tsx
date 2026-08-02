@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import { Upload, Loader2, ImageOff } from "lucide-react";
+import { Upload, Loader2, ImageOff, ImagePlus } from "lucide-react";
 import type { BlogPost } from "@/lib/blog";
 
 const inp: React.CSSProperties = {
@@ -41,12 +41,33 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
   const [seoKeywordsInput, setSeoKeywordsInput] = useState((initial?.seoKeywords ?? []).join(", "));
 
   const [uploading, setUploading] = useState(false);
+  const [insertingImage, setInsertingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   function handleTitleChange(v: string) {
     setTitle(v);
     if (!slugTouched) setSlug(slugify(v));
+  }
+
+  /** Uploads a file to Cloudinary and returns its secure URL. */
+  async function uploadImage(file: File): Promise<string> {
+    const sigRes = await fetch("/api/admin/blog/upload-image", { method: "POST" });
+    const sig = await sigRes.json() as { ok: boolean; error?: string; apiKey?: string; timestamp?: number; signature?: string; cloudName?: string; folder?: string };
+    if (!sig.ok) throw new Error(sig.error || "Could not authorize the upload.");
+
+    const form = new FormData();
+    form.append("file", file);
+    form.append("api_key", sig.apiKey!);
+    form.append("timestamp", String(sig.timestamp));
+    form.append("signature", sig.signature!);
+    form.append("folder", sig.folder!);
+
+    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/image/upload`, { method: "POST", body: form });
+    const uploaded = await uploadRes.json() as { secure_url?: string; error?: { message?: string } };
+    if (!uploaded.secure_url) throw new Error(uploaded.error?.message || "Image upload failed.");
+    return uploaded.secure_url;
   }
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -56,25 +77,46 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
     setUploading(true);
     setError("");
     try {
-      const sigRes = await fetch("/api/admin/blog/upload-image", { method: "POST" });
-      const sig = await sigRes.json() as { ok: boolean; error?: string; apiKey?: string; timestamp?: number; signature?: string; cloudName?: string; folder?: string };
-      if (!sig.ok) throw new Error(sig.error || "Could not authorize the upload.");
-
-      const form = new FormData();
-      form.append("file", file);
-      form.append("api_key", sig.apiKey!);
-      form.append("timestamp", String(sig.timestamp));
-      form.append("signature", sig.signature!);
-      form.append("folder", sig.folder!);
-
-      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/image/upload`, { method: "POST", body: form });
-      const uploaded = await uploadRes.json() as { secure_url?: string; error?: { message?: string } };
-      if (!uploaded.secure_url) throw new Error(uploaded.error?.message || "Image upload failed.");
-      setCoverImage(uploaded.secure_url);
+      const url = await uploadImage(file);
+      setCoverImage(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Image upload failed.");
     } finally {
       setUploading(false);
+    }
+  }
+
+  /** Uploads an image and inserts its Markdown syntax at the caret position in the content. */
+  async function handleInsertImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setInsertingImage(true);
+    setError("");
+    try {
+      const url = await uploadImage(file);
+      const md = `![image](${url})`;
+      const el = contentRef.current;
+      if (el) {
+        const start = el.selectionStart ?? contentMd.length;
+        const end = el.selectionEnd ?? contentMd.length;
+        const before = contentMd.slice(0, start);
+        const after = contentMd.slice(end);
+        const insert = (before.trim() ? "\n\n" : "") + md + (after.trim() ? "\n\n" : "");
+        const next = before + insert + after;
+        setContentMd(next);
+        requestAnimationFrame(() => {
+          el.focus();
+          const pos = start + insert.length;
+          el.setSelectionRange(pos, pos);
+        });
+      } else {
+        setContentMd((prev) => prev + (prev.trim() ? "\n\n" : "") + md);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Image upload failed.");
+    } finally {
+      setInsertingImage(false);
     }
   }
 
@@ -173,8 +215,16 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
         </div>
 
         <div style={field}>
-          <label style={label}>Content (Markdown)</label>
-          <textarea style={{ ...inp, resize: "vertical", fontFamily: "ui-monospace, monospace", fontSize: 12.5, lineHeight: 1.6 }} rows={18} value={contentMd} onChange={(e) => setContentMd(e.target.value)} placeholder={"## A heading\n\nWrite your post in Markdown — **bold**, *italic*, [links](https://example.com), lists, images, etc."} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <label style={{ ...label, marginBottom: 0 }}>Content (Markdown)</label>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 7, border: "1px solid #e3e0eb", background: "#fafafd", fontSize: 11, fontWeight: 700, color: "#6b46c1", cursor: insertingImage ? "wait" : "pointer", userSelect: "none" }}>
+              {insertingImage ? <Loader2 size={12} className="spin" /> : <ImagePlus size={12} />}
+              {insertingImage ? "Uploading…" : "Insert image"}
+              <input type="file" accept="image/*" onChange={handleInsertImage} disabled={insertingImage} style={{ display: "none" }} />
+            </label>
+          </div>
+          <textarea ref={contentRef} style={{ ...inp, resize: "vertical", fontFamily: "ui-monospace, monospace", fontSize: 12.5, lineHeight: 1.6 }} rows={18} value={contentMd} onChange={(e) => setContentMd(e.target.value)} placeholder={"## A heading\n\nWrite your post in Markdown — **bold**, *italic*, [links](https://example.com), lists, images, etc.\n\nTip: click \"Insert image\" to upload an image straight into the post at your cursor position."} />
+          <div style={{ fontSize: 11, color: "#a0a0b8", marginTop: 4 }}>Use <strong>Insert image</strong> to add photos in the middle of your post — it uploads to Cloudinary and places the Markdown at your cursor.</div>
         </div>
 
         {error && <div style={{ marginBottom: 12, fontSize: 12, color: "#dc2626", fontWeight: 600 }}>{error}</div>}
