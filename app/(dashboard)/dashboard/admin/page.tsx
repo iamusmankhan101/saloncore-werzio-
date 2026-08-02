@@ -551,6 +551,8 @@ function InvoicesModal({ row, onClose, onMarkedPaid }: { row: BillingUserRow; on
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [dueEdits, setDueEdits] = useState<Record<string, string>>({});
+  const [savingDueId, setSavingDueId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function loadInvoices() {
@@ -594,6 +596,28 @@ function InvoicesModal({ row, onClose, onMarkedPaid }: { row: BillingUserRow; on
     }
   }
 
+  async function saveDueDate(invoice: Invoice) {
+    const newDue = dueEdits[invoice.id];
+    if (!newDue || newDue === invoice.dueDate || savingDueId) return;
+    setSavingDueId(invoice.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/set-due-date", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: row.id, invoiceId: invoice.id, dueDate: newDue }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to update due date");
+      setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? { ...inv, dueDate: newDue } : inv)));
+      setDueEdits((prev) => { const next = { ...prev }; delete next[invoice.id]; return next; });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update due date");
+    } finally {
+      setSavingDueId(null);
+    }
+  }
+
   return (
     <div onClick={markingId ? undefined : onClose} style={{ position: "fixed", inset: 0, background: "rgba(17,17,27,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 720, maxWidth: "100%", maxHeight: "86vh", overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.25)" }}>
@@ -618,20 +642,44 @@ function InvoicesModal({ row, onClose, onMarkedPaid }: { row: BillingUserRow; on
             <div style={{ padding: 48, textAlign: "center", fontSize: 13, color: "#9898b0" }}>No invoices found for this salon.</div>
           ) : (
             <div style={{ border: "1px solid #ebebf0", borderRadius: 12, overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1.1fr 110px 110px 110px 130px", padding: "10px 14px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-                {["INVOICE", "DUE", "AMOUNT", "STATUS", "ACTION"].map((h) => (
+              <div style={{ display: "grid", gridTemplateColumns: "1.1fr 190px 110px 110px 130px", padding: "10px 14px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+                {["INVOICE", "DUE DATE", "AMOUNT", "STATUS", "ACTION"].map((h) => (
                   <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
                 ))}
               </div>
               {invoices.map((invoice, i) => {
                 const paid = invoice.status === "paid";
+                const dueDraft = dueEdits[invoice.id];
+                const changed = !!dueDraft && dueDraft !== invoice.dueDate;
                 return (
-                  <div key={invoice.id} style={{ display: "grid", gridTemplateColumns: "1.1fr 110px 110px 110px 130px", padding: "13px 14px", alignItems: "center", borderBottom: i < invoices.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+                  <div key={invoice.id} style={{ display: "grid", gridTemplateColumns: "1.1fr 190px 110px 110px 130px", padding: "13px 14px", alignItems: "center", borderBottom: i < invoices.length - 1 ? "1px solid #f4f4f8" : "none" }}>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>{invoice.number}</div>
                       <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{invoice.planName}</div>
                     </div>
-                    <div style={{ fontSize: 12, color: "#6b6b8a" }}>{fmtDate(invoice.dueDate)}</div>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <input
+                          type="date"
+                          value={dueDraft ?? invoice.dueDate}
+                          onChange={(e) => setDueEdits((prev) => ({ ...prev, [invoice.id]: e.target.value }))}
+                          disabled={paid || !!savingDueId}
+                          title={paid ? "Paid invoices can't be re-dated" : "Change the due date"}
+                          style={{ fontSize: 11, padding: "5px 6px", borderRadius: 7, border: "1px solid #e4e4ee", outline: "none", width: 138, color: paid ? "#b0b0c8" : "#1a1a2e", background: paid ? "#f8f8fc" : "#fff", cursor: paid ? "not-allowed" : "text" }}
+                        />
+                        {changed && !paid && (
+                          <button
+                            onClick={() => saveDueDate(invoice)}
+                            disabled={!!savingDueId}
+                            title="Save new due date"
+                            style={{ padding: "5px 9px", borderRadius: 7, border: "none", background: savingDueId === invoice.id ? "#e4e4ee" : "#7C3AED", color: "#fff", fontSize: 11, fontWeight: 800, cursor: savingDueId ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+                          >
+                            {savingDueId === invoice.id ? "Saving…" : "Save"}
+                          </button>
+                        )}
+                      </div>
+                      {paid && <div style={{ fontSize: 10, color: "#9898b0", marginTop: 2 }}>Paid — locked</div>}
+                    </div>
                     <div style={{ fontSize: 12, fontWeight: 800, color: "#7C3AED" }}>{fmt(invoice.total)}</div>
                     <div>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 16, background: paid ? "#ecfdf5" : invoice.status === "overdue" ? "#fef2f2" : "#fffbeb", border: `1px solid ${paid ? "#6ee7b7" : invoice.status === "overdue" ? "#fecaca" : "#fde68a"}`, fontSize: 10, fontWeight: 800, color: paid ? "#059669" : invoice.status === "overdue" ? "#dc2626" : "#d97706", textTransform: "capitalize" }}>

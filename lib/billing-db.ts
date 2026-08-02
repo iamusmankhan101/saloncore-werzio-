@@ -562,6 +562,14 @@ export async function updateInvoiceAmount(invoiceId: string, amount: number, due
   });
 }
 
+/** Admin override: push/pull an unpaid invoice's due date without touching its amount. */
+export async function updateInvoiceDueDate(invoiceId: string, dueDate: string): Promise<void> {
+  await db.execute({
+    sql: "UPDATE billing_invoices SET due_date = ? WHERE id = ? AND status IN ('unpaid', 'overdue')",
+    args: [dueDate, invoiceId],
+  });
+}
+
 export async function markInvoicePaidDB(invoiceId: string): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
   await db.execute({
