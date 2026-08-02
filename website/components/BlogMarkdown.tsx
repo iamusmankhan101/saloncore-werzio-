@@ -91,12 +91,30 @@ const components: Components = {
   h3: (props) => <SectionHeading level="h3" {...props} />,
 };
 
+// Some posts authored h3 sub-sections without numbers in the markdown, so they
+// rendered as plain headings while "Step 1:" style h3s got a badge. Number any
+// unnumbered h3 sequentially so every h3 gets the attractive badge treatment.
+function autoNumberH3(md: string): string {
+  let n = 0;
+  return md
+    .split("\n")
+    .map((line) => {
+      const match = line.match(/^(#{3})\s+(.*)$/);
+      if (!match) return line;
+      const text = match[2].trim();
+      if (!text || RANK_HEADING_RE.test(text) || STEP_HEADING_RE.test(text)) return line;
+      n += 1;
+      return `### ${n}. ${text}`;
+    })
+    .join("\n");
+}
+
 /** Shared markdown renderer for blog posts — identical output in the CMS
  *  preview and on the public page, with attractive numbered headings. */
 export default function BlogMarkdown({ children }: { children: string }) {
   return (
     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypeSanitize]} components={components}>
-      {children}
+      {autoNumberH3(children)}
     </ReactMarkdown>
   );
 }
