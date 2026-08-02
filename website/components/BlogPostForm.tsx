@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import BlogMarkdown from "./BlogMarkdown";
 import SeoAnalyzer from "./SeoAnalyzer";
 import { analyzeSeo } from "@/lib/seo-analyzer";
-import { Upload, Loader2, ImageOff, ImagePlus } from "lucide-react";
+import { Upload, Loader2, ImageOff, ImagePlus, Link2, X } from "lucide-react";
 import type { BlogPost } from "@/lib/blog";
 
 const inp: React.CSSProperties = {
@@ -41,6 +41,9 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
 
   const [uploading, setUploading] = useState(false);
   const [insertingImage, setInsertingImage] = useState(false);
+  const [showLinkPrompt, setShowLinkPrompt] = useState(false);
+  const [linkText, setLinkText] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -100,6 +103,50 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
     }
   }
 
+  /** Inserts Markdown at the caret position in the content. `block` pads the
+   *  snippet with blank lines so block elements (images) sit on their own line;
+   *  inline snippets (links) are inserted directly. */
+  function insertMarkdown(md: string, block = false) {
+    const el = contentRef.current;
+    if (el) {
+      const start = el.selectionStart ?? contentMd.length;
+      const end = el.selectionEnd ?? contentMd.length;
+      const before = contentMd.slice(0, start);
+      const after = contentMd.slice(end);
+      const pad = block ? (before.trim() ? "\n\n" : "") + (after.trim() ? "\n\n" : "") : "";
+      const next = before + pad + md + pad + after;
+      setContentMd(next);
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + pad.length + md.length;
+        el.setSelectionRange(pos, pos);
+      });
+    } else {
+      setContentMd((prev) => prev + (block && prev.trim() ? "\n\n" : "") + md);
+    }
+  }
+
+  function openLinkPrompt() {
+    const el = contentRef.current;
+    const selected = el ? contentMd.slice(el.selectionStart ?? 0, el.selectionEnd ?? 0).trim() : "";
+    setLinkText(selected);
+    setLinkUrl("");
+    setShowLinkPrompt(true);
+  }
+
+  function handleInsertLink() {
+    const url = linkUrl.trim();
+    if (!url) {
+      setError("Enter a link URL.");
+      return;
+    }
+    const text = linkText.trim() || "link";
+    insertMarkdown(`[${text}](${url})`);
+    setShowLinkPrompt(false);
+    setLinkText("");
+    setLinkUrl("");
+  }
+
   /** Uploads an image and inserts its Markdown syntax at the caret position in the content. */
   async function handleInsertImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -109,24 +156,7 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
     setError("");
     try {
       const url = await uploadImage(file);
-      const md = `![image](${url})`;
-      const el = contentRef.current;
-      if (el) {
-        const start = el.selectionStart ?? contentMd.length;
-        const end = el.selectionEnd ?? contentMd.length;
-        const before = contentMd.slice(0, start);
-        const after = contentMd.slice(end);
-        const insert = (before.trim() ? "\n\n" : "") + md + (after.trim() ? "\n\n" : "");
-        const next = before + insert + after;
-        setContentMd(next);
-        requestAnimationFrame(() => {
-          el.focus();
-          const pos = start + insert.length;
-          el.setSelectionRange(pos, pos);
-        });
-      } else {
-        setContentMd((prev) => prev + (prev.trim() ? "\n\n" : "") + md);
-      }
+      insertMarkdown(`![image](${url})`, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Image upload failed.");
     } finally {
@@ -231,14 +261,19 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
         <div style={field}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
             <label style={{ ...label, marginBottom: 0 }}>Content (Markdown)</label>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 7, border: "1px solid #e3e0eb", background: "#fafafd", fontSize: 11, fontWeight: 700, color: "#6b46c1", cursor: insertingImage ? "wait" : "pointer", userSelect: "none" }}>
-              {insertingImage ? <Loader2 size={12} className="spin" /> : <ImagePlus size={12} />}
-              {insertingImage ? "Uploading…" : "Insert image"}
-              <input type="file" accept="image/*" onChange={handleInsertImage} disabled={insertingImage} style={{ display: "none" }} />
-            </label>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button type="button" onClick={openLinkPrompt} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 7, border: "1px solid #e3e0eb", background: "#fafafd", fontSize: 11, fontWeight: 700, color: "#6b46c1", cursor: "pointer", userSelect: "none" }}>
+                <Link2 size={12} /> Insert link
+              </button>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 7, border: "1px solid #e3e0eb", background: "#fafafd", fontSize: 11, fontWeight: 700, color: "#6b46c1", cursor: insertingImage ? "wait" : "pointer", userSelect: "none" }}>
+                {insertingImage ? <Loader2 size={12} className="spin" /> : <ImagePlus size={12} />}
+                {insertingImage ? "Uploading…" : "Insert image"}
+                <input type="file" accept="image/*" onChange={handleInsertImage} disabled={insertingImage} style={{ display: "none" }} />
+              </label>
+            </div>
           </div>
-          <textarea ref={contentRef} style={{ ...inp, resize: "vertical", fontFamily: "ui-monospace, monospace", fontSize: 12.5, lineHeight: 1.6 }} rows={18} value={contentMd} onChange={(e) => setContentMd(e.target.value)} placeholder={"## A heading\n\nWrite your post in Markdown — **bold**, *italic*, [links](https://example.com), lists, images, etc.\n\nTip: click \"Insert image\" to upload an image straight into the post at your cursor position."} />
-          <div style={{ fontSize: 11, color: "#a0a0b8", marginTop: 4 }}>Use <strong>Insert image</strong> to add photos in the middle of your post — it uploads to Cloudinary and places the Markdown at your cursor.</div>
+          <textarea ref={contentRef} style={{ ...inp, resize: "vertical", fontFamily: "ui-monospace, monospace", fontSize: 12.5, lineHeight: 1.6 }} rows={18} value={contentMd} onChange={(e) => setContentMd(e.target.value)} placeholder={"## A heading\n\nWrite your post in Markdown — **bold**, *italic*, [links](https://example.com), lists, images, etc.\n\nTip: use the \"Insert link\" and \"Insert image\" buttons to add them at your cursor."} />
+          <div style={{ fontSize: 11, color: "#a0a0b8", marginTop: 4 }}>Use <strong>Insert link</strong> and <strong>Insert image</strong> to add them in the middle of your post — links are placed at your cursor, images upload to Cloudinary.</div>
         </div>
 
         {error && <div style={{ marginBottom: 12, fontSize: 12, color: "#dc2626", fontWeight: 600 }}>{error}</div>}
@@ -272,6 +307,33 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
           <SeoAnalyzer analysis={analysis} />
         </div>
       </div>
+
+      {showLinkPrompt && (
+        <div onClick={() => setShowLinkPrompt(false)} style={{ position: "fixed", inset: 0, background: "rgba(17,17,27,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, width: "100%", maxWidth: 420, boxShadow: "0 24px 60px rgba(0,0,0,0.18)", padding: "22px 24px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#1a1a2e" }}>Insert Link</div>
+              <button onClick={() => setShowLinkPrompt(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9898b0", padding: 4 }}><X size={16} /></button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={{ ...label, marginBottom: 5 }}>Link text</label>
+                <input autoFocus style={inp} value={linkText} onChange={(e) => setLinkText(e.target.value)} placeholder="e.g. read the POS guide" onKeyDown={(e) => { if (e.key === "Enter") handleInsertLink(); }} />
+                {!linkText && <div style={{ fontSize: 11, color: "#a0a0b8", marginTop: 4 }}>Defaults to &quot;link&quot; if left empty. Selected text is pre-filled.</div>}
+              </div>
+              <div>
+                <label style={{ ...label, marginBottom: 5 }}>URL</label>
+                <input style={inp} value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://… or /blog/some-post" onKeyDown={(e) => { if (e.key === "Enter") handleInsertLink(); }} />
+                <div style={{ fontSize: 11, color: "#a0a0b8", marginTop: 4 }}>Paste a full URL, or start with <strong>/</strong> for an internal page on this site.</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <button onClick={() => setShowLinkPrompt(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e3e0eb", background: "#fff", color: "#6b6b8a", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+              <button onClick={handleInsertLink} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#5B21B6,#9333EA)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Insert link</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
