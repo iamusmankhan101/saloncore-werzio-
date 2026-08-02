@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import BlogMarkdown from "./BlogMarkdown";
+import SeoAnalyzer from "./SeoAnalyzer";
+import { analyzeSeo } from "@/lib/seo-analyzer";
 import { Upload, Loader2, ImageOff, ImagePlus } from "lucide-react";
 import type { BlogPost } from "@/lib/blog";
 
@@ -42,6 +44,21 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const contentRef = useRef<HTMLTextAreaElement>(null);
+
+  const seoKeywords = seoKeywordsInput.split(",").map((k) => k.trim()).filter(Boolean);
+  const analysis = useMemo(
+    () =>
+      analyzeSeo({
+        title: seoTitle.trim() || title,
+        slug,
+        description: seoDescription.trim() || excerpt,
+        contentMd,
+        coverImage,
+        focusKeyword: seoKeywords[0] ?? "",
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [title, slug, excerpt, contentMd, coverImage, seoTitle, seoDescription, seoKeywordsInput],
+  );
 
   function handleTitleChange(v: string) {
     setTitle(v);
@@ -250,6 +267,9 @@ export default function BlogPostForm({ initial }: { initial?: BlogPost }) {
         {excerpt && <p style={{ color: "#6b6b8a", fontSize: 14, marginBottom: 16 }}>{excerpt}</p>}
         <div className="blog-markdown">
           <BlogMarkdown>{contentMd || "*Start writing to see a preview…*"}</BlogMarkdown>
+        </div>
+        <div style={{ marginTop: 18 }}>
+          <SeoAnalyzer analysis={analysis} />
         </div>
       </div>
     </div>
