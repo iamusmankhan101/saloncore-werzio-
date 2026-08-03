@@ -63,6 +63,8 @@ export async function POST(req: NextRequest) {
         role: user.role,
         emailVerified: user.emailVerified,
         approvalStatus: user.approvalStatus,
+        accountFrozen: user.accountFrozen,
+        freezeReason: user.freezeReason,
         createdAt: user.createdAt,
         salonOwnerId: user.salonOwnerId,
         staffId: user.staffId,
@@ -85,7 +87,7 @@ export async function POST(req: NextRequest) {
     if (message === "Invalid email or password.") {
       return Response.json({ ok: false, error: message }, { status: 401 });
     }
-    if (message.includes("waiting for admin approval") || message.includes("not approved")) {
+    if (message.includes("waiting for admin approval") || message.includes("not approved") || message.includes("has been frozen")) {
       return Response.json({ ok: false, error: message }, { status: 403 });
     }
 

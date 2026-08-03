@@ -40,7 +40,7 @@ export async function resolveActor(
   const actorId = token ? verifySessionToken(token) : null;
   const actor = actorId ? await getUserById(actorId) : null;
   if (!actor) return null;
-  if (actor.role !== "admin" && actor.approvalStatus !== "approved") return null;
+  if (actor.role !== "admin" && (actor.approvalStatus !== "approved" || actor.accountFrozen)) return null;
 
   if (actor.role === "staff") {
     return {

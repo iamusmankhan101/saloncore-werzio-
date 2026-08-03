@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X, ReceiptText, Users as UsersIcon, BadgeCheck, Landmark, Archive, Database, RotateCcw } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X, ReceiptText, Users as UsersIcon, BadgeCheck, Landmark, Archive, Database, RotateCcw, Lock, LockOpen, Snowflake } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getPaymentRequests,
@@ -52,6 +52,8 @@ interface AccountUserRow {
   staffId?: string;
   emailVerified: boolean;
   approvalStatus: "pending" | "approved" | "rejected";
+  accountFrozen: boolean;
+  freezeReason: string | null;
   planName: string | null;
   planId: string | null;
   startedDate: string | null;
@@ -59,7 +61,7 @@ interface AccountUserRow {
   createdAt: string;
 }
 
-const USERS_GRID_COLUMNS = "minmax(240px,1.4fr) minmax(160px,1fr) minmax(140px,0.9fr) 96px 116px 130px 120px 120px 180px";
+const USERS_GRID_COLUMNS = "minmax(240px,1.4fr) minmax(160px,1fr) minmax(140px,0.9fr) 96px 116px 120px 130px 120px 120px 200px";
 const BILLING_TERMS = [1, 3, 6, 12] as const;
 type BillingTermMonths = number;
 
@@ -1056,12 +1058,82 @@ function PaymentMethodsPanel() {
   );
 }
 
+const FREEZE_PRESETS = [
+  "Unpaid invoice",
+  "Overdue payment",
+  "Violation of terms",
+  "Suspicious activity",
+  "Duplicate account",
+];
+
+function FreezeAccountModal({ row, onClose, onFrozen }: {
+  row: AccountUserRow;
+  onClose: () => void;
+  onFrozen: (reason: string) => Promise<boolean>;
+}) {
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function confirm() {
+    if (loading) return;
+    setLoading(true);
+    const ok = await onFrozen(reason.trim());
+    if (ok) onClose();
+    else setLoading(false);
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 440, maxWidth: "100%", padding: "32px 28px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Snowflake size={20} color="#dc2626" />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a2e" }}>Freeze this account?</div>
+            <div style={{ fontSize: 12, color: "#9898b0", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {row.ownerName} · {row.salonName} ({row.email})
+            </div>
+          </div>
+        </div>
+        <div style={{ fontSize: 13, color: "#6b6b8a", lineHeight: 1.6, marginBottom: 14 }}>
+          The account will be locked immediately — {row.ownerName.split(" ")[0]} will be signed out of every device and blocked from logging in until you unfreeze it.
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#1a1a2e", marginBottom: 8 }}>Reason</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+          {FREEZE_PRESETS.map((p) => (
+            <button key={p} onClick={() => setReason(p)}
+              style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${reason === p ? "#dc2626" : "#e8e8f0"}`, background: reason === p ? "#fef2f2" : "#fff", fontSize: 11, fontWeight: 700, color: reason === p ? "#dc2626" : "#6b6b8a", cursor: "pointer" }}>
+              {p}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Or type a custom reason…"
+          rows={3}
+          style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", color: "#1a1a2e" }}
+        />
+        <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+          <button onClick={onClose} disabled={loading} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #e8e8f0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#6b6b8a", cursor: loading ? "not-allowed" : "pointer" }}>Cancel</button>
+          <button onClick={confirm} disabled={loading}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", background: "#dc2626", fontSize: 13, fontWeight: 700, color: "#fff", cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <Snowflake size={14} /> {loading ? "Freezing…" : "Freeze Account"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UsersPanel() {
   const [rows, setRows] = useState<AccountUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<AccountUserRow["role"] | "all">("all");
   const [updatingApproval, setUpdatingApproval] = useState<string | null>(null);
+  const [freezeTarget, setFreezeTarget] = useState<AccountUserRow | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/users")
@@ -1108,6 +1180,28 @@ function UsersPanel() {
     }
   }
 
+  async function updateFreeze(userId: string, frozen: boolean, reason?: string): Promise<boolean> {
+    setUpdatingApproval(userId);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(frozen ? { userId, action: "freeze", reason } : { userId, action: "unfreeze" }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to update account status.");
+      setRows((prev) => prev.map((row) =>
+        row.id === userId ? { ...row, accountFrozen: frozen, freezeReason: frozen ? (reason?.trim() || null) : null } : row
+      ));
+      return true;
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update account status.");
+      return false;
+    } finally {
+      setUpdatingApproval(null);
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "48px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>
@@ -1118,6 +1212,16 @@ function UsersPanel() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {freezeTarget && (
+        <FreezeAccountModal
+          row={freezeTarget}
+          onClose={() => setFreezeTarget(null)}
+          onFrozen={async (reason) => {
+            const ok = await updateFreeze(freezeTarget.id, true, reason);
+            return ok;
+          }}
+        />
+      )}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <input
           value={search}
@@ -1141,9 +1245,9 @@ function UsersPanel() {
       </div>
 
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflowX: "auto", overflowY: "hidden" }}>
-        <div style={{ minWidth: 1420 }}>
+        <div style={{ minWidth: 1540 }}>
           <div style={{ display: "grid", gridTemplateColumns: USERS_GRID_COLUMNS, padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
-          {["NAME / EMAIL", "SALON", "PHONE", "ROLE", "APPROVAL", "PLAN", "STARTED", "INVOICE DUE", "ACTIONS"].map((h) => (
+          {["NAME / EMAIL", "SALON", "PHONE", "ROLE", "APPROVAL", "STATUS", "PLAN", "STARTED", "INVOICE DUE", "ACTIONS"].map((h) => (
             <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
           </div>
@@ -1181,10 +1285,22 @@ function UsersPanel() {
                     {row.approvalStatus}
                   </span>
                 </div>
+                <div>
+                  <span title={row.accountFrozen && row.freezeReason ? row.freezeReason : undefined}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 16,
+                      background: row.accountFrozen ? "#fef2f2" : "#f0fdf4",
+                      color: row.accountFrozen ? "#dc2626" : "#059669",
+                      fontSize: 11, fontWeight: 800, textTransform: "capitalize",
+                    }}>
+                    {row.accountFrozen ? <Lock size={12} /> : <BadgeCheck size={12} />}
+                    {row.accountFrozen ? "Frozen" : "Active"}
+                  </span>
+                </div>
                 <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 700 }}>{row.planName ?? "—"}</div>
                 <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtOptionalDate(row.startedDate)}</div>
                 <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtOptionalDate(row.invoiceDueDate)}</div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {row.role === "owner" && row.approvalStatus !== "approved" && (
                     <button onClick={() => updateApproval(row.id, "approved")} disabled={updatingApproval === row.id}
                       style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: "#059669", color: "#fff", fontSize: 11, fontWeight: 800, cursor: updatingApproval === row.id ? "not-allowed" : "pointer" }}>
@@ -1197,7 +1313,21 @@ function UsersPanel() {
                       Disapprove
                     </button>
                   )}
-                  {row.role !== "owner" && <span style={{ fontSize: 11, color: "#c4c4d4" }}>—</span>}
+                  {row.role !== "admin" && !row.accountFrozen && (
+                    <button onClick={() => setFreezeTarget(row)} disabled={updatingApproval === row.id}
+                      title="Freeze this account (blocks login and access)"
+                      style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #fecaca", background: "#fff", color: "#dc2626", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", gap: 4, cursor: updatingApproval === row.id ? "not-allowed" : "pointer" }}>
+                      <Snowflake size={12} /> Freeze
+                    </button>
+                  )}
+                  {row.role !== "admin" && row.accountFrozen && (
+                    <button onClick={() => updateFreeze(row.id, false)} disabled={updatingApproval === row.id}
+                      title={row.freezeReason ? `Frozen: ${row.freezeReason}` : "Frozen account"}
+                      style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#059669", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", gap: 4, cursor: updatingApproval === row.id ? "not-allowed" : "pointer" }}>
+                      <LockOpen size={12} /> Unfreeze
+                    </button>
+                  )}
+                  {row.role === "admin" && <span style={{ fontSize: 11, color: "#c4c4d4" }}>—</span>}
                 </div>
               </div>
             );

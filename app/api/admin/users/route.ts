@@ -7,7 +7,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { getAllUsers, updateUserApprovalStatus, type ApprovalStatus } from "@/lib/auth-db";
+import { getAllUsers, updateUserApprovalStatus, updateAccountFreeze, type ApprovalStatus } from "@/lib/auth-db";
 import { requireAdmin } from "@/lib/api-auth";
 import { getBillingAdminSummaries } from "@/lib/billing-db";
 
@@ -42,25 +42,36 @@ export async function PATCH(req: NextRequest) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 403 });
   }
 
-  let body: { userId?: string; approvalStatus?: ApprovalStatus };
+  let body: { userId?: string; approvalStatus?: ApprovalStatus; action?: "freeze" | "unfreeze"; reason?: string };
   try {
     body = await req.json();
   } catch {
     return Response.json({ ok: false, error: "Invalid request body." }, { status: 400 });
   }
 
-  if (!body.userId || !body.approvalStatus) {
-    return Response.json({ ok: false, error: "Missing userId or approvalStatus." }, { status: 400 });
-  }
-  if (!["pending", "approved", "rejected"].includes(body.approvalStatus)) {
-    return Response.json({ ok: false, error: "Invalid approval status." }, { status: 400 });
+  if (!body.userId) {
+    return Response.json({ ok: false, error: "Missing userId." }, { status: 400 });
   }
 
   try {
+    if (body.action === "freeze" || body.action === "unfreeze") {
+      const frozen = body.action === "freeze";
+      const reason = frozen ? body.reason?.trim() || "No reason provided." : null;
+      const user = await updateAccountFreeze(body.userId, frozen, reason);
+      return Response.json({ ok: true, user });
+    }
+
+    if (!body.approvalStatus) {
+      return Response.json({ ok: false, error: "Missing action or approvalStatus." }, { status: 400 });
+    }
+    if (!["pending", "approved", "rejected"].includes(body.approvalStatus)) {
+      return Response.json({ ok: false, error: "Invalid approval status." }, { status: 400 });
+    }
+
     const user = await updateUserApprovalStatus(body.userId, body.approvalStatus);
     return Response.json({ ok: true, user });
   } catch (err) {
-    console.error("[admin/users] Approval update error:", err);
-    return Response.json({ ok: false, error: err instanceof Error ? err.message : "Failed to update approval." }, { status: 500 });
+    console.error("[admin/users] Update error:", err);
+    return Response.json({ ok: false, error: err instanceof Error ? err.message : "Failed to update user." }, { status: 500 });
   }
 }

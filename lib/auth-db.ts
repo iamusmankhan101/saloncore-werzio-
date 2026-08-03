@@ -60,6 +60,8 @@ async function ensureAuthTablesUncached(): Promise<void> {
   await db.execute("ALTER TABLE users ADD COLUMN permissions TEXT").catch(() => {});
   await db.execute("ALTER TABLE users ADD COLUMN location_id TEXT").catch(() => {});
   await db.execute("ALTER TABLE users ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'approved'").catch(() => {});
+  await db.execute("ALTER TABLE users ADD COLUMN account_frozen INTEGER NOT NULL DEFAULT 0").catch(() => {});
+  await db.execute("ALTER TABLE users ADD COLUMN freeze_reason TEXT").catch(() => {});
 
   // Create index for faster email lookups
   await db.execute(`
@@ -95,6 +97,8 @@ export interface User {
   permissions?: string[];
   emailVerified: boolean;
   approvalStatus: ApprovalStatus;
+  accountFrozen: boolean;
+  freezeReason: string | null;
   createdAt: string;
 }
 
@@ -111,6 +115,8 @@ export interface AuthUser {
   permissions?: string[];
   emailVerified: boolean;
   approvalStatus: ApprovalStatus;
+  accountFrozen: boolean;
+  freezeReason: string | null;
   createdAt: string;
 }
 
@@ -132,6 +138,8 @@ function rowToUser(r: any): User {
     permissions: r.permissions ? JSON.parse(r.permissions as string) : undefined,
     emailVerified: (r.email_verified as number) === 1,
     approvalStatus: ((r.approval_status as string | undefined) || "approved") as ApprovalStatus,
+    accountFrozen: (r.account_frozen as number) === 1,
+    freezeReason: (r.freeze_reason as string) ?? null,
     createdAt: r.created_at as string,
   };
 }
@@ -293,6 +301,43 @@ export async function updateUserApprovalStatus(id: string, approvalStatus: Appro
   const updated = await getUserById(id);
   if (!updated) throw new Error("Failed to update approval status.");
   return withoutPassword(updated);
+}
+
+/**
+ * Freeze (or unfreeze) an account. A frozen account cannot log in and its
+ * active sessions are revoked immediately so any already-open dashboard is
+ * locked out. Retains an optional human-readable reason (e.g. "unpaid invoice").
+ */
+export async function updateAccountFreeze(
+  id: string,
+  frozen: boolean,
+  reason: string | null = null,
+): Promise<AuthUser> {
+  await ensureAuthTables();
+  const user = await getUserById(id);
+  if (!user) throw new Error("User not found.");
+  if (user.role === "admin") throw new Error("Admin accounts cannot be frozen.");
+
+  await db.execute({
+    sql: "UPDATE users SET account_frozen = ?, freeze_reason = ? WHERE id = ?",
+    args: [frozen ? 1 : 0, frozen ? (reason ?? null) : null, id],
+  });
+
+  // Kick any already-active sessions so the freeze applies immediately.
+  if (frozen) await revokeAllSessionsForUser(id);
+
+  const updated = await getUserById(id);
+  if (!updated) throw new Error("Failed to update account status.");
+  return withoutPassword(updated);
+}
+
+/** Revoke every active session for a user (used when an account is frozen). */
+export async function revokeAllSessionsForUser(userId: string): Promise<void> {
+  await ensureSessionsTable();
+  await db.execute({
+    sql: "UPDATE sessions SET revoked = 1 WHERE user_id = ?",
+    args: [userId],
+  });
 }
 
 export async function verifyUserEmail(email: string): Promise<AuthUser> {
@@ -468,6 +513,12 @@ export async function validateCredentials(
   }
   if (user.approvalStatus === "rejected") {
     throw new Error("Your account request was not approved. Please contact Salon Central support.");
+  }
+  if (user.accountFrozen) {
+    const reason = user.freezeReason
+      ? ` Reason given: ${user.freezeReason}.`
+      : "";
+    throw new Error(`Your account has been frozen by Salon Central.${reason} Please contact support to resolve this.`);
   }
   // Upgrade legacy plaintext password to hashed format on first successful login
   if (!user.password.startsWith("pbkdf2:")) {
