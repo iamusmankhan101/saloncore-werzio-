@@ -15,6 +15,8 @@ import { getUserById } from "./auth-db";
 export interface ResolvedActor {
   /** The salon-owner id that scopes the data (staff resolve to their owner's id). */
   userId: string;
+  /** The caller's own login-account id (differs from userId for staff/manager). */
+  actorId: string;
   locationId: string;
   role: "owner" | "manager" | "staff" | "admin";
 }
@@ -45,6 +47,7 @@ export async function resolveActor(
   if (actor.role === "staff") {
     return {
       userId: actor.salonOwnerId || actor.id,
+      actorId: actor.id,
       locationId: actor.locationId || "main",
       role: actor.role,
     };
@@ -52,11 +55,12 @@ export async function resolveActor(
   if (actor.role === "manager") {
     return {
       userId: actor.salonOwnerId || actor.id,
+      actorId: actor.id,
       locationId: actor.locationId || requestedLocationId,
       role: actor.role,
     };
   }
-  return { userId: actor.id, locationId: requestedLocationId, role: actor.role };
+  return { userId: actor.id, actorId: actor.id, locationId: requestedLocationId, role: actor.role };
 }
 
 /**

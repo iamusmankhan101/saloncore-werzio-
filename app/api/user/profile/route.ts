@@ -9,6 +9,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { ensureBillingTables } from "@/lib/billing-db";
 import { resolveActor } from "@/lib/api-auth";
+import { updateUser } from "@/lib/auth-db";
 
 export async function PATCH(req: NextRequest) {
   const actor = await resolveActor(req);
@@ -22,6 +23,17 @@ export async function PATCH(req: NextRequest) {
   }
 
   try {
+    // Persist to the caller's own login record (users table) so the changes
+    // survive logout / re-login / new devices — this is the account's source
+    // of truth for the Auth pages, sidebar, and profile.
+    if (body.ownerName !== undefined || body.salonName !== undefined || body.phone !== undefined) {
+      await updateUser(actor.actorId, {
+        ownerName: body.ownerName,
+        salonName: body.salonName,
+        phone: body.phone,
+      });
+    }
+
     await ensureBillingTables();
 
     const fields: string[] = [];
