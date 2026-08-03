@@ -442,6 +442,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [locationRenderKey, setLocationRenderKey] = useState(() => getActiveLocationFilter());
   const [sectionRenderKey, setSectionRenderKey] = useState(() => getActiveSection());
 
+  // A platform admin is not a salon account — they have no salon data, so
+  // every salon-specific effect below is skipped for them.
+  const isAdmin = getCurrentUser()?.role === "admin";
+
   async function handleLocationChange(locationId: string) {
     await syncFromDB();
     setLocationRenderKey(locationId);
@@ -457,6 +461,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const user = getCurrentUser();
       if (!user) {
         router.replace("/sign-in");
+        return;
+      }
+      // A platform admin is not a salon account — no salon features exist for
+      // them. Any salon route (including the salon dashboard) bounces to the
+      // admin panel, and only /dashboard/admin is reachable.
+      if (user.role === "admin" && !pathname.startsWith("/dashboard/admin")) {
+        router.replace("/dashboard/admin");
         return;
       }
       if (user.role === "staff") {
@@ -553,6 +564,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Settings reload happens AFTER syncFromDB so Turso data is in localStorage first
   useEffect(() => {
     if (!isReady) return;
+    if (isAdmin) return;
     const user = getCurrentUser();
     if (!user) return;
     const dataOwnerId = user.salonOwnerId || user.id;
@@ -596,7 +608,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
       })
       .catch(() => { /* fail open */ });
-  }, [isReady]);
+  }, [isReady, isAdmin]);
 
   // WhatsApp scheduler — first run is triggered by syncFromDB.then() above
   // so existing clients are already in localStorage when it first fires.
@@ -604,7 +616,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // fixed setInterval — an exact, unchanging tick period is itself a detectable bot
   // pattern, so the gap is randomized every time just like the message pacing is.
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || isAdmin) return;
     let timeoutId: number;
     const scheduleNext = () => {
       const jitterMs = 45_000 + Math.random() * 45_000; // 45-90s
@@ -615,11 +627,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
     scheduleNext();
     return () => window.clearTimeout(timeoutId);
-  }, [isReady]);
+  }, [isReady, isAdmin]);
 
   // WhatsApp connection status check
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || isAdmin) return;
     const config = settingsStore.wasender as { provider?: "wasender" | "botsailor" | "zaptick" | "chakra"; apiKey: string; botSailorApiToken?: string; botSailorPhoneNumberId?: string; zaptickApiKey?: string; chakraAccessToken?: string; chakraPluginId?: string; chakraWhatsappPhoneNumberId?: string };
     const credential = config.provider === "botsailor" ? config.botSailorApiToken : config.provider === "zaptick" ? config.zaptickApiKey : config.provider === "chakra" ? config.chakraAccessToken : config.apiKey;
     if (!credential) return;
@@ -653,11 +665,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const interval = window.setInterval(checkWa, 30 * 60_000);
     // Don't re-check on every focus — that burns rate limit needlessly.
     return () => { window.clearInterval(interval); };
-  }, [isReady]);
+  }, [isReady, isAdmin]);
 
   // Persistent low-stock badge
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || isAdmin) return;
     function checkStock() {
       const inv = getStoredInventory();
       setOutStockCount(inv.filter((i) => i.currentStock === 0).length);
@@ -667,7 +679,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const interval = window.setInterval(checkStock, 60_000);
     window.addEventListener("focus", checkStock);
     return () => { window.clearInterval(interval); window.removeEventListener("focus", checkStock); };
-  }, [isReady]);
+  }, [isReady, isAdmin]);
 
 
   // WhatsApp message toast notifications
@@ -686,7 +698,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // New booking popup + chime
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || isAdmin) return;
 
     type BookingAlert = {
       bookingId?: string;
@@ -794,7 +806,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       channel.close();
       window.clearInterval(pollInterval);
     };
-  }, [isReady]);
+  }, [isReady, isAdmin]);
 
   if (!isReady) {
     return (
@@ -870,16 +882,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Branch switching is an owner/admin-only capability — a manager is
             always pinned to their one assigned branch (server-enforced in
             resolveActor()), so showing them a switcher that can't actually
-            move their data anywhere would just be a dead, confusing control. */}
-        {(getCurrentUser()?.role === "owner" || getCurrentUser()?.role === "admin") && getCurrentPlanId() === "premium" && (
+            move their data anywhere would just be a dead, confusing control.
+            Admins have no salon at all, so neither switcher is shown to them. */}
+        {getCurrentUser()?.role === "owner" && getCurrentPlanId() === "premium" && (
           <DashboardLocationSwitcher onLocationChange={handleLocationChange} />
         )}
-        <DashboardSectionSwitcher onSectionChange={handleSectionChange} />
+        {!isAdmin && <DashboardSectionSwitcher onSectionChange={handleSectionChange} />}
         <div key={`${locationRenderKey}::${sectionRenderKey}`}>{children}</div>
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
-      {!isPosPage && (
+      {!isPosPage && !isAdmin && (
       <nav className="bottom-nav">
         {/* Left tabs */}
         {leftTabs.map((tab) => {

@@ -1598,7 +1598,11 @@ export default function AdminPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [filter, setFilter] = useState<PaymentStatus | "all">("all");
-  const [tab, setTab] = useState<"requests" | "salons" | "paymentMethods" | "users" | "backups">("requests");
+  const [tab, setTab] = useState<"requests" | "salons" | "paymentMethods" | "users" | "backups">(() => {
+    if (typeof window === "undefined") return "requests";
+    const t = new URLSearchParams(window.location.search).get("tab");
+    return (t === "salons" || t === "paymentMethods" || t === "users" || t === "backups") ? t : "requests";
+  });
   const [isAdmin, setIsAdmin] = useState(false);
   const [checking, setChecking] = useState(true);
 
@@ -1617,6 +1621,11 @@ export default function AdminPage() {
 
   function refresh() {
     setRequests(getPaymentRequests());
+  }
+
+  function goTab(next: "requests" | "salons" | "paymentMethods" | "users" | "backups") {
+    setTab(next);
+    window.history.replaceState(null, "", `?tab=${next}`);
   }
 
   if (checking || !isAdmin) return null;
@@ -1646,23 +1655,23 @@ export default function AdminPage() {
 
       {/* Tab switcher */}
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={() => setTab("requests")}
+        <button onClick={() => goTab("requests")}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "requests" ? "#7C3AED" : "#ebebf0"}`, background: tab === "requests" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "requests" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
           <Clock size={14} /> Payment Requests
         </button>
-        <button onClick={() => setTab("salons")}
+        <button onClick={() => goTab("salons")}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "salons" ? "#7C3AED" : "#ebebf0"}`, background: tab === "salons" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "salons" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
           <Store size={14} /> Salon Accounts
         </button>
-        <button onClick={() => setTab("paymentMethods")}
+        <button onClick={() => goTab("paymentMethods")}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "paymentMethods" ? "#7C3AED" : "#ebebf0"}`, background: tab === "paymentMethods" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "paymentMethods" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
           <Landmark size={14} /> Payment Methods
         </button>
-        <button onClick={() => setTab("users")}
+        <button onClick={() => goTab("users")}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "users" ? "#7C3AED" : "#ebebf0"}`, background: tab === "users" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "users" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
           <UsersIcon size={14} /> Users
         </button>
-        <button onClick={() => setTab("backups")}
+        <button onClick={() => goTab("backups")}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "backups" ? "#7C3AED" : "#ebebf0"}`, background: tab === "backups" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "backups" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
           <Archive size={14} /> Backups
         </button>

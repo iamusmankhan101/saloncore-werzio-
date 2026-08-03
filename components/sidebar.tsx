@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard, CalendarDays, Users, ClipboardList, MessageSquare,
   UserCog, BarChart3, Package, Globe, Sparkles, CreditCard, Scissors,
   CircleUserRound, LogOut, Shield, Wand2, ReceiptText, ShoppingCart,
   X, Gift, Banknote, ChevronRight, ChevronDown, MapPin, Check, Wallet, Star,
-  ClipboardCheck,
+  ClipboardCheck, Store, Landmark, Archive,
 } from "lucide-react";
 import { AuthUser, getCurrentUser, signOut } from "@/lib/auth";
 import { SETTINGS_CHANGED_EVENT, settingsStore, reloadSettings } from "@/lib/settings-store";
@@ -64,9 +64,21 @@ const SETTINGS_NAV = [
   { href: "/dashboard/billing", icon: CreditCard,      label: "Billing" },
 ];
 
+// Platform-admin only. A real admin account has no salon — just the controls
+// for running the platform: payment requests, salon accounts, payment
+// methods, users, and backups.
+const ADMIN_NAV: { tab: string; icon: React.ElementType; label: string }[] = [
+  { tab: "requests",      icon: Shield,     label: "Payment Requests" },
+  { tab: "salons",        icon: Store,      label: "Salon Accounts" },
+  { tab: "paymentMethods", icon: Landmark,  label: "Payment Methods" },
+  { tab: "users",         icon: Users,      label: "Users" },
+  { tab: "backups",       icon: Archive,    label: "Backups" },
+];
+
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const router   = useRouter();
+  const searchParams = useSearchParams();
   const [user,      setUser]      = useState<AuthUser | null>(null);
   const [salonName, setSalonName] = useState("Salon Central");
   const [salonLogo, setSalonLogo] = useState("");
@@ -111,6 +123,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const initials = (user?.ownerName || salonName || "W")
     .split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
   const isStaffUser = user?.role === "staff";
+  const isAdminUser = user?.role === "admin";
   const canSwitchLocation = !isStaffUser && multiLocationEnabled && locations.length > 1;
 
   function switchLocation(locationId: string) {
@@ -129,8 +142,10 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     return user.permissions?.includes(key) ?? false;
   };
 
-  const NavItem = ({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) => {
-    const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+  const NavItem = ({ href, icon: Icon, label, active: activeOverride }: { href: string; icon: React.ElementType; label: string; active?: boolean }) => {
+    const active = activeOverride !== undefined
+      ? activeOverride
+      : (pathname === href || (href !== "/dashboard" && pathname.startsWith(href)));
     return (
       <Link href={href} onClick={onClose} className={`sb-item${active ? " sb-active" : ""}`}>
         <span className="sb-item-icon"><Icon size={15} /></span>
@@ -139,6 +154,10 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       </Link>
     );
   };
+
+  const adminTab = pathname.startsWith("/dashboard/admin")
+    ? (searchParams.get("tab") ?? "requests")
+    : "";
 
   return (
     <>
@@ -326,7 +345,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                 {user?.ownerName || salonName}
               </div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,.68)", textTransform: "capitalize", marginTop: 2 }}>
-                {user?.role === "owner" ? "Salon Admin" : user?.role === "manager" ? "Salon Manager" : user?.role || "Salon Admin"}
+                {user?.role === "admin" ? "Platform Admin" : user?.role === "owner" ? "Salon Admin" : user?.role === "manager" ? "Salon Manager" : user?.role || "Salon Admin"}
               </div>
             </div>
 
@@ -335,20 +354,24 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
           {profileOpen && (
             <div style={{ marginTop: 7, padding: 6, borderRadius: 11, background: "#151522", border: "1px solid #292940", boxShadow: "0 12px 30px rgba(0,0,0,.32)" }}>
-              <Link href="/dashboard/account" onClick={() => { setProfileOpen(false); onClose?.(); }} className="sb-profile-menu-item">
-                <CircleUserRound size={13} /> {isStaffUser ? "My Account" : "Account & Salon Settings"}
-              </Link>
-              {!isStaffUser && (
+              {!isAdminUser && (
                 <>
-                  <Link href="/dashboard/account?section=roles" onClick={() => { setProfileOpen(false); onClose?.(); }} className="sb-profile-menu-item">
-                    <Shield size={13} /> Roles & Permissions
+                  <Link href="/dashboard/account" onClick={() => { setProfileOpen(false); onClose?.(); }} className="sb-profile-menu-item">
+                    <CircleUserRound size={13} /> {isStaffUser ? "My Account" : "Account & Salon Settings"}
                   </Link>
-                  <Link href="/dashboard/billing" onClick={() => { setProfileOpen(false); onClose?.(); }} className="sb-profile-menu-item">
-                    <CreditCard size={13} /> Billing & Current Plan
-                  </Link>
+                  {!isStaffUser && (
+                    <>
+                      <Link href="/dashboard/account?section=roles" onClick={() => { setProfileOpen(false); onClose?.(); }} className="sb-profile-menu-item">
+                        <Shield size={13} /> Roles & Permissions
+                      </Link>
+                      <Link href="/dashboard/billing" onClick={() => { setProfileOpen(false); onClose?.(); }} className="sb-profile-menu-item">
+                        <CreditCard size={13} /> Billing & Current Plan
+                      </Link>
+                    </>
+                  )}
                 </>
               )}
-              {canSwitchLocation && (
+              {!isAdminUser && canSwitchLocation && (
                 <div style={{ borderTop: "1px solid #292940", marginTop: 5, paddingTop: 5 }}>
                   <div style={{ padding: "4px 10px 5px", fontSize: 9, fontWeight: 800, color: "#777794", textTransform: "uppercase", letterSpacing: ".08em" }}>Switch Location</div>
                   {locations.map((location) => (
@@ -365,6 +388,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
               </button>
             </div>
           )}
+          {!isAdminUser && (
           <div style={{ display: "flex", justifyContent: "flex-end", padding: "6px 5px 0" }}>
             <span style={{
               borderRadius: 6, padding: "2px 7px",
@@ -375,45 +399,56 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
               {planBadge.badge}
             </span>
           </div>
+          )}
         </div>
 
         {/* ── Navigation ───────────────────────────────────── */}
         <nav className="sb-nav" style={{ flex: 1, padding: "6px 8px 8px", overflowY: "auto" }}>
-          {NAV_GROUPS.map((group) => {
-            const visibleItems = group.items.filter((item) => canAccess(item.href));
-            if (visibleItems.length === 0) return null;
-            return (
-            <div key={group.label}>
-              <div className="sb-section">{group.label}</div>
-              {visibleItems.map((item) => (
+          {isAdminUser ? (
+            <>
+              <div className="sb-section">Platform Admin</div>
+              {ADMIN_NAV.map((item) => (
                 <NavItem
-                  key={item.href}
-                  href={item.dynamicHref && user ? `${item.href}?salon=${encodeURIComponent(user.salonOwnerId || user.id)}` : item.href}
+                  key={item.tab}
+                  href={`/dashboard/admin?tab=${item.tab}`}
                   icon={item.icon}
                   label={item.label}
+                  active={adminTab === item.tab}
                 />
               ))}
-            </div>
-          )})}
-
-          {!isStaffUser && (
-            <>
-              <div className="sb-section" style={{ paddingTop: 12 }}>Settings</div>
-              {SETTINGS_NAV.map((item) => <NavItem key={item.href} {...item} />)}
             </>
-          )}
-
-          {user?.role === "admin" && (
+          ) : (
             <>
-              <div className="sb-section" style={{ paddingTop: 12 }}>Admin</div>
-              <NavItem href="/dashboard/admin" icon={Shield} label="Payment Requests" />
+              {NAV_GROUPS.map((group) => {
+                const visibleItems = group.items.filter((item) => canAccess(item.href));
+                if (visibleItems.length === 0) return null;
+                return (
+                <div key={group.label}>
+                  <div className="sb-section">{group.label}</div>
+                  {visibleItems.map((item) => (
+                    <NavItem
+                      key={item.href}
+                      href={item.dynamicHref && user ? `${item.href}?salon=${encodeURIComponent(user.salonOwnerId || user.id)}` : item.href}
+                      icon={item.icon}
+                      label={item.label}
+                    />
+                  ))}
+                </div>
+              )})}
+
+              {!isStaffUser && (
+                <>
+                  <div className="sb-section" style={{ paddingTop: 12 }}>Settings</div>
+                  {SETTINGS_NAV.map((item) => <NavItem key={item.href} {...item} />)}
+                </>
+              )}
             </>
           )}
         </nav>
 
         {/* ── Bottom: upgrade + sign out ───────────────────── */}
         <div style={{ padding: "10px 12px 16px", borderTop: "1px solid #18182a" }}>
-          {!isStaffUser && planBadge.badge !== "PREMIUM" && (
+          {!isAdminUser && !isStaffUser && planBadge.badge !== "PREMIUM" && (
             <Link href="/dashboard/billing" className="sb-upgrade" style={{ display: "block", textDecoration: "none", marginBottom: 8, transition: "opacity 0.15s" }}>
               <div style={{
                 borderRadius: 13,
