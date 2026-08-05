@@ -68,6 +68,7 @@ const SETTINGS_NAV = [
 // for running the platform: payment requests, salon accounts, payment
 // methods, users, and backups.
 const ADMIN_NAV: { tab: string; icon: React.ElementType; label: string }[] = [
+  { tab: "dashboard",     icon: LayoutDashboard, label: "Dashboard" },
   { tab: "requests",      icon: Shield,     label: "Payment Requests" },
   { tab: "salons",        icon: Store,      label: "Salon Accounts" },
   { tab: "paymentMethods", icon: Landmark,  label: "Payment Methods" },
@@ -156,7 +157,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   };
 
   const adminTab = pathname.startsWith("/dashboard/admin")
-    ? (searchParams.get("tab") ?? "requests")
+    ? (searchParams.get("tab") ?? "dashboard")
     : "";
 
   return (

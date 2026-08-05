@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X, ReceiptText, Users as UsersIcon, BadgeCheck, Landmark, Archive, Database, RotateCcw, Lock, LockOpen, Snowflake } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ImageIcon, ChevronDown, ChevronUp, Shield, Store, Pencil, Save, Ban, Trash2, AlertTriangle, X, ReceiptText, Users as UsersIcon, BadgeCheck, Landmark, Archive, Database, RotateCcw, Lock, LockOpen, Snowflake, LayoutDashboard, Banknote } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getPaymentRequests,
@@ -1127,6 +1127,186 @@ function FreezeAccountModal({ row, onClose, onFrozen }: {
   );
 }
 
+function AdminStatCard({ label, value, sub, icon: Icon, color }: { label: string; value: string; sub: string; icon: React.ElementType; color: string }) {
+  return (
+    <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em", textTransform: "uppercase" }}>{label}</div>
+        <div style={{ fontSize: 26, fontWeight: 900, color: "#1a1a2e", marginTop: 4 }}>{value}</div>
+        <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</div>
+      </div>
+      <div style={{ width: 40, height: 40, borderRadius: 12, background: `${color}14`, display: "flex", alignItems: "center", justifyContent: "center", color, flexShrink: 0 }}>
+        <Icon size={18} />
+      </div>
+    </div>
+  );
+}
+
+function AdminSectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
+      <div style={{ padding: "14px 18px", borderBottom: "1px solid #f4f4f8", fontSize: 12, fontWeight: 800, color: "#1a1a2e" }}>{title}</div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function AdminStatusChip({ label, color }: { label: string; color: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, background: "#fff", border: `1px solid ${color}44`, fontSize: 11, fontWeight: 700, color }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />
+      {label}
+    </span>
+  );
+}
+
+function AdminDashboardPanel() {
+  const [users, setUsers] = useState<AccountUserRow[]>([]);
+  const [requests] = useState<PaymentRequest[]>(() => (typeof window === "undefined" ? [] : getPaymentRequests()));
+  const [lastBackup, setLastBackup] = useState<{ createdAt: string; totalRows: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/admin/users").then((res) => res.json()).then((d) => { if (d.ok) setUsers(d.users); }),
+      fetch("/api/admin/backups?kind=database&limit=1").then((res) => res.json()).then((d) => {
+        if (d.ok && d.backups?.[0]) setLastBackup({ createdAt: d.backups[0].createdAt, totalRows: d.backups[0].totalRows });
+      }),
+    ]).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "48px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>
+        Loading dashboard…
+      </div>
+    );
+  }
+
+  const owners = users.filter((u) => u.role === "owner");
+  const staff = users.filter((u) => u.role === "staff");
+  const managers = users.filter((u) => u.role === "manager");
+  const frozen = users.filter((u) => u.accountFrozen);
+  const awaitingApproval = owners.filter((u) => u.approvalStatus === "pending");
+  const withPlan = owners.filter((u) => u.planId && u.planId !== "free");
+  const mrr = withPlan.reduce((sum, u) => sum + (PLAN_CONFIGS[u.planId as PlanId]?.price ?? 0), 0);
+  const today = new Date().toISOString().slice(0, 10);
+  const overdue = owners.filter((u) => u.invoiceDueDate && u.invoiceDueDate < today);
+
+  const pendingRequests = requests.filter((r) => r.status === "pending");
+  const approvedRequests = requests.filter((r) => r.status === "approved");
+  const rejectedRequests = requests.filter((r) => r.status === "rejected");
+  const pendingValue = pendingRequests.reduce((s, r) => s + (r.amount || 0), 0);
+
+  const planCounts = (["free", "starter", "pro", "premium"] as const).map((id) => ({
+    id,
+    name: PLAN_CONFIGS[id].name,
+    price: PLAN_CONFIGS[id].price,
+    count: owners.filter((u) => u.planId === id).length,
+  }));
+  const planMax = Math.max(...planCounts.map((p) => p.count), 1);
+
+  const recentSignups = [...users]
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .slice(0, 6);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Primary stat cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <AdminStatCard label="Salon Accounts" value={String(owners.length)} sub={`${withPlan.length} on a paid plan`} icon={Store} color="#0284c7" />
+        <AdminStatCard label="Total Accounts" value={String(users.length)} sub={`${managers.length} manager · ${staff.length} staff`} icon={UsersIcon} color="#7C3AED" />
+        <AdminStatCard label="Pending Payments" value={String(pendingRequests.length)} sub={pendingValue > 0 ? `≈ ${fmt(pendingValue)} awaiting review` : "Nothing waiting"} icon={Clock} color="#d97706" />
+        <AdminStatCard label="Monthly Recurring" value={fmt(mrr)} sub={`${withPlan.length} active subscriptions`} icon={Banknote} color="#059669" />
+      </div>
+
+      {/* Status chips row */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <AdminStatusChip label={`${awaitingApproval.length} awaiting approval`} color={awaitingApproval.length ? "#d97706" : "#059669"} />
+        <AdminStatusChip label={`${frozen.length} frozen accounts`} color={frozen.length ? "#dc2626" : "#059669"} />
+        <AdminStatusChip label={`${overdue.length} invoices overdue`} color={overdue.length ? "#dc2626" : "#059669"} />
+        <AdminStatusChip label={`${approvedRequests.length} approved · ${rejectedRequests.length} rejected`} color="#6b6b8a" />
+        <AdminStatusChip
+          label={lastBackup ? `Last backup ${fmtDate(lastBackup.createdAt)} · ${lastBackup.totalRows.toLocaleString()} rows` : "No backup yet"}
+          color="#0369a1"
+        />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
+        {/* Plan distribution */}
+        <AdminSectionCard title="Plan Distribution">
+          {planCounts.map((p) => (
+            <div key={p.id} style={{ padding: "12px 18px", borderBottom: "1px solid #f4f4f8" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#4a4a6a" }}>{p.name}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#1a1a2e" }}>
+                  {p.count} <span style={{ fontWeight: 500, color: "#9898b0" }}>salon{p.count === 1 ? "" : "s"}</span>
+                </span>
+              </div>
+              <div style={{ height: 6, background: "#f0f0f5", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ width: `${(p.count / planMax) * 100}%`, height: "100%", background: p.id === "free" ? "#94a3b8" : p.id === "starter" ? "#0ea5e9" : p.id === "pro" ? "#7C3AED" : "#d97706", borderRadius: 3 }} />
+              </div>
+              <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>{p.price > 0 ? `${fmt(p.price)}/mo` : "Free forever"}</div>
+            </div>
+          ))}
+        </AdminSectionCard>
+
+        {/* Payment requests overview */}
+        <AdminSectionCard title="Payment Requests">
+          {requests.length === 0 ? (
+            <div style={{ padding: "28px 18px", textAlign: "center", fontSize: 12, color: "#9898b0" }}>No payment requests yet.</div>
+          ) : (
+            [
+              { label: "Pending", n: pendingRequests.length, color: "#d97706", bg: "#fffbeb" },
+              { label: "Approved", n: approvedRequests.length, color: "#059669", bg: "#ecfdf5" },
+              { label: "Rejected", n: rejectedRequests.length, color: "#dc2626", bg: "#fef2f2" },
+            ].map((row) => (
+              <div key={row.label} style={{ padding: "12px 18px", borderBottom: "1px solid #f4f4f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, color: row.color }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: row.color }} /> {row.label}
+                </span>
+                <span style={{ fontSize: 15, fontWeight: 900, color: "#1a1a2e" }}>{row.n}</span>
+              </div>
+            ))
+          )}
+        </AdminSectionCard>
+      </div>
+
+      {/* Recent signups */}
+      <AdminSectionCard title="Recent Signups">
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,1.4fr) minmax(160px,1fr) 120px 140px 110px", padding: "10px 18px", background: "#fafafa", borderBottom: "1px solid #f4f4f8", minWidth: 780 }}>
+            {["NAME / EMAIL", "SALON", "ROLE", "SIGNED UP", "PLAN"].map((h) => (
+              <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
+            ))}
+          </div>
+          {recentSignups.length === 0 ? (
+            <div style={{ padding: "28px 18px", textAlign: "center", fontSize: 12, color: "#9898b0" }}>No accounts yet.</div>
+          ) : (
+            recentSignups.map((u, i) => {
+              const role = ROLE_META[u.role] ?? ROLE_META.staff;
+              return (
+                <div key={u.id} style={{ display: "grid", gridTemplateColumns: "minmax(220px,1.4fr) minmax(160px,1fr) 120px 140px 110px", padding: "11px 18px", alignItems: "center", borderBottom: i < recentSignups.length - 1 ? "1px solid #f4f4f8" : "none", minWidth: 780 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.ownerName}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b6b8a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.salonName}</div>
+                  <div>
+                    <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 9px", borderRadius: 16, background: role.bg, border: `1px solid ${role.color}44`, fontSize: 10, fontWeight: 700, color: role.color }}>{role.label}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtSignupDate(u.createdAt)}</div>
+                  <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 700 }}>{u.planName ?? "—"}</div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </AdminSectionCard>
+    </div>
+  );
+}
+
 function UsersPanel() {
   const [rows, setRows] = useState<AccountUserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1598,10 +1778,10 @@ export default function AdminPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [filter, setFilter] = useState<PaymentStatus | "all">("all");
-  const [tab, setTab] = useState<"requests" | "salons" | "paymentMethods" | "users" | "backups">(() => {
-    if (typeof window === "undefined") return "requests";
+  const [tab, setTab] = useState<"dashboard" | "requests" | "salons" | "paymentMethods" | "users" | "backups">(() => {
+    if (typeof window === "undefined") return "dashboard";
     const t = new URLSearchParams(window.location.search).get("tab");
-    return (t === "salons" || t === "paymentMethods" || t === "users" || t === "backups") ? t : "requests";
+    return (t === "requests" || t === "salons" || t === "paymentMethods" || t === "users" || t === "backups") ? t : "dashboard";
   });
   const [isAdmin, setIsAdmin] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -1623,7 +1803,7 @@ export default function AdminPage() {
     setRequests(getPaymentRequests());
   }
 
-  function goTab(next: "requests" | "salons" | "paymentMethods" | "users" | "backups") {
+  function goTab(next: "dashboard" | "requests" | "salons" | "paymentMethods" | "users" | "backups") {
     setTab(next);
     window.history.replaceState(null, "", `?tab=${next}`);
   }
@@ -1644,7 +1824,8 @@ export default function AdminPage() {
         <div>
           <div style={{ fontWeight: 800, fontSize: 22, color: "#1a1a2e" }}>Admin Panel</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginTop: 1 }}>
-            {tab === "requests" ? "Review and approve payment requests"
+            {tab === "dashboard" ? "Platform-wide overview of salons, accounts, payments and backups"
+              : tab === "requests" ? "Review and approve payment requests"
               : tab === "salons" ? "Manage salon accounts and set custom pricing"
               : tab === "paymentMethods" ? "Manage the bank accounts shown on salon invoices"
               : tab === "backups" ? "Browse, trigger, and restore database backups"
@@ -1655,6 +1836,10 @@ export default function AdminPage() {
 
       {/* Tab switcher */}
       <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={() => goTab("dashboard")}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "dashboard" ? "#7C3AED" : "#ebebf0"}`, background: tab === "dashboard" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "dashboard" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
+          <LayoutDashboard size={14} /> Dashboard
+        </button>
         <button onClick={() => goTab("requests")}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: `2px solid ${tab === "requests" ? "#7C3AED" : "#ebebf0"}`, background: tab === "requests" ? "#f5f3ff" : "#fff", fontSize: 13, fontWeight: 700, color: tab === "requests" ? "#7C3AED" : "#6b6b8a", cursor: "pointer" }}>
           <Clock size={14} /> Payment Requests
@@ -1677,7 +1862,9 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {tab === "requests" ? (
+      {tab === "dashboard" ? (
+        <AdminDashboardPanel />
+      ) : tab === "requests" ? (
         <>
           {/* Stats */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
