@@ -90,7 +90,16 @@ export default function DashboardHeader({
   const [notifs, setNotifs] = useState<Notif[]>([]);
 
   useEffect(() => {
-    setNotifs(buildNotifications());
+    function refreshNotifs() {
+      setNotifs(buildNotifications());
+    }
+    refreshNotifs();
+    window.addEventListener("werzio_data_synced", refreshNotifs);
+    window.addEventListener("werzio_new_booking_alert", refreshNotifs);
+    return () => {
+      window.removeEventListener("werzio_data_synced", refreshNotifs);
+      window.removeEventListener("werzio_new_booking_alert", refreshNotifs);
+    };
   }, []);
 
   // Refresh when panel opens

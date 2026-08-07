@@ -792,6 +792,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               startTime:   latest.startTime,
               totalAmount: latest.totalAmount ?? 0,
             });
+            // Auto-sync the new data into localStorage so the notification panel (bell) updates immediately
+            syncFromDB().then(() => {
+              window.dispatchEvent(new Event("werzio_data_synced"));
+            });
           }
         }
       } catch { /* network error — try again next tick */ }
