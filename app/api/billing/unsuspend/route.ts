@@ -1,8 +1,10 @@
 /**
  * POST /api/billing/unsuspend
- * Admin-only: called by the admin page when approving a payment request.
- * Marks the current month's invoice as paid and lifts the suspension.
- * Sends a "account restored" confirmation email.
+ * Admin-only: lifts the billing suspension for a salon account.
+ * By default (payment-approval flow) it also marks the current month's
+ * invoice as paid. Pass `markPaid: false` for a pure grace-extension
+ * unsuspend that only restores access without touching any invoice.
+ * Sends an "account restored" confirmation email.
  */
 
 import { NextRequest } from "next/server";
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 403 });
   }
 
-  let body: { userId: string; planId?: string };
+  let body: { userId?: string; planId?: string; markPaid?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -40,6 +42,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: false, error: "Missing userId." }, { status: 400 });
   }
 
+  const shouldMarkPaid = body.markPaid !== false;
+
   try {
     await ensureBillingTables();
 
@@ -50,9 +54,9 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: true, note: "User not in billing DB — skipping." });
     }
 
-    // Mark the current 30-day cycle invoice as paid
-    const inv = await getCurrentCycleInvoice(userId);
-    if (inv && inv.status !== "paid") {
+    // Mark the current 30-day cycle invoice as paid (only for payment approvals)
+    const inv = shouldMarkPaid ? await getCurrentCycleInvoice(userId) : null;
+    if (shouldMarkPaid && inv && inv.status !== "paid") {
       await markInvoicePaidDB(inv.id);
     }
 
@@ -76,11 +80,13 @@ export async function POST(req: NextRequest) {
       <div style="font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:12px">✅ Account restored!</div>
       <p style="color:#6b6b8a;font-size:14px;line-height:1.7;margin:0 0 20px">
         Hi <strong>${user.ownerName}</strong>,<br>
-        Your payment has been confirmed and your <strong>${user.planName} Plan</strong> is now active again.
-        ${inv ? `Invoice <strong>${inv.number}</strong> (${fmt(inv.amount)}) has been marked as paid on ${fmtDate(new Date().toISOString().slice(0, 10))}.` : ""}
+        ${shouldMarkPaid
+          ? `Your payment has been confirmed and your <strong>${user.planName} Plan</strong> is now active again.`
+          : `Your <strong>${user.planName} Plan</strong> access has been restored by our team.`}
+        ${shouldMarkPaid && inv ? `Invoice <strong>${inv.number}</strong> (${fmt(inv.amount)}) has been marked as paid on ${fmtDate(new Date().toISOString().slice(0, 10))}.` : ""}
       </p>
       <div style="padding:14px 16px;background:#ecfdf5;border-radius:10px;border:1px solid #6ee7b7;font-size:13px;color:#065f46;font-weight:600">
-        Your full dashboard access has been restored. Thank you for your payment!
+        Your full dashboard access has been restored. ${shouldMarkPaid ? "Thank you for your payment!" : ""}
       </div>
     </div>
     <div style="background:#f8f8fc;padding:16px 36px;border-top:1px solid #ebebf0;text-align:center;color:#b0b0c8;font-size:11px">
@@ -94,9 +100,11 @@ export async function POST(req: NextRequest) {
         from: "Salon Central Billing <noreply@saloncentral.xyz>",
         replyTo: "support@saloncentral.xyz",
         to: [user.email],
-        subject: `✅ Your Salon Central account is restored — Payment confirmed`,
+        subject: shouldMarkPaid ? `✅ Your Salon Central account is restored — Payment confirmed` : `✅ Your Salon Central account is restored`,
         html,
-        text: `Hi ${user.ownerName},\n\nYour payment has been confirmed and your ${user.planName} Plan is now active. Full dashboard access has been restored.\n\nThank you!\n— Salon Central`,
+        text: shouldMarkPaid
+          ? `Hi ${user.ownerName},\n\nYour payment has been confirmed and your ${user.planName} Plan is now active. Full dashboard access has been restored.\n\nThank you!\n— Salon Central`
+          : `Hi ${user.ownerName},\n\nYour ${user.planName} Plan access has been restored by our team. You can now log in to Salon Central as usual.\n\n— Salon Central`,
       }).catch((e) => console.error("[billing/unsuspend] email error:", e));
     }
 

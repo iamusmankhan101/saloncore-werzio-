@@ -715,6 +715,7 @@ function SalonAccountsPanel() {
   const [deleteTarget, setDeleteTarget] = useState<BillingUserRow | null>(null);
   const [invoiceTarget, setInvoiceTarget] = useState<BillingUserRow | null>(null);
   const [paymentTarget, setPaymentTarget] = useState<BillingUserRow | null>(null);
+  const [unsuspendingId, setUnsuspendingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/billing/users")
@@ -741,6 +742,26 @@ function SalonAccountsPanel() {
 
   function handleMarkedPaid(userId: string) {
     setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, suspended: false, suspensionReason: null } : r)));
+  }
+
+  async function unsuspend(row: BillingUserRow) {
+    if (unsuspendingId) return;
+    if (!window.confirm(`Restore access for ${row.salonName}? This lifts the billing suspension without marking any invoice as paid.`)) return;
+    setUnsuspendingId(row.id);
+    try {
+      const res = await fetch("/api/billing/unsuspend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: row.id, markPaid: false }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to unsuspend account");
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, suspended: false, suspensionReason: null } : r)));
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Failed to unsuspend account");
+    } finally {
+      setUnsuspendingId(null);
+    }
   }
 
   function handlePaymentMethodSaved(userId: string, paymentMethodId: string | null) {
@@ -770,7 +791,7 @@ function SalonAccountsPanel() {
         style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e4e4ee", fontSize: 13, outline: "none", maxWidth: 340 }}
       />
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 130px 100px 210px 96px 40px 44px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 130px 190px 210px 96px 40px 44px", padding: "10px 20px", background: "#fafafa", borderBottom: "1px solid #f0f0f8" }}>
           {["SALON", "PLAN", "STATUS", "TERM / PRICE", "INVOICES", "", ""].map((h, i) => (
             <div key={i} style={{ fontSize: 10, fontWeight: 800, color: "#b0b0c8", letterSpacing: "0.08em" }}>{h}</div>
           ))}
@@ -779,15 +800,22 @@ function SalonAccountsPanel() {
           <div style={{ padding: "40px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>No salon accounts found</div>
         ) : (
           filtered.map((row, i) => (
-            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 130px 100px 210px 96px 40px 44px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
+            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 130px 190px 210px 96px 40px 44px", padding: "14px 20px", alignItems: "center", borderBottom: i < filtered.length - 1 ? "1px solid #f4f4f8" : "none" }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{row.salonName}</div>
                 <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{row.ownerName} · {row.email}</div>
               </div>
               <PlanCell row={row} onSaved={handlePlanSaved} />
-              <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 {row.suspended ? (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 16, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 10, fontWeight: 700, color: "#dc2626" }}>Suspended</span>
+                  <>
+                    <span title={row.suspensionReason ?? undefined} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 16, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 10, fontWeight: 700, color: "#dc2626" }}>Suspended</span>
+                    <button onClick={() => unsuspend(row)} disabled={!!unsuspendingId}
+                      title={row.suspensionReason ?? "Account suspended — restore access"}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, border: "none", background: unsuspendingId === row.id ? "#e4e4ee" : "#059669", color: "#fff", fontSize: 10, fontWeight: 800, cursor: unsuspendingId ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}>
+                      <RotateCcw size={10} /> {unsuspendingId === row.id ? "Restoring…" : "Unsuspend"}
+                    </button>
+                  </>
                 ) : (
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 16, background: "#ecfdf5", border: "1px solid #6ee7b7", fontSize: 10, fontWeight: 700, color: "#059669" }}>Active</span>
                 )}
