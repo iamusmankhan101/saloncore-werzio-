@@ -172,6 +172,8 @@ export interface BillingAdminSummary {
   billingTermMonths: number;
   trialStart: string;
   invoiceDueDate: string | null;
+  /** Id of the earliest unpaid/overdue invoice (the one invoiceDueDate refers to), so admins can re-date it. */
+  invoiceId: string | null;
 }
 
 // ─── Row → typed objects ──────────────────────────────────────────────────────
@@ -327,7 +329,15 @@ export async function getBillingAdminSummaries(userIds: string[]): Promise<Map<s
             AND bi.status IN ('unpaid', 'overdue')
           ORDER BY bi.due_date ASC
           LIMIT 1
-        ) AS invoice_due_date
+        ) AS invoice_due_date,
+        (
+          SELECT bi.id
+          FROM billing_invoices bi
+          WHERE bi.user_id = bu.id
+            AND bi.status IN ('unpaid', 'overdue')
+          ORDER BY bi.due_date ASC
+          LIMIT 1
+        ) AS invoice_id
       FROM billing_users bu
       WHERE bu.id IN (${placeholders})
     `,
@@ -348,6 +358,7 @@ export async function getBillingAdminSummaries(userIds: string[]): Promise<Map<s
       billingTermMonths,
       trialStart,
       invoiceDueDate,
+      invoiceId: (row.invoice_id as string | null) ?? null,
     });
   }
   return summaries;

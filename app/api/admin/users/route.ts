@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
         planId: billing?.planId ?? null,
         startedDate: billing?.trialStart ?? null,
         invoiceDueDate: billing?.invoiceDueDate ?? null,
+        invoiceId: billing?.invoiceId ?? null,
       };
     });
     return Response.json({ ok: true, users: enrichedUsers });

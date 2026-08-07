@@ -58,6 +58,7 @@ interface AccountUserRow {
   planId: string | null;
   startedDate: string | null;
   invoiceDueDate: string | null;
+  invoiceId: string | null;
   createdAt: string;
 }
 
@@ -1314,6 +1315,9 @@ function UsersPanel() {
   const [roleFilter, setRoleFilter] = useState<AccountUserRow["role"] | "all">("all");
   const [updatingApproval, setUpdatingApproval] = useState<string | null>(null);
   const [freezeTarget, setFreezeTarget] = useState<AccountUserRow | null>(null);
+  const [dueDrafts, setDueDrafts] = useState<Record<string, string>>({});
+  const [savingDueId, setSavingDueId] = useState<string | null>(null);
+  const [dueError, setDueError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/users")
@@ -1382,6 +1386,28 @@ function UsersPanel() {
     }
   }
 
+  async function saveDueDate(row: AccountUserRow) {
+    const newDue = dueDrafts[row.id];
+    if (!row.invoiceId || !newDue || newDue === row.invoiceDueDate || savingDueId) return;
+    setSavingDueId(row.id);
+    setDueError(null);
+    try {
+      const res = await fetch("/api/billing/set-due-date", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: row.id, invoiceId: row.invoiceId, dueDate: newDue }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to update due date");
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, invoiceDueDate: newDue } : r)));
+      setDueDrafts((prev) => { const next = { ...prev }; delete next[row.id]; return next; });
+    } catch (e) {
+      setDueError(e instanceof Error ? e.message : "Failed to update due date");
+    } finally {
+      setSavingDueId(null);
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ebebf0", padding: "48px", textAlign: "center", fontSize: 13, color: "#9898b0" }}>
@@ -1401,6 +1427,11 @@ function UsersPanel() {
             return ok;
           }}
         />
+      )}
+      {dueError && (
+        <div style={{ padding: "10px 14px", borderRadius: 9, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 12, color: "#dc2626", fontWeight: 700 }}>
+          {dueError}
+        </div>
       )}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <input
@@ -1479,7 +1510,32 @@ function UsersPanel() {
                 </div>
                 <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 700 }}>{row.planName ?? "—"}</div>
                 <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtOptionalDate(row.startedDate)}</div>
-                <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtOptionalDate(row.invoiceDueDate)}</div>
+                <div>
+                  {row.role === "owner" && row.invoiceId ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <input
+                        type="date"
+                        value={dueDrafts[row.id] ?? row.invoiceDueDate ?? ""}
+                        onChange={(e) => setDueDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                        disabled={!!savingDueId}
+                        title="Change the due date of the salon's next unpaid invoice"
+                        style={{ fontSize: 11, padding: "5px 6px", borderRadius: 7, border: "1px solid #e4e4ee", outline: "none", width: 138, color: "#1a1a2e", background: "#fff", cursor: savingDueId ? "not-allowed" : "text" }}
+                      />
+                      {!!dueDrafts[row.id] && dueDrafts[row.id] !== row.invoiceDueDate && (
+                        <button
+                          onClick={() => saveDueDate(row)}
+                          disabled={!!savingDueId}
+                          title="Save new due date"
+                          style={{ padding: "5px 9px", borderRadius: 7, border: "none", background: savingDueId === row.id ? "#e4e4ee" : "#7C3AED", color: "#fff", fontSize: 11, fontWeight: 800, cursor: savingDueId ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+                        >
+                          {savingDueId === row.id ? "Saving…" : "Save"}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: "#9898b0" }}>{fmtOptionalDate(row.invoiceDueDate)}</div>
+                  )}
+                </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {row.role === "owner" && row.approvalStatus !== "approved" && (
                     <button onClick={() => updateApproval(row.id, "approved")} disabled={updatingApproval === row.id}
