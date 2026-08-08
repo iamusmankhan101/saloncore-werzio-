@@ -109,6 +109,10 @@ export async function ensureBillingTables(): Promise<void> {
     // Added after payment_methods' initial release — backfills existing rows
     // with an empty string rather than leaving them without the column.
     ["payment_methods",  "bank_name",         "TEXT NOT NULL DEFAULT ''"],
+    // Whether an admin manually re-dated this invoice (via /api/billing/set-due-date).
+    // When set, later price/term/plan changes keep the manual date instead of
+    // recomputing it and silently undoing the admin's extension.
+    ["billing_invoices", "due_date_overridden", "INTEGER NOT NULL DEFAULT 0"],
   ] as const) {
     await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`)
       .catch(() => { /* column already exists — ignore */ });
@@ -172,7 +176,9 @@ export interface BillingAdminSummary {
   billingTermMonths: number;
   trialStart: string;
   invoiceDueDate: string | null;
-  /** Id of the earliest unpaid/overdue invoice (the one invoiceDueDate refers to), so admins can re-date it. */
+  /** Id of the current (newest-period) unpaid/overdue invoice — the one the
+   *  salon's own Billing page shows as "latest", so admins can re-date the
+   *  invoice the salon actually sees rather than an older unpaid one. */
   invoiceId: string | null;
 }
 
@@ -327,7 +333,7 @@ export async function getBillingAdminSummaries(userIds: string[]): Promise<Map<s
           FROM billing_invoices bi
           WHERE bi.user_id = bu.id
             AND bi.status IN ('unpaid', 'overdue')
-          ORDER BY bi.due_date ASC
+          ORDER BY bi.period_start DESC
           LIMIT 1
         ) AS invoice_due_date,
         (
@@ -335,7 +341,7 @@ export async function getBillingAdminSummaries(userIds: string[]): Promise<Map<s
           FROM billing_invoices bi
           WHERE bi.user_id = bu.id
             AND bi.status IN ('unpaid', 'overdue')
-          ORDER BY bi.due_date ASC
+          ORDER BY bi.period_start DESC
           LIMIT 1
         ) AS invoice_id
       FROM billing_users bu
@@ -563,11 +569,16 @@ export async function markInvoiceOverdue(id: string): Promise<void> {
   });
 }
 
-/** Admin override: re-price an invoice that hasn't been paid yet (e.g. after a custom price change). */
+/**
+ * Admin override: re-price an invoice that hasn't been paid yet (e.g. after a
+ * custom price change). The recomputed due date only applies when the invoice
+ * wasn't manually re-dated by an admin — a manual extension is preserved so
+ * the salon never sees its due date silently snap back.
+ */
 export async function updateInvoiceAmount(invoiceId: string, amount: number, dueDate?: string): Promise<void> {
   await db.execute({
     sql: dueDate
-      ? "UPDATE billing_invoices SET amount = ?, due_date = ? WHERE id = ? AND status IN ('unpaid', 'overdue')"
+      ? "UPDATE billing_invoices SET amount = ?, due_date = CASE WHEN due_date_overridden = 1 THEN due_date ELSE ? END WHERE id = ? AND status IN ('unpaid', 'overdue')"
       : "UPDATE billing_invoices SET amount = ? WHERE id = ? AND status IN ('unpaid', 'overdue')",
     args: dueDate ? [amount, dueDate, invoiceId] : [amount, invoiceId],
   });
@@ -576,7 +587,7 @@ export async function updateInvoiceAmount(invoiceId: string, amount: number, due
 /** Admin override: push/pull an unpaid invoice's due date without touching its amount. */
 export async function updateInvoiceDueDate(invoiceId: string, dueDate: string): Promise<void> {
   await db.execute({
-    sql: "UPDATE billing_invoices SET due_date = ? WHERE id = ? AND status IN ('unpaid', 'overdue')",
+    sql: "UPDATE billing_invoices SET due_date = ?, due_date_overridden = 1 WHERE id = ? AND status IN ('unpaid', 'overdue')",
     args: [dueDate, invoiceId],
   });
 }
