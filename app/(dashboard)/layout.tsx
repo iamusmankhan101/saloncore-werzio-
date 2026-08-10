@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { AlertTriangle, CreditCard, LayoutDashboard, User, Users, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff, MapPin, Plus } from "lucide-react";
+import { AlertTriangle, CreditCard, LayoutDashboard, User, Users, ClipboardList, CheckCircle, XCircle, X, CalendarCheck, WifiOff, MapPin, Plus, Trash2 } from "lucide-react";
 import type { WaLogEntry } from "@/lib/whatsapp-scheduler";
 import Sidebar from "@/components/sidebar";
 import { getCurrentUser, checkServerSession, signOut } from "@/lib/auth";
@@ -16,7 +16,7 @@ import { getActiveSection, setActiveSection, getSectionOptions } from "@/lib/sec
 import type { Invoice } from "@/lib/invoices";
 import { PLAN_CONFIGS, getCurrentPlanId, type PlanId } from "@/lib/plan-limits";
 import { setActivePlan } from "@/lib/payment-requests";
-import { addSalonLocation, getActiveLocationFilter, getSalonLocations, setActiveLocationFilter, type SalonLocation } from "@/lib/locations";
+import { addSalonLocation, clearLocationLocalData, getActiveLocationFilter, getSalonLocations, removeSalonLocation, setActiveLocationFilter, type SalonLocation } from "@/lib/locations";
 
 // ─── Notification chime ───────────────────────────────────────────────────────
 
@@ -111,6 +111,10 @@ function DashboardLocationSwitcher({ onLocationChange }: { onLocationChange: (lo
   const [locationForm, setLocationForm] = useState({ name: "", address: "", city: "" });
   const [locationError, setLocationError] = useState("");
   const [switching, setSwitching] = useState(false);
+  const [showManageLocations, setShowManageLocations] = useState(false);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [manageError, setManageError] = useState("");
 
   useEffect(() => {
     function refresh() {
@@ -174,6 +178,41 @@ function DashboardLocationSwitcher({ onLocationChange }: { onLocationChange: (lo
       void changeLocation(location.id);
     } catch (error) {
       setLocationError(error instanceof Error ? error.message : "Unable to add this location.");
+    }
+  }
+
+  async function handleDeleteLocation(locationId: string) {
+    if (deletingId) return;
+    setDeletingId(locationId);
+    setManageError("");
+    try {
+      const { nextActiveId } = removeSalonLocation(locationId);
+      clearLocationLocalData(locationId);
+      // Best-effort cleanup of this branch's rows in the shared DB — local
+      // cleanup already happened, so a failed fetch just leaves orphaned rows
+      // that no branch will ever read again.
+      try {
+        await fetch(`/api/db?locationId=${encodeURIComponent(locationId)}`, { method: "DELETE" });
+      } catch (err) {
+        console.warn("[locations] Failed to delete branch rows from DB:", err);
+      }
+      setLocations(getSalonLocations());
+      // If the deleted branch was active, switch the dashboard onto the new
+      // active branch and re-sync its data so pages remount with fresh state.
+      if (activeLocation === locationId) {
+        setActiveLocation(nextActiveId);
+        setSwitching(true);
+        try {
+          await onLocationChange(nextActiveId);
+        } finally {
+          setSwitching(false);
+        }
+      }
+      setConfirmingDeleteId(null);
+    } catch (error) {
+      setManageError(error instanceof Error ? error.message : "Unable to delete this location.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -259,6 +298,26 @@ function DashboardLocationSwitcher({ onLocationChange }: { onLocationChange: (lo
         >
           <Plus size={13} /> Add Location
         </button>
+        <button
+          type="button"
+          onClick={() => { setManageError(""); setConfirmingDeleteId(null); setShowManageLocations(true); }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "9px 13px",
+            borderRadius: 12,
+            border: "1px solid #fecaca",
+            background: "#fff",
+            color: "#dc2626",
+            fontSize: 12,
+            fontWeight: 850,
+            cursor: "pointer",
+            boxShadow: "0 3px 10px rgba(38,25,75,0.04)",
+          }}
+        >
+          <Trash2 size={13} /> Manage
+        </button>
       </div>
     </div>
     {showAddLocation && (
@@ -309,6 +368,76 @@ function DashboardLocationSwitcher({ onLocationChange }: { onLocationChange: (lo
             <button type="button" onClick={handleAddLocation} style={{ padding: "10px 18px", borderRadius: 11, border: 0, background: "var(--accent-gradient)", color: "#fff", fontSize: 13, fontWeight: 850, cursor: "pointer", boxShadow: "0 5px 14px var(--accent-glow)" }}>
               Add Location
             </button>
+          </div>
+        </div>
+      </div>
+    )}
+    {showManageLocations && (
+      <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(20,15,35,0.45)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", padding: 20 }}>
+        <div style={{ width: "min(560px, 100%)", background: "#fff", borderRadius: 20, boxShadow: "0 24px 80px rgba(25,15,50,0.25)", overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 22px", borderBottom: "1px solid #eeeaf6" }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "#1a1a2e" }}>Manage Locations</div>
+              <div style={{ fontSize: 12, color: "#8a8aa3", marginTop: 3 }}>Delete a branch and its data permanently.</div>
+            </div>
+            <button type="button" onClick={() => setShowManageLocations(false)} style={{ border: 0, background: "#f5f3ff", width: 34, height: 34, borderRadius: 10, display: "grid", placeItems: "center", cursor: "pointer", color: "#766f8c" }} aria-label="Close manage locations">
+              <X size={17} />
+            </button>
+          </div>
+          <div style={{ padding: 22, display: "grid", gap: 12, maxHeight: "55vh", overflowY: "auto" }}>
+            {locations.map((location) => {
+              const isActive = location.id === activeLocation;
+              const isLast = locations.length <= 1;
+              const isConfirming = confirmingDeleteId === location.id;
+              const isDeleting = deletingId === location.id;
+              return (
+                <div key={location.id} style={{ border: `1px solid ${isActive ? "#ddd6fe" : "#eeeaf6"}`, borderRadius: 14, background: isActive ? "#faf8ff" : "#fff", padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 10, display: "grid", placeItems: "center", background: isActive ? "var(--accent-gradient)" : "#f1f0f6", flexShrink: 0 }}>
+                        <MapPin size={15} color={isActive ? "#fff" : "#8a8aa3"} />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location.name}</span>
+                          {isActive && <span style={{ fontSize: 9, fontWeight: 850, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--accent)", background: "#ede9fe", padding: "2px 7px", borderRadius: 6 }}>Active</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {[location.address, location.city].filter(Boolean).join(" · ") || "No address set"}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isLast || isDeleting || !!deletingId}
+                      onClick={() => { setManageError(""); setConfirmingDeleteId(isConfirming ? null : location.id); }}
+                      style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 10, border: "1px solid #fecaca", background: "#fff", color: "#dc2626", fontSize: 12, fontWeight: 800, cursor: isLast ? "not-allowed" : "pointer", opacity: isLast || isDeleting ? 0.45 : 1 }}
+                    >
+                      <Trash2 size={13} /> {isConfirming ? "Cancel" : "Delete"}
+                    </button>
+                  </div>
+                  {isLast && <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 8 }}>You can&apos;t delete your only location — add another branch first.</div>}
+                  {isConfirming && !isLast && (
+                    <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 12, background: "#fef2f2", border: "1px solid #fecaca" }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "#991b1b" }}>Delete “{location.name}” permanently?</div>
+                      <div style={{ fontSize: 11.5, color: "#b91c1c", marginTop: 4, lineHeight: 1.6 }}>
+                        All appointments, clients, staff, services, inventory, sales and WhatsApp data for this branch will be permanently deleted. This cannot be undone.
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12 }}>
+                        <button type="button" onClick={() => setConfirmingDeleteId(null)} style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid #fecaca", background: "#fff", color: "#991b1b", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>Cancel</button>
+                        <button type="button" onClick={() => void handleDeleteLocation(location.id)} disabled={isDeleting} style={{ padding: "8px 14px", borderRadius: 9, border: 0, background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 850, cursor: isDeleting ? "wait" : "pointer", opacity: isDeleting ? 0.7 : 1 }}>
+                          {isDeleting ? "Deleting…" : "Delete Permanently"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {manageError && <div role="alert" style={{ padding: "10px 22px", background: "#fef2f2", color: "#b91c1c", fontSize: 12, fontWeight: 700 }}>{manageError}</div>}
+          <div style={{ display: "flex", justifyContent: "flex-end", padding: "16px 22px", borderTop: "1px solid #eeeaf6", background: "#fcfbfe" }}>
+            <button type="button" onClick={() => setShowManageLocations(false)} style={{ padding: "10px 17px", borderRadius: 11, border: "1px solid #ddd8e9", background: "#fff", color: "#68647b", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>Close</button>
           </div>
         </div>
       </div>

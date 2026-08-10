@@ -177,3 +177,52 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: false, error: "DB write failed." }, { status: 500 });
   }
 }
+
+/**
+ * DELETE /api/db?locationId=...
+ *
+ * Permanently deletes every salon_data row that belongs to one branch (all
+ * entities + loyalty history) for the authenticated caller. The settings row
+ * is never touched — it carries the location list itself. Owner/admin only:
+ * a manager or staff account is pinned to their own branch and must never be
+ * able to delete it (or any other branch) through this endpoint. The UI calls
+ * this only after the branch has already been removed from settings locally.
+ */
+export async function DELETE(req: NextRequest) {
+  const requestedLocationId = req.nextUrl.searchParams.get("locationId") || "main";
+  try {
+    const actor = await resolveActor(req, requestedLocationId);
+    if (!actor) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    if (actor.role !== "owner" && actor.role !== "admin") {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const { userId, locationId } = actor;
+    await ensureTable();
+
+    const keys: string[] = [];
+    if (locationId === "main") {
+      // Main Branch rows use plain `{userId}_{entity}` keys.
+      for (const entity of ALLOWED) keys.push(`${userId}_${entity}`);
+      keys.push(`${userId}_loyalty_history`);
+    } else {
+      // Branch rows are `{userId}_{locationId}_{entity}` — the trailing `_`
+      // keeps the LIKE from ever matching a sibling branch (e.g. deleting
+      // "dha" never matches "dha-2", since the next char there is "-").
+      const result = await db.execute({
+        sql: "SELECT entity FROM salon_data WHERE entity LIKE ?",
+        args: [`${userId}_${locationId}_%`],
+      });
+      keys.push(...result.rows.map((row) => String(row.entity)));
+    }
+
+    for (const key of keys) {
+      // Safety net first, same as every other write path in this app.
+      await backupExistingSalonData(key, userId, "before-write");
+      await db.execute({ sql: "DELETE FROM salon_data WHERE entity = ?", args: [key] });
+    }
+    return Response.json({ ok: true, deletedKeys: keys.length });
+  } catch (err) {
+    console.error("[db] DELETE error:", err);
+    return Response.json({ ok: false, error: "DB delete failed." }, { status: 500 });
+  }
+}
