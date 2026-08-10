@@ -127,9 +127,8 @@ interface LocationSettingsShape {
   salon?: { address?: string; city?: string };
 }
 
-const locationSettings = settingsStore as unknown as LocationSettingsShape;
-
 export function removeSalonLocation(locationId: string): { removed: SalonLocation; nextActiveId: string } {
+  const locationSettings = settingsStore as unknown as LocationSettingsShape;
   const locations = getSalonLocations();
   const removed = locations.find((location) => location.id === locationId);
   if (!removed) throw new Error("Location not found.");
