@@ -1,7 +1,8 @@
 import { getCurrentUser, userKey } from "./auth";
 import { getActiveLocationFilter, locationUserKey } from "./locations";
+import { appendDeletions, getDeletedRecords, DELETED_RECORDS_ENTITY } from "./deleted-records";
 
-const ENTITIES = ["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses", "attendance", "payouts", "cash_flow_income"] as const;
+const ENTITIES = ["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses", "attendance", "payouts", "cash_flow_income", DELETED_RECORDS_ENTITY] as const;
 type Entity = typeof ENTITIES[number];
 
 /**
@@ -105,6 +106,15 @@ export async function syncFromDB(): Promise<void> {
     }),
   );
 
+  // Deletes have to survive the union merge above. A record deleted on this
+  // device still exists in every other device's localStorage (and, for
+  // invoices, in the WhatsApp receipt queue that the salon_invoices GET merges
+  // from), so without this pass the merge quietly brings it back a few minutes
+  // later — which is exactly how deleted invoices reappeared. Tombstones are
+  // unioned across devices by the same loop, so by the time it finishes we hold
+  // every deletion any device has recorded.
+  applyDeletions(locationId);
+
   // Sync settings
   try {
     const res = await fetch(`/api/settings?userId=${encodeURIComponent(dataOwnerId)}`);
@@ -159,6 +169,47 @@ export async function syncFromDB(): Promise<void> {
       }
     }
   } catch { /* keep localStorage */ }
+}
+
+/**
+ * Removes every tombstoned record from the local entity lists, and re-pushes any
+ * list this actually changed so Turso matches what the browser now shows (the
+ * union push in syncFromDB may have just sent a resurrected row back up).
+ */
+function applyDeletions(locationId: string): void {
+  if (typeof window === "undefined") return;
+  const tombstones = getDeletedRecords(locationId);
+  if (tombstones.length === 0) return;
+
+  for (const entity of ENTITIES) {
+    if (entity === DELETED_RECORDS_ENTITY) continue;
+    const ids = new Set(tombstones.filter((t) => t.entity === entity).map((t) => t.id));
+    if (ids.size === 0) continue;
+
+    const key = locationUserKey(`werzio_${entity}`, locationId);
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+    try {
+      const list = JSON.parse(raw) as { id?: string }[];
+      if (!Array.isArray(list)) continue;
+      const kept = list.filter((r) => !ids.has(String(r?.id ?? "")));
+      if (kept.length === list.length) continue;
+      localStorage.setItem(key, JSON.stringify(kept));
+      saveToDB(entity, kept);
+    } catch { /* leave this entity alone */ }
+  }
+}
+
+/**
+ * Tombstones `ids` as deleted for `entity` — locally first, then in Turso — so
+ * neither this browser's next sync nor another device can merge them back in.
+ * Call this from every delete path alongside the usual "save the shorter list"
+ * write; on its own, that write is not a durable delete (see lib/deleted-records.ts).
+ */
+export function recordDeletions(entity: Entity, ids: string[]): Promise<boolean> {
+  const list = appendDeletions(entity, ids);
+  if (list.length === 0) return Promise.resolve(false);
+  return saveToDB(DELETED_RECORDS_ENTITY, list);
 }
 
 /**

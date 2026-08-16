@@ -4,7 +4,7 @@
 // TO the salon owner).
 
 import type { PaymentMethod } from "@/lib/types";
-import { saveToDB } from "@/lib/turso-sync";
+import { recordDeletions, saveToDB } from "@/lib/turso-sync";
 import { locationUserKey } from "@/lib/locations";
 
 export type SalonInvoiceStatus = "paid" | "unpaid";
@@ -136,17 +136,28 @@ export function updateSalonInvoice(updated: SalonInvoice): void {
   saveSalonInvoices(list);
 }
 
-export function deleteSalonInvoice(id: string): void {
+/**
+ * Removing the invoice from the list is not enough on its own to make the
+ * delete stick — the queued WhatsApp receipt and other devices' localStorage
+ * both merge it back (see lib/deleted-records.ts), which is why deleted
+ * invoices used to reappear minutes later. The tombstone is what makes it
+ * permanent, so it is recorded first and awaited by callers that care.
+ */
+export async function deleteSalonInvoice(id: string): Promise<void> {
+  const tombstoned = recordDeletions("salon_invoices", [id]);
   saveSalonInvoices(getSalonInvoices().filter((inv) => inv.id !== id));
 
-  // A deleted invoice may still have a pending WhatsApp receipt queued from
-  // checkout — cancel it so the client isn't sent an "Invoice" message for a
-  // sale that no longer exists. Fire-and-forget: nothing in the UI depends on
-  // this completing, and a still-pending row is harmless to retry cancelling.
-  if (typeof window !== "undefined") {
-    fetch(`/api/whatsapp/queue-pos-receipt?invoiceId=${encodeURIComponent(id)}`, { method: "DELETE" })
-      .catch((err) => console.error("[salon-invoices] Failed to cancel queued receipt:", err));
-  }
+  // A deleted invoice may still have a WhatsApp receipt queued from checkout —
+  // cancel it so the client isn't sent an "Invoice" message for a sale that no
+  // longer exists, and so the salon_invoices GET stops merging the queued copy
+  // back into the invoice list.
+  const cancelled = typeof window === "undefined"
+    ? Promise.resolve()
+    : fetch(`/api/whatsapp/queue-pos-receipt?invoiceId=${encodeURIComponent(id)}`, { method: "DELETE" })
+        .then(() => undefined)
+        .catch((err) => console.error("[salon-invoices] Failed to cancel queued receipt:", err));
+
+  await Promise.all([tombstoned, cancelled]);
 }
 
 export function markSalonInvoicePaid(id: string, paymentMethod: PaymentMethod, paidDate?: string): void {

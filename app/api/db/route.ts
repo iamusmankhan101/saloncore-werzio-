@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { resolveActor } from "@/lib/api-auth";
 import { backupExistingSalonData } from "@/lib/data-backup";
 
-const ALLOWED = new Set(["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses", "attendance", "payouts", "cash_flow_income"]);
+const DELETED_RECORDS_ENTITY = "deleted_records";
+
+const ALLOWED = new Set(["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses", "attendance", "payouts", "cash_flow_income", DELETED_RECORDS_ENTITY]);
 
 async function ensureTable() {
   await db.execute(`
@@ -19,7 +21,38 @@ function itemId(item: unknown): string | null {
   return item && typeof item === "object" && "id" in item ? String((item as { id?: unknown }).id || "") || null : null;
 }
 
-async function mergeQueuedPosInvoices(userId: string, stored: unknown[]): Promise<unknown[]> {
+function storageKey(userId: string, locationId: string, entity: string): string {
+  return locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`;
+}
+
+/**
+ * Ids the client has recorded as deleted (see lib/deleted-records.ts). Enforced
+ * on read *and* write: a browser that has been offline since before the delete
+ * still holds the record and will happily push it back up in the union its
+ * syncFromDB() builds, and the POS receipt queue below keeps its own copy of
+ * every invoice long after the receipt has been sent. Without this filter both
+ * of those quietly resurrect deleted records minutes after they vanish.
+ */
+async function loadDeletedIds(userId: string, locationId: string, entity: string): Promise<Set<string>> {
+  try {
+    const result = await db.execute({
+      sql: "SELECT data FROM salon_data WHERE entity = ?",
+      args: [storageKey(userId, locationId, DELETED_RECORDS_ENTITY)],
+    });
+    if (result.rows.length === 0) return new Set();
+    const rows = JSON.parse(result.rows[0].data as string) as { id?: unknown; entity?: unknown }[];
+    if (!Array.isArray(rows)) return new Set();
+    return new Set(
+      rows
+        .filter((r) => r && r.entity === entity && r.id)
+        .map((r) => String(r.id)),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+async function mergeQueuedPosInvoices(userId: string, stored: unknown[], deletedIds: Set<string>): Promise<unknown[]> {
   const byId = new Map<string, unknown>();
   for (const item of stored) {
     const id = itemId(item);
@@ -38,7 +71,10 @@ async function mergeQueuedPosInvoices(userId: string, stored: unknown[]): Promis
       try {
         const invoice = JSON.parse(row.invoice_json as string) as unknown;
         const id = itemId(invoice);
-        if (id && !byId.has(id)) byId.set(id, invoice);
+        // A queue row outlives its receipt (status stays 'sent'/'expired'
+        // forever), so a deleted invoice must be skipped here or every page
+        // load re-adds it — and the write-back below then makes it permanent.
+        if (id && !byId.has(id) && !deletedIds.has(id)) byId.set(id, invoice);
       } catch { /* skip malformed queue rows */ }
     }
   } catch {
@@ -68,16 +104,28 @@ export async function GET(req: NextRequest) {
     if (!actor) return Response.json({ error: "Unauthorized" }, { status: 401 });
     const { userId, locationId } = actor;
     await ensureTable();
-    const key = locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`;
+    const key = storageKey(userId, locationId, entity);
     const result = await db.execute({
       sql: "SELECT data FROM salon_data WHERE entity = ?",
       args: [key],
     });
-    const stored = result.rows.length === 0 ? [] : JSON.parse(result.rows[0].data as string) as unknown[];
-    if (entity !== "salon_invoices") return Response.json(stored);
+    const raw = result.rows.length === 0 ? [] : JSON.parse(result.rows[0].data as string) as unknown[];
+    const list = Array.isArray(raw) ? raw : [];
+    if (entity === DELETED_RECORDS_ENTITY) return Response.json(list);
 
-    const merged = await mergeQueuedPosInvoices(userId, Array.isArray(stored) ? stored : []);
-    if (merged.length !== (Array.isArray(stored) ? stored.length : 0)) {
+    const deletedIds = await loadDeletedIds(userId, locationId, entity);
+    const stored = deletedIds.size === 0
+      ? list
+      : list.filter((item) => { const id = itemId(item); return !id || !deletedIds.has(id); });
+
+    const merged = entity === "salon_invoices"
+      ? await mergeQueuedPosInvoices(userId, stored, deletedIds)
+      : stored;
+
+    // Persist whenever this read changed the stored row — the queue added an
+    // invoice, a tombstoned record was still sitting in it, or both (which can
+    // leave the count unchanged, hence the two separate comparisons).
+    if (stored.length !== list.length || merged.length !== stored.length) {
       await db.execute({
         sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
         args: [key, JSON.stringify(merged), new Date().toISOString()],
@@ -116,16 +164,40 @@ export async function POST(req: NextRequest) {
     if (!actor) return Response.json({ error: "Unauthorized" }, { status: 401 });
     const { userId, locationId } = actor;
     await ensureTable();
-    const key = locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`;
+    const key = storageKey(userId, locationId, entity);
     await backupExistingSalonData(key, userId);
+
+    let payload: unknown[] = Array.isArray(data) ? data : [];
+    if (entity === DELETED_RECORDS_ENTITY) {
+      // Union with what's already stored rather than overwriting: two devices
+      // each push their own tombstone list, and a blind overwrite would drop
+      // the other one's deletions — letting those records come back.
+      const existing = await db.execute({ sql: "SELECT data FROM salon_data WHERE entity = ?", args: [key] });
+      const stored = existing.rows.length === 0 ? [] : JSON.parse(existing.rows[0].data as string) as unknown[];
+      const byId = new Map<string, unknown>();
+      for (const item of [...(Array.isArray(stored) ? stored : []), ...payload]) {
+        const id = itemId(item);
+        if (id) byId.set(id, item);
+      }
+      payload = Array.from(byId.values());
+    } else {
+      // Drop anything already tombstoned — an older device's sync builds a
+      // union of DB + its own localStorage, so it re-uploads records that were
+      // deleted while it was away.
+      const deletedIds = await loadDeletedIds(userId, locationId, entity);
+      if (deletedIds.size > 0) {
+        payload = payload.filter((item) => { const id = itemId(item); return !id || !deletedIds.has(id); });
+      }
+    }
+
     await db.execute({
       sql: "INSERT OR REPLACE INTO salon_data (entity, data, updated_at) VALUES (?, ?, ?)",
-      args: [key, JSON.stringify(data), new Date().toISOString()],
+      args: [key, JSON.stringify(payload), new Date().toISOString()],
     });
 
     // Keep the relational clients table in sync so phone updates are reflected
     // in loyalty card lookups and Google Wallet passes.
-    if (entity === "clients" && userId && Array.isArray(data)) {
+    if (entity === "clients" && userId) {
       await db.execute(`
         CREATE TABLE IF NOT EXISTS clients (
           id          TEXT NOT NULL,
@@ -141,7 +213,7 @@ export async function POST(req: NextRequest) {
           PRIMARY KEY (id)
         )
       `);
-      for (const item of data) {
+      for (const item of payload) {
         const c = item as Record<string, unknown>;
         if (!c.id) continue;
         await db.execute({

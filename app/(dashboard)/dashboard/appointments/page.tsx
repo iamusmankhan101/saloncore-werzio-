@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import { getSalonInvoices, saveSalonInvoices } from "@/lib/salon-invoices";
+import { recordDeletions } from "@/lib/turso-sync";
 import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
 import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2, Upload, Download, FileSpreadsheet, Check } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert, purgeQueuedAppointmentMessages, normalizePhone } from "@/lib/whatsapp-scheduler";
@@ -1430,8 +1431,12 @@ export default function AppointmentsPage() {
     purgeQueuedAppointmentMessages(deletedIds);
     const linkedInvoices = getSalonInvoices().filter((invoice) => invoice.appointmentId && deletedIds.has(invoice.appointmentId));
     if (linkedInvoices.length > 0) {
+      // Tombstone them, or the shorter list below is undone by the next sync —
+      // see lib/deleted-records.ts.
+      recordDeletions("salon_invoices", linkedInvoices.map((invoice) => invoice.id));
       saveSalonInvoices(getSalonInvoices().filter((invoice) => !invoice.appointmentId || !deletedIds.has(invoice.appointmentId)));
     }
+    recordDeletions("appointments", [...deletedIds]);
     const deletedAppts = appointments.filter((a) => deletedIds.has(a.id));
     setAppointments(prev => {
       const updated = prev.filter(a => !deletedIds.has(a.id));
