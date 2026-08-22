@@ -44,19 +44,41 @@ function fmtTime(t: string) {
   return `${hour}:${String(m).padStart(2, "0")}${ampm}`;
 }
 
+/** Greedy side-by-side layout: appointments that overlap in time get their own lane. */
+function layoutLanes(appts: Appointment[]): { appt: Appointment; lane: number; lanes: number }[] {
+  const sorted = [...appts].sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+  const laneEnd: number[] = [];          // last end-minute occupied per lane
+  const placed = sorted.map((appt) => {
+    const start = toMin(appt.startTime);
+    let lane = laneEnd.findIndex((end) => end <= start);
+    if (lane === -1) { lane = laneEnd.length; }
+    laneEnd[lane] = toMin(appt.endTime);
+    return { appt, lane };
+  });
+  const lanes = Math.max(laneEnd.length, 1);
+  return placed.map((p) => ({ ...p, lanes }));
+}
+
 /* ── Appointment block ──────────────────────────────────────────────────────── */
-function Block({ appt, onClick, staffList }: { appt: Appointment; onClick: () => void; staffList: Staff[] }) {
+function Block({ appt, onClick, staffList, lane = 0, lanes = 1 }: {
+  appt: Appointment; onClick: () => void; staffList: Staff[];
+  /** Column index / count used to fan out appointments that overlap in time. */
+  lane?: number; lanes?: number;
+}) {
   const top    = (toMin(appt.startTime) / 60) * SLOT_H;
   const height = Math.max(((toMin(appt.endTime) - toMin(appt.startTime)) / 60) * SLOT_H - 3, 24);
   const cfg    = STATUS[appt.status];
   const staff  = staffList.find((s) => s.id === appt.staffId);
   const accent = staff?.color ?? cfg.color;
+  const laneW  = 100 / lanes;
 
   return (
     <div
       onClick={onClick}
       style={{
-        position: "absolute", top, left: 4, right: 4, height,
+        position: "absolute", top, height,
+        left:  `calc(${lane * laneW}% + 4px)`,
+        width: `calc(${laneW}% - 8px)`,
         background: cfg.bg,
         borderRadius: 8,
         overflow: "hidden",
@@ -220,6 +242,9 @@ export default function CalendarPage() {
   const [today, setToday]             = useState("");
   const [nowMin, setNowMin]           = useState(0);
   const [mobileDay, setMobileDay]     = useState(""); // YYYY-MM-DD — single-day agenda view on mobile, navigated independently of the desktop week grid
+  const [view, setView]               = useState<"week" | "day">("day"); // "day" = one column per staff member
+  const [dayDate, setDayDate]         = useState(""); // YYYY-MM-DD — the day shown in the staff-column view
+  const [staffFilter, setStaffFilter] = useState("all"); // staff id, or "all"
   const scrollRef                     = useRef<HTMLDivElement>(null);
   const activeSection = getActiveSection();
 
@@ -228,6 +253,7 @@ export default function CalendarPage() {
     setToday(todayStr);
     setAnchor(parseDate(todayStr));
     setMobileDay(todayStr);
+    setDayDate(todayStr);
     // Strict-locked to the active dashboard section, same rule as
     // Appointments/Staff/Services — this is effectively a second view of the
     // same appointment data.
@@ -250,11 +276,34 @@ export default function CalendarPage() {
       const px = (nowMin / 60) * SLOT_H - 120;
       scrollRef.current.scrollTop = Math.max(0, px);
     }
-  }, [nowMin]);
+  }, [nowMin, view]);
 
   const week      = weekOf(anchor);
-  const prev      = () => { const d = new Date(anchor); d.setDate(d.getDate() - 7); setAnchor(d); };
-  const next      = () => { const d = new Date(anchor); d.setDate(d.getDate() + 7); setAnchor(d); };
+  const shiftDay  = (delta: number) => { const d = dayDate ? parseDate(dayDate) : new Date(); d.setDate(d.getDate() + delta); setDayDate(toStr(d)); };
+  const prev      = () => { if (view === "day") return shiftDay(-1); const d = new Date(anchor); d.setDate(d.getDate() - 7); setAnchor(d); };
+  const next      = () => { if (view === "day") return shiftDay(1);  const d = new Date(anchor); d.setDate(d.getDate() + 7); setAnchor(d); };
+
+  // Staff-column day view
+  const dayStaff     = staffList.filter((s) => s.isActive !== false && (staffFilter === "all" || s.id === staffFilter));
+  const dayAppts     = appointments.filter((a) => a.date === dayDate);
+  const unassigned   = dayAppts.filter((a) => !dayStaff.some((s) => s.id === a.staffId));
+  const dayLabel     = dayDate
+    ? parseDate(dayDate).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })
+    : "";
+  const isTodayView  = dayDate === today;
+
+  // One column per staff member, plus an "Unassigned" column when a booking has no
+  // (or a no-longer-active) staff member attached, so nothing silently disappears.
+  const columns: { id: string; name: string; color: string; appts: Appointment[]; count: number }[] = [
+    ...dayStaff.map((st) => {
+      const appts = dayAppts.filter((a) => a.staffId === st.id);
+      return { id: st.id, name: st.name, color: st.color || "#7c3aed", appts, count: appts.length };
+    }),
+    ...(staffFilter === "all" && unassigned.length > 0
+      ? [{ id: "__unassigned", name: "Unassigned", color: "#9898b0", appts: unassigned, count: unassigned.length }]
+      : []),
+  ];
+  const staffCols = `64px repeat(${Math.max(columns.length, 1)}, minmax(150px, 1fr))`;
 
   const weekStart = week[0].toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const weekEnd   = week[6].toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -289,21 +338,59 @@ export default function CalendarPage() {
 
       {/* ── Header ── */}
       <div className="dashboard-topbar page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <PageTitle icon={<CalendarDays size={24} />} title="Calendar" subtitle={`${weekStart} – ${weekEnd}${activeSection === "all" ? "" : ` · ${activeSection} only`}`} />
+        <PageTitle icon={<CalendarDays size={24} />} title="Calendar" subtitle={`${view === "day" ? dayLabel : `${weekStart} – ${weekEnd}`}${activeSection === "all" ? "" : ` · ${activeSection} only`}`} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Staff filter — narrows the day view down to a single team member */}
+          {view === "day" && (
+            <select
+              value={staffFilter}
+              onChange={(e) => setStaffFilter(e.target.value)}
+              className="desktop-only"
+              style={{
+                padding: "8px 12px", borderRadius: 10, border: "1.5px solid #e3e0eb",
+                background: "#fff", fontSize: 13, fontWeight: 700, color: "#6b6b8a", cursor: "pointer",
+              }}
+            >
+              <option value="all">All Staff</option>
+              {staffList.filter((s) => s.isActive !== false).map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Day (staff columns) / Week toggle */}
+          <div className="desktop-only" style={{ display: "flex", border: "1.5px solid #e3e0eb", borderRadius: 10, overflow: "hidden", background: "#fff" }}>
+            {(["day", "week"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                style={{
+                  padding: "8px 16px", border: "none", cursor: "pointer",
+                  fontSize: 13, fontWeight: 750, textTransform: "capitalize",
+                  background: view === v ? "var(--accent-gradient)" : "transparent",
+                  color: view === v ? "#fff" : "#6b6b8a",
+                  transition: "all 0.18s ease",
+                }}
+                className={view !== v ? "hover-bg-light" : ""}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+
           <button
-            onClick={() => setAnchor(parseDate(today))}
+            onClick={() => { setAnchor(parseDate(today)); setDayDate(today); }}
             style={{
               padding: "8px 18px", borderRadius: 10,
-              border: isThisWeek ? "none" : "1.5px solid #e3e0eb",
-              background: isThisWeek ? "var(--accent-gradient)" : "#fff",
+              border: (view === "day" ? isTodayView : isThisWeek) ? "none" : "1.5px solid #e3e0eb",
+              background: (view === "day" ? isTodayView : isThisWeek) ? "var(--accent-gradient)" : "#fff",
               fontSize: 13, fontWeight: 750,
-              color: isThisWeek ? "#fff" : "#6b6b8a",
-              boxShadow: isThisWeek ? "0 4px 12px var(--accent-glow)" : "none",
+              color: (view === "day" ? isTodayView : isThisWeek) ? "#fff" : "#6b6b8a",
+              boxShadow: (view === "day" ? isTodayView : isThisWeek) ? "0 4px 12px var(--accent-glow)" : "none",
               cursor: "pointer", transition: "all 0.18s ease",
             }}
-            className={!isThisWeek ? "hover-bg-light" : ""}
+            className={!(view === "day" ? isTodayView : isThisWeek) ? "hover-bg-light" : ""}
           >
             Today
           </button>
@@ -319,7 +406,98 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      {/* ── Calendar card (desktop day grid — one column per staff member) ── */}
+      {view === "day" && (
+      <div className="desktop-only cal-scroll-wrap" style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(226,223,235,.95)", overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", boxShadow: "0 8px 28px rgba(38,25,75,.04)" }}>
+        {dayStaff.length === 0 ? (
+          <div style={{ padding: "64px 20px", textAlign: "center", color: "#b0b0c8", fontSize: 14 }}>
+            No active staff to show. Add team members in Staff to see their columns here.
+          </div>
+        ) : (
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 64 + columns.length * 150 }}>
+
+            {/* Staff name header row */}
+            <div style={{ display: "grid", gridTemplateColumns: staffCols, borderBottom: "1.5px solid #f0f0f8", background: "#fff" }}>
+              <div style={{ borderRight: "1px solid #f0f0f8" }} />
+              {columns.map((col, i) => (
+                <div key={col.id} style={{
+                  padding: "14px 8px 12px",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                  borderRight: i < columns.length - 1 ? "1px solid #f0f0f8" : "none",
+                  borderTop: `3px solid ${col.color}`,
+                }}>
+                  <div style={{
+                    width: 30, height: 30, borderRadius: "50%",
+                    background: col.color, color: "#fff",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 850, letterSpacing: "-0.02em",
+                    boxShadow: `0 3px 8px ${col.color}40`,
+                  }}>
+                    {col.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e", letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                    {col.name}
+                  </div>
+                  <div style={{ fontSize: 9, fontWeight: 800, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    {col.count} {col.count === 1 ? "appt" : "appts"}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Scrollable time grid */}
+            <div ref={scrollRef} style={{ overflowY: "auto", maxHeight: "calc(100vh - 300px)" }} className="cal-scroll-inner">
+              <div style={{ display: "grid", gridTemplateColumns: staffCols }}>
+
+                {/* Hour labels */}
+                <div style={{ borderRight: "1px solid #f0f0f8", background: "#faf9fd" }}>
+                  {HOURS.map((h) => (
+                    <div key={h} style={{ height: SLOT_H, display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 12, paddingTop: 6 }}>
+                      <span style={{ fontSize: 9, color: "#b0b0c8", fontWeight: 750, textTransform: "uppercase", letterSpacing: "0.02em", lineHeight: 1 }}>
+                        {h === 0 ? "12 am" : h < 12 ? `${h} am` : h === 12 ? "12 pm" : `${h - 12} pm`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* One column per staff member */}
+                {columns.map((col, ci) => (
+                  <div key={col.id} style={{
+                    position: "relative",
+                    borderRight: ci < columns.length - 1 ? "1px solid #f0f0f8" : "none",
+                  }}>
+                    {HOURS.map((h) => (
+                      <div key={h} style={{ height: SLOT_H, borderBottom: h % 2 === 0 ? "1px solid #f0f0f8" : "1px dashed #f5f3f9" }} />
+                    ))}
+
+                    {/* Current time indicator */}
+                    {isTodayView && (
+                      <div style={{ position: "absolute", top: nowTop, left: 0, right: 0, zIndex: 5, pointerEvents: "none" }}>
+                        <div style={{ position: "relative", height: 2, background: "#ef4444" }}>
+                          {ci === 0 && <div style={{ position: "absolute", left: -4, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, borderRadius: "50%", background: "#ef4444", boxShadow: "0 0 8px rgba(239,68,68,0.5)" }} />}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Appointment blocks, fanned out when they overlap */}
+                    <div style={{ position: "absolute", inset: 0 }}>
+                      {layoutLanes(col.appts).map(({ appt, lane, lanes }) => (
+                        <Block key={appt.id} appt={appt} onClick={() => setSelected(appt)} staffList={staffList} lane={lane} lanes={lanes} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        )}
+      </div>
+      )}
+
       {/* ── Calendar card (desktop week grid) ── */}
+      {view === "week" && (
       <div className="desktop-only cal-scroll-wrap" style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(226,223,235,.95)", overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", boxShadow: "0 8px 28px rgba(38,25,75,.04)" }}>
 
         {/* Day header row */}
@@ -409,6 +587,7 @@ export default function CalendarPage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* ── Mobile: single-day agenda view ── */}
       <div className="mobile-only" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
