@@ -60,10 +60,12 @@ function layoutLanes(appts: Appointment[]): { appt: Appointment; lane: number; l
 }
 
 /* ── Appointment block ──────────────────────────────────────────────────────── */
-function Block({ appt, onClick, staffList, lane = 0, lanes = 1 }: {
+function Block({ appt, onClick, staffList, lane = 0, lanes = 1, showStaff = false }: {
   appt: Appointment; onClick: () => void; staffList: Staff[];
   /** Column index / count used to fan out appointments that overlap in time. */
   lane?: number; lanes?: number;
+  /** Name the staff member on the block itself — needed in week view, redundant in the day view where the column header already names them. */
+  showStaff?: boolean;
 }) {
   const top    = (toMin(appt.startTime) / 60) * SLOT_H;
   const height = Math.max(((toMin(appt.endTime) - toMin(appt.startTime)) / 60) * SLOT_H - 3, 24);
@@ -71,6 +73,9 @@ function Block({ appt, onClick, staffList, lane = 0, lanes = 1 }: {
   const staff  = staffList.find((s) => s.id === appt.staffId);
   const accent = staff?.color ?? cfg.color;
   const laneW  = 100 / lanes;
+  const staffName = staff?.name ?? appt.staffName;
+  // The staff row eats ~14px, so the service/time rows need correspondingly taller blocks.
+  const nameRow   = showStaff && staffName ? 14 : 0;
 
   return (
     <div
@@ -107,12 +112,17 @@ function Block({ appt, onClick, staffList, lane = 0, lanes = 1 }: {
           {appt.clientName}
         </div>
       </div>
-      {height > 38 && (
+      {showStaff && staffName && (
+        <div style={{ fontSize: 9, fontWeight: 800, color: accent, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1, letterSpacing: "0.01em", paddingLeft: 9 }}>
+          {staffName}
+        </div>
+      )}
+      {height > 38 + nameRow && (
         <div style={{ fontSize: 10, color: "#5a5a75", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 2 }}>
           {appt.serviceNames[0]}
         </div>
       )}
-      {height > 54 && (
+      {height > 54 + nameRow && (
         <div style={{ fontSize: 9, color: "#8c8ca5", marginTop: 4, display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
           <Clock size={8} /> {fmtTime(appt.startTime)} – {fmtTime(appt.endTime)}
         </div>
@@ -577,8 +587,8 @@ export default function CalendarPage() {
 
                   {/* Appointment blocks */}
                   <div style={{ position: "absolute", inset: 0 }}>
-                    {appts.map((a) => (
-                      <Block key={a.id} appt={a} onClick={() => setSelected(a)} staffList={staffList} />
+                    {layoutLanes(appts).map(({ appt, lane, lanes }) => (
+                      <Block key={appt.id} appt={appt} onClick={() => setSelected(appt)} staffList={staffList} lane={lane} lanes={lanes} showStaff />
                     ))}
                   </div>
                 </div>
