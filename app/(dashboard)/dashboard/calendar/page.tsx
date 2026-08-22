@@ -73,9 +73,9 @@ function Block({ appt, onClick, staffList, lane = 0, lanes = 1, showStaff = fals
   const staff  = staffList.find((s) => s.id === appt.staffId);
   const accent = staff?.color ?? cfg.color;
   const laneW  = 100 / lanes;
-  const staffName = staff?.name ?? appt.staffName;
+  const staffName = staff?.name || appt.staffName || "Unassigned";
   // The staff row eats ~14px, so the service/time rows need correspondingly taller blocks.
-  const nameRow   = showStaff && staffName ? 14 : 0;
+  const nameRow   = showStaff ? 14 : 0;
 
   return (
     <div
@@ -112,7 +112,7 @@ function Block({ appt, onClick, staffList, lane = 0, lanes = 1, showStaff = fals
           {appt.clientName}
         </div>
       </div>
-      {showStaff && staffName && (
+      {showStaff && (
         <div style={{ fontSize: 9, fontWeight: 800, color: accent, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1, letterSpacing: "0.01em", paddingLeft: 9 }}>
           {staffName}
         </div>
