@@ -60,7 +60,7 @@ function layoutLanes(appts: Appointment[]): { appt: Appointment; lane: number; l
 }
 
 /* ── Appointment block ──────────────────────────────────────────────────────── */
-function Block({ appt, onClick, staffList, lane = 0, lanes = 1, showStaff = false }: {
+export function Block({ appt, onClick, staffList, lane = 0, lanes = 1, showStaff = false }: {
   appt: Appointment; onClick: () => void; staffList: Staff[];
   /** Column index / count used to fan out appointments that overlap in time. */
   lane?: number; lanes?: number;
