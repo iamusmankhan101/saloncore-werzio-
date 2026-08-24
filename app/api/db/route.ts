@@ -21,6 +21,89 @@ function itemId(item: unknown): string | null {
   return item && typeof item === "object" && "id" in item ? String((item as { id?: unknown }).id || "") || null : null;
 }
 
+/**
+ * Sync bookkeeping stamped on every record the client saves — see
+ * lib/sync-records.ts. Records written before stamping existed have none, and
+ * sort as older than any stamped copy.
+ */
+const SYNC_STAMP = "_updatedAt";
+
+function stampOf(item: unknown): string {
+  if (!item || typeof item !== "object") return "";
+  const value = (item as Record<string, unknown>)[SYNC_STAMP];
+  return typeof value === "string" ? value : "";
+}
+
+/** Key-order-independent JSON of a record, ignoring the sync stamp itself. */
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    return `{${Object.keys(obj)
+      .filter((k) => k !== SYNC_STAMP)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson(obj[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+/**
+ * Merges an incoming array into the stored one instead of replacing it.
+ *
+ * A POST carries whatever one browser happens to hold, which is never
+ * authoritative: it can predate records another PC added minutes ago (its own
+ * page-load sync, or a save from a page whose in-memory list is a little
+ * stale). Replacing the row with it is what made the same Cash Flow range
+ * total differently on two machines — the second PC's push simply deleted the
+ * first one's sale from the shared row.
+ *
+ * So absence is never a delete here; only a tombstone removes a record (the
+ * caller filters those out before calling this). For a record both sides hold,
+ * the newer `_updatedAt` wins, and the winner is re-stamped with server time so
+ * every device is ordered by one clock rather than by whichever PC is set
+ * fastest. Unstamped legacy records on both sides fall back to the old
+ * "incoming wins" behaviour.
+ */
+function mergeById(stored: unknown[], incoming: unknown[], now: string): unknown[] {
+  const byId = new Map<string, unknown>();
+  const keyless: unknown[] = [];
+
+  for (const item of stored) {
+    const id = itemId(item);
+    if (id) byId.set(id, item);
+  }
+
+  for (const item of incoming) {
+    const id = itemId(item);
+    // Nothing in these entities is written without an id; an id-less row can
+    // only be junk, so it is carried through from the incoming payload rather
+    // than accumulated across every save.
+    if (!id) { keyless.push(item); continue; }
+    const existing = byId.get(id);
+    if (existing === undefined) {
+      byId.set(id, stampOf(item) ? item : { ...(item as Record<string, unknown>), [SYNC_STAMP]: now });
+      continue;
+    }
+    if (stableJson(existing) === stableJson(item)) continue;      // same record, keep the stored stamp
+    if (stampOf(existing) > stampOf(item)) continue;              // stored copy is the newer edit
+    byId.set(id, { ...(item as Record<string, unknown>), [SYNC_STAMP]: now });
+  }
+
+  // Incoming order first (it reflects what the client is looking at), then
+  // whatever only the stored row still has.
+  const incomingIds = new Set(incoming.map(itemId).filter((id): id is string => !!id));
+  const merged: unknown[] = [];
+  for (const id of incomingIds) {
+    const item = byId.get(id);
+    if (item !== undefined) merged.push(item);
+  }
+  for (const [id, item] of byId) {
+    if (!incomingIds.has(id)) merged.push(item);
+  }
+  return [...merged, ...keyless];
+}
+
 function storageKey(userId: string, locationId: string, entity: string): string {
   return locationId === "main" ? `${userId}_${entity}` : `${userId}_${locationId}_${entity}`;
 }
@@ -185,9 +268,20 @@ export async function POST(req: NextRequest) {
       // union of DB + its own localStorage, so it re-uploads records that were
       // deleted while it was away.
       const deletedIds = await loadDeletedIds(userId, locationId, entity);
-      if (deletedIds.size > 0) {
-        payload = payload.filter((item) => { const id = itemId(item); return !id || !deletedIds.has(id); });
+      const notDeleted = (item: unknown) => { const id = itemId(item); return !id || !deletedIds.has(id); };
+      if (deletedIds.size > 0) payload = payload.filter(notDeleted);
+
+      // Union with the stored row rather than replacing it: this POST is one
+      // browser's view, and anything it hasn't heard about yet must survive.
+      const existing = await db.execute({ sql: "SELECT data FROM salon_data WHERE entity = ?", args: [key] });
+      let stored: unknown[] = [];
+      if (existing.rows.length > 0) {
+        try {
+          const parsed = JSON.parse(existing.rows[0].data as string) as unknown;
+          if (Array.isArray(parsed)) stored = deletedIds.size > 0 ? parsed.filter(notDeleted) : parsed;
+        } catch { /* unreadable row — the incoming payload replaces it */ }
       }
+      payload = mergeById(stored, payload, new Date().toISOString());
     }
 
     await db.execute({

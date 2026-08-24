@@ -1,6 +1,14 @@
 import { getCurrentUser, userKey } from "./auth";
 import { getActiveLocationFilter, locationUserKey } from "./locations";
 import { appendDeletions, getDeletedRecords, DELETED_RECORDS_ENTITY } from "./deleted-records";
+import {
+  entityStorageKey,
+  noteSyncedArrivals,
+  pickNewer,
+  recordId,
+  reconcileSave,
+  sameRecordContent,
+} from "./sync-records";
 
 const ENTITIES = ["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses", "attendance", "payouts", "cash_flow_income", DELETED_RECORDS_ENTITY] as const;
 type Entity = typeof ENTITIES[number];
@@ -50,56 +58,82 @@ export async function syncFromDB(): Promise<void> {
         // a DB row that is behind (or was raced by a smaller concurrent save) silently
         // truncates whatever the browser already had — this is how the expenses total
         // dropped from 400k+ to a handful of recent entries.
-        const lsRaw = localStorage.getItem(locationUserKey(`werzio_${entity}`, locationId));
+        const lsRaw = localStorage.getItem(entityStorageKey(entity, locationId));
         const localList: Record<string, unknown>[] = [];
         if (lsRaw) {
           try { localList.push(...(JSON.parse(lsRaw) as Record<string, unknown>[])); } catch { /* ignore */ }
         }
-        const incomingIds = new Set((incoming as Record<string, unknown>[]).map(r => (r as { id: string }).id));
-        const localOnly = localList.filter(r => !incomingIds.has((r as { id: string }).id));
+        const incomingIds = new Set((incoming as Record<string, unknown>[]).map(recordId));
+        const localOnly = localList.filter(r => !incomingIds.has(recordId(r)));
+        const localIds = new Set(localList.map(recordId));
+
+        // Ids this sync is pulling in from another device. reconcileSave() must
+        // not read them as deletes when a page that snapshotted its state
+        // before they landed saves that older list back (see lib/sync-records.ts).
+        noteSyncedArrivals(
+          entity,
+          (incoming as Record<string, unknown>[]).map(recordId).filter(id => id && !localIds.has(id)),
+          locationId,
+        );
+
+        // True once the merge below has kept a local copy that differs from the
+        // DB's, i.e. this browser holds an edit Turso has not got yet.
+        let localWon = false;
+        let merged: Record<string, unknown>[];
 
         if (entity === "clients") {
           // Additionally: never overwrite a client's numeric progress (loyalty pts,
           // visits, spend) with a staler value from DB — guards against the race where
           // a POS save completes after syncFromDB already started its fetch.
           const localById: Record<string, Record<string, unknown>> = {};
-          localList.forEach(c => { localById[(c as { id: string }).id] = c; });
-          const merged = (incoming as Record<string, unknown>[]).map(dbClient => {
-            const lc = localById[(dbClient as { id: string }).id];
+          localList.forEach(c => { localById[recordId(c)] = c; });
+          merged = (incoming as Record<string, unknown>[]).map(dbClient => {
+            const lc = localById[recordId(dbClient)];
             if (!lc) return dbClient;
+            const base = pickNewer(lc, dbClient);
+            if (base === lc && !sameRecordContent(lc, dbClient)) localWon = true;
             return {
-              ...dbClient,
+              ...base,
               loyaltyPoints:       Math.max(Number(lc.loyaltyPoints       ?? 0), Number(dbClient.loyaltyPoints       ?? 0)),
               loyaltyPointsEarned: Math.max(Number(lc.loyaltyPointsEarned ?? 0), Number(dbClient.loyaltyPointsEarned ?? 0)),
               totalVisits:         Math.max(Number(lc.totalVisits          ?? 0), Number(dbClient.totalVisits          ?? 0)),
               totalSpend:          Math.max(Number(lc.totalSpend           ?? 0), Number(dbClient.totalSpend           ?? 0)),
             };
           });
-          localStorage.setItem(locationUserKey("werzio_clients", locationId), JSON.stringify([...merged, ...localOnly]));
         } else {
-          // Prefer the local copy of any record this browser already has, rather
-          // than the DB's — the DB row can be stale for a few seconds after a save
-          // (saveToDB is fire-and-forget), and syncFromDB() runs on nearly every
-          // page's mount. Without this, editing something (e.g. a staff member's
-          // pay type or section) and then immediately navigating to another page
-          // races the still-in-flight save: syncFromDB fetches the pre-edit DB
-          // row and silently reverts the edit back in localStorage. Records that
-          // exist only in the DB (created on another device/session) still come
-          // through unaffected.
+          // For a record both sides hold, keep whichever copy was edited last
+          // (`_updatedAt`, stamped by reconcileSave on every save). This used to
+          // prefer the local copy unconditionally, which protected an
+          // in-flight save from being reverted by the pre-edit DB row — but it
+          // also meant an edit made on another PC could never arrive here, and
+          // syncLocalDataToDB() then pushed this browser's stale copy back over
+          // it. Ties still go local, so a locally-saved edit whose push failed
+          // (stamped now) beats the DB's older copy, and legacy records that
+          // predate stamping behave exactly as they did before.
           const localById: Record<string, Record<string, unknown>> = {};
-          localList.forEach(r => { localById[(r as { id: string }).id] = r; });
-          const merged = (incoming as Record<string, unknown>[]).map(dbRecord =>
-            localById[(dbRecord as { id: string }).id] ?? dbRecord
-          );
-          localStorage.setItem(locationUserKey(`werzio_${entity}`, locationId), JSON.stringify([...merged, ...localOnly]));
+          localList.forEach(r => { localById[recordId(r)] = r; });
+          merged = (incoming as Record<string, unknown>[]).map(dbRecord => {
+            const lc = localById[recordId(dbRecord)];
+            if (!lc) return dbRecord;
+            const winner = pickNewer(lc, dbRecord);
+            if (winner === lc && !sameRecordContent(lc, dbRecord)) localWon = true;
+            return winner;
+          });
         }
 
-        if (localOnly.length > 0) {
+        const union = [...merged, ...localOnly];
+        localStorage.setItem(entityStorageKey(entity, locationId), JSON.stringify(union));
+
+        if (localOnly.length > 0 || localWon) {
           // Push the reconciled (union) list back up so Turso stops being behind.
+          // It has to be the *merged* list, not the DB's own rows: this browser
+          // is holding either records Turso has never seen or a newer copy of
+          // one it has, and pushing `incoming` back would just echo the stale
+          // version straight back at it.
           fetch("/api/db", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ entity, data: [...incoming, ...localOnly], userId: dataOwnerId, locationId }),
+            body: JSON.stringify({ entity, data: union, userId: dataOwnerId, locationId }),
           }).catch(() => {});
         }
       } catch { /* keep localStorage */ }
@@ -286,6 +320,37 @@ export function saveToDB(entity: Entity, data: unknown[]): Promise<boolean> {
 
   const body = JSON.stringify({ entity, data, userId: dataOwnerId, locationId });
   return retryFetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body }, `saveToDB:${entity}`);
+}
+
+/**
+ * The one way an entity list should be written. It reconciles the list against
+ * what this browser already holds (see lib/sync-records.ts) before persisting:
+ *
+ *   • records whose content changed get an `_updatedAt` stamp, so the merge on
+ *     the other PC — and on the server — can tell a real edit from a stale copy
+ *     instead of guessing;
+ *   • records the caller dropped are tombstoned, which is what actually makes a
+ *     delete stick now that POST /api/db unions rather than overwrites;
+ *   • a record that arrived from another device seconds ago is put back rather
+ *     than treated as a delete, so a page saving a slightly stale snapshot
+ *     can't wipe it.
+ *
+ * Resolves false if either the record write or the tombstone write failed, so
+ * callers that already surface a sync warning keep working.
+ */
+export async function persistEntity(entity: Entity, list: unknown[], locationId?: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  const loc = locationId ?? getActiveLocationFilter();
+  const { records, removedIds } = reconcileSave(entity, list, loc);
+  localStorage.setItem(entityStorageKey(entity, loc), JSON.stringify(records));
+
+  // Tombstones go up first so the record write that follows is already filtered
+  // against them server-side. (Out of order it still converges — the next GET
+  // strips tombstoned records and rewrites the row — but only after a delay
+  // during which another device could pull the deleted record back in.)
+  const tombstoned = removedIds.length === 0 ? true : await recordDeletions(entity, removedIds);
+  const saved = await saveToDB(entity, records);
+  return saved && tombstoned;
 }
 
 /**

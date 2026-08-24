@@ -25,8 +25,7 @@ export function getManualCashIncome(): ManualCashIncome[] {
  */
 export function saveManualCashIncome(entries: ManualCashIncome[]): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
-  localStorage.setItem(locationUserKey(KEY), JSON.stringify(entries));
-  return saveToDB("cash_flow_income", entries);
+  return persistEntity("cash_flow_income", entries);
 }
 import { locationUserKey } from "./locations";
-import { saveToDB } from "./turso-sync";
+import { persistEntity } from "./turso-sync";

@@ -1,5 +1,5 @@
 import { locationUserKey } from "./locations";
-import { saveToDB } from "./turso-sync";
+import { persistEntity } from "./turso-sync";
 import type { Appointment, Service, StaffPayType } from "./types";
 
 export type PayoutStatus = "pending" | "paid";
@@ -43,8 +43,7 @@ export function getPayouts(): Payout[] {
  */
 export function savePayouts(list: Payout[]): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
-  localStorage.setItem(locationUserKey(KEY), JSON.stringify(list));
-  return saveToDB("payouts", list);
+  return persistEntity("payouts", list);
 }
 
 export async function addPayout(data: Omit<Payout, "id" | "createdAt">): Promise<{ payout: Payout; dbSaved: boolean }> {

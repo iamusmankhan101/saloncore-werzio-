@@ -1,6 +1,6 @@
 import { APPOINTMENTS as mockAppointments, CLIENTS as mockClients, STAFF as mockStaff, SERVICES as mockServices, INVENTORY as mockInventory } from "./mock-data";
 import type { Appointment, Client, Staff, Service, InventoryItem } from "./types";
-import { saveToDB } from "./turso-sync";
+import { persistEntity } from "./turso-sync";
 import { userKey } from "./auth";
 import { getActiveLocationFilter, locationUserKey } from "./locations";
 
@@ -66,8 +66,7 @@ export function getStoredAppointments(): Appointment[] {
 export function saveAppointments(appts: Appointment[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    localStorage.setItem(locationUserKey(K.appointments), JSON.stringify(appts));
-    saveToDB("appointments", appts);
+    persistEntity("appointments", appts);
   }
 }
 
@@ -92,9 +91,7 @@ export function getStoredClients(): Client[] {
 export function saveClients(clients: Client[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    const normalized = normalizeClients(clients);
-    localStorage.setItem(locationUserKey(K.clients), JSON.stringify(normalized));
-    saveToDB("clients", normalized);
+    persistEntity("clients", normalizeClients(clients));
   }
 }
 
@@ -114,8 +111,7 @@ export function getStoredStaff(): Staff[] {
 export function saveStaff(staffList: Staff[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    localStorage.setItem(locationUserKey(K.staff), JSON.stringify(staffList));
-    saveToDB("staff", staffList);
+    persistEntity("staff", staffList);
   }
 }
 
@@ -135,8 +131,7 @@ export function getStoredServices(): Service[] {
 export function saveServices(servicesList: Service[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    localStorage.setItem(locationUserKey(K.services), JSON.stringify(servicesList));
-    saveToDB("services", servicesList);
+    persistEntity("services", servicesList);
   }
 }
 
@@ -156,7 +151,6 @@ export function getStoredInventory(): InventoryItem[] {
 export function saveInventory(items: InventoryItem[]) {
   if (typeof window !== "undefined") {
     checkSchema();
-    localStorage.setItem(locationUserKey(K.inventory), JSON.stringify(items));
-    saveToDB("inventory", items);
+    persistEntity("inventory", items);
   }
 }

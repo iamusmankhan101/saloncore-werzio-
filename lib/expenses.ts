@@ -1,5 +1,5 @@
 import { locationUserKey } from "./locations";
-import { saveToDB } from "./turso-sync";
+import { persistEntity } from "./turso-sync";
 
 export type ExpenseCategory =
   | "rent"
@@ -46,8 +46,7 @@ export function getExpenses(): Expense[] {
  */
 export function saveExpenses(list: Expense[]): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
-  localStorage.setItem(locationUserKey(KEY), JSON.stringify(list));
-  return saveToDB("expenses", list);
+  return persistEntity("expenses", list);
 }
 
 export async function addExpense(data: Omit<Expense, "id" | "createdAt">): Promise<{ expense: Expense; dbSaved: boolean }> {

@@ -4,7 +4,7 @@
 // TO the salon owner).
 
 import type { PaymentMethod } from "@/lib/types";
-import { recordDeletions, saveToDB } from "@/lib/turso-sync";
+import { persistEntity, recordDeletions } from "@/lib/turso-sync";
 import { locationUserKey } from "@/lib/locations";
 
 export type SalonInvoiceStatus = "paid" | "unpaid";
@@ -75,8 +75,7 @@ export function getSalonInvoices(): SalonInvoice[] {
       return { ...invoice, date: localDate };
     });
     if (migrated) {
-      localStorage.setItem(key, JSON.stringify(invoices));
-      saveToDB("salon_invoices", invoices);
+      persistEntity("salon_invoices", invoices);
     }
     return invoices;
   } catch {
@@ -92,8 +91,7 @@ export function getSalonInvoices(): SalonInvoice[] {
  */
 export function saveSalonInvoices(list: SalonInvoice[]): Promise<boolean> {
   if (typeof window !== "undefined") {
-    localStorage.setItem(locationUserKey(BASE_KEY), JSON.stringify(list));
-    return saveToDB("salon_invoices", list);
+    return persistEntity("salon_invoices", list);
   }
   return Promise.resolve(false);
 }

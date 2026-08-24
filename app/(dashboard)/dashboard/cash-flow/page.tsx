@@ -566,14 +566,21 @@ export default function CashFlowPage() {
         throw new Error(errorMessage);
       }
 
-      const existingExpenseKeys = new Set(expenses.map(expenseKey));
+      // Import against everything that is stored, not against the section-scoped
+      // view this page is holding: `expenses`/`manualIncome` exclude the other
+      // sections (and manual income entirely) while a section is selected, so
+      // saving a list built from them would delete all of it — the same trap the
+      // Payouts page documents in persistPayouts().
+      const storedExpenses = getExpenses();
+      const storedIncome = getManualCashIncome();
+      const existingExpenseKeys = new Set(storedExpenses.map(expenseKey));
       const uniqueExpenses = importedExpenses.filter(expense => {
         const key = expenseKey(expense);
         if (existingExpenseKeys.has(key)) return false;
         existingExpenseKeys.add(key);
         return true;
       });
-      const existingIncomeKeys = new Set(manualIncome.map(incomeKey));
+      const existingIncomeKeys = new Set(storedIncome.map(incomeKey));
       const uniqueIncome = importedIncome.filter(income => {
         const key = incomeKey(income);
         if (existingIncomeKeys.has(key)) return false;
@@ -586,8 +593,8 @@ export default function CashFlowPage() {
         return;
       }
 
-      const mergedExpenses = [...expenses, ...uniqueExpenses];
-      const mergedIncome = [...manualIncome, ...uniqueIncome];
+      const mergedExpenses = [...storedExpenses, ...uniqueExpenses];
+      const mergedIncome = [...storedIncome, ...uniqueIncome];
       const [expensesSaved, incomeSaved] = await Promise.all([
         saveExpenses(mergedExpenses),
         saveManualCashIncome(mergedIncome),
@@ -603,8 +610,8 @@ export default function CashFlowPage() {
         sampleExpenses: uniqueExpenses.slice(0, 2),
       });
       
-      setExpenses(mergedExpenses);
-      setManualIncome(mergedIncome);
+      setExpenses(mergedExpenses.filter(e => !cashFlowScoped || e.section === activeSection));
+      setManualIncome(cashFlowScoped ? [] : mergedIncome);
       
       // Auto-expand the date range to show imported data
       const allDates = [...uniqueExpenses.map(e => e.date), ...uniqueIncome.map(i => i.date)];

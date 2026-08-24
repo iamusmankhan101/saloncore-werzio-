@@ -1,5 +1,5 @@
 import { locationUserKey } from "./locations";
-import { saveToDB } from "./turso-sync";
+import { persistEntity } from "./turso-sync";
 
 export type AttendanceStatus = "present" | "absent" | "late" | "half-day" | "leave";
 
@@ -47,8 +47,7 @@ export function getAttendance(): AttendanceRecord[] {
 
 export function saveAttendance(list: AttendanceRecord[]): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
-  localStorage.setItem(locationUserKey(KEY), JSON.stringify(list));
-  return saveToDB("attendance", list);
+  return persistEntity("attendance", list);
 }
 
 /** Upserts the one record for (staffId, date) — a register only ever needs a single status per staff per day. */
