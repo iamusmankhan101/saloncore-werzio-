@@ -10,6 +10,14 @@
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Hard ceiling on win-back volume. This is bulk marketing to dormant numbers —
+// the send pattern most likely to get a WhatsApp number flagged — so the salon
+// can dial the cap down but never up past WINBACK_DAILY_MAX. The exact number
+// varies day to day inside this range (see todaysWinbackCap) rather than being
+// the same round figure every morning.
+export const WINBACK_DAILY_MIN = 10;
+export const WINBACK_DAILY_MAX = 12;
+
 export interface WinbackConfig {
   autoWinback: boolean;
   /** A client is lapsed once this many days have passed since their last visit. */
@@ -18,9 +26,9 @@ export interface WinbackConfig {
   cooldownDays: number;
   discountEnabled: boolean;
   discount: string;
-  /** Cap on how many win-backs a single salon queues per scan — this is a bulk
+  /** Cap on how many win-backs a single salon sends per day — this is a bulk
    * marketing send, so it drips out over days instead of blasting the whole
-   * dormant list at once. */
+   * dormant list at once. Never exceeds WINBACK_DAILY_MAX. */
   dailyLimit: number;
 }
 
@@ -33,7 +41,7 @@ export const WINBACK_DEFAULTS: WinbackConfig = {
   cooldownDays: 180,
   discountEnabled: true,
   discount: "",
-  dailyLimit: 15,
+  dailyLimit: WINBACK_DAILY_MAX,
 };
 
 function positiveNumber(value: unknown, fallback: number): number {
@@ -50,7 +58,9 @@ export function resolveWinbackConfig(settings: unknown): WinbackConfig {
     cooldownDays: positiveNumber(raw.winbackCooldownDays, WINBACK_DEFAULTS.cooldownDays),
     discountEnabled: raw.winbackDiscountEnabled !== false,
     discount: typeof raw.winbackDiscount === "string" ? raw.winbackDiscount : "",
-    dailyLimit: positiveNumber(raw.winbackDailyLimit, WINBACK_DEFAULTS.dailyLimit),
+    // Clamped, not just defaulted — an old saved value (or a hand-edited one)
+    // must never lift the ceiling above WINBACK_DAILY_MAX.
+    dailyLimit: Math.min(positiveNumber(raw.winbackDailyLimit, WINBACK_DEFAULTS.dailyLimit), WINBACK_DAILY_MAX),
   };
 }
 
@@ -143,6 +153,30 @@ export function findLapsedClients(
   }
 
   return lapsed.sort((a, b) => b.daysSinceVisit - a.daysSinceVisit);
+}
+
+// Deterministic 0-1 from a seed string, so the same salon on the same day always
+// lands on the same number — the nightly cron and a manual "Queue Now" have to
+// agree on today's budget without persisting it anywhere.
+function hashToUnit(seed: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 100_000) / 100_000;
+}
+
+/**
+ * How many win-backs this salon may send today: a stable random pick inside
+ * WINBACK_DAILY_MIN..MAX, further limited by whatever the salon configured. The
+ * day-to-day variation matters — sending an identical round number every single
+ * day is itself a bot signature.
+ */
+export function todaysWinbackCap(userId: string, salonDayKey: string, configuredLimit: number): number {
+  const span = WINBACK_DAILY_MAX - WINBACK_DAILY_MIN + 1;
+  const todaysCap = WINBACK_DAILY_MIN + Math.floor(hashToUnit(`${userId}:${salonDayKey}`) * span);
+  return Math.max(1, Math.min(configuredLimit, todaysCap));
 }
 
 /** Variables available to the win-back template. */

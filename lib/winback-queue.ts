@@ -10,16 +10,18 @@
 
 import { db } from "./db";
 import { isFakePlaceholderPhone } from "./whatsapp-provider";
-import { findLapsedClients, resolveWinbackConfig, winbackTemplateVars, type WinbackAppointment, type WinbackClient } from "./winback";
-import { isWithinSalonHours, nextSalonOpenMs, timezoneFromSettings, type SalonHoursDay } from "./appointment-time";
+import { findLapsedClients, resolveWinbackConfig, todaysWinbackCap, winbackTemplateVars, type WinbackAppointment, type WinbackClient } from "./winback";
+import { appointmentStartMs, isWithinSalonHours, nextSalonOpenMs, timezoneFromSettings, type SalonHoursDay } from "./appointment-time";
 
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Win-backs are pure marketing with no deadline, so they're spread far wider than
-// any other automated send — the whole batch trickles out across the day rather
-// than landing as a recognizable burst from one number.
-const WINBACK_SPREAD_MIN_MS = 4 * 60 * MINUTE_MS;
-const WINBACK_SPREAD_MAX_MS = 7 * 60 * MINUTE_MS;
+// any other automated send — the whole batch trickles out over 5-6 hours rather
+// than landing as a recognizable burst from one number. Nothing goes out at queue
+// time: even the first message of a batch waits out WINBACK_FIRST_SEND_*, so a
+// manual "Queue Now" never turns into an instant blast.
+const WINBACK_SPREAD_MIN_MS = 5 * 60 * MINUTE_MS;
+const WINBACK_SPREAD_MAX_MS = 6 * 60 * MINUTE_MS;
 const WINBACK_FIRST_SEND_MIN_MS = 20 * MINUTE_MS;
 const WINBACK_FIRST_SEND_MAX_MS = 35 * MINUTE_MS;
 
@@ -29,6 +31,9 @@ export interface WinbackEnqueueResult {
   eligible: number;
   queued: number;
   skipped: number;
+  /** Today's send budget for this salon, and what was left of it when this ran. */
+  dailyCap?: number;
+  remainingToday?: number;
 }
 
 function emptyResult(reason: string, eligible = 0): WinbackEnqueueResult {
@@ -139,6 +144,25 @@ async function lastWinbackSentMs(userId: string, phone: string): Promise<number 
   }
 }
 
+/**
+ * Win-backs already queued today, so the nightly cron and any manual "Queue Now"
+ * draw down one shared daily budget instead of each getting a full allowance.
+ * Counts every row created today whatever its status — a failed or expired row
+ * still consumed a send attempt against the number's reputation.
+ */
+async function queuedTodayCount(userId: string, salonDayStartMs: number): Promise<number> {
+  try {
+    const result = await db.execute({
+      sql: `SELECT COUNT(*) AS count FROM wa_booking_send_queue
+            WHERE user_id = ? AND kind = 'winback' AND created_at >= ?`,
+      args: [userId, new Date(salonDayStartMs).toISOString()],
+    });
+    return Number(result.rows[0]?.count ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
 /** Anything already waiting in the queue for this number — don't stack a second one on top. */
 async function alreadyQueued(userId: string, phone: string): Promise<boolean> {
   try {
@@ -199,15 +223,30 @@ export async function enqueueWinbackForUser(
   const cooldownMs = config.cooldownDays * DAY_MS;
   const spreadWindowMs = randBetween(WINBACK_SPREAD_MIN_MS, WINBACK_SPREAD_MAX_MS);
   const firstSendMs = nowMs + randBetween(WINBACK_FIRST_SEND_MIN_MS, WINBACK_FIRST_SEND_MAX_MS);
-  const today = new Date(nowMs).toISOString().slice(0, 10);
   const createdAt = new Date(nowMs).toISOString();
+
+  // "Per day" means the salon's own calendar day, not UTC — the owner reads this
+  // cap against their own working day, and the cron fires at a fixed UTC hour that
+  // falls at a different local time for every salon.
+  const timezone = timezoneFromSettings(settings);
+  const salonDay = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(nowMs));
+  const salonDayStartMs = appointmentStartMs(salonDay, "00:00", timezone) ?? nowMs - DAY_MS;
+
+  const dailyCap = todaysWinbackCap(userId, salonDay, config.dailyLimit);
+  const alreadyQueuedToday = await queuedTodayCount(userId, salonDayStartMs);
+  const remainingToday = Math.max(0, dailyCap - alreadyQueuedToday);
+  if (remainingToday === 0) {
+    return { ok: true, eligible: lapsed.length, queued: 0, skipped: lapsed.length, dailyCap, remainingToday: 0 };
+  }
 
   let queued = 0;
   let skipped = 0;
   const seenPhones = new Set<string>();
 
   for (const entry of lapsed) {
-    if (queued >= config.dailyLimit) { skipped++; continue; }
+    if (queued >= remainingToday) { skipped++; continue; }
 
     const phone = normalizePhone(entry.client.phone || "");
     if (!phone || isFakePlaceholderPhone(phone)) { skipped++; continue; }
@@ -228,7 +267,7 @@ export async function enqueueWinbackForUser(
 
     // Each message gets its own slot inside the spread window, then a random
     // moment inside that slot, so the gaps between sends are never uniform.
-    const slotMs = spreadWindowMs / Math.min(lapsed.length, config.dailyLimit);
+    const slotMs = spreadWindowMs / Math.min(lapsed.length, remainingToday);
     const scheduledMs = withinOpeningHours(
       firstSendMs + Math.floor(queued * slotMs + Math.random() * slotMs),
       settings,
@@ -242,7 +281,7 @@ export async function enqueueWinbackForUser(
         // Dated so the same client can be re-queued after their cooldown lapses —
         // a bare `winback_{clientId}` row would stay in the table forever and the
         // INSERT OR IGNORE would silently drop every future attempt.
-        `winback_${entry.client.id}_${today}`,
+        `winback_${entry.client.id}_${salonDay}`,
         userId,
         phone,
         text,
@@ -260,5 +299,5 @@ export async function enqueueWinbackForUser(
     queued++;
   }
 
-  return { ok: true, eligible: lapsed.length, queued, skipped };
+  return { ok: true, eligible: lapsed.length, queued, skipped, dailyCap, remainingToday };
 }

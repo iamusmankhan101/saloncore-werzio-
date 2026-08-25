@@ -454,7 +454,10 @@ function minGapMsForKind(kind: QueueKind): number {
   if (kind === "reminder") return 10 * MINUTE_MS;
   if (kind === "cancellation") return 15 * MINUTE_MS;
   if (kind === "birthday") return 20 * MINUTE_MS;
-  if (kind === "winback") return 25 * MINUTE_MS;
+  // Slightly under the ~25 min average slot a full 10-12 message batch spread
+  // over 5-6 hours works out to, so ordinary jitter inside a slot does not trip
+  // a deferral on every other message.
+  if (kind === "winback") return 20 * MINUTE_MS;
   return 10 * MINUTE_MS;
 }
 const POS_MIN_GAP_MS = 10 * MINUTE_MS;

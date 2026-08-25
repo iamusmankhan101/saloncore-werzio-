@@ -17,7 +17,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { locationUserKey } from "@/lib/locations";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import type { QueueDetailItem } from "@/app/api/whatsapp/queue-details/route";
-import { findLapsedClients, resolveWinbackConfig, WINBACK_DEFAULTS } from "@/lib/winback";
+import { findLapsedClients, resolveWinbackConfig, WINBACK_DAILY_MAX, WINBACK_DEFAULTS } from "@/lib/winback";
 import type { Client } from "@/lib/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -451,7 +451,7 @@ function MessagesPageContent() {
     wb.autoWinback = wbEnabled;
     wb.winbackDaysInactive = Number(wbDays) > 0 ? Number(wbDays) : WINBACK_DEFAULTS.daysInactive;
     wb.winbackCooldownDays = Number(wbCooldown) > 0 ? Number(wbCooldown) : WINBACK_DEFAULTS.cooldownDays;
-    wb.winbackDailyLimit = Number(wbLimit) > 0 ? Number(wbLimit) : WINBACK_DEFAULTS.dailyLimit;
+    wb.winbackDailyLimit = Math.min(Number(wbLimit) > 0 ? Number(wbLimit) : WINBACK_DEFAULTS.dailyLimit, WINBACK_DAILY_MAX);
     saveSettings();
     setWbSaving(false);
     setWbSaved(true);
@@ -465,13 +465,13 @@ function MessagesPageContent() {
     setWbResult(null);
     try {
       const res = await fetch("/api/whatsapp/queue-winback", { method: "POST" });
-      const data = await res.json() as { ok?: boolean; queued?: number; eligible?: number; skipped?: number; error?: string };
+      const data = await res.json() as { ok?: boolean; queued?: number; eligible?: number; skipped?: number; dailyCap?: number; error?: string };
       if (data.ok) {
         setWbResult({
           ok: true,
           message: data.queued
-            ? `Queued ${data.queued} win-back message${data.queued > 1 ? "s" : ""}${data.skipped ? ` · ${data.skipped} skipped (cooldown or daily cap)` : ""}.`
-            : "Nothing to queue — every lapsed client is inside their cooldown window.",
+            ? `Queued ${data.queued} win-back message${data.queued > 1 ? "s" : ""}, going out over the next 5-6 hours${data.skipped ? ` · ${data.skipped} held back (daily cap or cooldown)` : ""}.`
+            : `Nothing to queue — today's limit of ${data.dailyCap ?? WINBACK_DAILY_MAX} is used up, or every lapsed client is inside their cooldown window.`,
         });
       } else {
         setWbResult({ ok: false, message: data.error || "Could not queue win-back messages." });
@@ -1146,7 +1146,7 @@ function MessagesPageContent() {
                   </div>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 900, color: "#1d1d2f" }}>Win-back Messages</div>
-                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>Reaches clients who haven&rsquo;t been in for a while, spread across several hours</div>
+                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>Reaches clients who haven&rsquo;t been in for a while &mdash; a few a day, spread over 5&ndash;6 hours</div>
                   </div>
                   <button type="button" onClick={() => setWbEnabled((v) => !v)}
                     aria-label={`${wbEnabled ? "Disable" : "Enable"} win-back messages`}
@@ -1158,7 +1158,15 @@ function MessagesPageContent() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <div style={{ padding: "10px 12px", borderRadius: 9, background: lapsedClients.length > 0 ? "#f0fdfa" : "#f8f8fc", border: `1px solid ${lapsedClients.length > 0 ? "#ccfbf1" : "#e8e8f0"}`, fontSize: 11, color: lapsedClients.length > 0 ? "#115e59" : "#6b6b8a", lineHeight: 1.6 }}>
                     {lapsedClients.length > 0
-                      ? <><strong>{lapsedClients.length} client{lapsedClients.length > 1 ? "s haven\u2019t" : " hasn\u2019t"} visited in {wbDays}+ days:</strong> {lapsedClients.slice(0, 6).map((entry) => entry.client.name).join(", ")}{lapsedClients.length > 6 ? ` +${lapsedClients.length - 6} more` : ""}</>
+                      ? <>
+                          <strong>{lapsedClients.length} client{lapsedClients.length > 1 ? "s haven\u2019t" : " hasn\u2019t"} visited in {wbDays}+ days:</strong>{" "}
+                          {lapsedClients.slice(0, 6).map((entry) => entry.client.name).join(", ")}{lapsedClients.length > 6 ? ` +${lapsedClients.length - 6} more` : ""}
+                          {lapsedClients.length > Number(wbLimit || WINBACK_DAILY_MAX) && (
+                            <div style={{ marginTop: 5, opacity: 0.85 }}>
+                              The longest-absent {wbLimit} go out today; the rest follow on the days after.
+                            </div>
+                          )}
+                        </>
                       : "No lapsed clients in this window. Clients with an upcoming booking, no past visit, or marketing opted out are never included."}
                   </div>
 
@@ -1177,7 +1185,9 @@ function MessagesPageContent() {
                       <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#7c7c9a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>
                         Max per day
                       </label>
-                      <input type="number" min={1} value={wbLimit} onChange={(e) => setWbLimit(e.target.value)}
+                      <input type="number" min={1} max={WINBACK_DAILY_MAX} value={wbLimit}
+                        onChange={(e) => setWbLimit(e.target.value)}
+                        onBlur={() => setWbLimit((v) => String(Math.min(Number(v) > 0 ? Number(v) : WINBACK_DEFAULTS.dailyLimit, WINBACK_DAILY_MAX)))}
                         style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", outline: "none", boxSizing: "border-box" }} />
                     </div>
                   </div>
@@ -1192,6 +1202,8 @@ function MessagesPageContent() {
                       <span style={{ fontSize: 11, color: "#9999b0", fontWeight: 700 }}>days</span>
                     </div>
                     <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>
+                      Sends are capped at {WINBACK_DAILY_MAX}/day (the exact number varies day to day) and trickle out over
+                      5&ndash;6 hours with random gaps &mdash; nothing goes out the moment it&rsquo;s queued.
                       Edit the wording and the discount on the Templates tab &rarr; Win-back (Lapsed Clients).
                     </div>
                   </div>
@@ -1208,7 +1220,7 @@ function MessagesPageContent() {
                       {wbSaved ? <><Check size={13} /> Saved</> : wbSaving ? "Saving…" : <><Save size={13} /> Save</>}
                     </button>
                     <button type="button" onClick={queueWinbackNow} disabled={wbSending || lapsedClients.length === 0}
-                      title={lapsedClients.length === 0 ? "No lapsed clients to message" : "Queue win-back messages now, spread across several hours"}
+                      title={lapsedClients.length === 0 ? "No lapsed clients to message" : "Queue today\u2019s win-back messages, spread over the next 5-6 hours"}
                       style={{ flex: 1, border: "1px solid #ccfbf1", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: (wbSending || lapsedClients.length === 0) ? "not-allowed" : "pointer", background: "#f0fdfa", color: "#0d9488", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: lapsedClients.length === 0 ? 0.5 : 1 }}>
                       {wbSending ? "Queueing…" : <><Send size={13} /> Queue Now</>}
                     </button>
