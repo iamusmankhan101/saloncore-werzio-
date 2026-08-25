@@ -16,12 +16,20 @@ import { appointmentStartMs, isWithinSalonHours, nextSalonOpenMs, timezoneFromSe
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Win-backs are pure marketing with no deadline, so they're spread far wider than
-// any other automated send — the whole batch trickles out over 5-6 hours rather
-// than landing as a recognizable burst from one number. Nothing goes out at queue
-// time: even the first message of a batch waits out WINBACK_FIRST_SEND_*, so a
-// manual "Queue Now" never turns into an instant blast.
-const WINBACK_SPREAD_MIN_MS = 5 * 60 * MINUTE_MS;
-const WINBACK_SPREAD_MAX_MS = 6 * 60 * MINUTE_MS;
+// any other automated send — never a recognizable burst from one number.
+//
+// The gap between consecutive messages is the hard guarantee: at least
+// WINBACK_MIN_GAP_MS, plus up to WINBACK_GAP_JITTER_MS of randomness so it is
+// never a fixed, guessable interval. Scheduling walks a cursor forward by that
+// gap rather than dividing a fixed window into slots — slots with jitter inside
+// them can still put two messages minutes apart, which is exactly what the floor
+// exists to prevent. A full 10-12 message batch at 20-35 min gaps works out to
+// roughly the intended 5-6 hour spread.
+//
+// Nothing goes out at queue time either: even the first message waits out
+// WINBACK_FIRST_SEND_*, so a manual "Queue Now" never becomes an instant blast.
+const WINBACK_MIN_GAP_MS = 20 * MINUTE_MS;
+const WINBACK_GAP_JITTER_MS = 15 * MINUTE_MS;
 const WINBACK_FIRST_SEND_MIN_MS = 20 * MINUTE_MS;
 const WINBACK_FIRST_SEND_MAX_MS = 35 * MINUTE_MS;
 
@@ -225,8 +233,8 @@ export async function enqueueWinbackForUser(
   const salonName = (settings.salon as { name?: string } | undefined)?.name || "Your Salon";
   const discount = config.discountEnabled ? (config.discount || "a special offer") : "";
   const cooldownMs = config.cooldownDays * DAY_MS;
-  const spreadWindowMs = randBetween(WINBACK_SPREAD_MIN_MS, WINBACK_SPREAD_MAX_MS);
-  const firstSendMs = nowMs + randBetween(WINBACK_FIRST_SEND_MIN_MS, WINBACK_FIRST_SEND_MAX_MS);
+  // Walks forward one gap per queued message; every scheduled_at comes off this.
+  let sendCursorMs = nowMs + randBetween(WINBACK_FIRST_SEND_MIN_MS, WINBACK_FIRST_SEND_MAX_MS);
   const createdAt = new Date(nowMs).toISOString();
 
   // "Per day" means the salon's own calendar day, not UTC — the owner reads this
@@ -269,13 +277,17 @@ export async function enqueueWinbackForUser(
       daysSinceVisit: entry.daysSinceVisit,
     }));
 
-    // Each message gets its own slot inside the spread window, then a random
-    // moment inside that slot, so the gaps between sends are never uniform.
-    const slotMs = spreadWindowMs / Math.min(lapsed.length, remainingToday);
-    const scheduledMs = withinOpeningHours(
-      firstSendMs + Math.floor(queued * slotMs + Math.random() * slotMs),
-      settings,
-    );
+    // Step the cursor a full jittered gap past the previous message before
+    // placing this one, so consecutive win-backs are always at least
+    // WINBACK_MIN_GAP_MS apart by construction.
+    if (queued > 0) {
+      sendCursorMs += WINBACK_MIN_GAP_MS + Math.floor(Math.random() * WINBACK_GAP_JITTER_MS);
+    }
+    // The cursor absorbs any shift to the salon's next opening time — otherwise a
+    // message pushed to tomorrow morning would be followed by one still scheduled
+    // for this evening, sending them out of order and inside the gap floor.
+    sendCursorMs = withinOpeningHours(sendCursorMs, settings);
+    const scheduledMs = sendCursorMs;
 
     await db.execute({
       sql: `INSERT OR IGNORE INTO wa_booking_send_queue

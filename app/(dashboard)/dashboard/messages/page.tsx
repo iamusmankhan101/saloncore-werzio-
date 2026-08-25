@@ -495,7 +495,7 @@ function MessagesPageContent() {
         setWbResult({
           ok: true,
           message: data.queued
-            ? `Queued ${data.queued} win-back message${data.queued > 1 ? "s" : ""}, going out over the next 5-6 hours${data.skipped ? ` · ${data.skipped} held back (daily cap or cooldown)` : ""}.`
+            ? `Queued ${data.queued} win-back message${data.queued > 1 ? "s" : ""}, going out at least 20 min apart${data.skipped ? ` · ${data.skipped} held back (daily cap or cooldown)` : ""}.`
             : `Nothing to queue — today's limit of ${data.dailyCap ?? WINBACK_DAILY_MAX} is used up, or every lapsed client is inside their cooldown window.`,
         });
       } else {
@@ -1171,7 +1171,7 @@ function MessagesPageContent() {
                   </div>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 900, color: "#1d1d2f" }}>Win-back Messages</div>
-                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>Reaches clients who haven&rsquo;t been in for a while &mdash; a few a day, spread over 5&ndash;6 hours</div>
+                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>Reaches clients who haven&rsquo;t been in for a while &mdash; a few a day, never less than 20 min apart</div>
                   </div>
                   <button type="button" onClick={() => setWbEnabled((v) => !v)}
                     aria-label={`${wbEnabled ? "Disable" : "Enable"} win-back messages`}
@@ -1227,8 +1227,8 @@ function MessagesPageContent() {
                       <span style={{ fontSize: 11, color: "#9999b0", fontWeight: 700 }}>days</span>
                     </div>
                     <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>
-                      Sends are capped at {WINBACK_DAILY_MAX}/day (the exact number varies day to day) and trickle out over
-                      5&ndash;6 hours with random gaps &mdash; nothing goes out the moment it&rsquo;s queued.
+                      Capped at {WINBACK_DAILY_MAX}/day (the exact number varies day to day), with a random
+                      20&ndash;35 min gap between every message &mdash; nothing goes out the moment it&rsquo;s queued.
                       Edit the wording and the discount on the Templates tab &rarr; Win-back (Lapsed Clients).
                     </div>
                   </div>
@@ -1245,7 +1245,7 @@ function MessagesPageContent() {
                       {wbSaved ? <><Check size={13} /> Saved</> : wbSaving ? "Saving…" : <><Save size={13} /> Save</>}
                     </button>
                     <button type="button" onClick={queueWinbackNow} disabled={wbSending || lapsedClients.length === 0}
-                      title={lapsedClients.length === 0 ? "No lapsed clients to message" : "Queue today\u2019s win-back messages, spread over the next 5-6 hours"}
+                      title={lapsedClients.length === 0 ? "No lapsed clients to message" : "Queue today\u2019s win-back messages, each at least 20 min apart"}
                       style={{ flex: 1, border: "1px solid #ccfbf1", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: (wbSending || lapsedClients.length === 0) ? "not-allowed" : "pointer", background: "#f0fdfa", color: "#0d9488", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: lapsedClients.length === 0 ? 0.5 : 1 }}>
                       {wbSending ? "Queueing…" : <><Send size={13} /> Queue Now</>}
                     </button>
