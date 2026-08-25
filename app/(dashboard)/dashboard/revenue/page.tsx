@@ -72,7 +72,7 @@ const EXPENSE_CATEGORIES: { key: ExpenseCategory; label: string; color: string }
 const EXPENSE_LABELS: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map(c => [c.key, c.label]));
 const EXPENSE_COLORS: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map(c => [c.key, c.color]));
 
-type RevTab = "overview" | "gross";
+type RevTab = "overview" | "net";
 
 function toDateStr(d: Date) { return d.toLocaleDateString("en-CA"); }
 
@@ -337,7 +337,7 @@ export default function RevenuePage() {
       .filter(e => e.date >= monthStart && e.date <= monthEnd && e.paymentStatus !== "pending")
       .reduce((s, e) => s + e.amount, 0);
   }, [selectedMonth, expenses]);
-  const drillGrossProfit = drillTotal - drillExpenses;
+  const drillNetProfit = drillTotal - drillExpenses;
 
   // ── Default daily rows (no drill-down) ────────────────────────────────────
   const dailyRows = useMemo(() => {
@@ -437,8 +437,8 @@ export default function RevenuePage() {
     return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 6);
   }, [currentAppts, currentPos]);
 
-  // ── Gross / Net profit ─────────────────────────────────────────────────────
-  // Gross Profit = Revenue − all logged Expenses (rent, utilities, marketing, etc,
+  // ── Net profit ─────────────────────────────────────────────────────────────
+  // Net Profit = Revenue − all logged Expenses (rent, utilities, marketing, etc,
   // including the "salaries" category) for the selected period. Only expenses
   // marked paid count — a pending/unpaid bill isn't a cost that's actually hit
   // the salon yet, matching the same paid-only filter the Cash Flow page uses.
@@ -457,8 +457,36 @@ export default function RevenuePage() {
       .sort((a, b) => b.amount - a.amount);
   }, [periodExpenses]);
 
-  const grossProfit = totalRevenue - totalExpenses;
-  const grossMarginPct = totalRevenue ? (grossProfit / totalRevenue) * 100 : 0;
+  const netProfit = totalRevenue - totalExpenses;
+  const netMarginPct = totalRevenue ? (netProfit / totalRevenue) * 100 : 0;
+
+  // ── Net profit by payment channel ──────────────────────────────────────────
+  // Same bucketing convention the Cash Flow page uses: an appointment closed
+  // without a POS checkout, an imported/manual entry, or anything with no
+  // tracked method counts as cash; card, bank and mobile wallets are online.
+  const revenueByChannel = useMemo(() => {
+    let cash = currentAppts.reduce((s, a) => s + a.totalAmount, 0) + currentManual.reduce((s, e) => s + e.amount, 0);
+    let online = 0;
+    currentPos.forEach(inv => {
+      if ((inv.paymentMethod || "cash") === "cash") cash += inv.total;
+      else online += inv.total;
+    });
+    return { cash, online };
+  }, [currentAppts, currentPos, currentManual]);
+
+  const expensesByChannel = useMemo(() => {
+    let cash = 0, online = 0;
+    periodExpenses.forEach(e => {
+      if ((e.paymentMethod || "cash") === "cash") cash += e.amount;
+      else online += e.amount;
+    });
+    return { cash, online };
+  }, [periodExpenses]);
+
+  const netProfitByChannel = useMemo(() => ({
+    cash:   revenueByChannel.cash   - expensesByChannel.cash,
+    online: revenueByChannel.online - expensesByChannel.online,
+  }), [revenueByChannel, expensesByChannel]);
 
   const maxChart = Math.max(...chartData.map(d => d.value), 1);
 
@@ -577,8 +605,8 @@ export default function RevenuePage() {
     const pdfCount   = isYearDrill ? drillCount   : totalCount;
     const pdfAvg     = isYearDrill ? drillAvg     : avgTicket;
     const pdfExpenses    = isYearDrill ? drillExpenses    : totalExpenses;
-    const pdfGrossProfit = isYearDrill ? drillGrossProfit : grossProfit;
-    const pdfGrossMarginPct = pdfTotal ? (pdfGrossProfit / pdfTotal) * 100 : 0;
+    const pdfNetProfit = isYearDrill ? drillNetProfit : netProfit;
+    const pdfNetMarginPct = pdfTotal ? (pdfNetProfit / pdfTotal) * 100 : 0;
     const periodLabel = period === "custom" ? `${rangeStart} → ${filterEnd}` : cfg.label;
     const pdfTitle   = isYearDrill ? `${selectedMonthLabel} — Daily Detail` : `Revenue Report — ${periodLabel}`;
     const pdfRange   = isYearDrill ? selectedMonthLabel : `${rangeStart} to ${filterEnd}`;
@@ -606,7 +634,7 @@ export default function RevenuePage() {
     .stat-label { font-size: 10px; font-weight: 700; color: #a0a0b8; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
     .stat-value { font-size: 20px; font-weight: 800; color: #7C3AED; }
     .stat-value.expense { color: #dc2626; }
-    .stat-value.profit { color: ${pdfGrossProfit >= 0 ? "#059669" : "#dc2626"}; }
+    .stat-value.profit { color: ${pdfNetProfit >= 0 ? "#059669" : "#dc2626"}; }
     .stat-sub   { font-size: 10px; color: #a0a0b8; margin-top: 4px; }
     .section { margin-bottom: 28px; }
     .section-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
@@ -666,9 +694,9 @@ export default function RevenuePage() {
       <div class="stat-sub">Total expenses</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Gross Profit</div>
-      <div class="stat-value profit">${fmt(pdfGrossProfit)}</div>
-      <div class="stat-sub">${pdfGrossMarginPct.toFixed(1)}% gross margin</div>
+      <div class="stat-label">Net Profit</div>
+      <div class="stat-value profit">${fmt(pdfNetProfit)}</div>
+      <div class="stat-sub">${pdfNetMarginPct.toFixed(1)}% net margin</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Appointments</div>
@@ -681,6 +709,41 @@ export default function RevenuePage() {
       <div class="stat-sub">Per appointment</div>
     </div>
   </div>
+
+  ${!isYearDrill ? `
+  <div class="section">
+    <div class="section-title">Net Profit by Payment Channel</div>
+    <div class="section-sub">Revenue minus paid expenses, split by how each was settled</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Channel</th>
+          <th style="text-align:right">Revenue</th>
+          <th style="text-align:right">Expenses</th>
+          <th style="text-align:right">Net Profit</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${[
+          { label: "Cash",   revenue: revenueByChannel.cash,   expenses: expensesByChannel.cash,   net: netProfitByChannel.cash   },
+          { label: "Online", revenue: revenueByChannel.online, expenses: expensesByChannel.online, net: netProfitByChannel.online },
+        ].map(c => `
+          <tr>
+            <td>${c.label}</td>
+            <td style="text-align:right">${fmt(c.revenue)}</td>
+            <td style="text-align:right;color:#dc2626">−${fmt(c.expenses)}</td>
+            <td style="text-align:right;font-weight:700;color:${c.net >= 0 ? "#059669" : "#dc2626"}">${fmt(c.net)}</td>
+          </tr>`).join("")}
+        <tr class="total-row">
+          <td>Total</td>
+          <td style="text-align:right">${fmt(pdfTotal)}</td>
+          <td style="text-align:right">−${fmt(pdfExpenses)}</td>
+          <td style="text-align:right">${fmt(pdfNetProfit)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  ` : ""}
 
   ${!isYearDrill ? `
   <div class="section">
@@ -927,7 +990,7 @@ export default function RevenuePage() {
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #f0f0f8" }}>
         {([
           { key: "overview", label: "Overview" },
-          { key: "gross",    label: "Gross Profit" },
+          { key: "net",      label: "Net Profit" },
         ] as { key: RevTab; label: string }[]).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
             background: "none", border: "none", cursor: "pointer",
@@ -1464,11 +1527,13 @@ export default function RevenuePage() {
       </>
       )}{/* /tab === "overview" */}
 
-      {tab === "gross" && (
-        <GrossProfitView
+      {tab === "net" && (
+        <NetProfitView
           period={cfg.label} rangeStart={rangeStart} filterEnd={filterEnd}
-          totalRevenue={totalRevenue} totalExpenses={totalExpenses} grossProfit={grossProfit}
-          grossMarginPct={grossMarginPct} expenseByCategory={expenseByCategory}
+          totalRevenue={totalRevenue} totalExpenses={totalExpenses} netProfit={netProfit}
+          netMarginPct={netMarginPct} expenseByCategory={expenseByCategory}
+          revenueByChannel={revenueByChannel} expensesByChannel={expensesByChannel}
+          netProfitByChannel={netProfitByChannel}
         />
       )}
 
@@ -1477,21 +1542,29 @@ export default function RevenuePage() {
   );
 }
 
-// ── Gross Profit tab ─────────────────────────────────────────────────────────
-function GrossProfitView({
-  period, rangeStart, filterEnd, totalRevenue, totalExpenses, grossProfit, grossMarginPct, expenseByCategory,
+// ── Net Profit tab ───────────────────────────────────────────────────────────
+function NetProfitView({
+  period, rangeStart, filterEnd, totalRevenue, totalExpenses, netProfit, netMarginPct, expenseByCategory,
+  revenueByChannel, expensesByChannel, netProfitByChannel,
 }: {
   period: string; rangeStart: string; filterEnd: string;
-  totalRevenue: number; totalExpenses: number; grossProfit: number; grossMarginPct: number;
+  totalRevenue: number; totalExpenses: number; netProfit: number; netMarginPct: number;
   expenseByCategory: { category: string; amount: number; pct: number }[];
+  revenueByChannel: { cash: number; online: number };
+  expensesByChannel: { cash: number; online: number };
+  netProfitByChannel: { cash: number; online: number };
 }) {
+  const channels = [
+    { key: "cash",   label: "Cash",   color: "#059669", revenue: revenueByChannel.cash,   expenses: expensesByChannel.cash,   net: netProfitByChannel.cash   },
+    { key: "online", label: "Online", color: "#2563eb", revenue: revenueByChannel.online, expenses: expensesByChannel.online, net: netProfitByChannel.online },
+  ];
   return (
     <>
       <div className="stats-grid-3">
         {[
           { label: "Total Revenue",  value: fmt(totalRevenue),  icon: TrendingUp,   color: "var(--accent)", bg: "rgba(124, 58, 237, 0.08)" },
           { label: "Total Expenses", value: fmt(totalExpenses), icon: TrendingDown, color: "#dc2626", bg: "#fef2f2" },
-          { label: "Gross Profit",   value: fmt(grossProfit),   icon: Wallet,       color: grossProfit >= 0 ? "#059669" : "#dc2626", bg: grossProfit >= 0 ? "#f0fdf4" : "#fef2f2" },
+          { label: "Net Profit",     value: fmt(netProfit),   icon: Wallet,       color: netProfit >= 0 ? "#059669" : "#dc2626", bg: netProfit >= 0 ? "#f0fdf4" : "#fef2f2" },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)", flex: 1 }}>
             <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color }}>
@@ -1508,7 +1581,7 @@ function GrossProfitView({
       <div className="dash-grid-bottom">
         {/* P&L summary */}
         <div style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", padding: "26px 30px" }}>
-          <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 4 }}>Gross Profit Summary</div>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 4 }}>Net Profit Summary</div>
           <div style={{ fontSize: 12, color: "#a0a0b8", marginBottom: 22 }}>{rangeStart} → {filterEnd} · {period}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1521,10 +1594,31 @@ function GrossProfitView({
             </div>
             <div style={{ height: 1, background: "#f0f0f8" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>= Gross Profit</span>
-              <span style={{ fontSize: 18, fontWeight: 800, color: grossProfit >= 0 ? "#059669" : "#dc2626" }}>{fmt(grossProfit)}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>= Net Profit</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: netProfit >= 0 ? "#059669" : "#dc2626" }}>{fmt(netProfit)}</span>
             </div>
-            <div style={{ fontSize: 12, color: "#a0a0b8" }}>{grossMarginPct.toFixed(1)}% gross margin</div>
+            <div style={{ fontSize: 12, color: "#a0a0b8" }}>{netMarginPct.toFixed(1)}% net margin</div>
+
+            <div style={{ height: 1, background: "#f0f0f8", marginTop: 8 }} />
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Net profit by payment channel
+            </div>
+            {channels.map(c => (
+              <div key={c.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{c.label}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#a0a0b8", marginTop: 3, marginLeft: 19 }}>
+                    {fmt(c.revenue)} revenue − {fmt(c.expenses)} expenses
+                  </div>
+                </div>
+                <span style={{ fontSize: 15, fontWeight: 800, color: c.net >= 0 ? c.color : "#dc2626", whiteSpace: "nowrap" }}>
+                  {fmt(c.net)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
