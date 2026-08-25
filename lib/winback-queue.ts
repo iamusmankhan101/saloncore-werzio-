@@ -10,7 +10,7 @@
 
 import { db } from "./db";
 import { isFakePlaceholderPhone } from "./whatsapp-provider";
-import { findLapsedClients, resolveWinbackConfig, todaysWinbackCap, winbackTemplateVars, type WinbackAppointment, type WinbackClient } from "./winback";
+import { findLapsedClients, resolveWinbackConfig, todaysWinbackCap, winbackTemplateVars, type WinbackAppointment, type WinbackClient, type WinbackInvoice } from "./winback";
 import { appointmentStartMs, isWithinSalonHours, nextSalonOpenMs, timezoneFromSettings, type SalonHoursDay } from "./appointment-time";
 
 const MINUTE_MS = 60 * 1000;
@@ -215,7 +215,11 @@ export async function enqueueWinbackForUser(
 
   const clients = await loadEntity<WinbackClient>(userId, "clients");
   const appointments = await loadEntity<WinbackAppointment>(userId, "appointments");
-  const lapsed = findLapsedClients(clients, appointments, config.daysInactive, nowMs);
+  // POS/manual invoices count as visits too — for a till-driven salon they are
+  // often the only record that a client came in, so leaving them out both hides
+  // real lapsed clients and, worse, makes active ones look dormant.
+  const invoices = await loadEntity<WinbackInvoice>(userId, "salon_invoices");
+  const lapsed = findLapsedClients(clients, appointments, config.daysInactive, nowMs, invoices);
   if (lapsed.length === 0) return { ok: true, eligible: 0, queued: 0, skipped: 0 };
 
   const salonName = (settings.salon as { name?: string } | undefined)?.name || "Your Salon";

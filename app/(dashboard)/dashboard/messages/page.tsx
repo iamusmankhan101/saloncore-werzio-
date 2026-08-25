@@ -10,6 +10,7 @@ import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { getStoredAppointments, getStoredClients } from "@/lib/storage";
+import { getSalonInvoices } from "@/lib/salon-invoices";
 import { getActiveSection } from "@/lib/sections";
 import { getWaLogs, WaLogEntry, WaMsgType, checkBirthdayReminders, getPendingWhatsAppQueue, PendingQueueItem } from "@/lib/whatsapp-scheduler";
 import { isFakePlaceholderPhone } from "@/lib/whatsapp-provider";
@@ -17,7 +18,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { locationUserKey } from "@/lib/locations";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import type { QueueDetailItem } from "@/app/api/whatsapp/queue-details/route";
-import { findLapsedClients, resolveWinbackConfig, WINBACK_DAILY_MAX, WINBACK_DEFAULTS } from "@/lib/winback";
+import { summarizeWinbackAudience, resolveWinbackConfig, WINBACK_DAILY_MAX, WINBACK_DEFAULTS } from "@/lib/winback";
 import type { Client } from "@/lib/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -407,12 +408,36 @@ function MessagesPageContent() {
   const [wbResult,      setWbResult]      = useState<{ ok: boolean; message: string } | null>(null);
 
   // Recomputed as the days field is edited so the owner sees how many clients a
-  // given window actually reaches before committing to it.
-  const lapsedClients = useMemo(() => {
+  // given window actually reaches before committing to it. Invoices count as
+  // visits alongside appointments — a till-driven salon may have no appointments
+  // at all.
+  const winbackAudience = useMemo(() => {
     const days = Number(wbDays);
-    if (!Number.isFinite(days) || days <= 0) return [];
-    return findLapsedClients(clients, getStoredAppointments(), days);
+    if (!Number.isFinite(days) || days <= 0) return null;
+    return summarizeWinbackAudience(
+      clients,
+      getStoredAppointments(),
+      days,
+      Date.now(),
+      getSalonInvoices().map((invoice) => ({ clientId: invoice.clientId, date: invoice.date })),
+    );
   }, [clients, wbDays]);
+  const lapsedClients = winbackAudience?.lapsed ?? [];
+
+  // "Nobody qualifies" is often the correct answer, so say which rule produced it
+  // rather than leaving the owner to guess whether the feature is broken.
+  const winbackEmptyReason = useMemo(() => {
+    if (!winbackAudience) return "Enter a number of days above.";
+    const { totalClients, excluded } = winbackAudience;
+    if (totalClients === 0) return "No clients on file for this location/section yet.";
+    const parts: string[] = [];
+    if (excluded.visitedRecently) parts.push(`${excluded.visitedRecently} visited within ${wbDays} days`);
+    if (excluded.neverVisited) parts.push(`${excluded.neverVisited} have no recorded visit`);
+    if (excluded.upcomingBooking) parts.push(`${excluded.upcomingBooking} already have an upcoming booking`);
+    if (excluded.optedOut) parts.push(`${excluded.optedOut} opted out of marketing`);
+    if (excluded.noPhone) parts.push(`${excluded.noPhone} have no phone number`);
+    return `None of your ${totalClients} clients qualify: ${parts.join(", ")}.`;
+  }, [winbackAudience, wbDays]);
 
   const todayBirthdayClients = useMemo(() => {
     const today = new Date();
@@ -1167,7 +1192,7 @@ function MessagesPageContent() {
                             </div>
                           )}
                         </>
-                      : "No lapsed clients in this window. Clients with an upcoming booking, no past visit, or marketing opted out are never included."}
+                      : winbackEmptyReason}
                   </div>
 
                   <div style={{ display: "flex", gap: 8 }}>

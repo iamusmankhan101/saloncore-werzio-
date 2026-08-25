@@ -80,6 +80,16 @@ export interface WinbackAppointment {
   status: string;
 }
 
+/**
+ * A POS or manual invoice. For salons that ring people up at the till rather
+ * than booking them in, this is the only record that a visit happened — a client
+ * can easily have no appointment at all and a blank lastVisitDate.
+ */
+export interface WinbackInvoice {
+  clientId?: string;
+  date: string;
+}
+
 export interface LapsedClient {
   client: WinbackClient;
   /** YYYY-MM-DD of the most recent completed visit. */
@@ -100,14 +110,25 @@ function isValidDay(value: unknown): value is string {
  * newest completed appointment. The stored field can lag behind (it's written by
  * whichever screen completed the visit), so neither source alone is reliable.
  */
-export function effectiveLastVisit(client: WinbackClient, appointments: WinbackAppointment[]): string | undefined {
+export function effectiveLastVisit(
+  client: WinbackClient,
+  appointments: WinbackAppointment[],
+  invoices: WinbackInvoice[] = [],
+): string | undefined {
   let latest = isValidDay(client.lastVisitDate) ? client.lastVisitDate.slice(0, 10) : undefined;
+  const consider = (value: string) => {
+    if (!isValidDay(value)) return;
+    const date = value.slice(0, 10);
+    if (!latest || date > latest) latest = date;
+  };
   for (const appt of appointments) {
     if (appt.clientId !== client.id) continue;
     if (appt.status !== "completed") continue;
-    if (!isValidDay(appt.date)) continue;
-    const date = appt.date.slice(0, 10);
-    if (!latest || date > latest) latest = date;
+    consider(appt.date);
+  }
+  for (const invoice of invoices) {
+    if (invoice.clientId !== client.id) continue;
+    consider(invoice.date);
   }
   return latest;
 }
@@ -121,38 +142,67 @@ function hasUpcomingBooking(clientId: string, appointments: WinbackAppointment[]
     && !["completed", "cancelled", "no-show"].includes(appt.status));
 }
 
+/** Why the clients who didn't qualify were left out — drives the empty-state copy. */
+export interface WinbackAudience {
+  lapsed: LapsedClient[];
+  totalClients: number;
+  excluded: {
+    noPhone: number;
+    optedOut: number;
+    neverVisited: number;
+    visitedRecently: number;
+    upcomingBooking: number;
+  };
+}
+
 /**
  * Everyone eligible for a win-back message, longest-absent first — so a capped
- * run reaches the clients who've been gone the longest before the rest.
+ * run reaches the clients who've been gone the longest before the rest — plus a
+ * tally of why everyone else was skipped. "No lapsed clients" is a legitimate
+ * answer, so the caller needs to be able to say *which* reason produced it.
  */
+export function summarizeWinbackAudience(
+  clients: WinbackClient[],
+  appointments: WinbackAppointment[],
+  daysInactive: number,
+  nowMs = Date.now(),
+  invoices: WinbackInvoice[] = [],
+): WinbackAudience {
+  const today = dayKey(nowMs);
+  const lapsed: LapsedClient[] = [];
+  const excluded = { noPhone: 0, optedOut: 0, neverVisited: 0, visitedRecently: 0, upcomingBooking: 0 };
+
+  for (const client of clients) {
+    if (!client.phone?.trim()) { excluded.noPhone++; continue; }
+    if (client.whatsappOptedOut) { excluded.optedOut++; continue; }
+
+    const lastVisit = effectiveLastVisit(client, appointments, invoices);
+    // Never visited at all — a lead, not a lapsed client. Nothing to win back.
+    if (!lastVisit) { excluded.neverVisited++; continue; }
+
+    const lastVisitMs = Date.parse(`${lastVisit}T00:00:00Z`);
+    if (!Number.isFinite(lastVisitMs)) { excluded.neverVisited++; continue; }
+    const daysSinceVisit = Math.floor((nowMs - lastVisitMs) / DAY_MS);
+    if (daysSinceVisit < daysInactive) { excluded.visitedRecently++; continue; }
+
+    if (hasUpcomingBooking(client.id, appointments, today)) { excluded.upcomingBooking++; continue; }
+
+    lapsed.push({ client, lastVisit, daysSinceVisit });
+  }
+
+  lapsed.sort((a, b) => b.daysSinceVisit - a.daysSinceVisit);
+  return { lapsed, totalClients: clients.length, excluded };
+}
+
+/** Just the eligible clients — see summarizeWinbackAudience for the exclusion tally. */
 export function findLapsedClients(
   clients: WinbackClient[],
   appointments: WinbackAppointment[],
   daysInactive: number,
   nowMs = Date.now(),
+  invoices: WinbackInvoice[] = [],
 ): LapsedClient[] {
-  const today = dayKey(nowMs);
-  const lapsed: LapsedClient[] = [];
-
-  for (const client of clients) {
-    if (!client.phone?.trim()) continue;
-    if (client.whatsappOptedOut) continue;
-
-    const lastVisit = effectiveLastVisit(client, appointments);
-    // Never visited at all — a lead, not a lapsed client. Nothing to win back.
-    if (!lastVisit) continue;
-
-    const lastVisitMs = Date.parse(`${lastVisit}T00:00:00Z`);
-    if (!Number.isFinite(lastVisitMs)) continue;
-    const daysSinceVisit = Math.floor((nowMs - lastVisitMs) / DAY_MS);
-    if (daysSinceVisit < daysInactive) continue;
-
-    if (hasUpcomingBooking(client.id, appointments, today)) continue;
-
-    lapsed.push({ client, lastVisit, daysSinceVisit });
-  }
-
-  return lapsed.sort((a, b) => b.daysSinceVisit - a.daysSinceVisit);
+  return summarizeWinbackAudience(clients, appointments, daysInactive, nowMs, invoices).lapsed;
 }
 
 // Deterministic 0-1 from a seed string, so the same salon on the same day always
