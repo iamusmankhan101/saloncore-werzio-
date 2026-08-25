@@ -269,6 +269,20 @@ export default function CashFlowPage() {
   const totalExpense = paidPeriodExpenses.reduce((s, e) => s + e.amount, 0);
   const netCashFlow  = periodIncome - totalExpense;
 
+  // Paid expenses split by how they were actually settled, mirroring the income
+  // split above: anything without a tracked method counts as cash.
+  const periodExpenseSplit = useMemo(() => {
+    let cash = 0, online = 0;
+    paidPeriodExpenses.forEach(e => {
+      if ((e.paymentMethod || "cash") === "cash") cash += e.amount;
+      else online += e.amount;
+    });
+    return { cash, online };
+  }, [paidPeriodExpenses]);
+
+  const netCashIncome   = periodIncomeSplit.cash   - periodExpenseSplit.cash;
+  const netOnlineIncome = periodIncomeSplit.online - periodExpenseSplit.online;
+
   const categoryBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
     paidPeriodExpenses.forEach(e => { map[e.category] = (map[e.category] ?? 0) + e.amount; });
@@ -736,6 +750,12 @@ export default function CashFlowPage() {
         ["Paid Expenses (PKR)", totalExpense],
         ["Pending Expenses (PKR)", pendingExpense],
         ["Net Cash Flow (PKR)", netCashFlow],
+        ["Cash Income (PKR)", periodIncomeSplit.cash],
+        ["Cash Expenses (PKR)", periodExpenseSplit.cash],
+        ["Net Cash Income (PKR)", netCashIncome],
+        ["Online Income (PKR)", periodIncomeSplit.online],
+        ["Online Expenses (PKR)", periodExpenseSplit.online],
+        ["Net Online Income (PKR)", netOnlineIncome],
         ["Exported At", new Date().toISOString()],
       ];
 
@@ -839,6 +859,16 @@ export default function CashFlowPage() {
       <div class="stat-label">Net Cash Flow</div>
       <div class="stat-value ${netCashFlow >= 0 ? "net-pos" : "net-neg"}">${netCashFlow >= 0 ? "" : "-"}${fmt(Math.abs(netCashFlow))}</div>
       <div class="stat-sub">${netCashFlow >= 0 ? "Surplus" : "Deficit"}</div>
+    </div>
+    <div class="stat-card" style="background:${netCashIncome >= 0 ? "#f0fdf4" : "#fef2f2"};border-color:${netCashIncome >= 0 ? "#bbf7d0" : "#fecaca"}">
+      <div class="stat-label">Net Cash Income</div>
+      <div class="stat-value ${netCashIncome >= 0 ? "net-pos" : "net-neg"}">${netCashIncome >= 0 ? "" : "-"}${fmt(Math.abs(netCashIncome))}</div>
+      <div class="stat-sub">${fmt(periodIncomeSplit.cash)} in − ${fmt(periodExpenseSplit.cash)} cash expenses</div>
+    </div>
+    <div class="stat-card" style="background:${netOnlineIncome >= 0 ? "#eff6ff" : "#fef2f2"};border-color:${netOnlineIncome >= 0 ? "#bfdbfe" : "#fecaca"}">
+      <div class="stat-label">Net Online Income</div>
+      <div class="stat-value ${netOnlineIncome >= 0 ? "net-pos" : "net-neg"}">${netOnlineIncome >= 0 ? "" : "-"}${fmt(Math.abs(netOnlineIncome))}</div>
+      <div class="stat-sub">${fmt(periodIncomeSplit.online)} in − ${fmt(periodExpenseSplit.online)} online expenses</div>
     </div>
   </div>
 
@@ -1041,11 +1071,27 @@ export default function CashFlowPage() {
           ))}
         </div>
 
-        {/* ── Cash vs Online split ────────────────────────────────────── */}
+        {/* ── Cash vs Online split (income, then net of same-method expenses) ── */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
             { label: "Cash",   value: fmt(periodIncomeSplit.cash),   color: "#059669", bg: "#ecfdf5", sub: "Cash-in-hand income",                icon: Banknote   },
             { label: "Online", value: fmt(periodIncomeSplit.online), color: "#2563eb", bg: "#eff6ff", sub: "Card, bank & mobile wallet income",   icon: CreditCard },
+            {
+              label: "Net Cash",
+              value: (netCashIncome < 0 ? "−" : "+") + fmt(Math.abs(netCashIncome)),
+              color: netCashIncome >= 0 ? "#059669" : "#ef4444",
+              bg: netCashIncome >= 0 ? "#ecfdf5" : "#fef2f2",
+              sub: `${fmt(periodIncomeSplit.cash)} in − ${fmt(periodExpenseSplit.cash)} cash expenses`,
+              icon: Wallet,
+            },
+            {
+              label: "Net Online",
+              value: (netOnlineIncome < 0 ? "−" : "+") + fmt(Math.abs(netOnlineIncome)),
+              color: netOnlineIncome >= 0 ? "#2563eb" : "#ef4444",
+              bg: netOnlineIncome >= 0 ? "#eff6ff" : "#fef2f2",
+              sub: `${fmt(periodIncomeSplit.online)} in − ${fmt(periodExpenseSplit.online)} online expenses`,
+              icon: Wallet,
+            },
           ].map(({ label, value, color, bg, sub, icon: Icon }) => (
             <div key={label} style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(226,223,235,0.8)", padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.02)" }}>
               <div style={{ width: 46, height: 46, borderRadius: 12, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
