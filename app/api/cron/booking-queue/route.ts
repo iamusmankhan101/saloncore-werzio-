@@ -41,6 +41,9 @@ function spacingDelayMs(kind: QueueKind): number {
   if (kind === "reminder") return randBetween(10 * MINUTE_MS, 20 * MINUTE_MS);
   if (kind === "cancellation") return randBetween(15 * MINUTE_MS, 20 * MINUTE_MS);
   if (kind === "birthday") return randBetween(20 * MINUTE_MS, 30 * MINUTE_MS);
+  // Widest of all — a win-back run is a bulk marketing batch to dormant
+  // numbers, the send pattern most likely to get a number flagged.
+  if (kind === "winback") return randBetween(25 * MINUTE_MS, 45 * MINUTE_MS);
   return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
 }
 
@@ -147,7 +150,7 @@ async function ensureTables() {
   `);
 }
 
-type QueueKind = "confirmation" | "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "lowstock" | "manual";
+type QueueKind = "confirmation" | "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "winback" | "lowstock" | "manual";
 type LogKind = QueueKind | "invoice";
 
 interface QueueRow {
@@ -253,7 +256,7 @@ function logTypeForKind(kind: LogKind): string {
   return kind;
 }
 
-function messageTypeForKind(kind: QueueKind): "reminder" | "confirmation" | "followup" | "cancellation" | "manual" | "birthday" {
+function messageTypeForKind(kind: QueueKind): "reminder" | "confirmation" | "followup" | "cancellation" | "manual" | "birthday" | "winback" {
   if (kind === "groupalert") return "manual";
   if (kind === "lowstock") return "manual";
   return kind;
@@ -261,7 +264,7 @@ function messageTypeForKind(kind: QueueKind): "reminder" | "confirmation" | "fol
 
 function intentForKind(kind: QueueKind): WhatsAppMessageIntent {
   if (kind === "lowstock" || kind === "groupalert") return "internal";
-  if (kind === "cancellation" || kind === "birthday") return "marketing";
+  if (kind === "cancellation" || kind === "birthday" || kind === "winback") return "marketing";
   return "utility";
 }
 
@@ -269,7 +272,7 @@ function intentForKind(kind: QueueKind): WhatsAppMessageIntent {
 // that back defeats the point). Everything else in this set has no time
 // pressure, so it waits for the salon to actually be open rather than landing
 // in a client's chat, or the owner's low-stock alert, while the salon is closed.
-const SALON_HOURS_GATED_KINDS = new Set<QueueKind>(["reminder", "followup", "cancellation", "birthday", "lowstock"]);
+const SALON_HOURS_GATED_KINDS = new Set<QueueKind>(["reminder", "followup", "cancellation", "birthday", "winback", "lowstock"]);
 
 function autoSettingEnabled(settings: Record<string, unknown> | null, kind: QueueKind): boolean {
   const wasender = settings?.wasender as {
@@ -286,6 +289,9 @@ function autoSettingEnabled(settings: Record<string, unknown> | null, kind: Queu
   if (kind === "cancellation") return wasender?.autoCancellation !== false;
   if (kind === "reminder") return wasender?.autoReminder !== false;
   if (kind === "lowstock") return wasender?.autoLowStock !== false;
+  // Win-back lives in its own settings block (not wasender) and is opt-in, so
+  // unlike every other kind here an absent value means off, not on.
+  if (kind === "winback") return (settings?.winback as { autoWinback?: boolean } | undefined)?.autoWinback === true;
   return true;
 }
 
@@ -448,6 +454,7 @@ function minGapMsForKind(kind: QueueKind): number {
   if (kind === "reminder") return 10 * MINUTE_MS;
   if (kind === "cancellation") return 15 * MINUTE_MS;
   if (kind === "birthday") return 20 * MINUTE_MS;
+  if (kind === "winback") return 25 * MINUTE_MS;
   return 10 * MINUTE_MS;
 }
 const POS_MIN_GAP_MS = 10 * MINUTE_MS;
@@ -561,7 +568,12 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       expired++;
       continue;
     }
-    if (!autoSettingEnabled(settings, item.kind)) {
+    // A win-back batch queued by hand from the Messaging page ("Queue Now") still
+    // sends even when the nightly win-back automation is off — the owner asked for
+    // that specific batch. The master WhatsApp Automation switch (checked just
+    // above) and the 24h staleness expiry still stop it.
+    const manuallyQueued = item.kind === "winback" && item.service === "manual";
+    if (!manuallyQueued && !autoSettingEnabled(settings, item.kind)) {
       await updateItem(item, "expired", `${logTypeForKind(item.kind)} automation was disabled at the scheduled send time.`);
       expired++;
       continue;

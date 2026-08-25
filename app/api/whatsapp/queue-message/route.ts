@@ -4,13 +4,13 @@ import { db } from "@/lib/db";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { appointmentStartHasPassed, appointmentStartMs, isWithinSalonHours, nextSalonOpenMs, timezoneFromSettings, type SalonHoursDay } from "@/lib/appointment-time";
 
-type QueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "lowstock" | "manual";
+type QueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "winback" | "lowstock" | "manual";
 
 const MINUTE_MS = 60 * 1000;
 const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
 const REMINDER_TARGET_GRACE_MS = 75 * MINUTE_MS;
 const REMINDER_MIN_LEAD_MS = 30 * MINUTE_MS;
-const SALON_HOURS_GATED_KINDS = new Set<QueueKind>(["reminder", "followup", "cancellation", "birthday", "lowstock"]);
+const SALON_HOURS_GATED_KINDS = new Set<QueueKind>(["reminder", "followup", "cancellation", "birthday", "winback", "lowstock"]);
 
 interface QueueMessageBody {
   kind: QueueKind;
@@ -85,7 +85,7 @@ function normalizePhone(raw: string): string {
 }
 
 function isQueueKind(value: unknown): value is QueueKind {
-  return ["groupalert", "followup", "cancellation", "reminder", "birthday", "lowstock", "manual"].includes(String(value));
+  return ["groupalert", "followup", "cancellation", "reminder", "birthday", "winback", "lowstock", "manual"].includes(String(value));
 }
 
 function normalizeRecipient(kind: QueueKind, rawPhone: string): string {
@@ -141,6 +141,13 @@ function scheduledAtFor(kind: QueueKind, settings: Record<string, unknown>, requ
       return salonHoursAdjustedScheduledAt(kind, scheduledAt, settings);
     }
   }
+  if (kind === "winback") {
+    const minimum = now + 25 * MINUTE_MS;
+    if (!Number.isFinite(requestedAt) || requestedAt < minimum) {
+      scheduledAt = new Date(now + randBetween(25 * MINUTE_MS, 45 * MINUTE_MS)).toISOString();
+      return salonHoursAdjustedScheduledAt(kind, scheduledAt, settings);
+    }
+  }
   scheduledAt = Number.isFinite(requestedAt) ? new Date(requestedAt).toISOString() : new Date(now).toISOString();
   return salonHoursAdjustedScheduledAt(kind, scheduledAt, settings);
 }
@@ -188,6 +195,9 @@ function autoSettingEnabled(settings: Record<string, unknown>, kind: QueueKind):
     return wasender?.autoReminder !== false && notifications?.apptReminder !== false;
   }
   if (kind === "lowstock") return wasender?.autoLowStock !== false;
+  // Win-back lives in its own settings block and is opt-in, so an absent value
+  // means off, not on.
+  if (kind === "winback") return (settings.winback as { autoWinback?: boolean } | undefined)?.autoWinback === true;
   return true;
 }
 

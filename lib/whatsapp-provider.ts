@@ -10,6 +10,7 @@ export interface WhatsAppProviderConfig {
   botSailorTemplateFollowup?: string;
   botSailorTemplateCancellation?: string;
   botSailorTemplateBirthday?: string;
+  botSailorTemplateWinback?: string;
   zaptickApiKey?: string;
   chakraAccessToken?: string;
   chakraPluginId?: string;
@@ -19,6 +20,7 @@ export interface WhatsAppProviderConfig {
   chakraTemplateFollowup?: string;
   chakraTemplateCancellation?: string;
   chakraTemplateBirthday?: string;
+  chakraTemplateWinback?: string;
 }
 
 export interface WhatsAppSendResult {
@@ -69,7 +71,7 @@ export async function sendWhatsAppMessage(
   config: WhatsAppProviderConfig,
   phone: string,
   text: string,
-  options?: { messageType?: "reminder" | "confirmation" | "followup" | "cancellation" | "birthday" | "manual" },
+  options?: { messageType?: "reminder" | "confirmation" | "followup" | "cancellation" | "birthday" | "winback" | "manual" },
 ): Promise<WhatsAppSendResult> {
   // Group JIDs (…@g.us) aren't phone numbers, so the fake-number check doesn't apply.
   if (!phone.endsWith("@g.us") && isFakePlaceholderPhone(phone)) {
@@ -150,6 +152,7 @@ export async function sendWhatsAppMessage(
     else if (messageType === "followup") templateName = config.chakraTemplateFollowup || "";
     else if (messageType === "cancellation") templateName = config.chakraTemplateCancellation || "";
     else if (messageType === "birthday") templateName = config.chakraTemplateBirthday || "";
+    else if (messageType === "winback") templateName = config.chakraTemplateWinback || "";
     if (!templateName) {
       return { ok: false, status: 500, errorReason: `No ChakraHQ template configured for message type "${messageType || "manual"}".` };
     }
@@ -198,6 +201,7 @@ export async function sendWhatsAppMessage(
     else if (messageType === "followup") templateId = config.botSailorTemplateFollowup || "";
     else if (messageType === "cancellation") templateId = config.botSailorTemplateCancellation || "";
     else if (messageType === "birthday") templateId = config.botSailorTemplateBirthday || "";
+    else if (messageType === "winback") templateId = config.botSailorTemplateWinback || "";
 
     // Build request body
     const bodyParams: Record<string, string> = {

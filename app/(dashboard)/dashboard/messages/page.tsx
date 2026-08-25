@@ -4,12 +4,12 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw,
   Zap, Bell, ThumbsUp, Package, ChevronRight, Phone, Copy, Check,
-  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, CalendarDays, AlertCircle, Cake, CalendarX, Heart, X, ListChecks,
+  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, CalendarDays, AlertCircle, Cake, CalendarX, Heart, X, ListChecks, UserMinus,
 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
-import { getStoredClients } from "@/lib/storage";
+import { getStoredAppointments, getStoredClients } from "@/lib/storage";
 import { getActiveSection } from "@/lib/sections";
 import { getWaLogs, WaLogEntry, WaMsgType, checkBirthdayReminders, getPendingWhatsAppQueue, PendingQueueItem } from "@/lib/whatsapp-scheduler";
 import { isFakePlaceholderPhone } from "@/lib/whatsapp-provider";
@@ -17,6 +17,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { locationUserKey } from "@/lib/locations";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import type { QueueDetailItem } from "@/app/api/whatsapp/queue-details/route";
+import { findLapsedClients, resolveWinbackConfig, WINBACK_DEFAULTS } from "@/lib/winback";
 import type { Client } from "@/lib/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ const TYPE_META: Record<WaMsgType, { label: string; color: string; bg: string; i
   lowstock:     { label: "Low Stock",    color: "#ea580c", bg: "rgba(234,88,12,0.1)",   icon: Package },
   manual:       { label: "Manual",       color: "#6b7280", bg: "rgba(107,114,128,0.1)", icon: Send },
   birthday:     { label: "Birthday",     color: "#db2777", bg: "rgba(219,39,119,0.1)",  icon: Cake },
+  winback:      { label: "Win-back",     color: "#0d9488", bg: "rgba(13,148,136,0.1)",  icon: UserMinus },
   thankyou:     { label: "Thank You",    color: "#c026d3", bg: "rgba(192,38,211,0.1)",  icon: Heart },
   newbooking:   { label: "New Booking",  color: "#6366f1", bg: "rgba(99,102,241,0.1)",  icon: CalendarDays },
   invoice:      { label: "Invoice",      color: "#2563eb", bg: "rgba(37,99,235,0.1)",   icon: MessageSquare },
@@ -44,6 +46,8 @@ const SAMPLE_VARS: Record<string, string> = {
   count: "2",
   discount: "10%",
   amount: "2500",
+  last_visit: new Date(Date.now() - 120 * 86_400_000).toISOString().slice(0, 10),
+  days: "120",
 };
 
 function isVisibleWaLog(log: WaLogEntry): boolean {
@@ -59,6 +63,7 @@ const TPL_CONFIG: TplCfg[] = [
   { key: "cancellation", noDiscountKey: "cancellationNoDiscount", label: "Cancellation Win-back", description: "Sent after cancellation. Supports separate discount and no-discount wording", vars: ["name","salon_name","discount"], noDiscountVars: ["name","salon_name"], color: "#dc2626", icon: CalendarX },
   { key: "lowstock",     label: "Low Stock Alert",         description: "Sent once daily to your WhatsApp when stock is low",        vars: ["items","count","salon_name"],                color: "#ea580c", icon: Package },
   { key: "birthday", noDiscountKey: "birthdayNoDiscount", label: "Birthday Greeting", description: "Queued on each client's birthday. Supports separate discount and no-discount wording", vars: ["name","salon_name","discount"], noDiscountVars: ["name","salon_name"], color: "#db2777", icon: Cake },
+  { key: "winback", noDiscountKey: "winbackNoDiscount", label: "Win-back (Lapsed Clients)", description: "Sent to clients who haven't visited in a long time. Supports separate discount and no-discount wording", vars: ["name","salon_name","discount","last_visit","days"], noDiscountVars: ["name","salon_name","last_visit","days"], color: "#0d9488", icon: UserMinus },
   { key: "posThankYou",  label: "POS Thank You",           description: "Included in the invoice message caption after a POS sale", vars: ["name","salon_name"],                          color: "#c026d3", icon: Heart },
 ];
 
@@ -69,6 +74,7 @@ const FILTERS: { value: WaMsgType | "all"; label: string }[] = [
   { value: "followup",     label: "Follow-ups" },
   { value: "cancellation", label: "Cancellations" },
   { value: "birthday",     label: "Birthdays" },
+  { value: "winback",      label: "Win-back" },
   { value: "thankyou",     label: "Thank You" },
   { value: "lowstock",     label: "Low Stock" },
   { value: "newbooking",   label: "New Booking" },
@@ -158,12 +164,14 @@ function AutoCard({ icon: Icon, label, enabled, color }: {
 function getDiscountInitial(key: string): string {
   if (key === "cancellation") return (settingsStore.wasender as Record<string, string>).cancelDiscount ?? "10%";
   if (key === "birthday")     return (settingsStore.birthday  as Record<string, string>).birthdayDiscount ?? "";
+  if (key === "winback")      return (settingsStore.winback   as Record<string, string>).winbackDiscount ?? "";
   return "";
 }
 
 function getDiscountEnabledInitial(key: string): boolean {
   if (key === "cancellation") return (settingsStore.wasender as { cancelDiscountEnabled?: boolean }).cancelDiscountEnabled !== false;
   if (key === "birthday")     return (settingsStore.birthday  as { birthdayDiscountEnabled?: boolean }).birthdayDiscountEnabled !== false;
+  if (key === "winback")      return (settingsStore.winback   as { winbackDiscountEnabled?: boolean }).winbackDiscountEnabled !== false;
   return false;
 }
 
@@ -218,6 +226,10 @@ function TemplateCard({ cfg }: { cfg: TplCfg }) {
     if (cfg.key === "birthday") {
       (settingsStore.birthday as Record<string, string | boolean>).birthdayDiscount = discount;
       (settingsStore.birthday as Record<string, string | boolean>).birthdayDiscountEnabled = discountEnabled;
+    }
+    if (cfg.key === "winback") {
+      (settingsStore.winback as Record<string, string | boolean>).winbackDiscount = discount;
+      (settingsStore.winback as Record<string, string | boolean>).winbackDiscountEnabled = discountEnabled;
     }
     saveSettings();
     dirtyRef.current = false;
@@ -317,6 +329,8 @@ function TemplateCard({ cfg }: { cfg: TplCfg }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+// Plan gate lives in its own component so every hook below runs unconditionally —
+// hooks after an early return change order the moment the gate flips.
 export default function MessagesPage() {
   const waPlan = getCurrentPlan();
   if (!waPlan.whatsapp) {
@@ -356,7 +370,10 @@ export default function MessagesPage() {
       </div>
     );
   }
+  return <MessagesPageContent />;
+}
 
+function MessagesPageContent() {
   const [tab, setTab]           = useState<"messages" | "templates">("messages");
   const [logs, setLogs]         = useState<WaLogEntry[]>([]);
   const [clients, setClients]   = useState<Client[]>([]);
@@ -377,6 +394,25 @@ export default function MessagesPage() {
   const [bdSaved,      setBdSaved]      = useState(false);
   const [bdSending,    setBdSending]    = useState(false);
   const [bdSendDone,   setBdSendDone]   = useState(false);
+
+  // Win-back (lapsed client) settings
+  const wbDefaults = resolveWinbackConfig(settingsStore);
+  const [wbEnabled,     setWbEnabled]     = useState(wbDefaults.autoWinback);
+  const [wbDays,        setWbDays]        = useState(String(wbDefaults.daysInactive));
+  const [wbCooldown,    setWbCooldown]    = useState(String(wbDefaults.cooldownDays));
+  const [wbLimit,       setWbLimit]       = useState(String(wbDefaults.dailyLimit));
+  const [wbSaving,      setWbSaving]      = useState(false);
+  const [wbSaved,       setWbSaved]       = useState(false);
+  const [wbSending,     setWbSending]     = useState(false);
+  const [wbResult,      setWbResult]      = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Recomputed as the days field is edited so the owner sees how many clients a
+  // given window actually reaches before committing to it.
+  const lapsedClients = useMemo(() => {
+    const days = Number(wbDays);
+    if (!Number.isFinite(days) || days <= 0) return [];
+    return findLapsedClients(clients, getStoredAppointments(), days);
+  }, [clients, wbDays]);
 
   const todayBirthdayClients = useMemo(() => {
     const today = new Date();
@@ -407,6 +443,45 @@ export default function MessagesPage() {
     setBdSendDone(true);
     setTimeout(() => setBdSendDone(false), 3000);
     setRefreshKey((k) => k + 1);
+  }
+
+  function saveWinbackSettings() {
+    setWbSaving(true);
+    const wb = settingsStore.winback as Record<string, unknown>;
+    wb.autoWinback = wbEnabled;
+    wb.winbackDaysInactive = Number(wbDays) > 0 ? Number(wbDays) : WINBACK_DEFAULTS.daysInactive;
+    wb.winbackCooldownDays = Number(wbCooldown) > 0 ? Number(wbCooldown) : WINBACK_DEFAULTS.cooldownDays;
+    wb.winbackDailyLimit = Number(wbLimit) > 0 ? Number(wbLimit) : WINBACK_DEFAULTS.dailyLimit;
+    saveSettings();
+    setWbSaving(false);
+    setWbSaved(true);
+    setTimeout(() => setWbSaved(false), 2500);
+  }
+
+  // Queues server-side (unlike the birthday test send, which runs in this tab) so
+  // the batch keeps draining across its multi-hour spread even if this page closes.
+  async function queueWinbackNow() {
+    setWbSending(true);
+    setWbResult(null);
+    try {
+      const res = await fetch("/api/whatsapp/queue-winback", { method: "POST" });
+      const data = await res.json() as { ok?: boolean; queued?: number; eligible?: number; skipped?: number; error?: string };
+      if (data.ok) {
+        setWbResult({
+          ok: true,
+          message: data.queued
+            ? `Queued ${data.queued} win-back message${data.queued > 1 ? "s" : ""}${data.skipped ? ` · ${data.skipped} skipped (cooldown or daily cap)` : ""}.`
+            : "Nothing to queue — every lapsed client is inside their cooldown window.",
+        });
+      } else {
+        setWbResult({ ok: false, message: data.error || "Could not queue win-back messages." });
+      }
+    } catch {
+      setWbResult({ ok: false, message: "Network error — could not reach the server." });
+    } finally {
+      setWbSending(false);
+      setRefreshKey((k) => k + 1);
+    }
   }
 
   // Load logs: try Turso first, fall back to localStorage
@@ -928,6 +1003,7 @@ export default function MessagesPage() {
                   <AutoCard icon={CalendarX}    label="Cancellation Win-back"    enabled={ws.autoCancellation} color="#dc2626" />
                   <AutoCard icon={Package}      label="Low Stock Alert"          enabled={ws.autoLowStock}     color="#ea580c" />
                   <AutoCard icon={Cake}         label="Birthday Reminder"     enabled={bdEnabled}           color="#db2777" />
+                  <AutoCard icon={UserMinus}    label="Win-back (Lapsed)"     enabled={wbEnabled}           color="#0d9488" />
                 </div>
 
                 <div style={{ marginTop: 12, padding: "10px 13px", borderRadius: 10, background: totalQueue > 0 ? "#fffbeb" : "#f8f8fc", border: `1px solid ${totalQueue > 0 ? "#fde68a" : "#e8e8f0"}`, fontSize: 12, color: totalQueue > 0 ? "#92400e" : "#6b6b8a", fontWeight: 600, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -1057,6 +1133,84 @@ export default function MessagesPage() {
                       title={todayBirthdayClients.length === 0 ? "No clients have a birthday today" : "Queue birthday messages across 4 hours"}
                       style={{ flex: 1, border: "1px solid #fce7f3", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: (bdSending || todayBirthdayClients.length === 0) ? "not-allowed" : "pointer", background: bdSendDone ? "#ecfdf5" : "#fff3f8", color: bdSendDone ? "#059669" : "#db2777", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: todayBirthdayClients.length === 0 ? 0.5 : 1 }}>
                       {bdSendDone ? <><Check size={13} /> Queued!</> : bdSending ? "Queueing…" : <><Send size={13} /> Queue Now</>}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Win-back — clients who haven't visited in a long time */}
+              <div style={{ background: "#fff", border: "1px solid #ccfbf1", borderRadius: 18, padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(13,148,136,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <UserMinus size={16} color="#0d9488" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: "#1d1d2f" }}>Win-back Messages</div>
+                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>Reaches clients who haven&rsquo;t been in for a while, spread across several hours</div>
+                  </div>
+                  <button type="button" onClick={() => setWbEnabled((v) => !v)}
+                    aria-label={`${wbEnabled ? "Disable" : "Enable"} win-back messages`}
+                    style={{ marginLeft: "auto", width: 40, height: 22, borderRadius: 11, border: "none", cursor: "pointer", background: wbEnabled ? "#0d9488" : "#d1d5db", transition: "background 0.2s", position: "relative", flexShrink: 0 }}>
+                    <span style={{ position: "absolute", top: 3, left: wbEnabled ? 20 : 3, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ padding: "10px 12px", borderRadius: 9, background: lapsedClients.length > 0 ? "#f0fdfa" : "#f8f8fc", border: `1px solid ${lapsedClients.length > 0 ? "#ccfbf1" : "#e8e8f0"}`, fontSize: 11, color: lapsedClients.length > 0 ? "#115e59" : "#6b6b8a", lineHeight: 1.6 }}>
+                    {lapsedClients.length > 0
+                      ? <><strong>{lapsedClients.length} client{lapsedClients.length > 1 ? "s haven\u2019t" : " hasn\u2019t"} visited in {wbDays}+ days:</strong> {lapsedClients.slice(0, 6).map((entry) => entry.client.name).join(", ")}{lapsedClients.length > 6 ? ` +${lapsedClients.length - 6} more` : ""}</>
+                      : "No lapsed clients in this window. Clients with an upcoming booking, no past visit, or marketing opted out are never included."}
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#7c7c9a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>
+                        Inactive for
+                      </label>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <input type="number" min={1} value={wbDays} onChange={(e) => setWbDays(e.target.value)}
+                          style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", outline: "none", boxSizing: "border-box" }} />
+                        <span style={{ fontSize: 11, color: "#9999b0", fontWeight: 700 }}>days</span>
+                      </div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#7c7c9a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>
+                        Max per day
+                      </label>
+                      <input type="number" min={1} value={wbLimit} onChange={(e) => setWbLimit(e.target.value)}
+                        style={{ width: "100%", height: 36, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", outline: "none", boxSizing: "border-box" }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#7c7c9a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>
+                      Don&rsquo;t message the same client again for
+                    </label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <input type="number" min={1} value={wbCooldown} onChange={(e) => setWbCooldown(e.target.value)}
+                        style={{ flex: 1, height: 36, padding: "0 12px", borderRadius: 9, border: "1px solid #e4e4ee", fontSize: 13, color: "#29293d", outline: "none", boxSizing: "border-box" }} />
+                      <span style={{ fontSize: 11, color: "#9999b0", fontWeight: 700 }}>days</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 4 }}>
+                      Edit the wording and the discount on the Templates tab &rarr; Win-back (Lapsed Clients).
+                    </div>
+                  </div>
+
+                  {wbResult && (
+                    <div style={{ padding: "9px 12px", borderRadius: 9, fontSize: 11, fontWeight: 600, lineHeight: 1.55, background: wbResult.ok ? "#f0fdfa" : "#fef2f2", border: `1px solid ${wbResult.ok ? "#ccfbf1" : "#fecaca"}`, color: wbResult.ok ? "#115e59" : "#991b1b" }}>
+                      {wbResult.message}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" onClick={saveWinbackSettings} disabled={wbSaving}
+                      style={{ flex: 1, border: "none", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: wbSaving ? "not-allowed" : "pointer", background: wbSaved ? "#ecfdf5" : "linear-gradient(135deg,#0f766e,#0d9488)", color: wbSaved ? "#059669" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, boxShadow: wbSaved ? "none" : "0 3px 10px rgba(13,148,136,0.3)" }}>
+                      {wbSaved ? <><Check size={13} /> Saved</> : wbSaving ? "Saving…" : <><Save size={13} /> Save</>}
+                    </button>
+                    <button type="button" onClick={queueWinbackNow} disabled={wbSending || lapsedClients.length === 0}
+                      title={lapsedClients.length === 0 ? "No lapsed clients to message" : "Queue win-back messages now, spread across several hours"}
+                      style={{ flex: 1, border: "1px solid #ccfbf1", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 800, cursor: (wbSending || lapsedClients.length === 0) ? "not-allowed" : "pointer", background: "#f0fdfa", color: "#0d9488", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: lapsedClients.length === 0 ? 0.5 : 1 }}>
+                      {wbSending ? "Queueing…" : <><Send size={13} /> Queue Now</>}
                     </button>
                   </div>
                 </div>

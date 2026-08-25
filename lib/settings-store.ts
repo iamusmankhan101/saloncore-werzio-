@@ -49,6 +49,7 @@ const defaults = {
     botSailorTemplateFollowup: "",
     botSailorTemplateCancellation: "",
     botSailorTemplateBirthday: "",
+    botSailorTemplateWinback: "",
     zaptickApiKey: "",
     chakraAccessToken: "",
     chakraPluginId: "",
@@ -58,6 +59,7 @@ const defaults = {
     chakraTemplateFollowup: "",
     chakraTemplateCancellation: "",
     chakraTemplateBirthday: "",
+    chakraTemplateWinback: "",
     ownerPhone: "",
     bookingGroupJid: "",
     autoReminder: true,
@@ -121,6 +123,8 @@ const defaults = {
     lowstock: "⚠️ Low Stock Alert from {{salon_name}}: {{count}} item(s) running low — {{items}}. Please restock soon.",
     birthday: "🎂 Happy Birthday {{name}}! Wishing you a beautiful day from all of us at {{salon_name}}. As a birthday gift, enjoy {{discount}} off your next visit — book anytime this week 💜",
     birthdayNoDiscount: "🎂 Happy Birthday {{name}}! Wishing you a beautiful day from all of us at {{salon_name}}. We hope your day is full of joy and glow 💜",
+    winback: "Hi {{name}}, it's been a while since your last visit to {{salon_name}} — we've missed you! Come back and enjoy {{discount}} off your next appointment. Just reply here to book 💜",
+    winbackNoDiscount: "Hi {{name}}, it's been a while since your last visit to {{salon_name}} — we've missed you! We'd love to see you again, just reply here whenever you'd like to book 💜",
     posThankYou: "Thank you so much for visiting {{salon_name}} today, {{name}}! We hope you loved your experience — see you again soon 💜",
   },
   birthday: {
@@ -128,6 +132,17 @@ const defaults = {
     birthdayTemplateId: "",
     birthdayDiscountEnabled: true,
     birthdayDiscount: "",
+  },
+  // Win-back messages for clients who haven't visited in a long time. Defaults
+  // to off — see WINBACK_DEFAULTS in lib/winback.ts for why this one automation
+  // has to be switched on deliberately.
+  winback: {
+    autoWinback: false,
+    winbackDaysInactive: 90,
+    winbackCooldownDays: 180,
+    winbackDiscountEnabled: true,
+    winbackDiscount: "",
+    winbackDailyLimit: 15,
   },
   loyalty: {
     enabled: true,
@@ -200,6 +215,7 @@ function load() {
       appearance: { ...dynamicDefaults.appearance, ...saved.appearance },
       whatsapp: { ...dynamicDefaults.whatsapp, ...saved.whatsapp },
       birthday: { ...dynamicDefaults.birthday, ...saved.birthday },
+      winback:  { ...dynamicDefaults.winback,  ...saved.winback  },
       loyalty:  { ...dynamicDefaults.loyalty,  ...saved.loyalty  },
       cashback: { ...dynamicDefaults.cashback, ...saved.cashback },
       printer:  { ...dynamicDefaults.printer,  ...saved.printer  },

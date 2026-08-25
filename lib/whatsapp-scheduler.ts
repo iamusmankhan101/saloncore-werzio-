@@ -27,7 +27,7 @@ export function fillTemplate(template: string, vars: Record<string, string>): st
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
-export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday" | "thankyou" | "newbooking" | "invoice";
+export type WaMsgType = "reminder" | "confirmation" | "followup" | "cancellation" | "lowstock" | "manual" | "birthday" | "winback" | "thankyou" | "newbooking" | "invoice";
 export type WaMsgStatus = "sent" | "failed";
 
 export interface WaLogEntry {
@@ -376,7 +376,7 @@ export function purgeQueuedAppointmentMessages(apptIds: Iterable<string>): void 
   clearReminderSendAts(ids);
 }
 
-type DbQueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "lowstock" | "manual";
+type DbQueueKind = "groupalert" | "followup" | "cancellation" | "reminder" | "birthday" | "winback" | "lowstock" | "manual";
 
 function dbScheduledAt(delayMs = 0): string {
   return new Date(Date.now() + delayMs).toISOString();

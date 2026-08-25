@@ -37,6 +37,10 @@
       "schedule": "0 5 * * *"
     },
     {
+      "path": "/api/cron/winback",
+      "schedule": "0 7 * * *"
+    },
+    {
       "path": "/api/cron/booking-queue",
       "schedule": "0 0 * * *"
     },
