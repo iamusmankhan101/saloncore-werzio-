@@ -18,20 +18,20 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Win-backs are pure marketing with no deadline, so they're spread far wider than
 // any other automated send — never a recognizable burst from one number.
 //
-// The gap between consecutive messages is the hard guarantee: at least
-// WINBACK_MIN_GAP_MS, plus up to WINBACK_GAP_JITTER_MS of randomness so it is
-// never a fixed, guessable interval. Scheduling walks a cursor forward by that
+// The gap between consecutive messages is the hard guarantee: never less than
+// WINBACK_MIN_GAP_MS, plus up to WINBACK_GAP_JITTER_MS of randomness on top so it
+// is never a fixed, guessable interval. Scheduling walks a cursor forward by that
 // gap rather than dividing a fixed window into slots — slots with jitter inside
 // them can still put two messages minutes apart, which is exactly what the floor
-// exists to prevent. A full 10-12 message batch at 20-35 min gaps works out to
-// roughly the intended 5-6 hour spread.
+// exists to prevent. A full 10-12 message batch at 30-50 min gaps works out to
+// roughly a 6-9 hour spread.
 //
 // Nothing goes out at queue time either: even the first message waits out
 // WINBACK_FIRST_SEND_*, so a manual "Queue Now" never becomes an instant blast.
-const WINBACK_MIN_GAP_MS = 20 * MINUTE_MS;
-const WINBACK_GAP_JITTER_MS = 15 * MINUTE_MS;
-const WINBACK_FIRST_SEND_MIN_MS = 20 * MINUTE_MS;
-const WINBACK_FIRST_SEND_MAX_MS = 35 * MINUTE_MS;
+const WINBACK_MIN_GAP_MS = 30 * MINUTE_MS;
+const WINBACK_GAP_JITTER_MS = 20 * MINUTE_MS;
+const WINBACK_FIRST_SEND_MIN_MS = 30 * MINUTE_MS;
+const WINBACK_FIRST_SEND_MAX_MS = 50 * MINUTE_MS;
 
 export interface WinbackEnqueueResult {
   ok: boolean;
