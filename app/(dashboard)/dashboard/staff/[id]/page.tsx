@@ -13,7 +13,7 @@ import { fmtCurrency as fmt } from "@/lib/format";
 import { Check, X, Plus, FileDown } from "lucide-react";
 import { exportStaffPdf } from "@/lib/export-pdf";
 import { settingsStore } from "@/lib/settings-store";
-import { getActiveSection } from "@/lib/sections";
+import { getActiveSection, inSection } from "@/lib/sections";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   owner:            { color: "#7C3AED", bg: "#EDE9FE" },
@@ -294,10 +294,10 @@ export default function StaffProfilePage() {
     // another section is treated as not found rather than leaking through a
     // direct link, and their appointments/services list is scoped too.
     const activeSection = getActiveSection();
-    if (!found || (activeSection !== "all" && found.section !== activeSection)) { setNotFound(true); return; }
+    if (!found || !inSection(found, activeSection)) { setNotFound(true); return; }
     setStaff(found);
-    setServices(getStoredServices().filter(sv => activeSection === "all" || sv.section === activeSection));
-    setAppointments(getStoredAppointments().filter(a => activeSection === "all" || a.section === activeSection));
+    setServices(getStoredServices().filter(sv => inSection(sv, activeSection)));
+    setAppointments(getStoredAppointments().filter(a => inSection(a, activeSection)));
   }, [id]);
 
   const handleSave = (updated: Staff, assignedServiceIds: string[]) => {

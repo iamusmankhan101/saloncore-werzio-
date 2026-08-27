@@ -6,7 +6,7 @@ import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAp
 import type { Staff, Service, StaffRole, StaffPayType, Appointment } from "@/lib/types";
 import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil, Lock, Upload, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
-import { getSectionOptions, getActiveSection } from "@/lib/sections";
+import { getSectionOptions, getActiveSection, inSection, defaultSectionForNewRecord } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -109,7 +109,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
     name: staff?.name ?? "",
     phone: staff?.phone ?? "",
     role: staff?.role ?? "",
-    section: staff?.section ?? "",
+    section: staff?.section ?? defaultSectionForNewRecord(),
     payType: staff?.payType ?? "commission",
     commissionRate: staff?.commissionRate ? String(staff.commissionRate) : "",
     baseSalary: staff?.baseSalary ? String(staff.baseSalary) : "",
@@ -352,7 +352,9 @@ function StaffImportModal({ existing, servicesList, onClose, onImport }: {
             phone,
             email: String(row["Email"] ?? row["email"] ?? "").trim() || existingStaff?.email || "",
             role: normalizeRole(row["Role"] ?? row["role"]),
-            section: String(row["Section"] ?? row["section"] ?? "").trim() || undefined,
+            section: String(row["Section"] ?? row["section"] ?? "").trim()
+              || defaultSectionForNewRecord()
+              || undefined,
             specialties,
             color: String(row["Color"] ?? row["color"] ?? "").trim() || existingStaff?.color || "#8B5CF6",
             isActive: parseActive(row["Active"] ?? row["Status"]),
@@ -527,7 +529,7 @@ export default function StaffPage() {
   const plan        = getCurrentPlan();
   const activeCount = staffList.filter((s) => s.isActive).length;
   const staffLimited = isAtLimit(plan.staffLimit, activeCount);
-  const visibleStaff = staffList.filter((s) => sectionFilter === "all" || s.section === sectionFilter);
+  const visibleStaff = staffList.filter((s) => inSection(s, sectionFilter));
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -728,7 +730,7 @@ export default function StaffPage() {
       {getActiveSection() !== "all" ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, alignSelf: "flex-start", padding: "8px 14px", borderRadius: 12, background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
           <Lock size={13} color="#7C3AED" />
-          <span style={{ fontSize: 12, fontWeight: 750, color: "#7C3AED" }}>Showing {getActiveSection()} staff only</span>
+          <span style={{ fontSize: 12, fontWeight: 750, color: "#7C3AED" }}>Showing {getActiveSection()} + unassigned staff</span>
         </div>
       ) : (() => {
         const sectionTabs = ["all", ...getSectionOptions(staffList)];

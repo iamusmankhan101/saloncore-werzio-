@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { getStoredStaff } from "@/lib/storage";
 import type { Staff } from "@/lib/types";
-import { getActiveSection } from "@/lib/sections";
+import { getActiveSection, inSection } from "@/lib/sections";
 import {
   getAttendance, setAttendanceStatus, getAttendanceSummary,
   type AttendanceRecord, type AttendanceStatus,
@@ -55,7 +55,7 @@ export default function AttendancePage() {
 
   useEffect(() => {
     // Strict-locked to the active dashboard section, same rule as Staff.
-    setStaffList(getStoredStaff().filter((s) => s.isActive && (activeSection === "all" || s.section === activeSection)));
+    setStaffList(getStoredStaff().filter((s) => s.isActive && inSection(s, activeSection)));
     setRecords(getAttendance());
   }, []);
 

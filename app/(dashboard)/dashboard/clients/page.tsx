@@ -11,7 +11,7 @@ import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
-import { getSectionOptions, getActiveSection } from "@/lib/sections";
+import { getSectionOptions, getActiveSection, inSection, defaultSectionForNewRecord } from "@/lib/sections";
 import { normalizePhone } from "@/lib/whatsapp-scheduler";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -562,7 +562,7 @@ function InfoLine({ icon, label }: { icon: React.ReactNode; label: string }) {
 // ── Add Client Modal ──────────────────────────────────────────────────────────
 function AddClientModal({ onClose, onAdd, locations, allowLocationSelection, clients }: { onClose: () => void; onAdd: (c: Client) => void; locations: SalonLocation[]; allowLocationSelection: boolean; clients: Client[] }) {
   const [done, setDone] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", section: "", notes: "", locationId: getDefaultLocationId() });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", section: defaultSectionForNewRecord(), notes: "", locationId: getDefaultLocationId() });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const canSubmit = form.name.trim();
 
@@ -992,7 +992,7 @@ export default function ClientsPage() {
       if (tagFilter !== "all" && !c.tags.includes(tagFilter)) return false;
       if (sourceFilter !== "all" && c.source !== sourceFilter) return false;
       if (locationFilter !== "all" && clientLocationId(c) !== locationFilter) return false;
-      if (sectionFilter !== "all" && c.section !== sectionFilter) return false;
+      if (!inSection(c, sectionFilter)) return false;
       if (search) {
         const q = search.toLowerCase();
         return c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email ?? "").toLowerCase().includes(q);

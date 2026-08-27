@@ -11,7 +11,7 @@ import MobilePageHeader from "@/components/mobile-page-header";
 import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/settings-store";
 import { getStoredAppointments, getStoredClients } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
-import { getActiveSection } from "@/lib/sections";
+import { getActiveSection, inSection } from "@/lib/sections";
 import { getWaLogs, WaLogEntry, WaMsgType, checkBirthdayReminders, getPendingWhatsAppQueue, PendingQueueItem } from "@/lib/whatsapp-scheduler";
 import { isFakePlaceholderPhone } from "@/lib/whatsapp-provider";
 import { getCurrentUser } from "@/lib/auth";
@@ -522,7 +522,7 @@ function MessagesPageContent() {
             if (data.ok && Array.isArray(data.logs) && data.logs.length > 0) {
               setLogs(data.logs.filter(isVisibleWaLog));
               setLoadingLogs(false);
-              setClients(getStoredClients().filter(c => getActiveSection() === "all" || c.section === getActiveSection()));
+              setClients(getStoredClients().filter(c => inSection(c, getActiveSection())));
               void loadStats(user.id);
               return;
             }
@@ -531,7 +531,7 @@ function MessagesPageContent() {
       }
       // Fallback: localStorage
       setLogs(getWaLogs().filter(isVisibleWaLog));
-      setClients(getStoredClients().filter(c => getActiveSection() === "all" || c.section === getActiveSection()));
+      setClients(getStoredClients().filter(c => inSection(c, getActiveSection())));
       setLoadingLogs(false);
       setServerStats(null); // no server to ask — stat cards fall back to the (capped) local log list
     }

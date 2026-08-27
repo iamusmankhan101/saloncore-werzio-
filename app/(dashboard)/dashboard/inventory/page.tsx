@@ -5,7 +5,7 @@ import { getStoredInventory, saveInventory } from "@/lib/storage";
 import { checkLowStockAlerts } from "@/lib/whatsapp-scheduler";
 import { settingsStore } from "@/lib/settings-store";
 import type { InventoryItem, InventoryCategory, InventoryUnit } from "@/lib/types";
-import { getSectionOptions, getActiveSection } from "@/lib/sections";
+import { getSectionOptions, getActiveSection, inSection, defaultSectionForNewRecord } from "@/lib/sections";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import {
@@ -92,7 +92,7 @@ const EMPTY_FORM: ItemForm = {
 function itemToForm(item: InventoryItem): ItemForm {
   return {
     name: item.name, brand: item.brand, category: item.category,
-    section: item.section ?? "",
+    section: item.section ?? defaultSectionForNewRecord(),
     unit: item.unit,
     currentStock: String(item.currentStock), minStock: String(item.minStock),
     costPrice: String(item.costPrice), retailPrice: item.retailPrice ? String(item.retailPrice) : "",
@@ -319,7 +319,9 @@ function InventoryImportModal({ existing, onClose, onImport }: {
             name,
             brand: brand || existingItem?.brand || "",
             category: normalizeCategory(row["Category"] ?? row["category"]),
-            section: String(row["Section"] ?? row["section"] ?? "").trim() || undefined,
+            section: String(row["Section"] ?? row["section"] ?? "").trim()
+              || defaultSectionForNewRecord()
+              || undefined,
             unit: normalizeUnit(row["Unit"] ?? row["unit"]),
             currentStock: Number.isFinite(currentStock) ? currentStock : (existingItem?.currentStock ?? 0),
             minStock: Number.isFinite(minStock) ? minStock : (existingItem?.minStock ?? 0),
@@ -869,7 +871,7 @@ export default function InventoryPage() {
     return items.filter((item) => {
       if (catFilter !== "all" && item.category !== catFilter) return false;
       if (statusFilter !== "all" && stockStatus(item) !== statusFilter) return false;
-      if (sectionFilter !== "all" && item.section !== sectionFilter) return false;
+      if (!inSection(item, sectionFilter)) return false;
       if (search) {
         const q = search.toLowerCase();
         return (

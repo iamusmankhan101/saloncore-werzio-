@@ -13,7 +13,7 @@ import {
 import PageTitle from "@/components/page-title";
 import PayoutSlipPrint from "@/components/payout-slip-print";
 import { settingsStore } from "@/lib/settings-store";
-import { getActiveSection } from "@/lib/sections";
+import { getActiveSection, inSection } from "@/lib/sections";
 
 const PAY_METHOD_OPTIONS = ["cash", "bank", "jazzcash", "easypaisa", "card", "other"];
 
@@ -339,11 +339,11 @@ export default function PayoutsPage() {
   useEffect(() => {
     const allStaff = getStoredStaff();
     const scopedStaffIds = new Set(
-      allStaff.filter(s => activeSection === "all" || s.section === activeSection).map(s => s.id)
+      allStaff.filter(s => inSection(s, activeSection)).map(s => s.id)
     );
     setStaffList(allStaff.filter(s => scopedStaffIds.has(s.id)));
-    setAppointments(getStoredAppointments().filter(a => activeSection === "all" || a.section === activeSection));
-    setServices(getStoredServices().filter(sv => activeSection === "all" || sv.section === activeSection));
+    setAppointments(getStoredAppointments().filter(a => inSection(a, activeSection)));
+    setServices(getStoredServices().filter(sv => inSection(sv, activeSection)));
     setPayouts(getPayouts().filter(p => scopedStaffIds.has(p.staffId)));
   }, [activeSection]);
 
@@ -355,7 +355,7 @@ export default function PayoutsPage() {
     // everything else instead of persisting the subset on its own.
     const allStaff = getStoredStaff();
     const scopedStaffIds = new Set(
-      allStaff.filter(s => activeSection === "all" || s.section === activeSection).map(s => s.id)
+      allStaff.filter(s => inSection(s, activeSection)).map(s => s.id)
     );
     const otherSectionPayouts = getPayouts().filter(p => !scopedStaffIds.has(p.staffId));
     const dbSaved = await savePayouts([...updatedScoped, ...otherSectionPayouts]);

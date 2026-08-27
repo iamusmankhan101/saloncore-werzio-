@@ -25,7 +25,7 @@ import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, fillTemplate } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
-import { getSectionOptions, getActiveSection } from "@/lib/sections";
+import { getSectionOptions, getActiveSection, inSection } from "@/lib/sections";
 import type { Service, Client, InventoryItem, Staff, PaymentMethod } from "@/lib/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -225,7 +225,7 @@ export default function POSPage() {
     const q = catalogSearch.toLowerCase();
     const svc: CatalogItem[] = (catalogTab !== "products" ? services : [])
       .filter(s => !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q))
-      .filter(s => catalogSectionFilter === "all" || s.section === catalogSectionFilter)
+      .filter(s => inSection(s, catalogSectionFilter))
       .map(s => ({
         id: s.id, type: "service", name: s.name, price: s.price, category: s.category, section: s.section,
         variablePrice: s.variablePrice, priceRangeMin: s.priceRangeMin, priceRangeMax: s.priceRangeMax,
@@ -233,7 +233,7 @@ export default function POSPage() {
     const prod: CatalogItem[] = (catalogTab !== "services" ? inventory : [])
       .filter(i => (i.retailPrice ?? 0) > 0 || i.variablePrice)
       .filter(i => !q || i.name.toLowerCase().includes(q) || i.brand.toLowerCase().includes(q))
-      .filter(i => catalogSectionFilter === "all" || i.section === catalogSectionFilter)
+      .filter(i => inSection(i, catalogSectionFilter))
       .map(i => ({
         id: i.id, type: "product", name: `${i.brand ? i.brand + " " : ""}${i.name}`, price: i.retailPrice ?? 0,
         category: i.category, section: i.section, stock: i.currentStock, unit: i.unit, barcode: i.barcode,
@@ -1036,7 +1036,7 @@ export default function POSPage() {
             {getActiveSection() !== "all" ? (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
                 <Lock size={11} color="#7C3AED" />
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED" }}>Showing {getActiveSection()} catalog only</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED" }}>Showing {getActiveSection()} + unassigned catalog</span>
               </div>
             ) : [...services, ...inventory].some(x => x.section) && (
               <div style={{ display: "flex", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", marginTop: 8 }}>

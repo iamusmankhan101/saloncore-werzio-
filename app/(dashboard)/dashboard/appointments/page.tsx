@@ -10,7 +10,7 @@ import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCa
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
-import { getSectionOptions, getActiveSection } from "@/lib/sections";
+import { getSectionOptions, getActiveSection, inSection } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -1382,7 +1382,7 @@ export default function AppointmentsPage() {
       .filter((a) => {
         if (statusFilter !== "all" && a.status !== statusFilter) return false;
         if (staffFilter !== "all" && a.staffId !== staffFilter) return false;
-        if (sectionFilter !== "all" && a.section !== sectionFilter) return false;
+        if (!inSection(a, sectionFilter)) return false;
         if (dateFilter && a.date !== dateFilter) return false;
         if (search) {
           const q = search.toLowerCase();

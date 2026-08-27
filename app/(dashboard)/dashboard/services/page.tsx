@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
 import type { Service, Staff } from "@/lib/types";
 import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search, Lock, Upload, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
-import { getSectionOptions, getActiveSection } from "@/lib/sections";
+import { getSectionOptions, getActiveSection, inSection, defaultSectionForNewRecord } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 
@@ -153,7 +153,10 @@ function ServiceImportModal({ existing, staffList, onClose, onImport }: {
             name,
             description: String(row["Description"] ?? row["description"] ?? "").trim() || existingService?.description,
             category,
-            section: String(row["Section"] ?? row["section"] ?? "").trim() || undefined,
+            section: String(row["Section"] ?? row["section"] ?? "").trim()
+              || existingService?.section
+              || defaultSectionForNewRecord()
+              || undefined,
             durationMin: Number.isFinite(durationMin) && durationMin > 0 ? durationMin : (existingService?.durationMin ?? 30),
             price: variablePrice
               ? (Number.isFinite(priceRangeMin) ? priceRangeMin : 0)
@@ -316,7 +319,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
     description:      serviceToEdit?.description ?? "",
     category:         editedCategoryIsCustom ? "custom" : (serviceToEdit?.category ?? "hair"),
     customCategory:   editedCategoryIsCustom ? serviceToEdit!.category : "",
-    section:          serviceToEdit?.section ?? "",
+    section:          serviceToEdit?.section ?? defaultSectionForNewRecord(),
     durationMin:      serviceToEdit ? String(serviceToEdit.durationMin) : "60",
     price:            serviceToEdit ? String(serviceToEdit.price) : "",
     variablePrice:    serviceToEdit?.variablePrice ?? false,
@@ -750,7 +753,7 @@ export default function ServicesPage() {
 
   const filteredServices = services
     .filter(s => filter === "all" || s.category === filter)
-    .filter(s => sectionFilter === "all" || s.section === sectionFilter)
+    .filter(s => inSection(s, sectionFilter))
     .filter(s => !search.trim() || s.name.toLowerCase().includes(search.trim().toLowerCase()));
   const customCategories = Array.from(new Set(services.map(s => s.category))).filter(c => !PRESET_CATEGORIES.includes(c));
   const tabCategories = ["all", ...PRESET_CATEGORIES, ...customCategories];
@@ -909,7 +912,7 @@ export default function ServicesPage() {
       {getActiveSection() !== "all" ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, alignSelf: "flex-start", padding: "8px 14px", borderRadius: 12, background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
           <Lock size={13} color="#7C3AED" />
-          <span style={{ fontSize: 12, fontWeight: 750, color: "#7C3AED" }}>Showing {getActiveSection()} services only</span>
+          <span style={{ fontSize: 12, fontWeight: 750, color: "#7C3AED" }}>Showing {getActiveSection()} + unassigned services</span>
         </div>
       ) : (
         <div className="filter-tabs" style={{ display: "flex", gap: 6, background: "#f4f4f9", border: "1px solid #e3e0eb", borderRadius: 12, padding: 4, alignSelf: "flex-start", marginBottom: 4 }}>

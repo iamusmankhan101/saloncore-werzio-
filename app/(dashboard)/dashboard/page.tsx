@@ -11,7 +11,7 @@ import MobilePageHeader from "@/components/mobile-page-header";
 import { MoreHorizontal, TrendingUp, Calendar, Users, Award, Clock, ArrowUpRight, Tag, Star } from "lucide-react";
 import { fmtCurrency as fmt } from "@/lib/format";
 import { syncFromDB } from "@/lib/turso-sync";
-import { getActiveSection } from "@/lib/sections";
+import { getActiveSection, inSection } from "@/lib/sections";
 
 function fmtTime(t: string) {
   const [hourValue, minuteValue] = t.split(":").map(Number);
@@ -129,9 +129,9 @@ export default function DashboardPage() {
   // Men's and Women's are each restricted to their own data, symmetrically.
   // Matches the Revenue and Cash Flow pages' identical rule.
   const activeSection = getActiveSection();
-  const todayApptsScoped = activeSection === "all" ? todayAppts : todayAppts.filter((a) => a.section === activeSection);
-  const staffListScoped = activeSection === "all" ? staffList : staffList.filter((s) => s.section === activeSection);
-  const clientsScoped = activeSection === "all" ? clients : clients.filter((c) => c.section === activeSection);
+  const todayApptsScoped = todayAppts.filter((a) => inSection(a, activeSection));
+  const staffListScoped = staffList.filter((s) => inSection(s, activeSection));
+  const clientsScoped = clients.filter((c) => inSection(c, activeSection));
 
   const revenueScoped = activeSection !== "all";
   const appointmentsForRevenue = revenueScoped ? appointments.filter((a) => a.section === activeSection) : appointments;

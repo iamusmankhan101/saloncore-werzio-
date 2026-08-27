@@ -36,3 +36,37 @@ export function getSectionOptions(records: { section?: string }[]): string[] {
   ).filter((s) => !(SECTION_SEED as readonly string[]).includes(s));
   return [...SECTION_SEED, ...custom];
 }
+
+/**
+ * Does `record` belong in the view for `section`?
+ *
+ * A record with no section ("Unassigned") belongs to *every* section. Section
+ * is a cosmetic tag, not a partition (that's lib/locations.ts) — so an untagged
+ * record must never become unreachable just because someone switched the
+ * dashboard into Men's or Women's.
+ *
+ * Every listing used to test `record.section === activeSection` outright, which
+ * hid untagged records from all three views at once: they were only visible
+ * under "All Sections". That is what "the services I added disappeared after a
+ * few days" actually was — the records were safe in Turso the whole time (the
+ * stored count only ever grew), but the salon flipped the section switcher and
+ * every service with a blank Section vanished from the catalogue, the POS, and
+ * the booking screens. Services get a blank section easily: the Add form's
+ * Salon Section picker defaults to "Unassigned", and an imported spreadsheet
+ * with no Section column leaves all of them blank.
+ */
+export function inSection(record: { section?: string } | null | undefined, section: string): boolean {
+  if (section === "all") return true;
+  const value = record?.section;
+  return !value || value === section;
+}
+
+/**
+ * The section a newly created record should default to: whatever section the
+ * user is working in, so today's additions stop becoming tomorrow's orphans.
+ * `undefined` under "All Sections" — there is no one section to imply there.
+ */
+export function defaultSectionForNewRecord(): string {
+  const active = getActiveSection();
+  return active === "all" ? "" : active;
+}

@@ -10,7 +10,7 @@ import {
   type LoyaltySettings,
 } from "@/lib/loyalty";
 import { settingsStore, saveSettings } from "@/lib/settings-store";
-import { getActiveSection } from "@/lib/sections";
+import { getActiveSection, inSection } from "@/lib/sections";
 import { getCurrentUser } from "@/lib/auth";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
@@ -709,7 +709,7 @@ export default function LoyaltyPage() {
       // The point-correction save always writes the full, unfiltered list —
       // only the displayed leaderboard is scoped to the active section.
       if (changed) saveClients(corrected);
-      setClients(activeSection === "all" ? corrected : corrected.filter((c) => c.section === activeSection));
+      setClients(corrected.filter((c) => inSection(c, activeSection)));
       setAllAppts(storedAppts);
       setAllInvoices(storedInvoices);
 

@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, X, Clock, User, Scissors, Tag, CalendarDays 
 import { fmtCurrency as fmt } from "@/lib/format";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
-import { getActiveSection } from "@/lib/sections";
+import { getActiveSection, inSection } from "@/lib/sections";
 
 const HOURS  = Array.from({ length: 24 }, (_, i) => i);
 const SLOT_H = 64;
@@ -267,9 +267,9 @@ export default function CalendarPage() {
     // Strict-locked to the active dashboard section, same rule as
     // Appointments/Staff/Services — this is effectively a second view of the
     // same appointment data.
-    setAppointments(getStoredAppointments().filter(a => activeSection === "all" || a.section === activeSection));
-    setStaffList(getStoredStaff().filter(s => activeSection === "all" || s.section === activeSection));
-    setServices(getStoredServices().filter(sv => activeSection === "all" || sv.section === activeSection));
+    setAppointments(getStoredAppointments().filter(a => inSection(a, activeSection)));
+    setStaffList(getStoredStaff().filter(s => inSection(s, activeSection)));
+    setServices(getStoredServices().filter(sv => inSection(sv, activeSection)));
 
     const tick = () => {
       const n = new Date();
