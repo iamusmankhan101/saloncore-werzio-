@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getStoredServices, saveServices, getStoredStaff } from "@/lib/storage";
+import { getStoredServices, saveServices, getStoredStaff, subscribeToStoredData } from "@/lib/storage";
 import type { Service, Staff } from "@/lib/types";
 import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search, Lock, Upload, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
 import { getSectionOptions, getActiveSection, inSection, defaultSectionForNewRecord } from "@/lib/sections";
@@ -691,8 +691,15 @@ export default function ServicesPage() {
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
-    setServices(getStoredServices());
-    setStaff(getStoredStaff());
+    const load = () => {
+      setServices(getStoredServices());
+      setStaff(getStoredStaff());
+    };
+    load();
+    // Re-read whenever a DB sync (or another tab) rewrites localStorage, so this
+    // page never keeps showing — or saving from — a list that is missing
+    // services added on another terminal.
+    return subscribeToStoredData(load);
   }, []);
 
   const handleSaveService = (savedService: Service) => {
@@ -715,7 +722,7 @@ export default function ServicesPage() {
   const handleDeleteService = (id: string) => {
     const updated = services.filter(s => s.id !== id);
     setServices(updated);
-    saveServices(updated);
+    saveServices(updated, [id]);
     setDeleteTarget(null);
   };
 

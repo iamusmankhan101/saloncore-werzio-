@@ -133,21 +133,53 @@ function storedList(entity: string, locationId?: string): Rec[] {
 }
 
 export interface ReconciledSave {
-  /** The list to actually write — stamped, plus any protected new arrival put back. */
+  /** The list to actually write — stamped, plus any record put back rather than dropped. */
   records: Rec[];
-  /** Ids the caller genuinely dropped, to be tombstoned. */
+  /** Ids to tombstone. */
   removedIds: string[];
+}
+
+export interface ReconcileOptions {
+  locationId?: string;
+  /**
+   * Ids the caller is *deliberately* deleting. Always tombstoned, whether or
+   * not `next` still contains them.
+   */
+  deletedIds?: string[];
+  /**
+   * Whether a record that is in localStorage but missing from `next` should be
+   * read as a delete.
+   *
+   * `true` (the historic behaviour, still used by entities whose delete paths
+   * don't declare their ids) infers the delete, protected only by the 30-minute
+   * `UNSEEN_ARRIVAL_MS` window above. That window is why staff/services/clients
+   * kept vanishing: a terminal left open all day holds a snapshot of the list
+   * from whenever the page mounted, while syncFromDB() keeps writing newer
+   * records into localStorage underneath it (the booking poller calls it on
+   * every online booking). Half an hour later that stale snapshot is no longer
+   * protected, so the next unrelated edit — toggling a service active, renaming
+   * a staff member — silently tombstoned every record added on the other
+   * terminal since. Tombstones are permanent and sync to every device, so the
+   * data was gone for good, "automatically", with nobody having deleted
+   * anything.
+   *
+   * `false` makes absence mean nothing at all: a record missing from `next` is
+   * put back. Deletes then have to be declared through `deletedIds`, which is
+   * the only way a save can express intent that a stale snapshot cannot fake.
+   */
+  inferDeletes?: boolean;
 }
 
 /**
  * Prepares `next` for saving: stamps the records whose content changed, keeps
- * the existing stamp on the ones that did not, puts back any record that
- * arrived from another device and that this caller has never held, and reports
- * every other disappearance as a deletion to tombstone.
+ * the existing stamp on the ones that did not, and decides what — if anything —
+ * this save is allowed to delete (see `inferDeletes`).
  */
-export function reconcileSave(entity: string, next: unknown[], locationId?: string): ReconciledSave {
+export function reconcileSave(entity: string, next: unknown[], options: ReconcileOptions = {}): ReconciledSave {
+  const { locationId, deletedIds = [], inferDeletes = true } = options;
   const list = Array.isArray(next) ? next as Rec[] : [];
-  if (typeof window === "undefined") return { records: list, removedIds: [] };
+  const declared = deletedIds.map(String).filter(Boolean);
+  if (typeof window === "undefined") return { records: list, removedIds: declared };
 
   const previous = storedList(entity, locationId);
   const previousById = new Map<string, Rec>();
@@ -156,10 +188,12 @@ export function reconcileSave(entity: string, next: unknown[], locationId?: stri
     if (id) previousById.set(id, record);
   }
 
-  const nextIds = new Set(list.map(recordId).filter(Boolean));
+  const declaredSet = new Set(declared);
+  const kept = list.filter((record) => !declaredSet.has(recordId(record)));
+  const nextIds = new Set(kept.map(recordId).filter(Boolean));
   const now = new Date().toISOString();
 
-  const records = list.map((record) => {
+  const records = kept.map((record) => {
     const id = recordId(record);
     const before = id ? previousById.get(id) : undefined;
     if (before && sameRecordContent(before, record)) {
@@ -172,11 +206,15 @@ export function reconcileSave(entity: string, next: unknown[], locationId?: stri
   const arrivals = readArrivals(entity, locationId);
   const unseen = new Set(arrivals.ids);
   const restored: Rec[] = [];
-  const removedIds: string[] = [];
+  const removedIds: string[] = [...declared];
+
   for (const record of previous) {
     const id = recordId(record);
     if (!id || nextIds.has(id)) continue;
-    if (unseen.has(id)) restored.push(record);
+    if (declaredSet.has(id)) continue;          // deliberately deleted
+    // Absence is only a delete when the caller opted into inference *and* the
+    // record isn't one that just synced in from another device.
+    if (!inferDeletes || unseen.has(id)) restored.push(record);
     else removedIds.push(id);
   }
 

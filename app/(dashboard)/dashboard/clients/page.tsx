@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { BEAUTY_PROFILES } from "@/lib/mock-data";
-import { getStoredAppointments, getStoredClients, saveClients } from "@/lib/storage";
+import { getStoredAppointments, getStoredClients, saveClients, subscribeToStoredData } from "@/lib/storage";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
 import { Search, X, Plus, Phone, Mail, Calendar, Heart, Tag, MapPin, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
@@ -945,30 +945,37 @@ export default function ClientsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
 
   useEffect(() => {
-    const storedAppts   = getStoredAppointments();
-    const storedClients = getStoredClients();
+    const load = () => {
+      const storedAppts   = getStoredAppointments();
+      const storedClients = getStoredClients();
 
-    // Recompute stats from completed appointments, but never decrease below POS-recorded values
-    const synced = storedClients.map((c) => {
-      const withLocation = { ...c, locationId: c.locationId || getDefaultLocationId() };
-      const done = storedAppts.filter((a) => a.clientId === c.id && a.status === "completed");
-      if (done.length === 0) return withLocation;
-      const apptVisits    = done.length;
-      const apptSpend     = done.reduce((s, a) => s + a.totalAmount, 0);
-      const lastVisitDate = done.sort((a, b) => b.date.localeCompare(a.date))[0].date;
-      // Use the higher of stored (POS-tracked) vs appointment-computed values
-      const totalVisits = Math.max(c.totalVisits || 0, apptVisits);
-      const totalSpend  = Math.max(c.totalSpend  || 0, apptSpend);
-      return { ...withLocation, totalVisits, totalSpend, lastVisitDate };
-    });
+      // Recompute stats from completed appointments, but never decrease below POS-recorded values
+      const synced = storedClients.map((c) => {
+        const withLocation = { ...c, locationId: c.locationId || getDefaultLocationId() };
+        const done = storedAppts.filter((a) => a.clientId === c.id && a.status === "completed");
+        if (done.length === 0) return withLocation;
+        const apptVisits    = done.length;
+        const apptSpend     = done.reduce((s, a) => s + a.totalAmount, 0);
+        const lastVisitDate = done.sort((a, b) => b.date.localeCompare(a.date))[0].date;
+        // Use the higher of stored (POS-tracked) vs appointment-computed values
+        const totalVisits = Math.max(c.totalVisits || 0, apptVisits);
+        const totalSpend  = Math.max(c.totalSpend  || 0, apptSpend);
+        return { ...withLocation, totalVisits, totalSpend, lastVisitDate };
+      });
 
-    // Persist only if something actually changed
-    if (JSON.stringify(synced) !== JSON.stringify(storedClients)) {
-      saveClients(synced);
-    }
+      // Persist only if something actually changed
+      if (JSON.stringify(synced) !== JSON.stringify(storedClients)) {
+        saveClients(synced);
+      }
 
-    setClients(synced);
-    setAppointments(storedAppts);
+      setClients(synced);
+      setAppointments(storedAppts);
+    };
+    load();
+    // Re-read on every DB sync / cross-tab write / tab refocus, so this page
+    // never keeps showing — or saving from — a list that predates clients added
+    // on another terminal.
+    return subscribeToStoredData(load);
   }, []);
 
   useEffect(() => {
@@ -1053,7 +1060,7 @@ export default function ClientsPage() {
           onDelete={(id) => {
             setClients((prevClients) => {
               const updated = prevClients.filter((c) => c.id !== id);
-              saveClients(updated);
+              saveClients(updated, [id]);
               return updated;
             });
             setSelected(null);
@@ -1083,7 +1090,7 @@ export default function ClientsPage() {
           onConfirm={() => {
             setClients((prev) => {
               const updated = prev.filter((c) => c.id !== deleteTarget.id);
-              saveClients(updated);
+              saveClients(updated, [deleteTarget.id]);
               return updated;
             });
             setDeleteTarget(null);
@@ -1095,7 +1102,7 @@ export default function ClientsPage() {
           count={clients.length}
           onCancel={() => setShowDeleteAll(false)}
           onConfirm={() => {
-            saveClients([]);
+            saveClients([], clients.map((c) => c.id));
             setClients([]);
             setSelectedIds(new Set());
             setShowDeleteAll(false);
@@ -1123,7 +1130,7 @@ export default function ClientsPage() {
           onConfirm={() => {
             setClients((prev) => {
               const updated = prev.filter((c) => !selectedIds.has(c.id));
-              saveClients(updated);
+              saveClients(updated, [...selectedIds]);
               return updated;
             });
             setSelectedIds(new Set());

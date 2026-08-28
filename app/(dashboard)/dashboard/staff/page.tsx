@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments } from "@/lib/storage";
+import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments, subscribeToStoredData } from "@/lib/storage";
 import type { Staff, Service, StaffRole, StaffPayType, Appointment } from "@/lib/types";
 import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil, Lock, Upload, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
@@ -532,11 +532,15 @@ export default function StaffPage() {
   const visibleStaff = staffList.filter((s) => inSection(s, sectionFilter));
 
   useEffect(() => {
-    queueMicrotask(() => {
+    const load = () => {
       setStaffList(getStoredStaff());
       setServicesList(getStoredServices());
       setAppointmentsList(getStoredAppointments());
-    });
+    };
+    queueMicrotask(load);
+    // See the services page: a tab left open all day must not keep rendering the
+    // snapshot it read on mount.
+    return subscribeToStoredData(load);
   }, []);
 
   const handleSaveStaff = (savedStaff: Staff, assignedServiceIds: string[]) => {
@@ -561,7 +565,7 @@ export default function StaffPage() {
   const handleDeleteStaff = (id: string) => {
     const updated = staffList.filter((s) => s.id !== id);
     setStaffList(updated);
-    saveStaff(updated);
+    saveStaff(updated, [id]);
     // Remove this staff member from all service assignments
     const updatedServices = servicesList.map((sv) => ({
       ...sv,

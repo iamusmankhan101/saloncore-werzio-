@@ -14,6 +14,13 @@ const ENTITIES = ["clients", "appointments", "staff", "services", "inventory", "
 type Entity = typeof ENTITIES[number];
 
 /**
+ * Fired on `window` after syncFromDB() has finished rewriting localStorage.
+ * Pages that hold entity lists in React state listen for it (see
+ * subscribeToStoredData in lib/storage.ts) and re-read.
+ */
+export const DATA_SYNCED_EVENT = "werzio_data_synced";
+
+/**
  * On app load: pull all data from Turso into the user-scoped localStorage slots.
  * Only runs when a user is logged in (getCurrentUser() returns non-null).
  */
@@ -203,6 +210,13 @@ export async function syncFromDB(): Promise<void> {
       }
     }
   } catch { /* keep localStorage */ }
+
+  // Every listing page reads localStorage once, when it mounts. This sync just
+  // rewrote it underneath whatever pages are currently open — including a POS
+  // terminal that has been sitting on the same screen since this morning — so
+  // tell them to re-read. Without it those pages keep rendering (and saving
+  // from) a snapshot that is missing everything added on any other device.
+  window.dispatchEvent(new Event(DATA_SYNCED_EVENT));
 }
 
 /**
@@ -322,6 +336,18 @@ export function saveToDB(entity: Entity, data: unknown[]): Promise<boolean> {
   return retryFetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body }, `saveToDB:${entity}`);
 }
 
+export interface PersistOptions {
+  locationId?: string;
+  /** Ids this save is deliberately deleting — see ReconcileOptions.deletedIds. */
+  deletedIds?: string[];
+  /**
+   * Whether a record missing from `list` counts as a delete. Pass `false` (and
+   * declare deletes via `deletedIds`) for any entity whose pages hold a
+   * long-lived in-memory copy of the list — see ReconcileOptions.inferDeletes.
+   */
+  inferDeletes?: boolean;
+}
+
 /**
  * The one way an entity list should be written. It reconciles the list against
  * what this browser already holds (see lib/sync-records.ts) before persisting:
@@ -329,19 +355,23 @@ export function saveToDB(entity: Entity, data: unknown[]): Promise<boolean> {
  *   • records whose content changed get an `_updatedAt` stamp, so the merge on
  *     the other PC — and on the server — can tell a real edit from a stale copy
  *     instead of guessing;
- *   • records the caller dropped are tombstoned, which is what actually makes a
+ *   • ids in `options.deletedIds` are tombstoned, which is what actually makes a
  *     delete stick now that POST /api/db unions rather than overwrites;
- *   • a record that arrived from another device seconds ago is put back rather
- *     than treated as a delete, so a page saving a slightly stale snapshot
- *     can't wipe it.
+ *   • records that simply aren't in `list` are put back unless the caller opted
+ *     into `inferDeletes`, so a page saving a stale snapshot can't wipe records
+ *     it never knew about.
  *
  * Resolves false if either the record write or the tombstone write failed, so
  * callers that already surface a sync warning keep working.
  */
-export async function persistEntity(entity: Entity, list: unknown[], locationId?: string): Promise<boolean> {
+export async function persistEntity(entity: Entity, list: unknown[], options: PersistOptions = {}): Promise<boolean> {
   if (typeof window === "undefined") return false;
-  const loc = locationId ?? getActiveLocationFilter();
-  const { records, removedIds } = reconcileSave(entity, list, loc);
+  const loc = options.locationId ?? getActiveLocationFilter();
+  const { records, removedIds } = reconcileSave(entity, list, {
+    locationId: loc,
+    deletedIds: options.deletedIds,
+    inferDeletes: options.inferDeletes,
+  });
   localStorage.setItem(entityStorageKey(entity, loc), JSON.stringify(records));
 
   // Tombstones go up first so the record write that follows is already filtered
