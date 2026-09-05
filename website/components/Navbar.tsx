@@ -8,6 +8,11 @@ import DemoModal from "./DemoModal";
 
 const CONTACT_SALES_URL = "https://wa.me/+923058562523?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
 
+// Pointly is the sibling POS product — this is the one line to change once
+// it has its own site; every other CTA on this site points at WhatsApp too,
+// so an enquiry link is the consistent placeholder rather than a dead href.
+const POINTLY_URL = "https://wa.me/+923058562523?text=Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Pointly%20POS.";
+
 const featureLinks = [
   { label: "Appointment Scheduling", desc: "Calendar, bookings & reminders", href: "/features/appointment-scheduling", Icon: CalendarDays },
   { label: "Point of Sale (POS)",    desc: "Checkout, payments & invoices",   href: "/features/pos",                     Icon: ShoppingCart },
@@ -156,6 +161,21 @@ export default function Navbar({ forceSolid = false, dark = false }: { forceSoli
               </Link>
             </li>
           ))}
+
+          {/* Pointly — a separate product, so it sits past a divider rather
+              than reading as one more Salon Central page. */}
+          <li className={styles.pointlyItem}>
+            <span className={styles.pointlyDivider} aria-hidden="true" />
+            <a
+              href={POINTLY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.pointlyLink}
+              aria-label="Pointly — point of sale for every kind of business"
+            >
+              <span className={styles.pointlyMark} aria-hidden="true" />
+            </a>
+          </li>
         </ul>
 
         <div className={styles.cta}>
@@ -235,6 +255,22 @@ export default function Navbar({ forceSolid = false, dark = false }: { forceSoli
               </Link>
             </li>
           ))}
+
+          {/* Pointly (mobile) — the drawer is always light, so the mark keeps
+              its ink fill; the note earns it a label the wordmark alone lacks. */}
+          <li>
+            <a
+              href={POINTLY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.pointlyDrawerLink}
+              onClick={() => setOpen(false)}
+              aria-label="Pointly — point of sale for every kind of business"
+            >
+              <span className={styles.pointlyMark} aria-hidden="true" />
+              <span className={styles.pointlyDrawerNote}>POS for every business</span>
+            </a>
+          </li>
         </ul>
         <div className={styles.drawerCta}>
           <button type="button" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => { setOpen(false); setDemoOpen(true); }}>Book a Demo</button>

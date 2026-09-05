@@ -379,3 +379,107 @@
 @media (max-width: 400px) {
   .cta .btn { font-size: 0.8rem; padding: 8px 14px; }
 }
+
+/* ── POINTLY NAV ITEM ─────────────────────────────────────────────
+   The source artwork is a solid-white wordmark on transparency, so
+   dropping it in as an <img> would make it vanish against the white
+   .scrolled navbar. Instead the PNG is used as an alpha *mask* and
+   the fill comes from a gradient painted underneath — which both
+   fixes the colour (same light/dark split .logo gets from its
+   brightness filter) and gives us something to animate: the sheen
+   band sweeps across the letterforms on a slow loop.
+
+   Sits inside .links, so the 768px rule that hides the desktop nav
+   hides this too; the drawer carries its own copy. */
+.pointlyItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 4px;
+}
+
+/* Reads as "a different product", not "another page section". */
+.pointlyDivider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  transition: background .3s;
+}
+.navDark:not(.scrolled) .pointlyDivider {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.pointlyLink {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  transition: transform .25s cubic-bezier(.34, 1.56, .64, 1);
+}
+.pointlyLink:hover {
+  transform: translateY(-1px);
+}
+
+.pointlyMark {
+  --pointly-ink:   #111111;
+  --pointly-sheen: var(--purple);
+
+  width: 72px;            /* source is 965x295 — 72x22 keeps the ratio */
+  height: 22px;
+  -webkit-mask: url(/pointly-wordmark.png) no-repeat center / contain;
+          mask: url(/pointly-wordmark.png) no-repeat center / contain;
+
+  /* Gradient is 2.6x the box, so at position 0%/100% only ink shows and
+     the sheen is parked off-box — which is why the loop can snap back
+     without a visible jump. */
+  background-image: linear-gradient(
+    105deg,
+    var(--pointly-ink)   0%,
+    var(--pointly-ink)   40%,
+    var(--pointly-sheen) 48%,
+    var(--pointly-sheen) 52%,
+    var(--pointly-ink)   60%,
+    var(--pointly-ink)   100%
+  );
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  background-position: 100% 0;
+  animation: pointlySheen 5.5s ease-in-out infinite;
+  transition: filter .25s;
+}
+
+.pointlyLink:hover .pointlyMark {
+  filter: drop-shadow(0 2px 9px rgba(124, 58, 237, .38));
+}
+
+.navDark:not(.scrolled) .pointlyMark {
+  --pointly-ink:   #ffffff;
+  --pointly-sheen: #dcccff;
+}
+
+/* Runs 100% -> 0% so the sheen travels left-to-right across the letters.
+   Both endpoints sit past the sheen stop, showing flat ink, so the loop's
+   snap back to the start is invisible. */
+@keyframes pointlySheen {
+  0%,  18%  { background-position: 100% 0; }
+  68%, 100% { background-position:   0% 0; }
+}
+
+/* Drawer copy: the drawer is always light, so it keeps the ink fill. */
+.pointlyDrawerLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+.pointlyDrawerNote {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  opacity: .75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pointlyMark { animation: none; background-position: 100% 0; }
+  .pointlyLink:hover { transform: none; }
+}
