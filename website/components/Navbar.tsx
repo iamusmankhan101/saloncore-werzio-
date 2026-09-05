@@ -257,7 +257,7 @@ export default function Navbar({ forceSolid = false, dark = false }: { forceSoli
           ))}
 
           {/* Pointly (mobile) — the drawer is always light, so the mark keeps
-              its ink fill; the note earns it a label the wordmark alone lacks. */}
+              its ink fill. */}
           <li>
             <a
               href={POINTLY_URL}
@@ -268,7 +268,6 @@ export default function Navbar({ forceSolid = false, dark = false }: { forceSoli
               aria-label="Pointly — point of sale for every kind of business"
             >
               <span className={styles.pointlyMark} aria-hidden="true" />
-              <span className={styles.pointlyDrawerNote}>POS for every business</span>
             </a>
           </li>
         </ul>

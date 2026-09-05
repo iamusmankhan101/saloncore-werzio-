@@ -401,7 +401,7 @@
 /* Reads as "a different product", not "another page section". */
 .pointlyDivider {
   width: 1px;
-  height: 18px;
+  height: 30px;
   background: var(--border);
   transition: background .3s;
 }
@@ -423,10 +423,15 @@
   --pointly-ink:   #111111;
   --pointly-sheen: var(--purple);
 
-  width: 72px;            /* source is 965x295 — 72x22 keeps the ratio */
-  height: 22px;
-  -webkit-mask: url(/pointly-wordmark.png) no-repeat center / contain;
-          mask: url(/pointly-wordmark.png) no-repeat center / contain;
+  /* Full lockup, tagline included — source is 965x362. The tagline is only
+     14.6% of that height, so the mark has to run large for "powered by salon
+     central" to resolve at all: at 46px tall the tagline lands near 6.7px.
+     That is in keeping with the bar, which already carries the Salon Central
+     logo at 58px inside the same 64px nav. */
+  width: 123px;
+  height: 46px;
+  -webkit-mask: url(/pointly-lockup.png) no-repeat center / contain;
+          mask: url(/pointly-lockup.png) no-repeat center / contain;
 
   /* Gradient is 2.6x the box, so at position 0%/100% only ink shows and
      the sheen is parked off-box — which is why the loop can snap back
@@ -473,10 +478,17 @@
   text-decoration: none;
   border-bottom: 1px solid var(--border);
 }
-.pointlyDrawerNote {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  opacity: .75;
+/* The drawer has room to breathe, so the lockup runs larger there. */
+.pointlyDrawerLink .pointlyMark {
+  width: 150px;
+  height: 56px;
+}
+
+/* The nav already carries 8 items before this one; give the lockup back
+   some room before the burger takes over at 768px. */
+@media (max-width: 1080px) {
+  .pointlyItem { gap: 12px; margin-left: 0; }
+  .pointlyMark { width: 104px; height: 39px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
