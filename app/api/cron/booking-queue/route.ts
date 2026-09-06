@@ -21,17 +21,12 @@ import { appointmentStartHasPassed, appointmentStartMs, timezoneFromSettings, is
 
 const BATCH_LIMIT = 50;
 const SEND_LIMIT_PER_RUN = 1;
-const MAX_ATTEMPTS = 5;
-// Win-backs are pure marketing to a dormant number — if two tries don't get
-// through, a third, fourth and fifth are just repeat pressure on a client who
-// isn't reachable, and the whole batch is re-queued from scratch on the next
-// nightly scan anyway. Every other kind is a message the client is expecting
-// (a receipt, a confirmation, a reminder) and keeps the full five.
-const WINBACK_MAX_ATTEMPTS = 2;
-
-function maxAttemptsForKind(kind: QueueKind): number {
-  return kind === "winback" ? WINBACK_MAX_ATTEMPTS : MAX_ATTEMPTS;
-}
+// One send plus one retry, then the row is done. Whatever stops a WhatsApp send
+// (provider outage, an unpaid provider subscription, a number that isn't on
+// WhatsApp) rarely clears inside the retry window, so further attempts mostly
+// repeat-pressure the same recipient; anything genuinely still owed is either
+// re-queued by its own automation or resent by hand from the Message Log.
+const MAX_ATTEMPTS = 2;
 // If the cron hasn't run in a long time (e.g. stuck on Hobby's once-daily
 // schedule), don't fire off a burst of hours-old booking confirmations —
 // mirrors the same "don't send stale automated messages" fix applied to the
@@ -67,15 +62,13 @@ function posSpacingDelayMs(): number {
 
 // A failed send is almost never worth retrying immediately — the usual causes
 // (provider outage, an expired/unpaid provider subscription, a rate limit) all
-// take minutes-to-hours to clear, and hammering through MAX_ATTEMPTS in five
-// consecutive cron ticks just burns the retry budget while looking like a bot.
-// Retries therefore wait a random 25-30 min, so they are never a fixed,
-// guessable interval either.
+// take minutes-to-hours to clear, and retrying on the next cron tick just burns
+// the one retry each row gets while looking like a bot. Every kind therefore
+// waits a random 25-30 min, never a fixed, guessable interval.
 const RETRY_MIN_GAP_MS = 25 * MINUTE_MS;
 const RETRY_MAX_GAP_MS = 30 * MINUTE_MS;
 
-function retryDelayMs(kind: QueueKind): number {
-  if (kind === "followup") return randBetween(45 * MINUTE_MS, 75 * MINUTE_MS);
+function retryDelayMs(): number {
   return randBetween(RETRY_MIN_GAP_MS, RETRY_MAX_GAP_MS);
 }
 
@@ -194,11 +187,10 @@ async function getDueItems(): Promise<QueueRow[]> {
   const result = await db.execute({
     sql: `SELECT id, user_id, kind, phone, text, client_name, appt_date, appt_time, service, scheduled_at, attempts
           FROM wa_booking_send_queue
-          WHERE status = 'pending' AND scheduled_at <= ?
-            AND attempts < CASE WHEN kind = 'winback' THEN ? ELSE ? END
+          WHERE status = 'pending' AND scheduled_at <= ? AND attempts < ?
           ORDER BY scheduled_at ASC
           LIMIT ?`,
-    args: [new Date().toISOString(), WINBACK_MAX_ATTEMPTS, MAX_ATTEMPTS, BATCH_LIMIT],
+    args: [new Date().toISOString(), MAX_ATTEMPTS, BATCH_LIMIT],
   });
   return result.rows.map((r) => ({
     id: r.id as string,
@@ -643,7 +635,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       // Not connected — defer rather than attempt/fail. Credentials can come back
       // (reconnect, re-enter API key) and the message should still go out then,
       // unlike the "automation explicitly disabled" case above which expires outright.
-      await deferItem(item, retryDelayMs(item.kind), "WhatsApp is not connected — will retry once reconnected.");
+      await deferItem(item, retryDelayMs(), "WhatsApp is not connected — will retry once reconnected.");
       skipped++;
       continue;
     }
@@ -685,7 +677,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     if (!safety.ok) {
       const retryAfterMs = "retryAfter" in safety && typeof safety.retryAfter === "number"
         ? safety.retryAfter * 1000
-        : retryDelayMs(item.kind);
+        : retryDelayMs();
       await deferItem(item, retryAfterMs, safety.error ?? "WhatsApp safety check deferred this send.");
       skipped++;
       continue;
@@ -707,11 +699,11 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       recordWhatsAppSafetySend({ phone: item.phone, config: providerConfig });
       await updateItem(item, "sent");
       sent++;
-    } else if (item.attempts + 1 >= maxAttemptsForKind(item.kind)) {
+    } else if (item.attempts + 1 >= MAX_ATTEMPTS) {
       await updateItem(item, "expired", result.errorReason);
       failed++;
     } else {
-      await updateItem(item, "pending", result.errorReason, new Date(Date.now() + retryDelayMs(item.kind)).toISOString());
+      await updateItem(item, "pending", result.errorReason, new Date(Date.now() + retryDelayMs()).toISOString());
       failed++;
     }
   }
@@ -732,7 +724,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
 
     const providerConfig = providerFromSettings(settings);
     if (!activeWhatsAppCredential(providerConfig)) {
-      await deferPosReceipt(item, retryDelayMs("manual"), "WhatsApp provider credentials are not configured.");
+      await deferPosReceipt(item, retryDelayMs(), "WhatsApp provider credentials are not configured.");
       posFailed++;
       continue;
     }
@@ -746,7 +738,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     if (!safety.ok) {
       const retryAfterMs = "retryAfter" in safety && typeof safety.retryAfter === "number"
         ? safety.retryAfter * 1000
-        : retryDelayMs("manual");
+        : retryDelayMs();
       await deferPosReceipt(item, retryAfterMs, safety.error ?? "WhatsApp safety check deferred this send.");
       skipped++;
       continue;
@@ -809,7 +801,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       posFailed++;
     } else {
       // Without a new scheduled_at the row stays due immediately, so every
-      // following cron tick retried it — burning all MAX_ATTEMPTS within a few
+      // following cron tick retried it — burning every attempt within a few
       // minutes and filling the message log with the same failure over and over.
       await updatePosReceipt(item, "pending", result.error, new Date(Date.now() + posRetryDelayMs()).toISOString());
       posFailed++;

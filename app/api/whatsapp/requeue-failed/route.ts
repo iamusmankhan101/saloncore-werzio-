@@ -171,8 +171,13 @@ export async function POST(req: NextRequest) {
       });
       // Distinct invoice ids are not proof of distinct bills: when sends were
       // visibly failing, the same sale tends to get rung up again, leaving two
-      // rows with the same client, day and total. Resending both would put two
-      // identical PDFs on one client's phone, so only the first of each goes.
+      // rows with the same client, day, total AND services. Resending both would
+      // put two identical PDFs on one client's phone, so only the first goes.
+      //
+      // The service list has to be part of the key, not just the total: one
+      // client buying a 1,000 wax and a 1,000 pedicure on the same day is two
+      // real invoices that happen to match on price, and a total-only key would
+      // silently swallow the second one.
       const seenInvoices = new Set<string>();
       for (const row of rows.rows) {
         const invoiceId = row.invoice_id as string;
@@ -180,9 +185,13 @@ export async function POST(req: NextRequest) {
           skippedAlreadySent++;
           continue;
         }
-        let parsed: { date?: string; total?: number } = {};
+        let parsed: { date?: string; total?: number; items?: Array<Record<string, unknown>> } = {};
         try { parsed = JSON.parse(row.invoice_json as string) as typeof parsed; } catch { /* fall through to a per-id key */ }
-        const dupeKey = `${row.phone as string}|${parsed.date ?? ""}|${parsed.total ?? ""}`;
+        const itemSignature = (parsed.items ?? [])
+          .map((i) => `${i.name ?? i.service ?? i.description ?? "?"}x${i.qty ?? i.quantity ?? 1}`)
+          .sort()
+          .join(",");
+        const dupeKey = `${row.phone as string}|${parsed.date ?? ""}|${parsed.total ?? ""}|${itemSignature}`;
         if (parsed.total != null && seenInvoices.has(dupeKey)) {
           skippedDuplicate++;
           continue;

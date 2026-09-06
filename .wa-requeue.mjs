@@ -51,7 +51,8 @@ const seenInvoices = new Set(); let dupes = [];
 for (const r of inv.rows) {
   if (await hasSent(r.user_id, "invoice", r.invoice_id)) { skipped++; continue; }
   let parsed = {}; try { parsed = JSON.parse(r.invoice_json); } catch {}
-  const dupeKey = `${r.phone}|${parsed.date ?? ""}|${parsed.total ?? ""}`;
+  const sig = (parsed.items ?? []).map(i => `${i.name ?? i.service ?? i.description ?? "?"}x${i.qty ?? i.quantity ?? 1}`).sort().join(",");
+  const dupeKey = `${r.phone}|${parsed.date ?? ""}|${parsed.total ?? ""}|${sig}`;
   if (parsed.total != null && seenInvoices.has(dupeKey)) { dupes.push(`${r.client_name} ${r.invoice_number} (PKR ${parsed.total})`); continue; }
   seenInvoices.add(dupeKey);
   cursor = outsideQuiet(cursor + gap());
