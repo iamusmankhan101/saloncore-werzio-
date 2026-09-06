@@ -22,6 +22,16 @@ import { appointmentStartHasPassed, appointmentStartMs, timezoneFromSettings, is
 const BATCH_LIMIT = 50;
 const SEND_LIMIT_PER_RUN = 1;
 const MAX_ATTEMPTS = 5;
+// Win-backs are pure marketing to a dormant number — if two tries don't get
+// through, a third, fourth and fifth are just repeat pressure on a client who
+// isn't reachable, and the whole batch is re-queued from scratch on the next
+// nightly scan anyway. Every other kind is a message the client is expecting
+// (a receipt, a confirmation, a reminder) and keeps the full five.
+const WINBACK_MAX_ATTEMPTS = 2;
+
+function maxAttemptsForKind(kind: QueueKind): number {
+  return kind === "winback" ? WINBACK_MAX_ATTEMPTS : MAX_ATTEMPTS;
+}
 // If the cron hasn't run in a long time (e.g. stuck on Hobby's once-daily
 // schedule), don't fire off a burst of hours-old booking confirmations —
 // mirrors the same "don't send stale automated messages" fix applied to the
@@ -55,9 +65,22 @@ function posSpacingDelayMs(): number {
   return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
 }
 
+// A failed send is almost never worth retrying immediately — the usual causes
+// (provider outage, an expired/unpaid provider subscription, a rate limit) all
+// take minutes-to-hours to clear, and hammering through MAX_ATTEMPTS in five
+// consecutive cron ticks just burns the retry budget while looking like a bot.
+// Retries therefore wait a random 25-30 min, so they are never a fixed,
+// guessable interval either.
+const RETRY_MIN_GAP_MS = 25 * MINUTE_MS;
+const RETRY_MAX_GAP_MS = 30 * MINUTE_MS;
+
 function retryDelayMs(kind: QueueKind): number {
   if (kind === "followup") return randBetween(45 * MINUTE_MS, 75 * MINUTE_MS);
-  return randBetween(30 * MINUTE_MS, 60 * MINUTE_MS);
+  return randBetween(RETRY_MIN_GAP_MS, RETRY_MAX_GAP_MS);
+}
+
+function posRetryDelayMs(): number {
+  return randBetween(RETRY_MIN_GAP_MS, RETRY_MAX_GAP_MS);
 }
 
 function followupWindowExpired(item: Pick<QueueRow, "apptDate" | "apptTime">, settings: Record<string, unknown> | null): boolean {
@@ -171,10 +194,11 @@ async function getDueItems(): Promise<QueueRow[]> {
   const result = await db.execute({
     sql: `SELECT id, user_id, kind, phone, text, client_name, appt_date, appt_time, service, scheduled_at, attempts
           FROM wa_booking_send_queue
-          WHERE status = 'pending' AND scheduled_at <= ? AND attempts < ?
+          WHERE status = 'pending' AND scheduled_at <= ?
+            AND attempts < CASE WHEN kind = 'winback' THEN ? ELSE ? END
           ORDER BY scheduled_at ASC
           LIMIT ?`,
-    args: [new Date().toISOString(), MAX_ATTEMPTS, BATCH_LIMIT],
+    args: [new Date().toISOString(), WINBACK_MAX_ATTEMPTS, MAX_ATTEMPTS, BATCH_LIMIT],
   });
   return result.rows.map((r) => ({
     id: r.id as string,
@@ -351,14 +375,21 @@ async function getDuePosReceipts(): Promise<PosReceiptRow[]> {
   }));
 }
 
-async function updatePosReceipt(item: PosReceiptRow, status: "sent" | "pending" | "expired", error?: string) {
+async function updatePosReceipt(
+  item: PosReceiptRow,
+  status: "sent" | "pending" | "expired",
+  error?: string,
+  nextScheduledAt?: string,
+) {
   await db.execute({
     sql: `UPDATE wa_pos_receipt_queue
-          SET status = ?, attempts = ?, last_error = ?, sent_at = ?
+          SET status = ?, attempts = ?, last_error = ?, sent_at = ?,
+              scheduled_at = COALESCE(?, scheduled_at)
           WHERE user_id = ? AND invoice_id = ?`,
     args: [
       status, item.attempts + 1, error ?? null,
       status === "sent" ? new Date().toISOString() : null,
+      nextScheduledAt ?? null,
       item.userId, item.invoiceId,
     ],
   });
@@ -676,7 +707,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       recordWhatsAppSafetySend({ phone: item.phone, config: providerConfig });
       await updateItem(item, "sent");
       sent++;
-    } else if (item.attempts + 1 >= MAX_ATTEMPTS) {
+    } else if (item.attempts + 1 >= maxAttemptsForKind(item.kind)) {
       await updateItem(item, "expired", result.errorReason);
       failed++;
     } else {
@@ -737,6 +768,16 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       }
     }
 
+    // Same guard the booking queue applies via hasSentMessage: if this exact
+    // invoice already has a successful send logged, never send it a second time
+    // (a retry that actually reached WhatsApp before failing on the response, or
+    // the same invoice re-queued from the POS, would otherwise double-message).
+    if (await hasSentMessage(item.userId, "invoice", item.invoiceId)) {
+      await updatePosReceipt(item, "sent");
+      skipped++;
+      continue;
+    }
+
     if (sendAttemptsThisRun >= SEND_LIMIT_PER_RUN) {
       deferredDelayMs += posSpacingDelayMs();
       await deferPosReceipt(item, deferredDelayMs, "Deferred to pace automated invoice WhatsApp sends 10-15 min apart.");
@@ -757,7 +798,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       skipped++;
       continue;
     }
-    await logMessage(item.userId, "invoice", item.clientName, item.phone, result.ok ? "sent" : "failed", result.error);
+    await logMessage(item.userId, "invoice", item.clientName, item.phone, result.ok ? "sent" : "failed", result.error, item.invoiceId);
 
     if (result.ok) {
       recordWhatsAppSafetySend({ phone: item.phone, config: providerConfig });
@@ -767,7 +808,10 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       await updatePosReceipt(item, "expired", result.error);
       posFailed++;
     } else {
-      await updatePosReceipt(item, "pending", result.error);
+      // Without a new scheduled_at the row stays due immediately, so every
+      // following cron tick retried it — burning all MAX_ATTEMPTS within a few
+      // minutes and filling the message log with the same failure over and over.
+      await updatePosReceipt(item, "pending", result.error, new Date(Date.now() + posRetryDelayMs()).toISOString());
       posFailed++;
     }
   }

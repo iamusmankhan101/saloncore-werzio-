@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw,
   Zap, Bell, ThumbsUp, Package, ChevronRight, Phone, Copy, Check,
-  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, CalendarDays, AlertCircle, Cake, CalendarX, Heart, X, ListChecks, UserMinus,
+  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, CalendarDays, AlertCircle, Cake, CalendarX, Heart, X, ListChecks, UserMinus, RotateCcw,
 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -406,6 +406,8 @@ function MessagesPageContent() {
   const [wbSaved,       setWbSaved]       = useState(false);
   const [wbSending,     setWbSending]     = useState(false);
   const [wbResult,      setWbResult]      = useState<{ ok: boolean; message: string } | null>(null);
+  const [resending,     setResending]     = useState(false);
+  const [resendResult,  setResendResult]  = useState<{ ok: boolean; message: string } | null>(null);
 
   // Recomputed as the days field is edited so the owner sees how many clients a
   // given window actually reaches before committing to it. Invoices count as
@@ -505,6 +507,43 @@ function MessagesPageContent() {
       setWbResult({ ok: false, message: "Network error — could not reach the server." });
     } finally {
       setWbSending(false);
+      setRefreshKey((k) => k + 1);
+    }
+  }
+
+  // Puts invoices and win-backs that gave up after their retries back in the
+  // queue rather than sending here — they go out on the same paced schedule as
+  // any other automated message, 25-45 min apart, and anything already
+  // delivered is skipped so no client gets the same message twice.
+  async function resendFailed() {
+    setResending(true);
+    setResendResult(null);
+    try {
+      const res = await fetch("/api/whatsapp/requeue-failed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kinds: ["invoice", "winback"] }),
+      });
+      const data = await res.json() as { ok?: boolean; invoiceRequeued?: number; winbackRequeued?: number; skippedAlreadySent?: number; skippedDuplicate?: number; error?: string };
+      if (data.ok) {
+        const total = (data.invoiceRequeued ?? 0) + (data.winbackRequeued ?? 0);
+        setResendResult({
+          ok: true,
+          message: total
+            ? `Requeued ${data.invoiceRequeued ?? 0} invoice${(data.invoiceRequeued ?? 0) === 1 ? "" : "s"} and ${data.winbackRequeued ?? 0} win-back${(data.winbackRequeued ?? 0) === 1 ? "" : "s"}, going out 25-45 min apart${data.skippedAlreadySent ? ` · ${data.skippedAlreadySent} skipped (already delivered)` : ""}.`
+            : "Nothing to resend — no invoices or win-backs have used up their retries.",
+        });
+        if (data.skippedDuplicate) setResendResult((r) => r && {
+          ...r,
+          message: `${r.message} ${data.skippedDuplicate} duplicate invoice${data.skippedDuplicate === 1 ? " was" : "s were"} held back (same client, day and amount).`,
+        });
+      } else {
+        setResendResult({ ok: false, message: data.error || "Could not resend failed messages." });
+      }
+    } catch {
+      setResendResult({ ok: false, message: "Network error — could not reach the server." });
+    } finally {
+      setResending(false);
       setRefreshKey((k) => k + 1);
     }
   }
@@ -939,11 +978,24 @@ function MessagesPageContent() {
                     <div style={{ fontSize: 15, fontWeight: 900, color: "#1d1d2f", flexShrink: 0 }}>Message Log</div>
                     {loadingLogs && <div style={{ fontSize: 11, color: "#9999b0" }}>Loading…</div>}
                   </div>
-                  <button type="button" onClick={() => setRefreshKey((k) => k + 1)} title="Refresh"
-                    style={{ border: "1px solid #e8e8f0", background: "#fff", borderRadius: 8, padding: "6px 8px", cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>
-                    <RefreshCw size={13} color="#9999b0" />
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <button type="button" onClick={resendFailed} disabled={resending}
+                      title="Resend invoices and win-backs that failed every retry — 25-45 min apart, skipping anything already delivered"
+                      style={{ border: "1px solid #e8e8f0", background: "#fff", borderRadius: 8, padding: "6px 10px", cursor: resending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, color: "#6a6a8a" }}>
+                      <RotateCcw size={13} color="#9999b0" />
+                      {resending ? "Requeueing…" : "Resend failed"}
+                    </button>
+                    <button type="button" onClick={() => setRefreshKey((k) => k + 1)} title="Refresh"
+                      style={{ border: "1px solid #e8e8f0", background: "#fff", borderRadius: 8, padding: "6px 8px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                      <RefreshCw size={13} color="#9999b0" />
+                    </button>
+                  </div>
                 </div>
+                {resendResult && (
+                  <div style={{ marginBottom: 10, padding: "8px 11px", borderRadius: 8, fontSize: 11, fontWeight: 600, lineHeight: 1.55, background: resendResult.ok ? "#f0fdfa" : "#fef2f2", border: `1px solid ${resendResult.ok ? "#ccfbf1" : "#fecaca"}`, color: resendResult.ok ? "#115e59" : "#991b1b" }}>
+                    {resendResult.message}
+                  </div>
+                )}
                 {/* Filter pills — horizontally scrollable so they never clip on narrow panels */}
                 <div style={{ display: "flex", gap: 3, background: "#f0f0f8", borderRadius: 9, padding: "3px", overflowX: "auto", scrollbarWidth: "none" }}>
                   {FILTERS.map((f) => (
