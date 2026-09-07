@@ -76,6 +76,7 @@ function staffToRows(list: Staff[], servicesList: Service[]) {
       "Commission Rate": staff.commissionRate ?? "",
       "Base Salary": staff.baseSalary ?? "",
       "Paid Leaves / Month": staff.paidLeavesPerMonth ?? "",
+      "Standard Hours / Day": staff.standardHoursPerDay ?? "",
       "Specialties": staff.specialties.join(", "),
       "Assigned Services": assignedServices.join(", "),
       "Color": staff.color,
@@ -114,6 +115,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
     commissionRate: staff?.commissionRate ? String(staff.commissionRate) : "",
     baseSalary: staff?.baseSalary ? String(staff.baseSalary) : "",
     paidLeavesPerMonth: staff?.paidLeavesPerMonth != null ? String(staff.paidLeavesPerMonth) : "",
+    standardHoursPerDay: staff?.standardHoursPerDay != null ? String(staff.standardHoursPerDay) : "",
   });
   const sectionOptions = getSectionOptions(staffList);
 
@@ -160,6 +162,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
       commissionRate: (form.payType === "commission" || form.payType === "both") && form.commissionRate ? Number(form.commissionRate) : undefined,
       baseSalary: (form.payType === "salary" || form.payType === "both") && form.baseSalary ? Number(form.baseSalary) : undefined,
       paidLeavesPerMonth: (form.payType === "salary" || form.payType === "both") && form.paidLeavesPerMonth ? Number(form.paidLeavesPerMonth) : undefined,
+      standardHoursPerDay: Number(form.standardHoursPerDay) > 0 ? Number(form.standardHoursPerDay) : undefined,
     };
 
     onSave(savedStaff, selectedServiceIds);
@@ -256,6 +259,13 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
             </>
           )}
 
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Standard Hours / Day</label>
+            <input type="number" min="0" step="0.5" value={form.standardHoursPerDay} onChange={(e) => set("standardHoursPerDay", e.target.value)} placeholder="e.g. 8"
+              style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+            <div style={{ fontSize: 11, color: "#b0b0c8" }}>A full working day for this person. Leave blank to use the salon standard from Settings → Business Hours.</div>
+          </div>
+
           <div style={{ padding: "10px 12px", borderRadius: 10, background: "#f5f3ff", color: "#6d28d9", fontSize: 12, lineHeight: 1.55, fontWeight: 650 }}>
             Staff login, password, and page permissions are managed separately in <strong>Account → Roles & Permissions</strong>.
           </div>
@@ -340,6 +350,7 @@ function StaffImportModal({ existing, servicesList, onClose, onImport }: {
         const commissionRate = Number(row["Commission Rate"] ?? row["Commission"] ?? "");
         const baseSalary = Number(row["Base Salary"] ?? row["Salary"] ?? "");
         const paidLeavesPerMonth = Number(row["Paid Leaves / Month"] ?? row["Paid Leaves"] ?? "");
+        const standardHoursPerDay = Number(row["Standard Hours / Day"] ?? row["Standard Hours"] ?? "");
         const assignedServiceNames = splitList(row["Assigned Services"] ?? row["Services"]);
         const specialties = splitList(row["Specialties"]).length ? splitList(row["Specialties"]) : assignedServiceNames;
 
@@ -362,6 +373,7 @@ function StaffImportModal({ existing, servicesList, onClose, onImport }: {
             commissionRate: (payType === "commission" || payType === "both") && Number.isFinite(commissionRate) ? commissionRate : undefined,
             baseSalary: (payType === "salary" || payType === "both") && Number.isFinite(baseSalary) ? baseSalary : undefined,
             paidLeavesPerMonth: (payType === "salary" || payType === "both") && Number.isFinite(paidLeavesPerMonth) ? paidLeavesPerMonth : undefined,
+            standardHoursPerDay: Number.isFinite(standardHoursPerDay) && standardHoursPerDay > 0 ? standardHoursPerDay : undefined,
           },
         });
       }

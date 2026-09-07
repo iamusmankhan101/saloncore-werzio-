@@ -412,6 +412,8 @@ function SalonProfile() {
 
 function BusinessHours() {
   const [hours, setHours] = useState<BusinessHour[]>(() => (settingsStore.hours as BusinessHour[]).map((hour) => ({ ...hour })));
+  const [standardHours, setStandardHours] = useState(() =>
+    String((settingsStore.attendance as { standardHoursPerDay?: number } | undefined)?.standardHoursPerDay ?? 8));
   const [saved, setSaved] = useState(false);
 
   function updateHour(index: number, patch: Partial<BusinessHour>) {
@@ -420,6 +422,9 @@ function BusinessHours() {
 
   function save() {
     hours.forEach((hour, index) => Object.assign(settingsStore.hours[index], hour));
+    const parsed = Number(standardHours);
+    (settingsStore.attendance as { standardHoursPerDay: number }).standardHoursPerDay =
+      Number.isFinite(parsed) && parsed > 0 ? parsed : 8;
     saveSettings();
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2200);
@@ -444,6 +449,23 @@ function BusinessHours() {
             )}
           </div>
         ))}
+      </div>
+      <div style={{ marginTop: 22, padding: "16px 18px", background: "#fafafd", border: "1px solid #eeeeF6", borderRadius: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#242438", marginBottom: 6 }}>Standard Working Day</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <input
+            type="number" min="1" max="24" step="0.5"
+            style={{ ...inputStyle, width: 110 }}
+            value={standardHours}
+            onChange={(event) => setStandardHours(event.target.value)}
+          />
+          <span style={{ fontSize: 12, color: "#9999b0" }}>hours per day</span>
+        </div>
+        <div style={{ fontSize: 11.5, color: "#9999b0", marginTop: 8, lineHeight: 1.6 }}>
+          What clocked check-in/check-out times on the Attendance register are measured against, and what
+          counts as one full day when a salary is pro-rated in Payouts. Individual staff can override this
+          on their own Staff record.
+        </div>
       </div>
       {saved && <div style={{ marginTop: 16 }}><SavedBanner /></div>}
       <SaveButton onClick={save} />

@@ -97,6 +97,11 @@ const defaults = {
     { day: "Saturday",  open: true,  from: "10:00", to: "18:00" },
     { day: "Sunday",    open: false, from: "10:00", to: "18:00" },
   ],
+  attendance: {
+    // A full working day in hours — what the register measures clocked time
+    // against, and what salary pro-ration treats as one whole day.
+    standardHoursPerDay: 8,
+  },
   notifications: {
     apptReminder: true,
     apptConfirm: true,
@@ -211,6 +216,7 @@ function load() {
       },
       activeSection: typeof saved.activeSection === "string" ? saved.activeSection : dynamicDefaults.activeSection,
       hours: saved.hours ?? structuredClone(dynamicDefaults.hours),
+      attendance: { ...dynamicDefaults.attendance, ...saved.attendance },
       notifications: { ...dynamicDefaults.notifications, ...saved.notifications },
       appearance: { ...dynamicDefaults.appearance, ...saved.appearance },
       whatsapp: { ...dynamicDefaults.whatsapp, ...saved.whatsapp },

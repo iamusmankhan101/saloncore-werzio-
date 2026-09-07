@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { getStoredStaff, getStoredAppointments, getStoredServices } from "@/lib/storage";
 import { getPayouts, savePayouts, lastPayoutEnd, revenueInPeriod, type Payout, type PayoutStatus } from "@/lib/payouts";
-import { getAttendanceSummary, type AttendanceSummary } from "@/lib/attendance";
+import { getAttendanceSummary, standardHoursFor, type AttendanceSummary } from "@/lib/attendance";
 import type { Staff, Appointment, Service, StaffPayType } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
@@ -73,8 +73,14 @@ function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, o
   // attendance records at all still gets paid the full entered amount
   // (no behavior change for salons that don't use attendance).
   const attendance: AttendanceSummary = useMemo(
-    () => getAttendanceSummary(staff.id, form.periodStart, form.periodEnd, undefined, staff.paidLeavesPerMonth ?? 0),
-    [staff.id, form.periodStart, form.periodEnd, staff.paidLeavesPerMonth],
+    // Passed as a bare property rather than the whole `staff` object so the
+    // dependency list stays property-specific and the memo is preserved.
+    () => getAttendanceSummary(
+      staff.id, form.periodStart, form.periodEnd, undefined,
+      staff.paidLeavesPerMonth ?? 0,
+      standardHoursFor({ standardHoursPerDay: staff.standardHoursPerDay }),
+    ),
+    [staff.id, form.periodStart, form.periodEnd, staff.paidLeavesPerMonth, staff.standardHoursPerDay],
   );
   const proratedSalary = attendance.markedDays > 0 ? Math.round(salaryAmount * attendance.creditFactor) : salaryAmount;
 
@@ -201,6 +207,15 @@ function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, o
                       {attendance.leave > 0 && <span style={{ color: "#b0b0c8" }}> ({attendance.paidLeave} paid{staff.paidLeavesPerMonth ? ` of ${staff.paidLeavesPerMonth} allowed` : ""})</span>}
                       <span style={{ color: "#b0b0c8" }}> · {attendance.markedDays} day{attendance.markedDays === 1 ? "" : "s"} marked</span>
                     </div>
+                    {attendance.daysWithTimes > 0 && (
+                      <div style={{ fontSize: 11.5, color: "#6b6b8a" }}>
+                        {attendance.hoursWorked}h clocked of {attendance.expectedHours}h expected
+                        <span style={{ color: "#b0b0c8" }}> over {attendance.daysWithTimes} day{attendance.daysWithTimes === 1 ? "" : "s"} with times</span>
+                        {attendance.shortfallHours > 0 && (
+                          <span style={{ color: "#d97706", fontWeight: 700 }}> · {attendance.shortfallHours}h short</span>
+                        )}
+                      </div>
+                    )}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b6b8a" }}>
                       <span>Salary × attendance ({Math.round(attendance.creditFactor * 100)}%)</span>
                       <span style={{ fontWeight: 700, color: "#1a1a2e" }}>{fmt(salaryAmount)} → {fmt(proratedSalary)}</span>
@@ -489,7 +504,7 @@ export default function PayoutsPage() {
             const lastEnd = lastPayoutEnd(s.id, payouts);
             const periodStart = lastEnd ? addDays(lastEnd, 1) : startOfMonth();
             const revenue = revenueInPeriod(s.id, appointments, services, periodStart, todayStr());
-            const estAttendance = getAttendanceSummary(s.id, periodStart, todayStr(), undefined, s.paidLeavesPerMonth ?? 0);
+            const estAttendance = getAttendanceSummary(s.id, periodStart, todayStr(), undefined, s.paidLeavesPerMonth ?? 0, standardHoursFor(s));
             const estSalary = estAttendance.markedDays > 0 ? Math.round((s.baseSalary ?? 0) * estAttendance.creditFactor) : (s.baseSalary ?? 0);
             const estimated = payType === "commission" ? Math.round(revenue * (s.commissionRate ?? 0) / 100)
               : payType === "both" ? Math.round(revenue * (s.commissionRate ?? 0) / 100) + estSalary

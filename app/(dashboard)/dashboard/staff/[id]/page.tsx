@@ -76,6 +76,7 @@ function EditModal({
     commissionRate: staff.commissionRate ? String(staff.commissionRate) : "",
     baseSalary: staff.baseSalary ? String(staff.baseSalary) : "",
     paidLeavesPerMonth: staff.paidLeavesPerMonth != null ? String(staff.paidLeavesPerMonth) : "",
+    standardHoursPerDay: staff.standardHoursPerDay != null ? String(staff.standardHoursPerDay) : "",
   });
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
     servicesList.filter((s) => s.assignedStaffIds.includes(staff.id)).map((s) => s.id),
@@ -102,6 +103,7 @@ function EditModal({
       commissionRate: (form.payType === "commission" || form.payType === "both") && form.commissionRate ? Number(form.commissionRate) : undefined,
       baseSalary: (form.payType === "salary" || form.payType === "both") && form.baseSalary ? Number(form.baseSalary) : undefined,
       paidLeavesPerMonth: (form.payType === "salary" || form.payType === "both") && form.paidLeavesPerMonth ? Number(form.paidLeavesPerMonth) : undefined,
+      standardHoursPerDay: Number(form.standardHoursPerDay) > 0 ? Number(form.standardHoursPerDay) : undefined,
     };
     onSave(updatedStaff, selectedServiceIds);
     setDone(true);
@@ -183,6 +185,11 @@ function EditModal({
               </div>
             </>
           )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Standard Hours / Day</label>
+            <input type="number" min="0" step="0.5" style={inp} value={form.standardHoursPerDay} onChange={(e) => set("standardHoursPerDay", e.target.value)} placeholder="e.g. 8" />
+            <div style={{ fontSize: 11, color: "#b0b0c8" }}>A full working day for this person. Leave blank to use the salon standard from Settings → Business Hours.</div>
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Assigned Services</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 160, overflowY: "auto", border: "1px solid #e8e8f0", borderRadius: 8, padding: 8 }}>

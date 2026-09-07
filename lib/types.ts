@@ -53,6 +53,8 @@ export interface Staff {
   baseSalary?: number;
   /** How many "Leave" attendance days per month/pay period count as fully paid before further leaves start reducing salary. Defaults to 0 (unpaid) when unset. */
   paidLeavesPerMonth?: number;
+  /** A full working day for this person, in hours. Overrides the salon-wide standard (Settings → Attendance) for part-timers and split shifts. */
+  standardHoursPerDay?: number;
 }
 
 export interface Service {
