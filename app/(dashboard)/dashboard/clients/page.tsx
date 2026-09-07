@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { BEAUTY_PROFILES } from "@/lib/mock-data";
 import { getStoredAppointments, getStoredClients, saveClients, subscribeToStoredData } from "@/lib/storage";
@@ -8,6 +8,7 @@ import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
 import { Search, X, Plus, Phone, Mail, Calendar, Heart, Tag, MapPin, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
+import { fileToResizedDataUrl } from "@/lib/image";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
@@ -40,6 +41,84 @@ function fmtDate(s?: string) {
 }
 
 // ── Delete All Confirm Modal ──────────────────────────────────────────────────
+/**
+ * The client's photo, falling back to their initial. One component so the list,
+ * the mobile rows and the detail header can't drift apart, and so a photo that
+ * fails to decode degrades to the initial rather than a broken-image icon.
+ */
+function ClientAvatar({ name, photo, size, style }: {
+  name: string; photo?: string; size: number; style?: React.CSSProperties;
+}) {
+  const [failed, setFailed] = useState(false);
+  const base: React.CSSProperties = {
+    width: size, height: size, borderRadius: "50%", flexShrink: 0,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    overflow: "hidden", ...style,
+  };
+  if (photo && !failed) {
+    return (
+      <div style={base}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- data: URL from localStorage, not an optimisable remote asset */}
+        <img src={photo} alt={name} onError={() => setFailed(true)}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </div>
+    );
+  }
+  return <div style={base}>{name.charAt(0).toUpperCase()}</div>;
+}
+
+/** Circular photo picker used by both the add form and the edit form. */
+function ClientPhotoPicker({ name, photo, onChange }: {
+  name: string; photo?: string; onChange: (photo: string | undefined) => void;
+}) {
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function pick(file?: File) {
+    if (!file) return;
+    setError("");
+    setBusy(true);
+    try {
+      onChange(await fileToResizedDataUrl(file));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not use that image.");
+    } finally {
+      setBusy(false);
+      // Clear the input so re-picking the same file still fires onChange.
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <ClientAvatar name={name || "?"} photo={photo} size={64} style={{
+        background: "linear-gradient(135deg, #5B21B6, #9333EA)", color: "#fff",
+        fontSize: 24, fontWeight: 700, border: "2px solid #ede9fe",
+      }} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={() => inputRef.current?.click()} disabled={busy}
+            style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", fontSize: 12, fontWeight: 700, color: "#7C3AED", cursor: busy ? "wait" : "pointer" }}>
+            {busy ? "Processing…" : photo ? "Change Photo" : "Upload Photo"}
+          </button>
+          {photo && (
+            <button type="button" onClick={() => { onChange(undefined); setError(""); }}
+              style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff", fontSize: 12, fontWeight: 700, color: "#dc2626", cursor: "pointer" }}>
+              Remove
+            </button>
+          )}
+        </div>
+        {error
+          ? <div style={{ fontSize: 11, color: "#dc2626", fontWeight: 600 }}>{error}</div>
+          : <div style={{ fontSize: 11, color: "#b0b0c8" }}>JPG or PNG. Resized automatically.</div>}
+        <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }}
+          onChange={(e) => pick(e.target.files?.[0])} />
+      </div>
+    </div>
+  );
+}
+
 function DeleteAllConfirmModal({ count, onConfirm, onCancel }: { count: number; onConfirm: () => void; onCancel: () => void }) {
   return (
     <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -132,6 +211,7 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
   });
   const profile = BEAUTY_PROFILES.find((p) => p.clientId === client.id);
   const [editing, setEditing] = useState(false);
+  const [editPhoto, setEditPhoto] = useState<string | undefined>(client.photo);
   const [editForm, setEditForm] = useState({
     name: client.name,
     phone: client.phone,
@@ -197,9 +277,9 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
             </button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg, #5B21B6, #9333EA)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff" }}>
-              {displayName.charAt(0)}
-            </div>
+            <ClientAvatar name={displayName} photo={saved ? editPhoto : client.photo} size={64} style={{
+              background: "linear-gradient(135deg, #5B21B6, #9333EA)", fontSize: 24, fontWeight: 700, color: "#fff",
+            }} />
             <div>
               <div style={{ fontWeight: 700, fontSize: 20, color: "#1a1a2e" }}>{displayName}</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
@@ -386,6 +466,7 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
           {editing ? (
             <PanelSection title="Edit Details">
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <ClientPhotoPicker name={editForm.name} photo={editPhoto} onChange={setEditPhoto} />
                 {[
                   { label: "Full Name", key: "name", type: "text", placeholder: "Full name" },
                   { label: "Phone", key: "phone", type: "text", placeholder: "Phone number" },
@@ -440,6 +521,7 @@ function ClientPanel({ client, onClose, appointments, locations, onUpdate, onDel
                       name: editForm.name,
                       phone: normalizePhone(editForm.phone),
                       email: editForm.email || undefined,
+                      photo: editPhoto,
                       dob: editForm.dob || undefined,
                       source: editForm.source as any,
                       locationId: editForm.locationId,
@@ -563,6 +645,7 @@ function InfoLine({ icon, label }: { icon: React.ReactNode; label: string }) {
 function AddClientModal({ onClose, onAdd, locations, allowLocationSelection, clients }: { onClose: () => void; onAdd: (c: Client) => void; locations: SalonLocation[]; allowLocationSelection: boolean; clients: Client[] }) {
   const [done, setDone] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", dob: "", source: "whatsapp", tag: "", section: defaultSectionForNewRecord(), notes: "", locationId: getDefaultLocationId() });
+  const [photo, setPhoto] = useState<string | undefined>(undefined);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const canSubmit = form.name.trim();
 
@@ -574,6 +657,7 @@ function AddClientModal({ onClose, onAdd, locations, allowLocationSelection, cli
       phone: normalizePhone(form.phone),
       locationId: allowLocationSelection ? form.locationId : getDefaultLocationId(),
       email: form.email || undefined,
+      photo,
       gender: "female",
       dob: form.dob || undefined,
       tags: form.tag ? [form.tag] : ["New"],
@@ -609,6 +693,7 @@ function AddClientModal({ onClose, onAdd, locations, allowLocationSelection, cli
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={18} color="#6b6b8a" /></button>
         </div>
         <div style={{ padding: "22px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <ClientPhotoPicker name={form.name} photo={photo} onChange={setPhoto} />
           {[
             { label: "Full Name *", key: "name", placeholder: "e.g. Amna Siddiqui", type: "text" },
             { label: "Phone", key: "phone", placeholder: "Optional · e.g. 0321-1234567", type: "text" },
@@ -1387,9 +1472,10 @@ export default function ClientsPage() {
               </div>
               {/* Client */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #9333EA15, #ec489915)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#9333EA", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.8)", boxShadow: "0 2px 4px rgba(0,0,0,0.04)" }}>
-                  {client.name.charAt(0).toUpperCase()}
-                </div>
+                <ClientAvatar name={client.name} photo={client.photo} size={34} style={{
+                  background: "linear-gradient(135deg, #9333EA15, #ec489915)", fontSize: 13, fontWeight: 700,
+                  color: "#9333EA", border: "1.5px solid rgba(255,255,255,0.8)", boxShadow: "0 2px 4px rgba(0,0,0,0.04)",
+                }} />
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e", letterSpacing: "-0.01em" }}>{client.name}</div>
                   <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
@@ -1453,9 +1539,9 @@ export default function ClientsPage() {
                 style={{ padding: "14px 16px", borderBottom: isLast ? "none" : "1px solid #f8f8fc", display: "flex", flexDirection: "column", gap: 8, cursor: "pointer" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #9333EA15, #ec489915)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#9333EA", flexShrink: 0 }}>
-                    {client.name.charAt(0).toUpperCase()}
-                  </div>
+                  <ClientAvatar name={client.name} photo={client.photo} size={34} style={{
+                    background: "linear-gradient(135deg, #9333EA15, #ec489915)", fontSize: 13, fontWeight: 700, color: "#9333EA",
+                  }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e" }}>{client.name}</div>
                     <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1 }}>{client.phone}</div>

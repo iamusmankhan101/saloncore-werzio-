@@ -265,8 +265,11 @@ export default function ClientProfilePage() {
         {/* ── Hero card ─────────────────────────────────────────────────────────── */}
         <div style={{ background: "linear-gradient(135deg, #EDE9FE 0%, #fdf2f8 100%)", borderRadius: 20, padding: "28px 32px", border: "1px solid #e8e0ff" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 22 }}>
-            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, #5B21B6, #9333EA)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
-              {client.name.charAt(0)}
+            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, #5B21B6, #9333EA)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 700, color: "#fff", flexShrink: 0, overflow: "hidden" }}>
+              {client.photo
+                // eslint-disable-next-line @next/next/no-img-element -- data: URL from local storage, not a remote asset
+                ? <img src={client.photo} alt={client.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : client.name.charAt(0)}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: "#1a1a2e", marginBottom: 8 }}>{client.name}</div>
