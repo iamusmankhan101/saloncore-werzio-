@@ -34,6 +34,33 @@ const PRINT_STYLES = `
   }
 `;
 
+/**
+ * 80mm roll layout for a USB/driver-attached thermal printer (Speed-X SP-200u
+ * and friends), where the ESC/POS-over-TCP path doesn't apply — there is no IP
+ * to send to, so the receipt goes out through the OS print driver instead.
+ *
+ * The sheet's own spacing is set inline, so every override here needs
+ * !important to win. Nothing is restructured: the same markup just reflows into
+ * a 72mm column (80mm roll less the printer's unprintable edges).
+ */
+const RECEIPT_PRINT_STYLES = `
+  @media print {
+    @page { size: 80mm auto; margin: 0; }
+    html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+    #salon-invoice-portal { position: static !important; width: 80mm !important; }
+    .sip-sheet { width: 80mm !important; max-width: 80mm !important; font-size: 11px !important; line-height: 1.35 !important; }
+    /* The single padded wrapper inside the sheet — A4 margins would eat the roll. */
+    .sip-sheet > div { padding: 4mm 3mm !important; }
+    .sip-sheet * { font-size: 11px !important; letter-spacing: 0 !important; }
+    /* Headings stay only slightly larger, so the salon name still reads first. */
+    .sip-sheet h1, .sip-sheet h2 { font-size: 14px !important; }
+    /* A logo eats most of a 72mm column and prints as a grey smear on thermal. */
+    .sip-sheet img { display: none !important; }
+    .sip-sheet table { width: 100% !important; table-layout: fixed !important; }
+    .sip-sheet td, .sip-sheet th { padding: 2px 0 !important; word-break: break-word !important; }
+  }
+`;
+
 interface Props {
   invoice: SalonInvoice;
   salonName: string;
@@ -51,6 +78,9 @@ export default function SalonInvoicePrint({
 }: Props) {
   const [mounted, setMounted]           = useState(false);
   const [thermalStatus, setThermalStatus] = useState<"idle" | "printing" | "ok" | "error">("idle");
+  // Which stylesheet the next window.print() should use. Reset afterwards so the
+  // browser's own Print command still produces the full-page A4 invoice.
+  const [printMode, setPrintMode] = useState<"a4" | "receipt">("a4");
   const [thermalError, setThermalError]   = useState("");
 
   useEffect(() => { setMounted(true); }, []);
@@ -95,9 +125,19 @@ export default function SalonInvoicePrint({
     }
   }
 
+  // The <style> swap has to be committed to the DOM before the (synchronous)
+  // print dialog opens, so this waits a paint rather than calling print() inline.
+  function printReceipt80mm() {
+    setPrintMode("receipt");
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      window.print();
+      setPrintMode("a4");
+    }));
+  }
+
   const content = (
     <div id="salon-invoice-portal">
-      <style>{PRINT_STYLES}</style>
+      <style>{printMode === "receipt" ? PRINT_STYLES + RECEIPT_PRINT_STYLES : PRINT_STYLES}</style>
 
       <div
         className="sip-overlay"
@@ -137,6 +177,11 @@ export default function SalonInvoicePrint({
                   <Pencil size={14} /> Edit
                 </button>
               )}
+              <button onClick={printReceipt80mm}
+                title="Print an 80mm roll receipt through the printer's own driver — use this for a USB thermal printer"
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, border: "1px solid #d8d8e4", background: "#fff", color: "#4a4a6a", fontSize: 12.5, fontWeight: 750, cursor: "pointer" }}>
+                <Printer size={14} /> Print 80mm Receipt
+              </button>
               <button onClick={() => window.print()}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
                 <Printer size={14} /> Print / Save PDF

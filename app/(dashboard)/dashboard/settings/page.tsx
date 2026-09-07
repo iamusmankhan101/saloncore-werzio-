@@ -535,6 +535,14 @@ function ThermalPrinterSection() {
         />
       </Field>
 
+      {/* USB printers can't use any of this — say so before they fill in an IP. */}
+      <div style={{ padding: "12px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, fontSize: 11.5, color: "#92400e", lineHeight: 1.7, marginBottom: 4 }}>
+        <strong>USB printer?</strong> This section only reaches printers with a network port
+        (LAN/Ethernet). A USB-only model — the Speed-X SP-200u, for example — has no IP address
+        to send to. Install its Windows driver on the till PC, then use{" "}
+        <strong>Print 80mm Receipt</strong> on any invoice to print through the driver instead.
+      </div>
+
       {/* Paper width */}
       <Field label="Paper Width" hint="Must match the roll actually loaded. 80mm prints 48 characters per line, 58mm prints 32 — the wrong setting is what makes receipts come out too narrow or overflow.">
         <select
