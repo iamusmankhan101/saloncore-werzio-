@@ -8,12 +8,15 @@ import {
   BarChart2, ChevronRight, Briefcase,
 } from "lucide-react";
 import { getStoredStaff, getStoredAppointments, getStoredServices, saveStaff, saveServices } from "@/lib/storage";
-import type { Staff, Appointment, Service, StaffRole, StaffPayType } from "@/lib/types";
+import type { Staff, Appointment, Service, StaffPayType } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
 import { Check, X, Plus, FileDown } from "lucide-react";
 import { exportStaffPdf } from "@/lib/export-pdf";
 import { settingsStore } from "@/lib/settings-store";
 import { getActiveSection, inSection } from "@/lib/sections";
+
+/** Sentinel select value that reveals the free-text role field — never stored. */
+const CUSTOM_ROLE = "__custom__";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   owner:            { color: "#7C3AED", bg: "#EDE9FE" },
@@ -22,7 +25,10 @@ const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
   "junior-stylist": { color: "#d97706", bg: "#fffbeb" },
   receptionist:     { color: "#db2777", bg: "#fdf2f8" },
   trainee:          { color: "#6b7280", bg: "#f9fafb" },
+  hair:             { color: "#0369a1", bg: "#e0f2fe" },
+  aesthetic:        { color: "#be185d", bg: "#fdf2f8" },
 };
+const PRESET_ROLES = Object.keys(ROLE_COLORS);
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   completed:    { label: "Completed",   color: "#059669", bg: "#ecfdf5" },
@@ -71,7 +77,8 @@ function EditModal({
   const [form, setForm] = useState({
     name: staff.name,
     phone: staff.phone,
-    role: staff.role as string,
+    role: PRESET_ROLES.includes(staff.role) ? (staff.role as string) : CUSTOM_ROLE,
+    customRole: PRESET_ROLES.includes(staff.role) ? "" : (staff.role as string),
     payType: staff.payType ?? "commission",
     commissionRate: staff.commissionRate ? String(staff.commissionRate) : "",
     baseSalary: staff.baseSalary ? String(staff.baseSalary) : "",
@@ -83,7 +90,11 @@ function EditModal({
   );
   const [done, setDone] = useState(false);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const canSubmit = form.name && form.phone && form.role;
+  const canSubmit = form.name && form.phone && form.role
+    && (form.role !== CUSTOM_ROLE || form.customRole.trim());
+  const existingCustomRoles = Array.from(new Set(getStoredStaff().map((s) => s.role)))
+    .filter((r) => !!r && !PRESET_ROLES.includes(r) && r !== staff.role)
+    .sort();
 
   const toggleService = (id: string) =>
     setSelectedServiceIds((prev) =>
@@ -97,7 +108,7 @@ function EditModal({
       ...staff,
       name: form.name,
       phone: form.phone,
-      role: form.role as StaffRole,
+      role: form.role === CUSTOM_ROLE ? form.customRole.trim() : form.role,
       specialties: selectedServices.map((s) => s.name),
       payType: form.payType as StaffPayType,
       commissionRate: (form.payType === "commission" || form.payType === "both") && form.commissionRate ? Number(form.commissionRate) : undefined,
@@ -141,9 +152,17 @@ function EditModal({
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Role</label>
             <select style={{ ...inp, background: "#fff" }} value={form.role} onChange={(e) => set("role", e.target.value)}>
               <option value="">Select role…</option>
-              {Object.keys(ROLE_COLORS).map((r) => <option key={r} value={r}>{r.replace(/-/g, " ")}</option>)}
+              {PRESET_ROLES.map((r) => <option key={r} value={r}>{r.replace(/-/g, " ")}</option>)}
+              {existingCustomRoles.map((r) => <option key={r} value={r}>{r}</option>)}
+              <option value={CUSTOM_ROLE}>Custom…</option>
             </select>
           </div>
+          {form.role === CUSTOM_ROLE && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Custom Role Name</label>
+              <input type="text" style={inp} value={form.customRole} onChange={(e) => set("customRole", e.target.value)} placeholder="e.g. Nail Technician" />
+            </div>
+          )}
 
           <div style={{ padding: "10px 12px", borderRadius: 10, background: "#f5f3ff", color: "#6d28d9", fontSize: 12, lineHeight: 1.55, fontWeight: 650 }}>
             Staff login, password, and page permissions are managed separately in <strong>Account → Roles & Permissions</strong>.

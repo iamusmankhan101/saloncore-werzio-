@@ -26,6 +26,9 @@ export type StaffRole =
   | "trainee"
   | "hair"
   | "aesthetic";
+// Staff also accept arbitrary custom role names entered by the user, the same
+// way Services accept custom categories below.
+export type StaffRoleValue = StaffRole | (string & {});
 
 export type ServiceCategory = "hair" | "skin" | "nails" | "bridal" | "piercing" | "other";
 // Services also accept arbitrary custom category names entered by the user.
@@ -38,7 +41,7 @@ export interface Staff {
   name: string;
   phone: string;
   photo?: string;
-  role: StaffRole;
+  role: StaffRoleValue;
   /** Which salon section this staff member belongs to (e.g. "Men's", "Women's"), for salons that run both from one branch. Free text, cosmetic only. */
   section?: string;
   specialties: string[];

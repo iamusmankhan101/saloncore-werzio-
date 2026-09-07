@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments, subscribeToStoredData } from "@/lib/storage";
-import type { Staff, Service, StaffRole, StaffPayType, Appointment } from "@/lib/types";
+import type { Staff, Service, StaffRole, StaffRoleValue, StaffPayType, Appointment } from "@/lib/types";
 import { X, Plus, Check, ChevronRight, Trash2, UserCog, Pencil, Lock, Upload, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
 import { getSectionOptions, getActiveSection, inSection, defaultSectionForNewRecord } from "@/lib/sections";
@@ -36,6 +36,15 @@ const STAFF_EXPORT_COLS = [
 ];
 
 const STAFF_ROLES = Object.keys(ROLE_COLORS) as StaffRole[];
+/** Sentinel select value that reveals the free-text role field — never stored. */
+const CUSTOM_ROLE = "__custom__";
+
+/** Custom roles already in use, so the second person with one can just pick it. */
+function customRolesInUse(list: Staff[]): string[] {
+  return Array.from(new Set(list.map((s) => s.role)))
+    .filter((r): r is string => !!r && !STAFF_ROLES.includes(r as StaffRole))
+    .sort();
+}
 const STAFF_PAY_TYPES: StaffPayType[] = ["commission", "salary", "both"];
 
 type StaffImportRecord = { staff: Staff; assignedServiceNames: string[]; mode: "add" | "update" };
@@ -51,9 +60,13 @@ function parseActive(value: unknown): boolean {
   return !["false", "no", "inactive", "0"].includes(raw);
 }
 
-function normalizeRole(value: unknown): StaffRole {
-  const role = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "-") as StaffRole;
-  return STAFF_ROLES.includes(role) ? role : "junior-stylist";
+function normalizeRole(value: unknown): StaffRoleValue {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "junior-stylist";
+  const role = raw.toLowerCase().replace(/\s+/g, "-") as StaffRole;
+  // An unrecognised value is a custom role the salon uses, not bad data — keep
+  // it as typed rather than silently relabelling the person junior-stylist.
+  return STAFF_ROLES.includes(role) ? role : raw;
 }
 
 function normalizePayType(value: unknown): StaffPayType {
@@ -109,7 +122,8 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
   const [form, setForm] = useState({
     name: staff?.name ?? "",
     phone: staff?.phone ?? "",
-    role: staff?.role ?? "",
+    role: staff && !STAFF_ROLES.includes(staff.role as StaffRole) ? CUSTOM_ROLE : (staff?.role ?? ""),
+    customRole: staff && !STAFF_ROLES.includes(staff.role as StaffRole) ? staff.role : "",
     section: staff?.section ?? defaultSectionForNewRecord(),
     payType: staff?.payType ?? "commission",
     commissionRate: staff?.commissionRate ? String(staff.commissionRate) : "",
@@ -118,6 +132,8 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
     standardHoursPerDay: staff?.standardHoursPerDay != null ? String(staff.standardHoursPerDay) : "",
   });
   const sectionOptions = getSectionOptions(staffList);
+  // The role being edited is already the selected option, so don't list it twice.
+  const existingCustomRoles = customRolesInUse(staffList).filter((r) => r !== staff?.role);
 
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() => {
     if (staff) {
@@ -127,7 +143,8 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
   });
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const canSubmit = form.name && form.phone && form.role;
+  const canSubmit = form.name && form.phone && form.role
+    && (form.role !== CUSTOM_ROLE || form.customRole.trim());
 
   const toggleService = (id: string) => {
     const current = [...selectedServiceIds];
@@ -153,7 +170,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
       name: form.name,
       phone: form.phone,
       email: staff?.email ?? "",
-      role: form.role as StaffRole,
+      role: form.role === CUSTOM_ROLE ? form.customRole.trim() : form.role,
       section: form.section || undefined,
       specialties: specialtiesArray,
       color,
@@ -205,9 +222,18 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Salon Role</label>
             <select value={form.role} onChange={(e) => set("role", e.target.value)} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", background: "#fff" }}>
               <option value="">Select a role…</option>
-              {Object.keys(ROLE_COLORS).map((r) => <option key={r} value={r}>{r.replace(/-/g, " ")}</option>)}
+              {STAFF_ROLES.map((r) => <option key={r} value={r}>{r.replace(/-/g, " ")}</option>)}
+              {existingCustomRoles.map((r) => <option key={r} value={r}>{r}</option>)}
+              <option value={CUSTOM_ROLE}>Custom…</option>
             </select>
           </div>
+          {form.role === CUSTOM_ROLE && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Custom Role Name</label>
+              <input type="text" value={form.customRole} onChange={(e) => set("customRole", e.target.value)} placeholder="e.g. Nail Technician"
+                style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+            </div>
+          )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Salon Section</label>
@@ -458,7 +484,7 @@ function StaffImportModal({ existing, servicesList, onClose, onImport }: {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 16px", fontSize: 11 }}>
                 {[
-                  ["Name", "Required"], ["Phone", "Required"], ["Role", STAFF_ROLES.join(" / ")], ["Pay Type", "commission / salary / both"],
+                  ["Name", "Required"], ["Phone", "Required"], ["Role", `${STAFF_ROLES.join(" / ")} / or any custom role`], ["Pay Type", "commission / salary / both"],
                   ["Assigned Services", "Comma-separated service names"], ["Specialties", "Comma-separated"], ["Active", "Yes / No"], ["Section", "Optional"],
                 ].map(([col, hint]) => <div key={col}><strong>{col}</strong>: {hint}</div>)}
               </div>
