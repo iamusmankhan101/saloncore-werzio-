@@ -442,8 +442,8 @@ function DecidrLoyalty() {
 }
 
 function ThermalPrinterSection() {
-  const p = settingsStore.printer as { enabled: boolean; ip: string; port: number };
-  const [form, setForm] = useState({ enabled: p.enabled, ip: p.ip, port: p.port || 9100 });
+  const p = settingsStore.printer as { enabled: boolean; ip: string; port: number; paperWidthMm?: number };
+  const [form, setForm] = useState({ enabled: p.enabled, ip: p.ip, port: p.port || 9100, paperWidthMm: p.paperWidthMm || 80 });
   const [saved, setSaved]     = useState(false);
   const [testing, setTesting] = useState(false);
   const [testMsg, setTestMsg] = useState("");
@@ -464,7 +464,7 @@ function ThermalPrinterSection() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          printerIp: form.ip, printerPort: form.port,
+          printerIp: form.ip, printerPort: form.port, paperWidthMm: form.paperWidthMm,
           salonName: (settingsStore.salon as { name: string }).name,
           salonPhone: (settingsStore.salon as { phone: string }).phone,
           salonAddress: (settingsStore.salon as { address: string }).address,
@@ -533,6 +533,18 @@ function ThermalPrinterSection() {
           onChange={e => setForm(f => ({ ...f, port: parseInt(e.target.value) || 9100 }))}
           style={{ ...inp, maxWidth: 140 }}
         />
+      </Field>
+
+      {/* Paper width */}
+      <Field label="Paper Width" hint="Must match the roll actually loaded. 80mm prints 48 characters per line, 58mm prints 32 — the wrong setting is what makes receipts come out too narrow or overflow.">
+        <select
+          value={form.paperWidthMm}
+          onChange={e => setForm(f => ({ ...f, paperWidthMm: parseInt(e.target.value) || 80 }))}
+          style={{ ...inp, maxWidth: 220 }}
+        >
+          <option value={80}>80 mm (standard — Speed-X 400ul)</option>
+          <option value={58}>58 mm (compact roll)</option>
+        </select>
       </Field>
 
       {/* Setup guide */}

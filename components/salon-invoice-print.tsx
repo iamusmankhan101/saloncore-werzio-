@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Printer, CheckCircle, Pencil } from "lucide-react";
-import type { SalonInvoice } from "@/lib/salon-invoices";
+import { ADVANCE_NON_REFUNDABLE_NOTE, balanceDue, type SalonInvoice } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
 import SalonCentralWordmark from "@/components/salon-central-wordmark";
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -57,9 +57,10 @@ export default function SalonInvoicePrint({
   if (!mounted) return null;
 
   const isPaid   = invoice.status === "paid";
+  const isAdvance = invoice.status === "partial";
   const logo     = (settingsStore.salon as { logo?: string }).logo || "";
   const initials = salonName.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
-  const printer  = settingsStore.printer as { enabled: boolean; ip: string; port: number };
+  const printer  = settingsStore.printer as { enabled: boolean; ip: string; port: number; paperWidthMm?: number };
 
   async function thermalPrint() {
     if (!printer.ip) {
@@ -76,6 +77,7 @@ export default function SalonInvoicePrint({
         body: JSON.stringify({
           printerIp: printer.ip,
           printerPort: printer.port || 9100,
+          paperWidthMm: printer.paperWidthMm || 80,
           salonName,
           salonPhone,
           salonAddress,
@@ -193,7 +195,7 @@ export default function SalonInvoicePrint({
                         ["Issue Date:", fmtDate(invoice.date)],
                         ...(invoice.staffName ? [["Stylist:", invoice.staffName]] : []),
                         ["Payment:", METHOD_LABELS[invoice.paymentMethod ?? ""] ?? "—"],
-                        ["Status:", isPaid ? "PAID" : "UNPAID"],
+                        ["Status:", isPaid ? "PAID" : isAdvance ? "ADVANCE PAID" : "UNPAID"],
                       ].map(([label, value]) => (
                         <tr key={label}>
                           <td style={{ padding: "3px 0", color: "#555", width: "45%" }}>{label}</td>
@@ -254,8 +256,25 @@ export default function SalonInvoicePrint({
                     <span style={{ fontWeight: 800, color: "#111" }}>Total</span>
                     <span style={{ fontWeight: 900, color: "#111" }}>{fmt(invoice.total)}</span>
                   </div>
+                  {isAdvance && (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13, color: "#555" }}>
+                        <span>Advance paid</span><span style={{ fontWeight: 700 }}>{fmt(invoice.advanceAmount ?? 0)}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13, color: "#b45309" }}>
+                        <span style={{ fontWeight: 800 }}>Balance due</span>
+                        <span style={{ fontWeight: 900 }}>{fmt(balanceDue(invoice))}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
+
+              {isAdvance && (
+                <div style={{ marginBottom: 24, fontSize: 12, fontWeight: 800, color: "#b45309" }}>
+                  {ADVANCE_NON_REFUNDABLE_NOTE}
+                </div>
+              )}
 
               {/* ── PAYMENT STATUS ── */}
               {isPaid && invoice.paymentMethod && (

@@ -7,7 +7,7 @@ import type { PaymentMethod } from "@/lib/types";
 import { persistEntity, recordDeletions } from "@/lib/turso-sync";
 import { locationUserKey } from "@/lib/locations";
 
-export type SalonInvoiceStatus = "paid" | "unpaid";
+export type SalonInvoiceStatus = "paid" | "unpaid" | "partial";
 
 export type SalonInvoiceItemType = "service" | "product";
 
@@ -39,12 +39,38 @@ export interface SalonInvoice {
   date: string;             // YYYY-MM-DD — when the invoice was issued
   paidDate?: string;        // YYYY-MM-DD — when it was actually marked paid; unset while unpaid
   status: SalonInvoiceStatus;
+  /**
+   * PKR taken up front on a "partial" sale (a 50% advance, typically). Unset on
+   * every other status. The balance still owed is `total - advanceAmount`.
+   */
+  advanceAmount?: number;
   notes?: string;
   createdAt: string;        // ISO timestamp
   source?: "pos" | "manual";
   /** Which salon section this sale belongs to (e.g. "Men's", "Women's"). Free text, cosmetic only. */
   section?: string;
 }
+
+/**
+ * What this sale contributes to revenue totals.
+ *
+ * Only "partial" is special-cased, deliberately: it counts the advance actually
+ * collected rather than the full ticket. "paid" and "unpaid" keep exactly the
+ * behaviour they had before advances existed (both count their full total in
+ * the revenue screens), so introducing advances doesn't quietly restate
+ * historical figures.
+ */
+export function revenueAmount(inv: Pick<SalonInvoice, "status" | "total" | "advanceAmount">): number {
+  return inv.status === "partial" ? (inv.advanceAmount ?? 0) : inv.total;
+}
+
+/** Still owed on a partial sale; 0 for anything else. */
+export function balanceDue(inv: Pick<SalonInvoice, "status" | "total" | "advanceAmount">): number {
+  return inv.status === "partial" ? Math.max(0, inv.total - (inv.advanceAmount ?? 0)) : 0;
+}
+
+/** Shown on any invoice carrying an advance, on screen and on the PDF. */
+export const ADVANCE_NON_REFUNDABLE_NOTE = "Advance payment is non-refundable.";
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 

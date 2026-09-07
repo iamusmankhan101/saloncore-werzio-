@@ -38,8 +38,29 @@ function padLine(left: string, right: string, width = 32): Buffer {
   return text(left + " ".repeat(gap) + right);
 }
 
+/** Greedy word wrap, so fixed sentences fit whatever paper is loaded. */
+function wrap(sentence: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of sentence.split(/\s+/)) {
+    if (!line) line = word;
+    else if (line.length + 1 + word.length <= width) line += ` ${word}`;
+    else { lines.push(line); line = word; }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/**
+ * Characters per line at ESC/POS Font A, by paper width. 58mm paper fits 32
+ * characters and 80mm fits 48. This used to be hard-coded to 32 under a comment
+ * claiming it was the 80mm figure, so every 80mm receipt printed half-width.
+ */
+const CHARS_PER_LINE: Record<number, number> = { 58: 32, 80: 48 };
+const DEFAULT_PAPER_MM = 80;
+
 function buildReceipt(data: ReceiptData): Buffer {
-  const W = 32; // characters wide for 80mm paper
+  const W = CHARS_PER_LINE[data.paperWidthMm ?? DEFAULT_PAPER_MM] ?? CHARS_PER_LINE[DEFAULT_PAPER_MM];
   const chunks: Buffer[] = [];
   const push = (...bufs: Buffer[]) => chunks.push(...bufs);
 
@@ -105,9 +126,25 @@ function buildReceipt(data: ReceiptData): Buffer {
   }
 
   const isPaid = data.invoice.status === "paid";
+  const isAdvance = data.invoice.status === "partial";
+
+  if (isAdvance) {
+    const advance = data.invoice.advanceAmount ?? 0;
+    const balance = Math.max(0, data.invoice.total - advance);
+    push(padLine("Advance paid", `${data.currency} ${advance.toFixed(0)}`, W));
+    push(CMD.boldOn);
+    push(padLine("BALANCE DUE", `${data.currency} ${balance.toFixed(0)}`, W));
+    push(CMD.boldOff);
+  }
+
   push(CMD.alignCenter, CMD.boldOn);
-  push(text(isPaid ? "** PAID **" : "** UNPAID **"));
+  push(text(isPaid ? "** PAID **" : isAdvance ? "** ADVANCE PAID **" : "** UNPAID **"));
   push(CMD.boldOff);
+
+  // The refund term has to be on the customer's copy, not just the PDF.
+  if (isAdvance) {
+    for (const line of wrap("Advance payment is non-refundable.", W)) push(text(line));
+  }
 
   if (data.invoice.notes) {
     push(CMD.alignLeft);
@@ -155,6 +192,8 @@ function sendToprinter(ip: string, port: number, data: Buffer): Promise<void> {
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface ReceiptData {
+  /** Loaded paper width in mm — 80 or 58. Defaults to 80 (48 characters). */
+  paperWidthMm?: number;
   salonName: string;
   salonPhone: string;
   salonAddress: string;
@@ -172,6 +211,8 @@ interface ReceiptData {
     total: number;
     paymentMethod: string;
     status: string;
+    /** Set only on a "partial" sale — the amount taken up front. */
+    advanceAmount?: number;
     notes?: string;
   };
 }

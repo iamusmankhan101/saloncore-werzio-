@@ -6,7 +6,7 @@ import {
   X, ShoppingCart, ReceiptText, Banknote, CreditCard,
   Smartphone, Zap, Tag, UserPlus, CheckCircle2, Printer,
   MessageSquare, RefreshCw, User, ChevronRight, Sparkles,
-  Clock, AlertCircle, Gift,
+  Clock, AlertCircle, Gift, Percent,
   ScanBarcode, Lock,
 } from "lucide-react";
 import { awardPoints, redeemPoints, type LoyaltySettings } from "@/lib/loyalty";
@@ -19,6 +19,7 @@ import {
 import {
   createSalonInvoice, calcTotals,
   localDateKey, getSalonInvoices, saveSalonInvoices,
+  ADVANCE_NON_REFUNDABLE_NOTE,
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
@@ -210,6 +211,11 @@ export default function POSPage() {
 
   // ── Flow ──────────────────────────────────────────────────────────────────
   const [isCredit,         setIsCredit]         = useState(false);
+  // Advance: client pays part now, balance on collection. Defaults to half the
+  // ticket but the cashier can set any percentage or an exact rupee figure.
+  const [isAdvance,        setIsAdvance]        = useState(false);
+  const [advanceValue,     setAdvanceValue]     = useState<number>(50);
+  const [advanceType,      setAdvanceType]      = useState<DiscountType>("pct");
   const [completing,       setCompleting]       = useState(false);
   const [printInvoice,     setPrintInvoice]     = useState<SalonInvoice | null>(null);
   const [editingInvoice,   setEditingInvoice]   = useState<SalonInvoice | null>(null);
@@ -269,6 +275,11 @@ export default function POSPage() {
   const totalDiscountAmount   = Math.min(rawSubtotal, wholePkr(discountAmount + discountAmount2 + loyaltyDiscount));
 
   const { subtotal, taxAmount, total } = calcTotals(cartLineItems, totalDiscountAmount);
+  // Never more than the ticket itself — an "advance" covering the whole bill is
+  // just a paid sale, and a negative balance would be nonsense on the invoice.
+  const rawAdvance = advanceType === "pct" ? wholePkr(total * advanceValue / 100) : wholePkr(advanceValue);
+  const advanceAmount = isAdvance ? Math.max(0, Math.min(rawAdvance, total)) : 0;
+  const balanceAmount = isAdvance ? Math.max(0, total - advanceAmount) : 0;
   const totalQty = cart.reduce((s, e) => s + e.qty, 0);
   const hasUnpricedVariable = cart.some(e => e.variablePrice && e.unitPrice <= 0);
   const noPaymentSelected = !isCredit && !payMethod;
@@ -383,6 +394,7 @@ export default function POSPage() {
   // ── New sale reset ────────────────────────────────────────────────────────
   function startNewSale() {
     setCart([]); setDiscount(0); setDiscount2(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod(null);
+    setIsAdvance(false); setAdvanceValue(50); setAdvanceType("pct");
     setSelectedClient(null); setClientQ(""); setSelectedStaffId("");
     setCompleted(false); setLastInvoice(null); setWaStatus("idle"); setIsCredit(false);
     setSyncFailed(false);
@@ -419,7 +431,9 @@ export default function POSPage() {
         items:         cartLineItems,
         subtotal, discountAmount: wholePkr(discountAmount + loyaltyDiscount), discount2Amount: discountAmount2, taxAmount, total,
         paymentMethod: isCredit ? "" : (payMethod as PaymentMethod),
-        date: today, status: isCredit ? "unpaid" : "paid",
+        date: today,
+        status: isCredit ? "unpaid" : isAdvance ? "partial" : "paid",
+        advanceAmount: !isCredit && isAdvance ? advanceAmount : undefined,
         notes: saleNotes.trim(),
         source: "pos",
       });
@@ -1405,6 +1419,51 @@ export default function POSPage() {
                 <Clock size={13} />
                 {isCredit ? "Pay Later — Credit Sale" : "Pay Later / Credit"}
               </button>
+
+              {/* Advance toggle — mutually exclusive with Pay Later, since an
+                  advance means money is collected now and credit means none is. */}
+              <button
+                type="button"
+                onClick={() => { setIsAdvance(a => !a); setIsCredit(false); }}
+                disabled={isCredit}
+                style={{
+                  width: "100%", padding: "9px 0", borderRadius: 10, marginBottom: 8,
+                  border: `2px solid ${isAdvance ? "#0284c7" : "#e8e8f4"}`,
+                  background: isAdvance ? "#e0f2fe" : "#fafafe",
+                  color: isAdvance ? "#0284c7" : "#9999b0",
+                  fontSize: 12, fontWeight: 800, cursor: isCredit ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                  transition: "all 0.15s", opacity: isCredit ? 0.45 : 1,
+                }}
+              >
+                <Percent size={13} />
+                {isAdvance ? "Advance Payment" : "Advance Payment (50%)"}
+              </button>
+
+              {isAdvance && !isCredit && (
+                <div style={{ marginBottom: 10, padding: "10px 11px", borderRadius: 10, background: "#f0f9ff", border: "1px solid #bae6fd" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: "#075985", flex: 1 }}>Advance collected now</span>
+                    <input type="number" min={0} value={advanceValue || ""} onChange={e => setAdvanceValue(parseDiscountValue(e.target.value))}
+                      placeholder="50"
+                      style={{ width: 72, height: 30, padding: "0 8px", borderRadius: 8, border: "1.5px solid #bae6fd", fontSize: 12, textAlign: "right", outline: "none", background: "#fff", fontWeight: 700 }} />
+                    <select value={advanceType} onChange={e => setAdvanceType(e.target.value as DiscountType)}
+                      style={{ height: 30, borderRadius: 8, border: "1.5px solid #bae6fd", fontSize: 12, padding: "0 6px", outline: "none", background: "#fff", color: "#075985", fontWeight: 700 }}>
+                      <option value="pct">%</option>
+                      <option value="flat">PKR</option>
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 800, color: "#0284c7", marginTop: 8 }}>
+                    <span>Paying now</span><span>{pkr(advanceAmount)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 800, color: "#d97706", marginTop: 3 }}>
+                    <span>Balance due</span><span>{pkr(balanceAmount)}</span>
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "#0369a1", marginTop: 7, lineHeight: 1.5 }}>
+                    {ADVANCE_NON_REFUNDABLE_NOTE} This is printed on the invoice.
+                  </div>
+                </div>
+              )}
 
               {hasUnpricedVariable && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, color: "#d97706" }}>

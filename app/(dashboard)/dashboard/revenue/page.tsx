@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { getStoredAppointments } from "@/lib/storage";
-import { getSalonInvoices } from "@/lib/salon-invoices";
+import { getSalonInvoices, revenueAmount } from "@/lib/salon-invoices";
 import { getExpenses, type Expense, type ExpenseCategory } from "@/lib/expenses";
 import { getManualCashIncome, type ManualCashIncome } from "@/lib/cash-flow-income";
 import { getActiveSection } from "@/lib/sections";
@@ -228,11 +228,11 @@ export default function RevenuePage() {
     [manualIncome, prevStart, prevEnd]);
 
   const totalRevenue = useMemo(() =>
-    currentAppts.reduce((s, a) => s + a.totalAmount, 0) + currentPos.reduce((s, inv) => s + inv.total, 0) + currentManual.reduce((s, e) => s + e.amount, 0),
+    currentAppts.reduce((s, a) => s + a.totalAmount, 0) + currentPos.reduce((s, inv) => s + revenueAmount(inv), 0) + currentManual.reduce((s, e) => s + e.amount, 0),
     [currentAppts, currentPos, currentManual]);
 
   const prevRevenue = useMemo(() =>
-    prevAppts.reduce((s, a) => s + a.totalAmount, 0) + prevPos.reduce((s, inv) => s + inv.total, 0) + prevManual.reduce((s, e) => s + e.amount, 0),
+    prevAppts.reduce((s, a) => s + a.totalAmount, 0) + prevPos.reduce((s, inv) => s + revenueAmount(inv), 0) + prevManual.reduce((s, e) => s + e.amount, 0),
     [prevAppts, prevPos, prevManual]);
 
   const totalCount = currentAppts.length + currentPos.length + currentManual.length;
@@ -260,7 +260,7 @@ export default function RevenuePage() {
       appointments.forEach(a => {
         if (a.status === "completed" && !posLinkedAppointmentIds.has(a.id)) { const k = a.date.substring(0, 7); if (k in monthMap) monthMap[k] += a.totalAmount; }
       });
-      posInvoices.forEach(inv => { const k = inv.date.substring(0, 7); if (k in monthMap) monthMap[k] += inv.total; });
+      posInvoices.forEach(inv => { const k = inv.date.substring(0, 7); if (k in monthMap) monthMap[k] += revenueAmount(inv); });
       manualIncome.forEach(entry => { const k = entry.date.substring(0, 7); if (k in monthMap) monthMap[k] += entry.amount; });
       const keys = Object.keys(monthMap).sort();
       return keys.map((key, idx) => {
@@ -278,7 +278,7 @@ export default function RevenuePage() {
       const byDay: Record<string, number> = {};
       days.forEach(d => { byDay[d] = 0; });
       appointments.forEach(a => { if (a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date in byDay) byDay[a.date] += a.totalAmount; });
-      posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += inv.total; });
+      posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += revenueAmount(inv); });
       manualIncome.forEach(entry => { if (entry.date in byDay) byDay[entry.date] += entry.amount; });
       return days.map((date, idx) => {
         const d = new Date(date + "T12:00:00");
@@ -291,7 +291,7 @@ export default function RevenuePage() {
     const byDay: Record<string, number> = {};
     days.forEach(d => { byDay[d] = 0; });
     appointments.forEach(a => { if (a.status === "completed" && !posLinkedAppointmentIds.has(a.id) && a.date in byDay) byDay[a.date] += a.totalAmount; });
-    posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += inv.total; });
+    posInvoices.forEach(inv => { if (inv.date in byDay) byDay[inv.date] += revenueAmount(inv); });
     manualIncome.forEach(entry => { if (entry.date in byDay) byDay[entry.date] += entry.amount; });
     return days.map((date, idx) => {
       const d = new Date(date + "T12:00:00");

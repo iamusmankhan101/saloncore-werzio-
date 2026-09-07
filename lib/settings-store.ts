@@ -165,6 +165,10 @@ const defaults = {
     enabled: false,
     ip: "",
     port: 9100,
+    // Loaded paper width in mm: 80 (48 chars/line) or 58 (32). Defaults to 80,
+    // matching the Speed-X 400ul this section documents — the receipt builder
+    // used to hard-code 32 characters, which printed half-width on 80mm rolls.
+    paperWidthMm: 80,
   },
 };
 

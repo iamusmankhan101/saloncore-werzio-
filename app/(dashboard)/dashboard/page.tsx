@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredAppointments, getStoredClients, getStoredStaff } from "@/lib/storage";
-import { getSalonInvoices } from "@/lib/salon-invoices";
+import { getSalonInvoices, revenueAmount } from "@/lib/salon-invoices";
 import type { AppointmentStatus, Appointment, Client, Staff } from "@/lib/types";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import DashboardHeader from "@/components/dashboard-header";
@@ -118,7 +118,10 @@ export default function DashboardPage() {
       // unpaid/credit invoices do not leak in through completed appointments.
       const allPosInvoices = getSalonInvoices().filter(inv => !inv.source || inv.source === "pos");
       setPosInvoiceAppointmentIds(allPosInvoices.map(inv => inv.appointmentId).filter((id): id is string => !!id));
-      setPosInvoices(allPosInvoices.filter(inv => inv.status === "paid"));
+      // "partial" joins "paid" here: an advance is money actually collected, so
+      // it belongs in revenue — but only the advance itself, which is what
+      // revenueAmount() returns for that status.
+      setPosInvoices(allPosInvoices.filter(inv => inv.status === "paid" || inv.status === "partial"));
     });
     return () => { cancelled = true; };
   }, []);
@@ -152,7 +155,7 @@ export default function DashboardPage() {
       // A credit invoice paid off later counts toward the day it was actually
       // paid, not the day it was originally issued.
       const revenueDate = invoice.paidDate || invoice.date;
-      totals.set(revenueDate, (totals.get(revenueDate) ?? 0) + invoice.total);
+      totals.set(revenueDate, (totals.get(revenueDate) ?? 0) + revenueAmount(invoice));
     });
 
     const endDate = new Date(`${today}T12:00:00`);
@@ -171,7 +174,7 @@ export default function DashboardPage() {
   const topClients = [...clientsScoped].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 5);
   const todayCompletedAppts = todayApptsForRevenue.filter((appointment) => appointment.status === "completed" && !posLinkedAppointmentIds.has(appointment.id));
   const todayPosInvoices = posInvoicesForRevenue.filter((invoice) => (invoice.paidDate || invoice.date) === today);
-  const todayTotal = todayCompletedAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPosInvoices.reduce((s, invoice) => s + invoice.total, 0);
+  const todayTotal = todayCompletedAppts.reduce((s, a) => s + a.totalAmount, 0) + todayPosInvoices.reduce((s, invoice) => s + revenueAmount(invoice), 0);
   const todayTransactionCount = todayCompletedAppts.length + todayPosInvoices.length;
   const avgTicket = todayTransactionCount > 0 ? todayTotal / todayTransactionCount : 0;
   const activeStaffCount = staffListScoped.length;

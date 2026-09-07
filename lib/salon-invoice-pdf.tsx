@@ -1,5 +1,5 @@
 import { Document, Page, StyleSheet, Text, View, Image, renderToBuffer } from "@react-pdf/renderer";
-import type { SalonInvoice } from "@/lib/salon-invoices";
+import { ADVANCE_NON_REFUNDABLE_NOTE, balanceDue, type SalonInvoice } from "@/lib/salon-invoices";
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash", jazzcash: "JazzCash", easypaisa: "EasyPaisa",
@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 10, fontFamily: "Helvetica-Bold" },
 
   paidLine: { fontSize: 9, color: "#059669", fontFamily: "Helvetica-Bold", marginTop: 24 },
+  advanceNote: { fontSize: 9, color: "#b45309", fontFamily: "Helvetica-Bold", marginTop: 16 },
   notesBlock: { marginTop: 24 },
   termsBlock: { marginTop: 24 },
   termsText: { fontSize: 9, color: "#555555", lineHeight: 1.6 },
@@ -65,6 +66,9 @@ function InvoiceDocument({ invoice, salon }: {
   salon: { name: string; phone?: string; email?: string; address?: string; logo?: string };
 }) {
   const isPaid   = invoice.status === "paid";
+  const isAdvance = invoice.status === "partial";
+  const advancePaid = invoice.advanceAmount ?? 0;
+  const balanceRemaining = balanceDue(invoice);
   const salonName = salon.name || "Salon Central";
   const initials  = salonName.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
   const methodLabel = METHOD_LABELS[invoice.paymentMethod ?? ""] ?? "—";
@@ -120,7 +124,7 @@ function InvoiceDocument({ invoice, salon }: {
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.metaRowLabel}>Status:</Text>
-              <Text style={styles.metaRowValue}>{isPaid ? "PAID" : "UNPAID"}</Text>
+              <Text style={styles.metaRowValue}>{isPaid ? "PAID" : isAdvance ? "ADVANCE PAID" : "UNPAID"}</Text>
             </View>
           </View>
         </View>
@@ -163,11 +167,30 @@ function InvoiceDocument({ invoice, salon }: {
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>{money(invoice.total)}</Text>
           </View>
+          {isAdvance && (
+            <>
+              <View style={styles.row}>
+                <Text style={styles.cellMuted}>Advance paid</Text>
+                <Text style={styles.cellStrong}>{money(advancePaid)}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.cellMuted}>Balance due</Text>
+                <Text style={styles.cellStrong}>{money(balanceRemaining)}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* ── PAYMENT STATUS ── */}
         {isPaid && invoice.paymentMethod && (
           <Text style={styles.paidLine}>Paid via {methodLabel}</Text>
+        )}
+
+        {/* ── ADVANCE TERMS ──
+             Printed only when an advance was actually taken, so ordinary
+             fully-paid receipts aren't cluttered with a term that can't apply. */}
+        {isAdvance && (
+          <Text style={styles.advanceNote}>{ADVANCE_NON_REFUNDABLE_NOTE}</Text>
         )}
 
         {/* ── NOTES ── */}

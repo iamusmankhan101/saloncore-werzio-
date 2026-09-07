@@ -38,8 +38,11 @@ function fmtCreatedAt(value: string) {
 }
 
 const STATUS_META = {
-  paid:   { label: "Paid",   color: "#059669", bg: "#ecfdf5", icon: CheckCircle },
-  unpaid: { label: "Unpaid", color: "#d97706", bg: "#fffbeb", icon: Clock },
+  paid:    { label: "Paid",    color: "#059669", bg: "#ecfdf5", icon: CheckCircle },
+  unpaid:  { label: "Unpaid",  color: "#d97706", bg: "#fffbeb", icon: Clock },
+  // Advance taken, balance still owed — its own colour so it reads as neither
+  // settled nor untouched at a glance.
+  partial: { label: "Advance", color: "#0284c7", bg: "#e0f2fe", icon: Clock },
 };
 
 const METHOD_LABELS: Record<string, string> = {
