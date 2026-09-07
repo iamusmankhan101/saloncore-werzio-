@@ -1,18 +1,23 @@
 /**
  * Client-side image intake for profile photos.
  *
- * Photos are stored inline as data URLs (in localStorage, and synced to Turso
- * with the rest of the record), so the original file must never be stored as-is:
- * a single modern phone photo is 3-8 MB, and base64 adds ~33% on top. A handful
- * of those would blow the ~5 MB localStorage budget and bloat every sync.
+ * Photos are hosted on Cloudinary and the record stores only the resulting URL.
+ * The browser still downscales first — a raw 3-8 MB phone photo would be a slow
+ * upload on salon wifi and is far larger than any avatar needs — so what reaches
+ * the server is a compact JPEG, comfortably inside the request body limit.
  *
- * So the file is drawn to a canvas, scaled so its longest edge is MAX_EDGE_PX,
- * and re-encoded as JPEG — which turns a 6 MB photo into roughly 20-40 KB while
- * staying sharp at the sizes these avatars are actually displayed at.
+ * Records written before this existed hold an inline `data:` URL instead. Both
+ * render identically in an <img>, so nothing needs migrating; those simply stay
+ * inline until the photo is next changed.
  */
 
-/** Longest edge, in pixels, of a stored photo. 320 covers a 160px avatar on a 2x screen. */
-const MAX_EDGE_PX = 320;
+/**
+ * Longest edge, in pixels, of an uploaded photo. Cloudinary stores the result,
+ * so this is about upload weight and the size these avatars actually render at,
+ * not about a storage budget: 640 keeps a client photo usable on a detail page
+ * while still being a ~60-90 KB upload from a phone camera.
+ */
+const MAX_EDGE_PX = 640;
 const JPEG_QUALITY = 0.82;
 
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
@@ -26,6 +31,35 @@ export class ImageDecodeError extends Error {}
  * Rejects rather than silently storing anything it can't decode, so a PDF or a
  * corrupt file surfaces as an error in the form instead of a broken <img>.
  */
+export class ImageUploadError extends Error {}
+
+/**
+ * Downscales `file` and uploads it, returning the hosted URL to store.
+ *
+ * Upload failures throw rather than falling back to an inline data URL: silently
+ * storing the image locally would look identical in the UI while quietly
+ * defeating the point of hosting it, and the misconfiguration would only surface
+ * much later as bloated sync payloads.
+ */
+export async function uploadImage(file: File, folder: "clients" | "staff" | "salon"): Promise<string> {
+  const dataUrl = await fileToResizedDataUrl(file);
+  let res: Response;
+  try {
+    res = await fetch("/api/upload/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dataUrl, folder }),
+    });
+  } catch {
+    throw new ImageUploadError("Couldn't reach the server. Check your connection and try again.");
+  }
+  const data = await res.json().catch(() => ({})) as { ok?: boolean; url?: string; error?: string };
+  if (!data.ok || !data.url) {
+    throw new ImageUploadError(data.error || "Upload failed. Please try again.");
+  }
+  return data.url;
+}
+
 export async function fileToResizedDataUrl(file: File): Promise<string> {
   if (!file.type.startsWith("image/")) {
     throw new ImageDecodeError("That file isn't an image. Pick a JPG or PNG.");

@@ -8,7 +8,7 @@ import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 import type { Client, Appointment } from "@/lib/types";
 import { Search, X, Plus, Phone, Mail, Calendar, Heart, Tag, MapPin, ChevronDown, Camera, ExternalLink, Trash2, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { getCurrentPlan, isAtLimit } from "@/lib/plan-limits";
-import { fileToResizedDataUrl } from "@/lib/image";
+import { uploadImage } from "@/lib/image";
 import { SETTINGS_CHANGED_EVENT, settingsStore } from "@/lib/settings-store";
 import { getTier, TIER_META, nextTierThreshold, pointsToRupees, type LoyaltySettings } from "@/lib/loyalty";
 import { clientLocationId, getActiveLocationFilter, getDefaultLocationId, getSalonLocations, locationName, type SalonLocation } from "@/lib/locations";
@@ -80,7 +80,7 @@ function ClientPhotoPicker({ name, photo, onChange }: {
     setError("");
     setBusy(true);
     try {
-      onChange(await fileToResizedDataUrl(file));
+      onChange(await uploadImage(file, "clients"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not use that image.");
     } finally {
@@ -100,7 +100,7 @@ function ClientPhotoPicker({ name, photo, onChange }: {
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={() => inputRef.current?.click()} disabled={busy}
             style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #e8e8f0", background: "#fff", fontSize: 12, fontWeight: 700, color: "#7C3AED", cursor: busy ? "wait" : "pointer" }}>
-            {busy ? "Processing…" : photo ? "Change Photo" : "Upload Photo"}
+            {busy ? "Uploading…" : photo ? "Change Photo" : "Upload Photo"}
           </button>
           {photo && (
             <button type="button" onClick={() => { onChange(undefined); setError(""); }}
@@ -111,7 +111,7 @@ function ClientPhotoPicker({ name, photo, onChange }: {
         </div>
         {error
           ? <div style={{ fontSize: 11, color: "#dc2626", fontWeight: 600 }}>{error}</div>
-          : <div style={{ fontSize: 11, color: "#b0b0c8" }}>JPG or PNG. Resized automatically.</div>}
+          : <div style={{ fontSize: 11, color: "#b0b0c8" }}>JPG or PNG. Resized and uploaded automatically.</div>}
         <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }}
           onChange={(e) => pick(e.target.files?.[0])} />
       </div>
