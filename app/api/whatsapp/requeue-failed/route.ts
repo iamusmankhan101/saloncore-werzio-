@@ -92,13 +92,15 @@ async function loadSettings(userId: string): Promise<Record<string, unknown> | n
   }
 }
 
-// Not every expired row failed for a reason a retry can fix. A row skipped as a
-// fake/placeholder number will just be skipped again, and one that expired for
-// being too stale is stale by definition — requeueing either only churns the
-// queue. Provider-side failures (an outage, a rate limit, an unpaid provider
-// subscription) are the ones worth sending again.
+// Not every expired row failed for a reason a retry can fix. A number that looks
+// fake will just be skipped again, one WhatsApp has already said has no account
+// will never receive, and a row that expired for being too stale is stale by
+// definition — requeueing any of them only churns the queue. Provider-side
+// failures (an outage, a rate limit, an unpaid provider subscription) are the
+// ones worth sending again.
 const NON_RETRYABLE_ERROR_SQL = `
   COALESCE(last_error, '') NOT LIKE '%fake/placeholder%'
+  AND COALESCE(last_error, '') NOT LIKE '%does not exist on whatsapp%'
   AND COALESCE(last_error, '') NOT LIKE '%too stale to send%'
 `;
 

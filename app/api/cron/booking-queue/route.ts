@@ -689,7 +689,11 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     );
     sendAttemptsThisRun++;
     if (result.skipped) {
-      await updateItem(item, "expired", "Skipped fake/placeholder recipient.");
+      // sendWhatsAppMessage skips for two different reasons — the number looks
+      // fake, or WhatsApp reports no account on it — and they mean opposite
+      // things to an owner reading the log: bad data entry vs. a real client
+      // who simply isn't on WhatsApp. Keep whichever one actually applied.
+      await updateItem(item, "expired", result.errorReason ?? "Skipped fake/placeholder recipient.");
       skipped++;
       continue;
     }
@@ -786,7 +790,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     });
     sendAttemptsThisRun++;
     if (result.skipped) {
-      await updatePosReceipt(item, "expired", "Skipped fake/placeholder recipient.");
+      await updatePosReceipt(item, "expired", result.error ?? "Skipped fake/placeholder recipient.");
       skipped++;
       continue;
     }
