@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   MessageSquare, CheckCircle2, XCircle, Clock, Send, RefreshCw,
   Zap, Bell, ThumbsUp, Package, ChevronRight, Phone, Copy, Check,
-  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, CalendarDays, AlertCircle, Cake, CalendarX, Heart, X, ListChecks, UserMinus, RotateCcw,
+  Eye, EyeOff, Save, TrendingUp, Wifi, WifiOff, Calendar, CalendarDays, AlertCircle, Cake, CalendarX, Heart, X, ListChecks, UserMinus, RotateCcw, Trash2,
 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard-header";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -1353,9 +1353,47 @@ function QueueDetailsModal({ items, loading, onClose, onRefresh }: {
   onClose: () => void;
   onRefresh: () => void;
 }) {
-  const pendingItems = items.filter((item) => item.status === "pending");
-  const processedItems = items.filter((item) => item.status !== "pending");
+  // Deleting is confirmed inline rather than in a second modal stacked on this
+  // one — one click arms the row, the next click deletes it.
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [removedKeys, setRemovedKeys] = useState<string[]>([]);
+  const [deleteError, setDeleteError] = useState("");
+
+  const itemKey = (item: QueueDetailItem) => `${item.source}_${item.id}`;
+
+  // Dropped from view the moment the DELETE succeeds. The counts in the header
+  // behind this modal refresh on their own 5s timer, so re-fetching the whole
+  // list here would only flash "Loading…" over every other row.
+  const visibleItems = items.filter((item) => !removedKeys.includes(itemKey(item)));
+  const pendingItems = visibleItems.filter((item) => item.status === "pending");
+  const processedItems = visibleItems.filter((item) => item.status !== "pending");
+
+  async function deleteItem(item: QueueDetailItem) {
+    const key = itemKey(item);
+    setDeletingKey(key);
+    setDeleteError("");
+    try {
+      const res = await fetch("/api/whatsapp/queue-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: item.source, id: item.id }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!data.ok) throw new Error(data.error || "Could not delete that message.");
+      setRemovedKeys((keys) => [...keys, key]);
+      setConfirmKey(null);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Could not delete that message.");
+    } finally {
+      setDeletingKey(null);
+    }
+  }
+
   const renderItem = (item: QueueDetailItem) => {
+    const key = itemKey(item);
+    const armed = confirmKey === key;
+    const deleting = deletingKey === key;
     const when = formatWhen(item.scheduledAt);
     const processedAt = item.sentAt || item.createdAt;
     const processedLabel = processedAt
@@ -1365,8 +1403,8 @@ function QueueDetailsModal({ items, loading, onClose, onRefresh }: {
     const statusBg = item.status === "sent" ? "#ecfdf5" : item.status === "expired" ? "#f3f4f6" : "#fef2f2";
 
     return (
-      <div key={`${item.source}_${item.id}`}
-        style={{ padding: "10px 12px", borderRadius: 12, background: "#f8f8fc", border: "1px solid #e8e8f0" }}>
+      <div key={key}
+        style={{ padding: "10px 12px", borderRadius: 12, background: armed ? "#fff7f7" : "#f8f8fc", border: `1px solid ${armed ? "#fca5a5" : "#e8e8f0"}`, opacity: deleting ? 0.55 : 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <Badge type={badgeTypeForKind(item.kind)} />
           <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.03em", color: statusColor, background: statusBg, borderRadius: 999, padding: "2px 7px" }}>
@@ -1378,6 +1416,26 @@ function QueueDetailsModal({ items, loading, onClose, onRefresh }: {
           <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 800, color: item.status === "pending" && when.overdue ? "#dc2626" : item.status === "pending" ? "#92400e" : statusColor, whiteSpace: "nowrap" }}>
             {item.status === "pending" ? when.relative : processedLabel}
           </span>
+          {armed ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+              <button type="button" onClick={() => void deleteItem(item)} disabled={deleting}
+                title={item.status === "pending" ? "Cancel this message so it is never sent" : "Remove this from the list"}
+                style={{ border: "1px solid #dc2626", background: "#dc2626", color: "#fff", borderRadius: 7, padding: "3px 8px", fontSize: 10, fontWeight: 800, cursor: deleting ? "wait" : "pointer" }}>
+                {deleting ? "…" : item.status === "pending" ? "Cancel send" : "Delete"}
+              </button>
+              <button type="button" onClick={() => setConfirmKey(null)} disabled={deleting}
+                style={{ border: "1px solid #e8e8f0", background: "#fff", color: "#6b6b8a", borderRadius: 7, padding: "3px 7px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
+                Keep
+              </button>
+            </span>
+          ) : (
+            <button type="button" onClick={() => { setDeleteError(""); setConfirmKey(key); }}
+              title={item.status === "pending" ? "Cancel this queued message" : "Remove from list"}
+              aria-label={item.status === "pending" ? "Cancel this queued message" : "Remove from list"}
+              style={{ border: "none", background: "transparent", borderRadius: 6, padding: 3, cursor: "pointer", display: "flex", flexShrink: 0 }}>
+              <Trash2 size={13} color="#b0b0c4" />
+            </button>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d2f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1419,9 +1477,14 @@ function QueueDetailsModal({ items, loading, onClose, onRefresh }: {
         </div>
 
         <div style={{ overflowY: "auto", padding: "10px 14px 16px" }}>
+          {deleteError && (
+            <div style={{ margin: "2px 2px 10px", padding: "8px 11px", borderRadius: 9, background: "#fef2f2", border: "1px solid #fca5a5", fontSize: 11.5, fontWeight: 600, color: "#991b1b" }}>
+              {deleteError}
+            </div>
+          )}
           {loading ? (
             <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: "#9999b0" }}>Loading…</div>
-          ) : items.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <div style={{ padding: "40px 0", textAlign: "center", fontSize: 13, color: "#9999b0" }}>No pending or recent queue activity.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
