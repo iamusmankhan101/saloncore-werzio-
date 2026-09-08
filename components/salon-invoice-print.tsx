@@ -40,12 +40,23 @@ const PRINT_STYLES = `
  * to send to, so the receipt goes out through the OS print driver instead.
  *
  * The sheet's own spacing is set inline, so every override here needs
- * !important to win. Nothing is restructured: the same markup just reflows into
- * a 72mm column (80mm roll less the printer's unprintable edges).
+ * !important to win. The A4 sheet lays its header, party details, totals and
+ * footer out in side-by-side columns, which cannot survive a 72mm roll — two
+ * 20mm columns break "SI-2026-0004" and "8 September 2026" mid-word — so the
+ * blocks below are collapsed into a single stacked column for the receipt.
  */
 const RECEIPT_PRINT_STYLES = `
   @media print {
-    @page { size: 80mm auto; margin: 0; }
+    /*
+     * "size: 80mm auto" looks right but is invalid CSS: the size property takes
+     * one or two lengths, or the bare keyword auto — never a length paired with
+     * auto. The whole declaration was therefore dropped and the A4 rule above
+     * stayed in force, which is what printed a 72mm strip down the left edge of
+     * an A4 page. Bare "auto" is the valid way to say "whatever the target sheet
+     * is": on a driver-attached thermal printer that is the 80mm roll the
+     * driver already knows about, at the length each receipt actually needs.
+     */
+    @page { size: auto; margin: 0; }
     html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
     #salon-invoice-portal { position: static !important; width: 80mm !important; }
     .sip-sheet { width: 80mm !important; max-width: 80mm !important; font-size: 11px !important; line-height: 1.35 !important; }
@@ -54,10 +65,23 @@ const RECEIPT_PRINT_STYLES = `
     .sip-sheet * { font-size: 11px !important; letter-spacing: 0 !important; }
     /* Headings stay only slightly larger, so the salon name still reads first. */
     .sip-sheet h1, .sip-sheet h2 { font-size: 14px !important; }
-    /* A logo eats most of a 72mm column and prints as a grey smear on thermal. */
+    /* A logo eats most of a 72mm column and prints as a grey smear on thermal —
+       likewise the solid-black initials circle standing in for a missing one. */
     .sip-sheet img { display: none !important; }
+    .sip-sheet .sip-logo-fallback { display: none !important; }
+    /* Every side-by-side block becomes one stacked column. */
+    .sip-sheet .sip-head,
+    .sip-sheet .sip-parties,
+    .sip-sheet .sip-totals,
+    .sip-sheet .sip-foot { display: block !important; margin-bottom: 8px !important; }
+    .sip-sheet .sip-parties > div + div { margin-top: 8px !important; }
+    /* The totals box is a fixed 280px (~74mm) pinned right on A4. */
+    .sip-sheet .sip-totals-box { width: 100% !important; }
     .sip-sheet table { width: 100% !important; table-layout: fixed !important; }
     .sip-sheet td, .sip-sheet th { padding: 2px 0 !important; word-break: break-word !important; }
+    /* Description needs the room; the three numeric columns do not. */
+    .sip-sheet .sip-items th:not(:first-child),
+    .sip-sheet .sip-items td:not(:first-child) { width: 17% !important; }
   }
 `;
 
@@ -198,7 +222,7 @@ export default function SalonInvoicePrint({
             <div style={{ padding: "48px 52px" }}>
 
               {/* ── HEADER: Company left, Logo right ── */}
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 48 }}>
+              <div className="sip-head" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 48 }}>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>{salonName}</div>
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
@@ -212,14 +236,14 @@ export default function SalonInvoicePrint({
                 {logo ? (
                   <img src={logo} alt={salonName} style={{ height: 90, maxWidth: 160, objectFit: "contain" }} />
                 ) : (
-                  <div style={{ width: 90, height: 90, borderRadius: "50%", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div className="sip-logo-fallback" style={{ width: 90, height: 90, borderRadius: "50%", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span style={{ fontSize: 28, fontWeight: 900, color: "#fff", letterSpacing: "-1px" }}>{initials}</span>
                   </div>
                 )}
               </div>
 
               {/* ── BILL TO / INVOICE ── */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, marginBottom: 40 }}>
+              <div className="sip-parties" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, marginBottom: 40 }}>
                 {/* Bill To */}
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Bill To</div>
@@ -253,7 +277,7 @@ export default function SalonInvoicePrint({
               </div>
 
               {/* ── ITEMS TABLE ── */}
-              <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 28 }}>
+              <table className="sip-items" style={{ width: "100%", borderCollapse: "collapse", marginBottom: 28 }}>
                 <thead>
                   <tr style={{ background: "#f0f0f0", borderTop: "1px solid #ccc", borderBottom: "1px solid #ccc" }}>
                     {["Description", "Qty", "Unit Price", "Amount"].map((h, i) => (
@@ -277,8 +301,8 @@ export default function SalonInvoicePrint({
               </table>
 
               {/* ── TOTALS ── */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 40 }}>
-                <div style={{ width: 280 }}>
+              <div className="sip-totals" style={{ display: "flex", justifyContent: "flex-end", marginBottom: 40 }}>
+                <div className="sip-totals-box" style={{ width: 280 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13, color: "#555", borderBottom: "1px solid #e8e8e8" }}>
                     <span style={{ fontWeight: 600 }}>Subtotal</span><span style={{ fontWeight: 700, color: "#111" }}>{fmt(invoice.subtotal)}</span>
                   </div>
@@ -346,7 +370,7 @@ export default function SalonInvoicePrint({
               </div>
 
               {/* ── FOOTER ── */}
-              <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div className="sip-foot" style={{ borderTop: "1px solid #e0e0e0", paddingTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ fontSize: 12, color: "#555" }}>
                   Thank you for visiting <strong style={{ color: "#111" }}>{salonName}</strong>!
                 </div>
