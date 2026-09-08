@@ -44,46 +44,76 @@ const PRINT_STYLES = `
  * footer out in side-by-side columns, which cannot survive a 72mm roll — two
  * 20mm columns break "SI-2026-0004" and "8 September 2026" mid-word — so the
  * blocks below are collapsed into a single stacked column for the receipt.
+ *
+ * The rules are built from one template because they are needed in two places:
+ * inside @media print for the actual output, and on screen for a single
+ * synchronous measurement of how tall the receipt comes out (see
+ * measureReceiptHeightMm) — the page box has to be given that height, and the
+ * print-only copy is invisible to any measurement.
  */
-const RECEIPT_PRINT_STYLES = `
-  @media print {
-    /*
-     * "size: 80mm auto" looks right but is invalid CSS: the size property takes
-     * one or two lengths, or the bare keyword auto — never a length paired with
-     * auto. The whole declaration was therefore dropped and the A4 rule above
-     * stayed in force, which is what printed a 72mm strip down the left edge of
-     * an A4 page. Bare "auto" is the valid way to say "whatever the target sheet
-     * is": on a driver-attached thermal printer that is the 80mm roll the
-     * driver already knows about, at the length each receipt actually needs.
-     */
-    @page { size: auto; margin: 0; }
-    html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
-    #salon-invoice-portal { position: static !important; width: 80mm !important; }
-    .sip-sheet { width: 80mm !important; max-width: 80mm !important; font-size: 11px !important; line-height: 1.35 !important; }
+function receiptLayoutRules(scope: string): string {
+  return `
+    ${scope} .sip-sheet { width: 80mm !important; max-width: 80mm !important; font-size: 11px !important; line-height: 1.35 !important; border-radius: 0 !important; box-shadow: none !important; }
     /* The single padded wrapper inside the sheet — A4 margins would eat the roll. */
-    .sip-sheet > div { padding: 4mm 3mm !important; }
-    .sip-sheet * { font-size: 11px !important; letter-spacing: 0 !important; }
+    ${scope} .sip-sheet > div { padding: 4mm 3mm !important; }
+    ${scope} .sip-sheet * { font-size: 11px !important; letter-spacing: 0 !important; }
     /* Headings stay only slightly larger, so the salon name still reads first. */
-    .sip-sheet h1, .sip-sheet h2 { font-size: 14px !important; }
+    ${scope} .sip-sheet h1, ${scope} .sip-sheet h2 { font-size: 14px !important; }
     /* A logo eats most of a 72mm column and prints as a grey smear on thermal —
        likewise the solid-black initials circle standing in for a missing one. */
-    .sip-sheet img { display: none !important; }
-    .sip-sheet .sip-logo-fallback { display: none !important; }
+    ${scope} .sip-sheet img { display: none !important; }
+    ${scope} .sip-sheet .sip-logo-fallback { display: none !important; }
     /* Every side-by-side block becomes one stacked column. */
-    .sip-sheet .sip-head,
-    .sip-sheet .sip-parties,
-    .sip-sheet .sip-totals,
-    .sip-sheet .sip-foot { display: block !important; margin-bottom: 8px !important; }
-    .sip-sheet .sip-parties > div + div { margin-top: 8px !important; }
+    ${scope} .sip-sheet .sip-head,
+    ${scope} .sip-sheet .sip-parties,
+    ${scope} .sip-sheet .sip-totals,
+    ${scope} .sip-sheet .sip-foot { display: block !important; margin-bottom: 8px !important; }
+    ${scope} .sip-sheet .sip-parties > div + div { margin-top: 8px !important; }
     /* The totals box is a fixed 280px (~74mm) pinned right on A4. */
-    .sip-sheet .sip-totals-box { width: 100% !important; }
-    .sip-sheet table { width: 100% !important; table-layout: fixed !important; }
-    .sip-sheet td, .sip-sheet th { padding: 2px 0 !important; word-break: break-word !important; }
+    ${scope} .sip-sheet .sip-totals-box { width: 100% !important; }
+    ${scope} .sip-sheet table { width: 100% !important; table-layout: fixed !important; }
+    ${scope} .sip-sheet td, ${scope} .sip-sheet th { padding: 2px 0 !important; word-break: break-word !important; }
     /* Description needs the room; the three numeric columns do not. */
-    .sip-sheet .sip-items th:not(:first-child),
-    .sip-sheet .sip-items td:not(:first-child) { width: 17% !important; }
+    ${scope} .sip-sheet .sip-items th:not(:first-child),
+    ${scope} .sip-sheet .sip-items td:not(:first-child) { width: 17% !important; }
+  `;
+}
+
+/**
+ * Kept in the document at all times but inert: it only bites while the portal
+ * carries .sip-measuring, which is added and removed inside one synchronous
+ * block, so the 80mm state is never painted to the screen.
+ */
+const RECEIPT_MEASURE_STYLES = receiptLayoutRules(".sip-measuring");
+
+/**
+ * `size` takes one or two lengths, or the bare keyword `auto` — never a length
+ * paired with `auto`. The original `size: 80mm auto` was therefore invalid, was
+ * dropped, and left `size: A4 portrait` above still in force, which is what
+ * printed a 72mm strip down the left edge of an A4 page. `auto` alone is valid
+ * but only defers to the destination's own paper, so a Save-as-PDF still came
+ * out A4. Naming both lengths is what actually produces a receipt-shaped page,
+ * and the height has to be measured because a fixed one would feed (and on a
+ * continuous roll, waste) the same length of paper for every sale.
+ */
+function receiptPrintStyles(pageHeightMm: number): string {
+  return `
+  @media print {
+    @page { size: 80mm ${pageHeightMm}mm; margin: 0; }
+    html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+    #salon-invoice-portal { position: static !important; width: 80mm !important; }
+${receiptLayoutRules("")}
   }
 `;
+}
+
+/** CSS px are 1/96in by definition, and an inch is 25.4mm. */
+const PX_PER_MM = 96 / 25.4;
+/** Blank tail so the last line clears the cutter, and a floor for tiny sales. */
+const RECEIPT_TAIL_MM = 6;
+const MIN_RECEIPT_MM = 60;
+/** Used only if the sheet cannot be found — a long page beats a clipped one. */
+const FALLBACK_RECEIPT_MM = 297;
 
 interface Props {
   invoice: SalonInvoice;
@@ -105,6 +135,8 @@ export default function SalonInvoicePrint({
   // Which stylesheet the next window.print() should use. Reset afterwards so the
   // browser's own Print command still produces the full-page A4 invoice.
   const [printMode, setPrintMode] = useState<"a4" | "receipt">("a4");
+  // Height of the page box for the next receipt print, measured just before it.
+  const [receiptPageMm, setReceiptPageMm] = useState(FALLBACK_RECEIPT_MM);
   const [thermalError, setThermalError]   = useState("");
 
   useEffect(() => { setMounted(true); }, []);
@@ -149,9 +181,31 @@ export default function SalonInvoicePrint({
     }
   }
 
+  /**
+   * How tall this receipt is once it is laid out at 80mm, so the page box can
+   * be sized to it. The receipt rules live inside @media print, where nothing
+   * on screen can measure them, so the portal is flipped into the same layout
+   * via .sip-measuring just long enough to read it back. getBoundingClientRect
+   * forces the layout synchronously, so the class is on and off again within a
+   * single frame and the narrow state never reaches the screen.
+   */
+  function measureReceiptHeightMm(): number {
+    const portal = document.getElementById("salon-invoice-portal");
+    const sheet = portal?.querySelector(".sip-sheet") as HTMLElement | null;
+    if (!portal || !sheet) return FALLBACK_RECEIPT_MM;
+
+    portal.classList.add("sip-measuring");
+    const heightPx = sheet.getBoundingClientRect().height;
+    portal.classList.remove("sip-measuring");
+
+    if (!heightPx) return FALLBACK_RECEIPT_MM;
+    return Math.max(MIN_RECEIPT_MM, Math.ceil(heightPx / PX_PER_MM) + RECEIPT_TAIL_MM);
+  }
+
   // The <style> swap has to be committed to the DOM before the (synchronous)
   // print dialog opens, so this waits a paint rather than calling print() inline.
   function printReceipt80mm() {
+    setReceiptPageMm(measureReceiptHeightMm());
     setPrintMode("receipt");
     requestAnimationFrame(() => requestAnimationFrame(() => {
       window.print();
@@ -161,7 +215,9 @@ export default function SalonInvoicePrint({
 
   const content = (
     <div id="salon-invoice-portal">
-      <style>{printMode === "receipt" ? PRINT_STYLES + RECEIPT_PRINT_STYLES : PRINT_STYLES}</style>
+      {/* The measure rules stay mounted in both modes — printReceipt80mm reads
+          the 80mm height back before it can switch printMode. */}
+      <style>{(printMode === "receipt" ? PRINT_STYLES + receiptPrintStyles(receiptPageMm) : PRINT_STYLES) + RECEIPT_MEASURE_STYLES}</style>
 
       <div
         className="sip-overlay"
