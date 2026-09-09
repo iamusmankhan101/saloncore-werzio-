@@ -81,6 +81,11 @@ function receiptLayoutRules(scope: string): string {
        the sheet, which took the Salon Central wordmark in the footer with it. */
     ${scope} .sip-sheet .sip-logo { display: none !important; }
     ${scope} .sip-sheet .sip-logo-fallback { display: none !important; }
+    /* The wordmark's own image is sized in percentages of this wrapper, so
+       shrinking the wrapper scales the mark with it — but only while the 104:51
+       ratio holds, otherwise the crop inside slips. Sized in mm because what
+       matters is how much of the roll it takes: 14mm, and the height follows. */
+    ${scope} .sip-sheet .sip-foot [aria-label="Salon Central"] { width: 14mm !important; height: 6.87mm !important; }
     /* Every side-by-side block becomes one stacked column. */
     ${scope} .sip-sheet .sip-head,
     ${scope} .sip-sheet .sip-parties,
