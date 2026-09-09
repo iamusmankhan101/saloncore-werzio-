@@ -75,9 +75,11 @@ function receiptLayoutRules(scope: string): string {
     ${scope} .sip-sheet * { font-size: 11px !important; letter-spacing: 0 !important; overflow-wrap: anywhere !important; }
     /* Headings stay only slightly larger, so the salon name still reads first. */
     ${scope} .sip-sheet h1, ${scope} .sip-sheet h2, ${scope} .sip-sheet .sip-biz { font-size: 13px !important; font-weight: 800 !important; }
-    /* A logo eats most of a 72mm column and prints as a grey smear on thermal —
-       likewise the solid-black initials circle standing in for a missing one. */
-    ${scope} .sip-sheet img { display: none !important; }
+    /* The salon's own logo eats most of a 72mm column and prints as a grey smear
+       on thermal — likewise the solid-black initials circle standing in for a
+       missing one. Only those two are dropped: this used to hide every img in
+       the sheet, which took the Salon Central wordmark in the footer with it. */
+    ${scope} .sip-sheet .sip-logo { display: none !important; }
     ${scope} .sip-sheet .sip-logo-fallback { display: none !important; }
     /* Every side-by-side block becomes one stacked column. */
     ${scope} .sip-sheet .sip-head,
@@ -326,7 +328,7 @@ export default function SalonInvoicePrint({
 
                 {/* Logo */}
                 {logo ? (
-                  <img src={logo} alt={salonName} style={{ height: 90, maxWidth: 160, objectFit: "contain" }} />
+                  <img className="sip-logo" src={logo} alt={salonName} style={{ height: 90, maxWidth: 160, objectFit: "contain" }} />
                 ) : (
                   <div className="sip-logo-fallback" style={{ width: 90, height: 90, borderRadius: "50%", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span style={{ fontSize: 28, fontWeight: 900, color: "#fff", letterSpacing: "-1px" }}>{initials}</span>
