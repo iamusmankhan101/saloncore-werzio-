@@ -8,6 +8,17 @@ import { settingsStore } from "@/lib/settings-store";
 import SalonCentralWordmark from "@/components/salon-central-wordmark";
 import { fmtCurrency as fmt } from "@/lib/format";
 
+/**
+ * An amount with its currency word in a span of its own, so the 80mm rules can
+ * hide the currency inside the items table without touching the totals.
+ */
+function Money({ n }: { n: number }) {
+  const s = fmt(n);
+  const gap = s.indexOf(" ");
+  if (gap < 0) return <>{s}</>;
+  return <><span className="sip-cur">{s.slice(0, gap)} </span>{s.slice(gap + 1)}</>;
+}
+
 function fmtDate(d: string): string {
   return new Date(d + "T00:00:00").toLocaleDateString("en-PK", {
     year: "numeric", month: "long", day: "numeric",
@@ -54,11 +65,16 @@ const PRINT_STYLES = `
 function receiptLayoutRules(scope: string): string {
   return `
     ${scope} .sip-sheet { width: 80mm !important; max-width: 80mm !important; font-size: 11px !important; line-height: 1.35 !important; border-radius: 0 !important; box-shadow: none !important; }
-    /* The single padded wrapper inside the sheet — A4 margins would eat the roll. */
-    ${scope} .sip-sheet > div { padding: 4mm 3mm !important; }
-    ${scope} .sip-sheet * { font-size: 11px !important; letter-spacing: 0 !important; }
+    /* The single padded wrapper inside the sheet — A4 margins would eat the roll.
+       80mm rolls only have a ~72mm printable window, so 4mm of side padding is
+       what keeps the right-hand column off the unprinted edge; at 3mm the
+       address line and the Amount column ran past it and were shaved off. */
+    ${scope} .sip-sheet > div { padding: 3mm 4mm !important; }
+    /* overflow-wrap:anywhere so a long email or address breaks instead of
+       overflowing the roll — word-break alone leaves unbroken tokens hanging. */
+    ${scope} .sip-sheet * { font-size: 11px !important; letter-spacing: 0 !important; overflow-wrap: anywhere !important; }
     /* Headings stay only slightly larger, so the salon name still reads first. */
-    ${scope} .sip-sheet h1, ${scope} .sip-sheet h2 { font-size: 14px !important; }
+    ${scope} .sip-sheet h1, ${scope} .sip-sheet h2, ${scope} .sip-sheet .sip-biz { font-size: 13px !important; font-weight: 800 !important; }
     /* A logo eats most of a 72mm column and prints as a grey smear on thermal —
        likewise the solid-black initials circle standing in for a missing one. */
     ${scope} .sip-sheet img { display: none !important; }
@@ -73,9 +89,29 @@ function receiptLayoutRules(scope: string): string {
     ${scope} .sip-sheet .sip-totals-box { width: 100% !important; }
     ${scope} .sip-sheet table { width: 100% !important; table-layout: fixed !important; }
     ${scope} .sip-sheet td, ${scope} .sip-sheet th { padding: 2px 0 !important; word-break: break-word !important; }
-    /* Description needs the room; the three numeric columns do not. */
+
+    /* ── Items table ───────────────────────────────────────────────────────
+       The A4 header cells are nowrap, which on a roll made "Unit Price" spill
+       out of its cell and collide with its neighbours ("QtyUnit Price Amount").
+       Widths are absolute rather than percentages because the three numeric
+       columns need a known number of digits, not a share of the paper: at 17%
+       each the amounts wrapped to "PKR" / "30,000" on two lines. */
+    ${scope} .sip-sheet .sip-items th,
+    ${scope} .sip-sheet .sip-items td { white-space: normal !important; padding: 3px 0 !important; vertical-align: top !important; }
+    ${scope} .sip-sheet .sip-items th { background: transparent !important; }
+    ${scope} .sip-sheet .sip-items th:nth-child(1),
+    ${scope} .sip-sheet .sip-items td:nth-child(1) { width: auto !important; padding-right: 2mm !important; }
+    ${scope} .sip-sheet .sip-items th:nth-child(2),
+    ${scope} .sip-sheet .sip-items td:nth-child(2) { width: 7mm !important; }
+    ${scope} .sip-sheet .sip-items th:nth-child(3),
+    ${scope} .sip-sheet .sip-items td:nth-child(3) { width: 15mm !important; }
+    ${scope} .sip-sheet .sip-items th:nth-child(4),
+    ${scope} .sip-sheet .sip-items td:nth-child(4) { width: 17mm !important; }
     ${scope} .sip-sheet .sip-items th:not(:first-child),
-    ${scope} .sip-sheet .sip-items td:not(:first-child) { width: 17% !important; }
+    ${scope} .sip-sheet .sip-items td:not(:first-child) { padding-left: 1.5mm !important; }
+    /* One currency word per line costs ~9mm of a 72mm roll and repeats on every
+       row; the totals below still carry it, which is where it is read. */
+    ${scope} .sip-sheet .sip-items .sip-cur { display: none !important; }
   `;
 }
 
@@ -280,7 +316,7 @@ export default function SalonInvoicePrint({
               {/* ── HEADER: Company left, Logo right ── */}
               <div className="sip-head" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 48 }}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>{salonName}</div>
+                  <div className="sip-biz" style={{ fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>{salonName}</div>
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
                     {salonAddress && <div>{salonAddress}</div>}
                     {salonEmail   && <div>{salonEmail}</div>}
@@ -346,8 +382,8 @@ export default function SalonInvoicePrint({
                     <tr key={item.id} style={{ borderBottom: "1px solid #e8e8e8" }}>
                       <td style={{ padding: "11px 12px", fontSize: 12, color: "#111" }}>{item.description}</td>
                       <td style={{ padding: "11px 12px", fontSize: 12, color: "#555", textAlign: "right" }}>{item.qty}</td>
-                      <td style={{ padding: "11px 12px", fontSize: 12, color: "#555", textAlign: "right" }}>{fmt(item.unitPrice)}</td>
-                      <td style={{ padding: "11px 12px", fontSize: 12, color: "#111", fontWeight: 600, textAlign: "right" }}>{fmt(item.total)}</td>
+                      <td style={{ padding: "11px 12px", fontSize: 12, color: "#555", textAlign: "right" }}><Money n={item.unitPrice} /></td>
+                      <td style={{ padding: "11px 12px", fontSize: 12, color: "#111", fontWeight: 600, textAlign: "right" }}><Money n={item.total} /></td>
                     </tr>
                   ))}
                   {invoice.items.length === 0 && (
