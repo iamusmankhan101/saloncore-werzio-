@@ -46,6 +46,19 @@ const PRINT_STYLES = `
 `;
 
 /**
+ * The page box for a roll print is the printer's *printable* window, not the
+ * 80mm of paper. Handing the driver an 80mm page made it shrink-to-fit the page
+ * down onto the ~72mm the head can actually reach (72/80 = 0.9, which is the
+ * scale the printed receipt came out at) and then align the scaled block inside
+ * that window rather than on the paper — so the two 4mm gutters printed as 3.6mm
+ * of unequal margin. At 72mm the mapping is 1:1 and the gutters below are the
+ * only margin there is, which is what keeps the block centred on the roll.
+ */
+const RECEIPT_WIDTH_MM = 72;
+/** Left/right margin inside the page box. Equal by construction — see above. */
+const RECEIPT_GUTTER_MM = 3;
+
+/**
  * 80mm roll layout for a USB/driver-attached thermal printer (Speed-X SP-200u
  * and friends), where the ESC/POS-over-TCP path doesn't apply — there is no IP
  * to send to, so the receipt goes out through the OS print driver instead.
@@ -64,12 +77,16 @@ const PRINT_STYLES = `
  */
 function receiptLayoutRules(scope: string): string {
   return `
-    ${scope} .sip-sheet { width: 80mm !important; max-width: 80mm !important; font-size: 11px !important; line-height: 1.35 !important; border-radius: 0 !important; box-shadow: none !important; }
+    ${scope} .sip-sheet { width: ${RECEIPT_WIDTH_MM}mm !important; max-width: ${RECEIPT_WIDTH_MM}mm !important; margin: 0 auto !important; font-size: 11px !important; line-height: 1.35 !important; border-radius: 0 !important; box-shadow: none !important; }
     /* The single padded wrapper inside the sheet — A4 margins would eat the roll.
-       80mm rolls only have a ~72mm printable window, so 4mm of side padding is
-       what keeps the right-hand column off the unprinted edge; at 3mm the
-       address line and the Amount column ran past it and were shaved off. */
-    ${scope} .sip-sheet > div { padding: 3mm 4mm !important; }
+       The page box is already the printable window (see RECEIPT_WIDTH_MM), so
+       these two gutters are the whole of the left/right margin and have to stay
+       equal: anything asymmetric here prints visibly off-centre on the roll. */
+    ${scope} .sip-sheet > div { padding: 0 ${RECEIPT_GUTTER_MM}mm !important; }
+    /* The A4 header carries 48px of air below it and the sheet used to add 3mm
+       above it; on a roll that lands under the printer's own ~20mm feed gap and
+       reads as a blank top third, so the salon name starts at the first line. */
+    ${scope} .sip-sheet .sip-head { margin-top: 0 !important; }
     /* overflow-wrap:anywhere so a long email or address breaks instead of
        overflowing the roll — word-break alone leaves unbroken tokens hanging. */
     ${scope} .sip-sheet * { font-size: 11px !important; letter-spacing: 0 !important; overflow-wrap: anywhere !important; }
@@ -111,9 +128,9 @@ function receiptLayoutRules(scope: string): string {
     ${scope} .sip-sheet .sip-items th:nth-child(2),
     ${scope} .sip-sheet .sip-items td:nth-child(2) { width: 7mm !important; }
     ${scope} .sip-sheet .sip-items th:nth-child(3),
-    ${scope} .sip-sheet .sip-items td:nth-child(3) { width: 15mm !important; }
+    ${scope} .sip-sheet .sip-items td:nth-child(3) { width: 14mm !important; }
     ${scope} .sip-sheet .sip-items th:nth-child(4),
-    ${scope} .sip-sheet .sip-items td:nth-child(4) { width: 17mm !important; }
+    ${scope} .sip-sheet .sip-items td:nth-child(4) { width: 15mm !important; }
     ${scope} .sip-sheet .sip-items th:not(:first-child),
     ${scope} .sip-sheet .sip-items td:not(:first-child) { padding-left: 1.5mm !important; }
     /* One currency word per line costs ~9mm of a 72mm roll and repeats on every
@@ -142,9 +159,9 @@ const RECEIPT_MEASURE_STYLES = receiptLayoutRules(".sip-measuring");
 function receiptPrintStyles(pageHeightMm: number): string {
   return `
   @media print {
-    @page { size: 80mm ${pageHeightMm}mm; margin: 0; }
-    html, body { width: 80mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
-    #salon-invoice-portal { position: static !important; width: 80mm !important; }
+    @page { size: ${RECEIPT_WIDTH_MM}mm ${pageHeightMm}mm; margin: 0; }
+    html, body { width: ${RECEIPT_WIDTH_MM}mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+    #salon-invoice-portal { position: static !important; width: ${RECEIPT_WIDTH_MM}mm !important; }
 ${receiptLayoutRules("")}
   }
 `;
@@ -152,8 +169,10 @@ ${receiptLayoutRules("")}
 
 /** CSS px are 1/96in by definition, and an inch is 25.4mm. */
 const PX_PER_MM = 96 / 25.4;
-/** Blank tail so the last line clears the cutter, and a floor for tiny sales. */
-const RECEIPT_TAIL_MM = 6;
+/** Blank tail so the last line clears the cutter, and a floor for tiny sales.
+ *  Kept short: the printer already feeds ~20mm past the head to reach the tear
+ *  bar, and that feed reads as blank paper at the top of the next receipt. */
+const RECEIPT_TAIL_MM = 3;
 const MIN_RECEIPT_MM = 60;
 /** Used only if the sheet cannot be found — a long page beats a clipped one. */
 const FALLBACK_RECEIPT_MM = 297;
