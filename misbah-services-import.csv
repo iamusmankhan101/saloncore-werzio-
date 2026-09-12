@@ -1,0 +1,45 @@
+Service ID,Name,Description,Category,Section,Duration (Min),Variable Price,Price,Min Price,Max Price,Included Services,Assigned Staff,Active
+,Eyebrows Threading,,Face Threading,,10,No,300,,,,,Yes
+,Upper Lip Threading,,Face Threading,,10,No,150,,,,,Yes
+,Forehead Threading,,Face Threading,,10,No,200,,,,,Yes
+,Chin Threading,,Face Threading,,10,No,150,,,,,Yes
+,Lower Lip Threading,,Face Threading,,10,No,100,,,,,Yes
+,Full Face Threading,,Face Threading,,30,No,1500,,,,,Yes
+,Eyebrows Wax,,Face Waxing,,15,No,500,,,,,Yes
+,Forehead Wax,,Face Waxing,,15,No,400,,,,,Yes
+,Upper Lip Wax,,Face Waxing,,15,No,250,,,,,Yes
+,Chin Wax,,Face Waxing,,15,No,350,,,,,Yes
+,Nose Wax,,Face Waxing,,15,No,200,,,,,Yes
+,Lower Lip Wax,,Face Waxing,,15,No,200,,,,,Yes
+,Neck Wax,,Face Waxing,,20,No,500,,,,,Yes
+,Back Neck Wax,,Face Waxing,,20,No,500,,,,,Yes
+,Side Face Wax,,Face Waxing,,20,No,750,,,,,Yes
+,Full Face Wax,,Face Waxing,,30,No,2000,,,,,Yes
+,Half Arms Wax,,Body Waxing,,20,No,1000,,,,,Yes
+,Half Legs Wax,,Body Waxing,,30,No,1200,,,,,Yes
+,Full Arms Wax,,Body Waxing,,30,No,1500,,,,,Yes
+,Full Legs Wax,,Body Waxing,,45,No,3000,,,,,Yes
+,Under Arms Wax,,Body Waxing,,15,No,600,,,,,Yes
+,Under Legs Wax,,Body Waxing,,30,No,2000,,,,,Yes
+,Belly Wax,,Body Waxing,,20,No,1500,,,,,Yes
+,Capri Wax,,Body Waxing,,40,No,800,,,,,Yes
+,Three Quarter Wax,,Body Waxing,,45,No,1200,,,,,Yes
+,Hand Wax,,Body Waxing,,15,No,500,,,,,Yes
+,Full Body Wax,,Body Waxing,,90,No,10000,,,,,Yes
+,Simple Cleansing,,Cleansing,,30,No,1000,,,,,Yes
+,Double Cleansing,,Cleansing,,40,No,1500,,,,,Yes
+,Janssen Cleansing,,Cleansing,,40,No,1500,,,,,Yes
+,Korean Glass Cleansing,,Cleansing,,45,No,2000,,,,,Yes
+,Face Polisher,,Polisher,,30,No,1000,,,,,Yes
+,Whitening Glow Polisher,,Polisher,,45,No,1500,,,,,Yes
+,Skin Polisher,,Polisher,,45,No,2000,,,,,Yes
+,Janssen Polisher,,Polisher,,60,No,3500,,,,,Yes
+,Basic Facial,,Facials,,45,No,3000,,,,,Yes
+,Fruit Facial,,Facials,,45,No,3000,,,,,Yes
+,Herbal Facial,,Facials,,45,No,3000,,,,,Yes
+,Whitening Glow Facial,,Facials,,60,No,4000,,,,,Yes
+,Silky Gold Facial,,Facials,,60,No,4500,,,,,Yes
+,Gold Anti-Aging Facial,,Facials,,60,No,5000,,,,,Yes
+,Crystal Whitening Facial,,Facials,,75,No,5500,,,,,Yes
+,Double Gold Whitening Facial,,Facials,,75,No,6000,,,,,Yes
+,Diamond Whitening Facial,,Facials,,75,No,5500,,,,,Yes
