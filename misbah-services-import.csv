@@ -1,45 +1,32 @@
 Service ID,Name,Description,Category,Section,Duration (Min),Variable Price,Price,Min Price,Max Price,Included Services,Assigned Staff,Active
-,Eyebrows Threading,,Face Threading,,10,No,300,,,,,Yes
-,Upper Lip Threading,,Face Threading,,10,No,150,,,,,Yes
-,Forehead Threading,,Face Threading,,10,No,200,,,,,Yes
-,Chin Threading,,Face Threading,,10,No,150,,,,,Yes
-,Lower Lip Threading,,Face Threading,,10,No,100,,,,,Yes
-,Full Face Threading,,Face Threading,,30,No,1500,,,,,Yes
-,Eyebrows Wax,,Face Waxing,,15,No,500,,,,,Yes
-,Forehead Wax,,Face Waxing,,15,No,400,,,,,Yes
-,Upper Lip Wax,,Face Waxing,,15,No,250,,,,,Yes
-,Chin Wax,,Face Waxing,,15,No,350,,,,,Yes
-,Nose Wax,,Face Waxing,,15,No,200,,,,,Yes
-,Lower Lip Wax,,Face Waxing,,15,No,200,,,,,Yes
-,Neck Wax,,Face Waxing,,20,No,500,,,,,Yes
-,Back Neck Wax,,Face Waxing,,20,No,500,,,,,Yes
-,Side Face Wax,,Face Waxing,,20,No,750,,,,,Yes
-,Full Face Wax,,Face Waxing,,30,No,2000,,,,,Yes
-,Half Arms Wax,,Body Waxing,,20,No,1000,,,,,Yes
-,Half Legs Wax,,Body Waxing,,30,No,1200,,,,,Yes
-,Full Arms Wax,,Body Waxing,,30,No,1500,,,,,Yes
-,Full Legs Wax,,Body Waxing,,45,No,3000,,,,,Yes
-,Under Arms Wax,,Body Waxing,,15,No,600,,,,,Yes
-,Under Legs Wax,,Body Waxing,,30,No,2000,,,,,Yes
-,Belly Wax,,Body Waxing,,20,No,1500,,,,,Yes
-,Capri Wax,,Body Waxing,,40,No,800,,,,,Yes
-,Three Quarter Wax,,Body Waxing,,45,No,1200,,,,,Yes
-,Hand Wax,,Body Waxing,,15,No,500,,,,,Yes
-,Full Body Wax,,Body Waxing,,90,No,10000,,,,,Yes
-,Simple Cleansing,,Cleansing,,30,No,1000,,,,,Yes
-,Double Cleansing,,Cleansing,,40,No,1500,,,,,Yes
-,Janssen Cleansing,,Cleansing,,40,No,1500,,,,,Yes
-,Korean Glass Cleansing,,Cleansing,,45,No,2000,,,,,Yes
-,Face Polisher,,Polisher,,30,No,1000,,,,,Yes
-,Whitening Glow Polisher,,Polisher,,45,No,1500,,,,,Yes
-,Skin Polisher,,Polisher,,45,No,2000,,,,,Yes
-,Janssen Polisher,,Polisher,,60,No,3500,,,,,Yes
-,Basic Facial,,Facials,,45,No,3000,,,,,Yes
-,Fruit Facial,,Facials,,45,No,3000,,,,,Yes
-,Herbal Facial,,Facials,,45,No,3000,,,,,Yes
-,Whitening Glow Facial,,Facials,,60,No,4000,,,,,Yes
-,Silky Gold Facial,,Facials,,60,No,4500,,,,,Yes
-,Gold Anti-Aging Facial,,Facials,,60,No,5000,,,,,Yes
-,Crystal Whitening Facial,,Facials,,75,No,5500,,,,,Yes
-,Double Gold Whitening Facial,,Facials,,75,No,6000,,,,,Yes
-,Diamond Whitening Facial,,Facials,,75,No,5500,,,,,Yes
+,Eyebrows Threading,,threading,,10,No,300,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Upper Lip Threading,,threading,,10,No,150,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Forehead Threading,,threading,,10,No,200,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Chin Threading,,threading,,10,No,150,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Lower Lip Threading,,threading,,10,No,100,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Full Face Threading,,threading,,30,No,1500,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Eyebrows Wax,,waxing,,15,No,500,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Forehead Wax,,waxing,,15,No,400,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Upper Lip Wax,,waxing,,15,No,250,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Chin Wax,,waxing,,15,No,350,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Nose Wax,,waxing,,15,No,200,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Lower Lip Wax,,waxing,,15,No,200,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Neck Wax,,waxing,,20,No,500,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Back Neck Wax,,waxing,,20,No,500,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Side Face Wax,,waxing,,20,No,750,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Full Face Wax,,waxing,,30,No,2000,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Half Arms Wax,,waxing,,20,No,1000,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Half Legs Wax,,waxing,,30,No,1200,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Full Arms Wax,,waxing,,30,No,1500,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Full Legs Wax,,waxing,,45,No,3000,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Under Arms Wax,,waxing,,15,No,600,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Under Legs Wax,,waxing,,30,No,2000,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Belly Wax,,waxing,,20,No,1500,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Capri Wax,,waxing,,40,No,800,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Three Quarter Wax,,waxing,,45,No,1200,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Hand Wax,,waxing,,15,No,500,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Full Body Wax,,waxing,,90,No,10000,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Simple Cleansing,,cleansing,,30,No,1000,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Double Cleansing,,cleansing,,40,No,1500,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Janssen Cleansing,,cleansing,,40,No,1500,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes
+,Korean Glass Cleansing,,cleansing,,45,No,2000,,,,"Esha, Saba, Faiza, Maryam, Nimra",Yes

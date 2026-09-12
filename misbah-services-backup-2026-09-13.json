@@ -1,0 +1,2408 @@
+[
+ {
+  "id": "sv1788851177243000",
+  "name": "Face Relaxing Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243001",
+  "name": "Face Lifting Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 2000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243002",
+  "name": "Face Janssen Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 2000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243003",
+  "name": "Thalgo Face Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 2000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243004",
+  "name": "Feet Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243005",
+  "name": "Legs Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 1500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243006",
+  "name": "Shoulder Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243007",
+  "name": "Head Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243008",
+  "name": "Neck Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243009",
+  "name": "Arms Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 1500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243010",
+  "name": "Back Neck Deep Massage",
+  "category": "massage",
+  "durationMin": 30,
+  "price": 1500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243011",
+  "name": "Full Body Massage",
+  "category": "massage",
+  "durationMin": 90,
+  "price": 7000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243012",
+  "name": "Head Oil Massage",
+  "category": "massage",
+  "durationMin": 45,
+  "price": 2000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243013",
+  "name": "Lash Extension - Natural",
+  "category": "lashes",
+  "durationMin": 120,
+  "price": 8000,
+  "variablePrice": true,
+  "priceRangeMin": 8000,
+  "priceRangeMax": 15000,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243014",
+  "name": "Lash Extension - Volumize",
+  "category": "lashes",
+  "durationMin": 150,
+  "price": 15000,
+  "variablePrice": true,
+  "priceRangeMin": 15000,
+  "priceRangeMax": 25000,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243015",
+  "name": "Lash Extension - Classic",
+  "category": "lashes",
+  "durationMin": 120,
+  "price": 8000,
+  "variablePrice": true,
+  "priceRangeMin": 8000,
+  "priceRangeMax": 15000,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243016",
+  "name": "Lash Extension - Mega Volume",
+  "category": "lashes",
+  "durationMin": 150,
+  "price": 10000,
+  "variablePrice": true,
+  "priceRangeMin": 10000,
+  "priceRangeMax": 15000,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243017",
+  "name": "Lash Extension - Hybrid",
+  "category": "lashes",
+  "durationMin": 150,
+  "price": 12000,
+  "variablePrice": true,
+  "priceRangeMin": 12000,
+  "priceRangeMax": 20000,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243018",
+  "name": "Lash Extension - Lifted",
+  "category": "lashes",
+  "durationMin": 90,
+  "price": 9000,
+  "variablePrice": true,
+  "priceRangeMin": 9000,
+  "priceRangeMax": 15000,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243019",
+  "name": "Acrylics Nails",
+  "category": "nails",
+  "durationMin": 90,
+  "price": 7000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243020",
+  "name": "Gel Nails",
+  "category": "nails",
+  "durationMin": 60,
+  "price": 6000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243021",
+  "name": "Poly Gel Nails",
+  "category": "nails",
+  "durationMin": 75,
+  "price": 4000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243022",
+  "name": "Nails Tips",
+  "category": "nails",
+  "durationMin": 60,
+  "price": 4500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243023",
+  "name": "Nails Design - French Tip Nails",
+  "category": "nails",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243024",
+  "name": "Nails Design - Chrome Tip Nails",
+  "category": "nails",
+  "durationMin": 30,
+  "price": 2000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243025",
+  "name": "Nails Design - Cat Eye Nails",
+  "category": "nails",
+  "durationMin": 30,
+  "price": 1500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243026",
+  "name": "Nails Design - Glitter Nails",
+  "category": "nails",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243027",
+  "name": "Nails Design - 3D Art Nails",
+  "category": "nails",
+  "durationMin": 45,
+  "price": 2500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243028",
+  "name": "Nails Design - Ombre Nails",
+  "category": "nails",
+  "durationMin": 30,
+  "price": 1500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243029",
+  "name": "Nails Design - Mate Nails",
+  "category": "nails",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243030",
+  "name": "Acrylic Removing",
+  "category": "nails",
+  "durationMin": 30,
+  "price": 3000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243031",
+  "name": "Nails Refill",
+  "category": "nails",
+  "durationMin": 60,
+  "price": 3500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243032",
+  "name": "Mani Pedi - Basic",
+  "category": "nails",
+  "durationMin": 60,
+  "price": 3000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243033",
+  "name": "Mani Pedi - Whitening",
+  "category": "nails",
+  "durationMin": 60,
+  "price": 4000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243034",
+  "name": "Mani Pedi - Classic Spa",
+  "category": "nails",
+  "durationMin": 75,
+  "price": 5000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243035",
+  "name": "Mani Pedi - Detox",
+  "category": "nails",
+  "durationMin": 75,
+  "price": 5000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243036",
+  "name": "Mani Pedi - Paraffin Serum",
+  "category": "nails",
+  "durationMin": 90,
+  "price": 6000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243037",
+  "name": "Mani Pedi - Jelly Aroma",
+  "category": "nails",
+  "durationMin": 75,
+  "price": 5500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243038",
+  "name": "Mani Pedi - Whitening Coffin",
+  "category": "nails",
+  "durationMin": 75,
+  "price": 5500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243039",
+  "name": "Nanoplastia - Shoulder Length",
+  "category": "hair",
+  "durationMin": 120,
+  "price": 17500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243040",
+  "name": "Nanoplastia - Medium Length",
+  "category": "hair",
+  "durationMin": 150,
+  "price": 25500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243041",
+  "name": "Nanoplastia - Waist Length",
+  "category": "hair",
+  "durationMin": 180,
+  "price": 30000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243042",
+  "name": "Balayage - Shoulder Length",
+  "category": "hair",
+  "durationMin": 180,
+  "price": 17999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243043",
+  "name": "Balayage - Medium Length",
+  "category": "hair",
+  "durationMin": 210,
+  "price": 19999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243044",
+  "name": "Balayage - Waist Length",
+  "category": "hair",
+  "durationMin": 240,
+  "price": 21999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243045",
+  "name": "Hair Keratin - Shoulder Length",
+  "category": "hair",
+  "durationMin": 120,
+  "price": 17999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243046",
+  "name": "Hair Keratin - Medium Length",
+  "category": "hair",
+  "durationMin": 150,
+  "price": 19999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243047",
+  "name": "Hair Keratin - Waist Length",
+  "category": "hair",
+  "durationMin": 180,
+  "price": 25000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243048",
+  "name": "Organic Hair Keratin - Shoulder Length",
+  "category": "hair",
+  "durationMin": 120,
+  "price": 20999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243049",
+  "name": "Organic Hair Keratin - Medium Length",
+  "category": "hair",
+  "durationMin": 150,
+  "price": 25000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243050",
+  "name": "Organic Hair Keratin - Waist Length",
+  "category": "hair",
+  "durationMin": 180,
+  "price": 30000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243051",
+  "name": "Hair Botox - Shoulder Length",
+  "category": "hair",
+  "durationMin": 120,
+  "price": 15999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243052",
+  "name": "Hair Botox - Medium Length",
+  "category": "hair",
+  "durationMin": 150,
+  "price": 17999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243053",
+  "name": "Hair Botox - Waist Length",
+  "category": "hair",
+  "durationMin": 180,
+  "price": 19999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243054",
+  "name": "Hair Dye (One Shade) - Root Touch Up 1 Inch",
+  "category": "hair",
+  "durationMin": 45,
+  "price": 2500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243055",
+  "name": "Hair Dye (One Shade) - Root Touch Up 2 Inches",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 3000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243056",
+  "name": "Hair Dye (One Shade) - Shoulder Length",
+  "category": "hair",
+  "durationMin": 90,
+  "price": 8000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243057",
+  "name": "Hair Dye (One Shade) - Medium Length",
+  "category": "hair",
+  "durationMin": 105,
+  "price": 10000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243058",
+  "name": "Hair Dye (One Shade) - Waist Length",
+  "category": "hair",
+  "durationMin": 120,
+  "price": 12000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243059",
+  "name": "Fashion Dye Shade - Root Touch Up 1 Inch",
+  "category": "hair",
+  "durationMin": 45,
+  "price": 3000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243060",
+  "name": "Fashion Dye Shade - Root Touch Up 2 Inches",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 3500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243061",
+  "name": "Fashion Dye Shade - Shoulder Length",
+  "category": "hair",
+  "durationMin": 90,
+  "price": 9500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243062",
+  "name": "Fashion Dye Shade - Medium Length",
+  "category": "hair",
+  "durationMin": 105,
+  "price": 13500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243063",
+  "name": "Fashion Dye Shade - Waist Length",
+  "category": "hair",
+  "durationMin": 120,
+  "price": 18500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243064",
+  "name": "Low Lights - Shoulder Length",
+  "category": "hair",
+  "durationMin": 150,
+  "price": 13999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243065",
+  "name": "Low Lights - Medium Length",
+  "category": "hair",
+  "durationMin": 180,
+  "price": 15999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243066",
+  "name": "Low Lights - Waist Length",
+  "category": "hair",
+  "durationMin": 210,
+  "price": 22500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243067",
+  "name": "High Lights - Shoulder Length",
+  "category": "hair",
+  "durationMin": 150,
+  "price": 15999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243068",
+  "name": "High Lights - Medium Length",
+  "category": "hair",
+  "durationMin": 180,
+  "price": 17999,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243069",
+  "name": "High Lights - Waist Length",
+  "category": "hair",
+  "durationMin": 210,
+  "price": 22500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243070",
+  "name": "Baby Cutting",
+  "category": "hair",
+  "durationMin": 30,
+  "price": 1500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243071",
+  "name": "Hair Trimming",
+  "category": "hair",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243072",
+  "name": "U Shape Cutting",
+  "category": "hair",
+  "durationMin": 45,
+  "price": 1500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243073",
+  "name": "V Shape Cutting",
+  "category": "hair",
+  "durationMin": 45,
+  "price": 1500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243074",
+  "name": "Butterfly Cutting",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 2500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243075",
+  "name": "Wolf Cutting",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 2500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243076",
+  "name": "Layers Cutting",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 2500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243077",
+  "name": "Multi Layers Cutting",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 3000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243078",
+  "name": "Signature Cutting",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 3500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243079",
+  "name": "Hair Wash",
+  "category": "hair",
+  "durationMin": 20,
+  "price": 500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243080",
+  "name": "Hair Protein Wash",
+  "category": "hair",
+  "durationMin": 30,
+  "price": 1500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243081",
+  "name": "Protein Hair Treatment",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 3500,
+  "variablePrice": true,
+  "priceRangeMin": 3500,
+  "priceRangeMax": 5000,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243082",
+  "name": "Admiro Hair Treatment",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 6000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243083",
+  "name": "Sos Hair Treatment",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 5000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243084",
+  "name": "Bioplex Protein Treatment",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 6000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243085",
+  "name": "Hair Repairing Treatment",
+  "category": "hair",
+  "durationMin": 60,
+  "price": 6000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243086",
+  "name": "Hair Styling - Baby Styling",
+  "category": "hair",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": true,
+  "priceRangeMin": 1000,
+  "priceRangeMax": 2000,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243087",
+  "name": "Hair Styling - Simple Styling",
+  "category": "hair",
+  "durationMin": 45,
+  "price": 2000,
+  "variablePrice": true,
+  "priceRangeMin": 2000,
+  "priceRangeMax": 3500,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243088",
+  "name": "Hair Styling - Hair Straightening",
+  "category": "hair",
+  "durationMin": 45,
+  "price": 2000,
+  "variablePrice": true,
+  "priceRangeMin": 2000,
+  "priceRangeMax": 3000,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243089",
+  "name": "Hair Styling - Hair Curling",
+  "category": "hair",
+  "durationMin": 45,
+  "price": 2000,
+  "variablePrice": true,
+  "priceRangeMin": 2000,
+  "priceRangeMax": 3500,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243090",
+  "name": "Hair Styling - Inward Setting",
+  "category": "hair",
+  "durationMin": 45,
+  "price": 2000,
+  "variablePrice": true,
+  "priceRangeMin": 2000,
+  "priceRangeMax": 3000,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243091",
+  "name": "Hair Styling - Outward Setting",
+  "category": "hair",
+  "durationMin": 45,
+  "price": 2500,
+  "variablePrice": true,
+  "priceRangeMin": 2500,
+  "priceRangeMax": 3500,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243092",
+  "name": "Signature Makeup - Eye Makeup With Lashes",
+  "category": "makeup",
+  "durationMin": 45,
+  "price": 3500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243093",
+  "name": "Signature Makeup - Party Makeup",
+  "category": "makeup",
+  "durationMin": 60,
+  "price": 7500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243094",
+  "name": "Signature Makeup - Glam Makeup",
+  "category": "makeup",
+  "durationMin": 90,
+  "price": 12000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243095",
+  "name": "Signature Makeup - Engagement Makeup",
+  "category": "makeup",
+  "durationMin": 120,
+  "price": 18000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243096",
+  "name": "Signature Makeup - Nikkah Makeup",
+  "category": "makeup",
+  "durationMin": 120,
+  "price": 20000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243097",
+  "name": "Signature Makeup - Mehendi Makeup",
+  "category": "makeup",
+  "durationMin": 120,
+  "price": 18000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243098",
+  "name": "Signature Makeup - Qawali Night Makeup",
+  "category": "makeup",
+  "durationMin": 120,
+  "price": 18000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243099",
+  "name": "Signature Makeup - Barat Makeup",
+  "category": "makeup",
+  "durationMin": 150,
+  "price": 40000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243100",
+  "name": "Signature Makeup - Walima Makeup",
+  "category": "makeup",
+  "durationMin": 150,
+  "price": 35000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243101",
+  "name": "Signature Makeup - Soft Look",
+  "category": "makeup",
+  "durationMin": 60,
+  "price": 10000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243102",
+  "name": "Senior Artist Makeup - Eye Makeup With Lashes",
+  "category": "makeup",
+  "durationMin": 45,
+  "price": 3000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243103",
+  "name": "Senior Artist Makeup - Party Makeup",
+  "category": "makeup",
+  "durationMin": 60,
+  "price": 6000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243104",
+  "name": "Senior Artist Makeup - Glam Makeup",
+  "category": "makeup",
+  "durationMin": 90,
+  "price": 8000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243105",
+  "name": "Senior Artist Makeup - Engagement Makeup",
+  "category": "makeup",
+  "durationMin": 120,
+  "price": 15000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243106",
+  "name": "Senior Artist Makeup - Nikkah Makeup",
+  "category": "makeup",
+  "durationMin": 120,
+  "price": 18000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243107",
+  "name": "Senior Artist Makeup - Mehendi Makeup",
+  "category": "makeup",
+  "durationMin": 120,
+  "price": 15000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243108",
+  "name": "Senior Artist Makeup - Qawali Night Makeup",
+  "category": "makeup",
+  "durationMin": 120,
+  "price": 15000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243109",
+  "name": "Senior Artist Makeup - Barat Makeup",
+  "category": "makeup",
+  "durationMin": 150,
+  "price": 30000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243110",
+  "name": "Senior Artist Makeup - Walima Makeup",
+  "category": "makeup",
+  "durationMin": 150,
+  "price": 25000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243111",
+  "name": "Face Polisher",
+  "category": "skin",
+  "durationMin": 30,
+  "price": 1000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243112",
+  "name": "Whitening Glow Polisher",
+  "category": "skin",
+  "durationMin": 30,
+  "price": 1500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243113",
+  "name": "Skin Polisher",
+  "category": "skin",
+  "durationMin": 45,
+  "price": 2000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243114",
+  "name": "Janssen Polisher",
+  "category": "skin",
+  "durationMin": 45,
+  "price": 3500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243115",
+  "name": "Basic Facial",
+  "category": "skin",
+  "durationMin": 45,
+  "price": 3000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243116",
+  "name": "Fruit Facial",
+  "category": "skin",
+  "durationMin": 45,
+  "price": 3000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243117",
+  "name": "Herbal Facial",
+  "category": "skin",
+  "durationMin": 45,
+  "price": 3000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243118",
+  "name": "Whitening Glow Facial",
+  "category": "skin",
+  "durationMin": 45,
+  "price": 4000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243119",
+  "name": "Silky Gold Facial",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 4500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243120",
+  "name": "Gold Anti-Aging Facial",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 5000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243121",
+  "name": "Crystal Whitening Facial",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 5500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243122",
+  "name": "Double Gold Whitening Facial",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 6000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243123",
+  "name": "Diamond Whitening Facial",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 5500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243124",
+  "name": "Janssen Whitening Facial",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 7000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243125",
+  "name": "Janssen Anti Aging Facial",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 8000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243126",
+  "name": "Thalgo Brightening Glow Facial",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 8000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243127",
+  "name": "Thalgo Anti Aging Facial",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 9000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243128",
+  "name": "Ultra Korean Glass Treatment",
+  "category": "skin",
+  "durationMin": 75,
+  "price": 10000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243129",
+  "name": "Glow Boost Dermalogica Premium",
+  "category": "skin",
+  "durationMin": 75,
+  "price": 10000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243130",
+  "name": "Co Natural Glow Facial",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 6000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243131",
+  "name": "Hydra Facial - Basic",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 6500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243132",
+  "name": "Hydra Facial - Whitening Glow",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 7500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243133",
+  "name": "Hydra Facial - Anti Aging",
+  "category": "skin",
+  "durationMin": 75,
+  "price": 8500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243134",
+  "name": "Hydra Facial - Anti Acne",
+  "category": "skin",
+  "durationMin": 75,
+  "price": 8500,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243135",
+  "name": "Hydra Facial - Janssen + Hydra",
+  "category": "skin",
+  "durationMin": 75,
+  "price": 10000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243136",
+  "name": "Hydra Facial - Thalgo + Hydra",
+  "category": "skin",
+  "durationMin": 90,
+  "price": 12000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243137",
+  "name": "Hydra Facial - Premium Korean Glass + Hydra",
+  "category": "skin",
+  "durationMin": 90,
+  "price": 14000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243138",
+  "name": "BB Glow",
+  "category": "skin",
+  "durationMin": 60,
+  "price": 8000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ },
+ {
+  "id": "sv1788851177243139",
+  "name": "Hydra + BB Glow",
+  "category": "skin",
+  "durationMin": 90,
+  "price": 12000,
+  "variablePrice": false,
+  "assignedStaffIds": [
+   "s1788770300745",
+   "s1788770325494",
+   "s1788770339834",
+   "s1788770372326",
+   "s1788770385425"
+  ],
+  "isActive": true,
+  "_updatedAt": "2026-09-08T07:06:15.444Z"
+ }
+]
