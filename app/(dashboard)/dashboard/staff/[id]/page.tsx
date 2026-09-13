@@ -15,6 +15,8 @@ import { exportStaffPdf } from "@/lib/export-pdf";
 import { settingsStore } from "@/lib/settings-store";
 import { getActiveSection, inSection } from "@/lib/sections";
 import { weeklyOffDaysFor } from "@/lib/attendance";
+import { revenueInPeriod, ALL_TIME_START, ALL_TIME_END } from "@/lib/payouts";
+import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 
 /** Sentinel select value that reveals the free-text role field — never stored. */
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -365,6 +367,7 @@ export default function StaffProfilePage() {
   const [staff, setStaff]         = useState<Staff | null>(null);
   const [services, setServices]   = useState<Service[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [invoices, setInvoices] = useState<SalonInvoice[]>([]);
   const [showEdit, setShowEdit]   = useState(false);
   const [notFound, setNotFound]   = useState(false);
 
@@ -379,6 +382,8 @@ export default function StaffProfilePage() {
     setStaff(found);
     setServices(getStoredServices().filter(sv => inSection(sv, activeSection)));
     setAppointments(getStoredAppointments().filter(a => inSection(a, activeSection)));
+    // Walk-in sales carry this stylist's revenue too — see revenueInPeriod.
+    setInvoices(getSalonInvoices().filter(inv => inSection(inv, activeSection)));
   }, [id]);
 
   const handleSave = (updated: Staff, assignedServiceIds: string[]) => {
@@ -410,7 +415,11 @@ export default function StaffProfilePage() {
     const completed  = myAppts.filter((a) => a.status === "completed");
     const noShow     = myAppts.filter((a) => a.status === "no-show");
     const upcoming   = myAppts.filter((a) => !["completed","cancelled","no-show"].includes(a.status));
-    const totalRev   = completed.reduce((s, a) => s + (a.totalAmount ?? 0), 0);
+    // Money figures come from revenueInPeriod so walk-in POS sales count too —
+    // summing appointment totals alone reads as zero in a salon that books
+    // nothing. The counts below stay appointment-based, which is what they say.
+    const staffRef = { id, name: staff?.name ?? "" };
+    const totalRev   = Math.round(revenueInPeriod(staffRef, appointments, services, ALL_TIME_START, ALL_TIME_END, invoices));
     const avgTicket  = completed.length ? totalRev / completed.length : 0;
     const noShowRate = myAppts.length ? Math.round((noShow.length / myAppts.length) * 100) : 0;
 
@@ -422,9 +431,9 @@ export default function StaffProfilePage() {
     const lastMonthStart = startOf("lastMonth");
     const lastMonthEnd   = endOfLastMonth();
 
-    const revWeek      = completed.filter((a) => a.date >= weekStart).reduce((s, a) => s + (a.totalAmount ?? 0), 0);
-    const revMonth     = completed.filter((a) => a.date >= monthStart).reduce((s, a) => s + (a.totalAmount ?? 0), 0);
-    const revLastMonth = completed.filter((a) => a.date >= lastMonthStart && a.date <= lastMonthEnd).reduce((s, a) => s + (a.totalAmount ?? 0), 0);
+    const revWeek      = Math.round(revenueInPeriod(staffRef, appointments, services, weekStart, ALL_TIME_END, invoices));
+    const revMonth     = Math.round(revenueInPeriod(staffRef, appointments, services, monthStart, ALL_TIME_END, invoices));
+    const revLastMonth = Math.round(revenueInPeriod(staffRef, appointments, services, lastMonthStart, lastMonthEnd, invoices));
 
     // Top services
     const serviceCount: Record<string, number> = {};
@@ -459,7 +468,7 @@ export default function StaffProfilePage() {
       upcoming, totalRev, avgTicket, noShowRate, uniqueClients,
       revWeek, revMonth, revLastMonth, topServices, topClients,
     };
-  }, [myAppts, id]);
+  }, [myAppts, id, appointments, services, invoices, staff?.name]);
 
   const recentCompleted = useMemo(
     () => [...myAppts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12),

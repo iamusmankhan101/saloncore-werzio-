@@ -22,11 +22,26 @@ const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
 };
 
 import { fmtCurrency as fmt } from "@/lib/format";
+import { revenueInPeriod, ALL_TIME_START, ALL_TIME_END } from "@/lib/payouts";
+import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 
-function getStaffStats(staffId: string, appointments: Appointment[]) {
-  const mine      = appointments.filter((a) => a.staffId === staffId);
-  const completed = mine.filter((a) => a.status === "completed");
-  return { total: mine.length, revenue: completed.reduce((s, a) => s + (a.totalAmount ?? 0), 0) };
+/**
+ * Appointment count and revenue for one staff member's card.
+ *
+ * Revenue goes through revenueInPeriod rather than summing appointment totals
+ * here, so it counts walk-in sales rung up at POS as well as booked work, and
+ * agrees with the figure Payouts pays commission on. A salon that books nothing
+ * used to show every stylist at zero however much they had taken.
+ *
+ * The appointment count stays a count of appointments — walk-ins aren't
+ * appointments, and quietly folding them in would make the label a lie.
+ */
+function getStaffStats(staff: Staff, appointments: Appointment[], services: Service[], invoices: SalonInvoice[]) {
+  const mine = appointments.filter((a) => a.staffId === staff.id);
+  return {
+    total: mine.length,
+    revenue: Math.round(revenueInPeriod(staff, appointments, services, ALL_TIME_START, ALL_TIME_END, invoices)),
+  };
 }
 
 
@@ -572,6 +587,7 @@ export default function StaffPage() {
   const [staffList, setStaffList]   = useState<Staff[]>([]);
   const [servicesList, setServicesList] = useState<Service[]>([]);
   const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
+  const [invoicesList, setInvoicesList] = useState<SalonInvoice[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
   const [sectionFilter, setSectionFilter] = useState(() => getActiveSection());
   const [showImport, setShowImport] = useState(false);
@@ -587,6 +603,7 @@ export default function StaffPage() {
       setStaffList(getStoredStaff());
       setServicesList(getStoredServices());
       setAppointmentsList(getStoredAppointments());
+      setInvoicesList(getSalonInvoices());
     };
     queueMicrotask(load);
     // See the services page: a tab left open all day must not keep rendering the
@@ -818,7 +835,7 @@ export default function StaffPage() {
       {/* Cards grid */}
       <div className="cards-grid-auto">
         {visibleStaff.map((s) => {
-          const stats = getStaffStats(s.id, appointmentsList);
+          const stats = getStaffStats(s, appointmentsList, servicesList, invoicesList);
           const role  = ROLE_COLORS[s.role] ?? { color: "#6b7280", bg: "#f9fafb" };
           return (
             <div

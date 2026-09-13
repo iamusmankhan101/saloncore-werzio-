@@ -101,6 +101,13 @@ export function staffRevenueFromAppointment(appt: Appointment, staffId: string, 
 }
 
 /**
+ * Dates wide enough to mean "all time" for the YYYY-MM-DD string comparisons
+ * revenueInPeriod does. Cheaper and clearer than a second code path.
+ */
+export const ALL_TIME_START = "0000-01-01";
+export const ALL_TIME_END = "9999-12-31";
+
+/**
  * Revenue a staff member generated within [start, end] inclusive.
  *
  * Two sources, because a salon's work reaches the books by two routes and only
