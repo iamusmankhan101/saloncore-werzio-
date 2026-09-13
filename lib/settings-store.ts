@@ -104,11 +104,15 @@ const defaults = {
     // Paid leave days a month for staff with no figure of their own. 0 keeps the
     // previous behaviour — nobody gains paid leave until the salon sets this.
     leavesPerMonth: 0,
-    // Weekly offs for the whole salon, as JS getDay() numbers (0 = Sunday). Two
-    // entries is the standard weekend, hence two offs a week; add or remove days
-    // to match how the salon actually closes. Individual staff can override on
-    // their own record.
-    weeklyOffDays: [0, 6],
+    // Weekly offs for the whole salon, as JS getDay() numbers (0 = Sunday). Empty
+    // by default: a salon trades through the weekend, so no day is assumed off
+    // until the salon says which. Individual staff can override on their record.
+    weeklyOffDays: [] as number[],
+    // Days a leave or an absence is charged double on — the weekend, where a
+    // missing stylist costs the most. Set peakDayMultiplier to 1 to switch the
+    // rule off without clearing the day list.
+    peakDays: [0, 6],
+    peakDayMultiplier: 2,
   },
   notifications: {
     apptReminder: true,

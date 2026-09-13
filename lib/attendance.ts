@@ -22,13 +22,26 @@ export interface AttendanceRecord {
 export const DEFAULT_STANDARD_HOURS = 8;
 
 /**
- * Weekly offs when the salon has not said otherwise: Saturday and Sunday, which
- * is the two-day weekend most salons run. Day numbers are JS `getDay()` — 0 is
- * Sunday through 6 is Saturday — so the list doubles as the count: two entries
- * means two offs a week. A salon that closes one day, or three, just stores a
- * list of that length.
+ * Weekly offs when the salon has not said otherwise: none.
+ *
+ * Deliberately empty. A salon's weekend is its busiest trading period, not its
+ * closing day, so defaulting to Saturday and Sunday — as an office would —
+ * quietly hands every stylist two days off a week they don't actually take. Day
+ * numbers are JS `getDay()`, 0 being Sunday; a salon that closes on Mondays
+ * stores [1].
  */
-export const DEFAULT_WEEKLY_OFF_DAYS = [0, 6];
+export const DEFAULT_WEEKLY_OFF_DAYS: number[] = [];
+
+/**
+ * Days a leave or absence is charged double for: the weekend, by default.
+ *
+ * A stylist off on a Saturday costs the salon far more than one off on a Tuesday,
+ * so those days are charged at DEFAULT_PEAK_DAY_MULTIPLIER — one weekend day off
+ * spends two days of the leave allowance, and one weekend day absent costs two
+ * days of pay credit. Both the days and the multiplier are configurable.
+ */
+export const DEFAULT_PEAK_DAYS = [0, 6];
+export const DEFAULT_PEAK_DAY_MULTIPLIER = 2;
 
 type StaffLike = {
   weeklyOffDays?: number[];
@@ -36,8 +49,39 @@ type StaffLike = {
   standardHoursPerDay?: number;
 } | null | undefined;
 
-function attendanceSettings(): { leavesPerMonth?: number; weeklyOffDays?: number[] } {
-  return (settingsStore.attendance as { leavesPerMonth?: number; weeklyOffDays?: number[] } | undefined) ?? {};
+interface AttendanceSettings {
+  leavesPerMonth?: number;
+  weeklyOffDays?: number[];
+  peakDays?: number[];
+  peakDayMultiplier?: number;
+}
+
+function attendanceSettings(): AttendanceSettings {
+  return (settingsStore.attendance as AttendanceSettings | undefined) ?? {};
+}
+
+/** Which weekdays are charged double, and by how much. */
+export function peakDayRule(): { days: number[]; multiplier: number } {
+  const settings = attendanceSettings();
+  const days = Array.isArray(settings.peakDays)
+    ? settings.peakDays.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)
+    : DEFAULT_PEAK_DAYS;
+  const raw = Number(settings.peakDayMultiplier);
+  // A multiplier below 1 would make a peak-day absence cheaper than an ordinary
+  // one, which inverts the whole point of the rule.
+  const multiplier = Number.isFinite(raw) && raw >= 1 ? raw : DEFAULT_PEAK_DAY_MULTIPLIER;
+  return { days, multiplier };
+}
+
+/**
+ * How many days one dated day counts for. 1 everywhere except the salon's peak
+ * days, where a leave or an absence is charged at the configured multiplier.
+ */
+export function dayWeightFor(date: string): number {
+  const parsed = new Date(date + "T12:00:00");
+  if (Number.isNaN(parsed.getTime())) return 1;
+  const { days, multiplier } = peakDayRule();
+  return days.includes(parsed.getDay()) ? multiplier : 1;
 }
 
 /**
@@ -165,6 +209,8 @@ export interface AttendanceSummary {
   leaveOverBy: number;
   /** Days explicitly marked as a weekly off. Excluded from markedDays. */
   weekOff: number;
+  /** Extra days the peak-day rule charged on top of the raw day counts. */
+  peakExtraDays: number;
   /** Weekly offs the roster says fall in this period, marked or not. */
   scheduledOffDays: number;
   markedDays: number;
@@ -272,7 +318,8 @@ export function getAttendanceSummary(
   const summary: AttendanceSummary = {
     present: 0, absent: 0, late: 0, halfDay: 0, leave: 0, paidLeave: 0,
     leaveAllowance: paidLeaveAllowance, leaveRemaining: paidLeaveAllowance, leaveOverBy: 0,
-    weekOff: 0, scheduledOffDays: staff === undefined ? 0 : countScheduledOffDays(staff, start, end),
+    weekOff: 0, peakExtraDays: 0,
+    scheduledOffDays: staff === undefined ? 0 : countScheduledOffDays(staff, start, end),
     markedDays: 0, creditFactor: 1,
     hoursWorked: 0, expectedHours: 0, daysWithTimes: 0, shortfallHours: 0,
   };
@@ -287,12 +334,19 @@ export function getAttendanceSummary(
       summary.weekOff++;
       continue;
     }
-    summary.markedDays++;
+    // A day off on a peak trading day is charged as several: it spends that many
+    // days of the leave allowance, and an absence on one costs that many days of
+    // pay credit. Weighting the denominator as well as the numerator is what
+    // makes it bite — one Saturday absence then hurts exactly as much as two
+    // ordinary ones, rather than just being one bad day among more days.
+    const weight = r.status === "leave" || r.status === "absent" ? dayWeightFor(r.date) : 1;
+    summary.markedDays += weight;
+    summary.peakExtraDays += weight - 1;
     if (r.status === "leave") {
       summary.leave++;
-      leaveSeen++;
+      leaveSeen += weight;
       const isPaid = leaveSeen <= paidLeaveAllowance;
-      if (isPaid) { summary.paidLeave++; credit += 1; }
+      if (isPaid) { summary.paidLeave++; credit += weight; }
       // unpaid leave contributes 0, same as CREDIT_WEIGHT.leave
     } else {
       if (r.status === "present") summary.present++;
@@ -316,8 +370,8 @@ export function getAttendanceSummary(
       }
     }
   }
-  summary.leaveRemaining = Math.max(0, paidLeaveAllowance - summary.leave);
-  summary.leaveOverBy = Math.max(0, summary.leave - paidLeaveAllowance);
+  summary.leaveRemaining = Math.max(0, paidLeaveAllowance - leaveSeen);
+  summary.leaveOverBy = Math.max(0, leaveSeen - paidLeaveAllowance);
   summary.creditFactor = summary.markedDays > 0 ? credit / summary.markedDays : 1;
   summary.hoursWorked = Math.round(summary.hoursWorked * 100) / 100;
   summary.shortfallHours = Math.max(0, Math.round((summary.expectedHours - summary.hoursWorked) * 100) / 100);

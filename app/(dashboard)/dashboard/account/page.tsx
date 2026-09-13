@@ -6,7 +6,7 @@ import { Banknote, Bot, Check, ChevronLeft, ChevronRight, Clock, Copy, ImageIcon
 import { useRouter } from "next/navigation";
 import { AuthUser, getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
-import { DEFAULT_WEEKLY_OFF_DAYS } from "@/lib/attendance";
+import { DEFAULT_WEEKLY_OFF_DAYS, DEFAULT_PEAK_DAYS, DEFAULT_PEAK_DAY_MULTIPLIER } from "@/lib/attendance";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import { getStoredStaff, getStoredClients, saveClients } from "@/lib/storage";
@@ -425,7 +425,16 @@ function BusinessHours() {
     const stored = (settingsStore.attendance as { weeklyOffDays?: number[] } | undefined)?.weeklyOffDays;
     return Array.isArray(stored) ? [...stored] : [...DEFAULT_WEEKLY_OFF_DAYS];
   });
+  const [peakDays, setPeakDays] = useState<number[]>(() => {
+    const stored = (settingsStore.attendance as { peakDays?: number[] } | undefined)?.peakDays;
+    return Array.isArray(stored) ? [...stored] : [...DEFAULT_PEAK_DAYS];
+  });
+  const [peakMultiplier, setPeakMultiplier] = useState(() =>
+    String((settingsStore.attendance as { peakDayMultiplier?: number } | undefined)?.peakDayMultiplier ?? DEFAULT_PEAK_DAY_MULTIPLIER));
   const [saved, setSaved] = useState(false);
+
+  const togglePeakDay = (day: number) =>
+    setPeakDays((current) => current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort());
 
   const toggleOffDay = (day: number) =>
     setOffDays((current) => current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort());
@@ -437,13 +446,19 @@ function BusinessHours() {
   function save() {
     hours.forEach((hour, index) => Object.assign(settingsStore.hours[index], hour));
     const parsed = Number(standardHours);
-    const attendance = settingsStore.attendance as { standardHoursPerDay: number; leavesPerMonth: number; weeklyOffDays: number[] };
+    const attendance = settingsStore.attendance as {
+      standardHoursPerDay: number; leavesPerMonth: number; weeklyOffDays: number[];
+      peakDays: number[]; peakDayMultiplier: number;
+    };
     attendance.standardHoursPerDay = Number.isFinite(parsed) && parsed > 0 ? parsed : 8;
     const leaves = Number(leavesPerMonth);
     attendance.leavesPerMonth = Number.isFinite(leaves) && leaves >= 0 ? Math.floor(leaves) : 0;
     // Stored sorted so the register and the settings screen list the same days
     // in the same order; an empty list is a valid "no weekly off" answer.
     attendance.weeklyOffDays = [...offDays].sort();
+    attendance.peakDays = [...peakDays].sort();
+    const multiplier = Number(peakMultiplier);
+    attendance.peakDayMultiplier = Number.isFinite(multiplier) && multiplier >= 1 ? multiplier : DEFAULT_PEAK_DAY_MULTIPLIER;
     saveSettings();
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2200);
@@ -524,6 +539,40 @@ function BusinessHours() {
         <div style={{ fontSize: 11.5, color: "#9999b0", marginTop: 8, lineHeight: 1.6 }}>
           The default for staff with no figure of their own. Leave days within the allowance are paid in full;
           anything beyond it is unpaid. Set it per person on the Attendance register or their Staff record.
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16, padding: "16px 18px", background: "#fafafd", border: "1px solid #eeeeF6", borderRadius: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#242438", marginBottom: 6 }}>Busy Days Count Double</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {WEEKDAY_NAMES.map((name, day) => {
+            const on = peakDays.includes(day);
+            return (
+              <button key={name} type="button" onClick={() => togglePeakDay(day)}
+                style={{ padding: "7px 13px", borderRadius: 9, fontSize: 12, fontWeight: 750, cursor: "pointer",
+                  border: `1.5px solid ${on ? "#d97706" : "#e8e8f0"}`, background: on ? "#fffbeb" : "#fff",
+                  color: on ? "#d97706" : "#9999b0", transition: "all 0.12s" }}>
+                {name}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+          <span style={{ fontSize: 12, color: "#9999b0" }}>A day off on these counts as</span>
+          <input
+            type="number" min="1" max="7" step="0.5"
+            style={{ ...inputStyle, width: 90 }}
+            value={peakMultiplier}
+            onChange={(event) => setPeakMultiplier(event.target.value)}
+          />
+          <span style={{ fontSize: 12, color: "#9999b0" }}>days</span>
+        </div>
+        <div style={{ fontSize: 11.5, color: "#9999b0", marginTop: 8, lineHeight: 1.6 }}>
+          {peakDays.length === 0 || Number(peakMultiplier) <= 1
+            ? "Off — every day off is charged as one day."
+            : `A leave on ${peakDays.map((d) => WEEKDAY_NAMES[d]).join(" or ")} spends ${peakMultiplier} days of the allowance, and an absence on one costs ${peakMultiplier} days of pay credit.`}
+          {" "}The salon is busiest on these days, so a stylist missing one costs more than a quiet weekday.
+          Set the multiplier to 1 to switch the rule off.
         </div>
       </div>
       {saved && <div style={{ marginTop: 16 }}><SavedBanner /></div>}

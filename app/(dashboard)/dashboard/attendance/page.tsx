@@ -6,7 +6,7 @@ import type { Staff } from "@/lib/types";
 import { getActiveSection, inSection } from "@/lib/sections";
 import {
   getAttendance, setAttendanceStatus, setAttendanceTimes, getAttendanceSummary,
-  hoursWorked, nowTimeString, standardHoursFor, isWeeklyOff, leaveAllowanceFor, weeklyOffDaysFor,
+  hoursWorked, nowTimeString, standardHoursFor, isWeeklyOff, leaveAllowanceFor, dayWeightFor,
   type AttendanceRecord, type AttendanceStatus,
 } from "@/lib/attendance";
 import { getStoredStaff as readStaff, saveStaff } from "@/lib/storage";
@@ -127,6 +127,8 @@ export default function AttendancePage() {
   }, [records, selectedDate]);
 
   const isToday = selectedDate === todayStr();
+  // Busy-day rule: what a leave or absence on this date is charged as.
+  const dayWeight = useMemo(() => dayWeightFor(selectedDate), [selectedDate]);
 
   const month = useMemo(() => monthRange(selectedDate), [selectedDate]);
   const monthlySummaries = useMemo(
@@ -195,6 +197,9 @@ export default function AttendancePage() {
                       {s.role.replace(/-/g, " ")}
                       {isWeeklyOff(s, selectedDate) && (
                         <span style={{ textTransform: "none", color: STATUS_META["week-off"].color, fontWeight: 700 }}> · rostered off</span>
+                      )}
+                      {dayWeight > 1 && (
+                        <span style={{ textTransform: "none", color: "#d97706", fontWeight: 700 }}> · leave/absence counts {dayWeight}×</span>
                       )}
                     </div>
                   </div>
@@ -361,7 +366,9 @@ export default function AttendancePage() {
             unpaid. <strong style={{ color: "#8e89a3" }}>Week Off</strong> counts the rostered days off marked so far
             against how many the roster puts in {month.label} — the default weekend is two a week, and the days can be
             changed for the salon in Settings or for one person on their Staff record. Rostered days off are not
-            absences and don&rsquo;t affect pay credit.
+            absences and don&rsquo;t affect pay credit. A leave or absence on one of the salon&rsquo;s busy days counts
+            as more than one day — the weekend at 2× by default, set in Settings → Business Hours — so those days
+            spend the allowance faster and cost more pay credit.
           </div>
         </div>
       )}
