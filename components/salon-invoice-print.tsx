@@ -46,15 +46,18 @@ const PRINT_STYLES = `
 `;
 
 /**
- * The page box for a roll print is the printer's *printable* window, not the
- * 80mm of paper. Handing the driver an 80mm page made it shrink-to-fit the page
- * down onto the ~72mm the head can actually reach (72/80 = 0.9, which is the
- * scale the printed receipt came out at) and then align the scaled block inside
- * that window rather than on the paper — so the two 4mm gutters printed as 3.6mm
- * of unequal margin. At 72mm the mapping is 1:1 and the gutters below are the
- * only margin there is, which is what keeps the block centred on the roll.
+ * The page box for a roll print, in mm — the printer's *printable* window, not
+ * the 80mm of paper. Handing the driver the full 80mm made it shrink-to-fit the
+ * page down onto what the head can actually reach and then align the scaled
+ * block inside that window rather than on the paper, so two equal gutters
+ * printed as unequal margin. Sized to the window instead, the mapping is 1:1 and
+ * the gutters below are the only margin there is, which is what keeps the block
+ * centred on the roll.
+ *
+ * Raising this past the head's real reach brings the shrink-to-fit back, so it
+ * is the one number to drop again if the print ever looks scaled or off-centre.
  */
-const RECEIPT_WIDTH_MM = 72;
+const RECEIPT_WIDTH_MM = 76;
 /** Left/right margin inside the page box. Equal by construction — see above. */
 const RECEIPT_GUTTER_MM = 3;
 
