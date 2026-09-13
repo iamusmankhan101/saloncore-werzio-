@@ -54,10 +54,12 @@ const PRINT_STYLES = `
  * the gutters below are the only margin there is, which is what keeps the block
  * centred on the roll.
  *
- * Raising this past the head's real reach brings the shrink-to-fit back, so it
- * is the one number to drop again if the print ever looks scaled or off-centre.
+ * Raising this past the head's real reach brings the shrink-to-fit back: 76mm
+ * was tried on the Speed-X and printed off-centre again, which puts the real
+ * window at the 72mm an 80mm roll is normally specified for. Don't raise it
+ * without a test print to compare.
  */
-const RECEIPT_WIDTH_MM = 76;
+const RECEIPT_WIDTH_MM = 72;
 /** Left/right margin inside the page box. Equal by construction — see above. */
 const RECEIPT_GUTTER_MM = 3;
 
