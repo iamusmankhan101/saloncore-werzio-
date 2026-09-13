@@ -2,7 +2,7 @@ import { locationUserKey } from "./locations";
 import { persistEntity } from "./turso-sync";
 import { settingsStore } from "./settings-store";
 
-export type AttendanceStatus = "present" | "absent" | "late" | "half-day" | "leave";
+export type AttendanceStatus = "present" | "absent" | "late" | "half-day" | "leave" | "week-off";
 
 export interface AttendanceRecord {
   id: string;
@@ -20,6 +20,75 @@ export interface AttendanceRecord {
 
 /** Hours in a full working day when neither the staff member nor the salon overrides it. */
 export const DEFAULT_STANDARD_HOURS = 8;
+
+/**
+ * Weekly offs when the salon has not said otherwise: Saturday and Sunday, which
+ * is the two-day weekend most salons run. Day numbers are JS `getDay()` — 0 is
+ * Sunday through 6 is Saturday — so the list doubles as the count: two entries
+ * means two offs a week. A salon that closes one day, or three, just stores a
+ * list of that length.
+ */
+export const DEFAULT_WEEKLY_OFF_DAYS = [0, 6];
+
+type StaffLike = {
+  weeklyOffDays?: number[];
+  paidLeavesPerMonth?: number;
+  standardHoursPerDay?: number;
+} | null | undefined;
+
+function attendanceSettings(): { leavesPerMonth?: number; weeklyOffDays?: number[] } {
+  return (settingsStore.attendance as { leavesPerMonth?: number; weeklyOffDays?: number[] } | undefined) ?? {};
+}
+
+/**
+ * Which weekdays this person is off: their own override if set, else the salon's,
+ * else the default weekend.
+ *
+ * An explicitly empty list means "no weekly off" and is honoured — someone who
+ * works every day is a real arrangement, and falling through to the salon default
+ * would quietly give them days off they don't take.
+ */
+export function weeklyOffDaysFor(staff?: StaffLike): number[] {
+  const own = staff?.weeklyOffDays;
+  if (Array.isArray(own)) return own.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  const salon = attendanceSettings().weeklyOffDays;
+  if (Array.isArray(salon)) return salon.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  return DEFAULT_WEEKLY_OFF_DAYS;
+}
+
+/** Whether YYYY-MM-DD falls on one of this person's weekly offs. */
+export function isWeeklyOff(staff: StaffLike, date: string): boolean {
+  const parsed = new Date(date + "T12:00:00");
+  if (Number.isNaN(parsed.getTime())) return false;
+  return weeklyOffDaysFor(staff).includes(parsed.getDay());
+}
+
+/**
+ * Paid leave days allowed per month: the person's own figure if set, else the
+ * salon-wide default from Settings, else none. 0 is a real answer (no paid
+ * leave), so only an absent value falls through.
+ */
+export function leaveAllowanceFor(staff?: StaffLike): number {
+  const own = Number(staff?.paidLeavesPerMonth);
+  if (Number.isFinite(own) && own >= 0 && staff?.paidLeavesPerMonth != null) return own;
+  const salon = Number(attendanceSettings().leavesPerMonth);
+  if (Number.isFinite(salon) && salon >= 0) return salon;
+  return 0;
+}
+
+/** Scheduled weekly offs between two YYYY-MM-DD dates, inclusive. */
+export function countScheduledOffDays(staff: StaffLike, start: string, end: string): number {
+  const offDays = weeklyOffDaysFor(staff);
+  if (offDays.length === 0) return 0;
+  const from = new Date(start + "T12:00:00");
+  const to = new Date(end + "T12:00:00");
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) return 0;
+  let count = 0;
+  for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+    if (offDays.includes(d.getDay())) count++;
+  }
+  return count;
+}
 
 function minutesFromTime(value: string): number | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
@@ -75,6 +144,9 @@ const CREDIT_WEIGHT: Record<AttendanceStatus, number> = {
   "half-day": 0.5,
   absent: 0,
   leave: 0,
+  // Never actually read: a scheduled off is not a working day, so it is left out
+  // of both the credit and the day count rather than weighted (see the summary).
+  "week-off": 0,
 };
 
 export interface AttendanceSummary {
@@ -85,6 +157,16 @@ export interface AttendanceSummary {
   leave: number;
   /** Of the `leave` count above, how many fell within the paid allowance. */
   paidLeave: number;
+  /** The allowance those paid leaves were measured against, for display. */
+  leaveAllowance: number;
+  /** Allowance left, floored at 0. */
+  leaveRemaining: number;
+  /** Leave days taken beyond the allowance — the unpaid ones. */
+  leaveOverBy: number;
+  /** Days explicitly marked as a weekly off. Excluded from markedDays. */
+  weekOff: number;
+  /** Weekly offs the roster says fall in this period, marked or not. */
+  scheduledOffDays: number;
   markedDays: number;
   /** Weighted credit ÷ marked days — 1 when nothing is marked (safe default: full pay). */
   creditFactor: number;
@@ -173,6 +255,9 @@ export function deleteAttendanceRecord(id: string): void {
  *   consistent with how the rest of this feature treats "the period being
  *   evaluated" as the unit, not a strict calendar month). Leaves beyond the
  *   allowance stay unpaid. Defaults to 0 (no paid leave).
+ * @param staff The staff member, used only to work out how many weekly offs the
+ *   roster puts in this period. Omit it and scheduledOffDays reports 0 — every
+ *   other number is unaffected.
  */
 export function getAttendanceSummary(
   staffId: string,
@@ -181,16 +266,27 @@ export function getAttendanceSummary(
   records?: AttendanceRecord[],
   paidLeaveAllowance = 0,
   standardHours = DEFAULT_STANDARD_HOURS,
+  staff?: StaffLike,
 ): AttendanceSummary {
   const inRange = (records ?? getAttendance()).filter((r) => r.staffId === staffId && r.date >= start && r.date <= end);
   const summary: AttendanceSummary = {
-    present: 0, absent: 0, late: 0, halfDay: 0, leave: 0, paidLeave: 0, markedDays: 0, creditFactor: 1,
+    present: 0, absent: 0, late: 0, halfDay: 0, leave: 0, paidLeave: 0,
+    leaveAllowance: paidLeaveAllowance, leaveRemaining: paidLeaveAllowance, leaveOverBy: 0,
+    weekOff: 0, scheduledOffDays: staff === undefined ? 0 : countScheduledOffDays(staff, start, end),
+    markedDays: 0, creditFactor: 1,
     hoursWorked: 0, expectedHours: 0, daysWithTimes: 0, shortfallHours: 0,
   };
   const perDay = standardHours > 0 ? standardHours : DEFAULT_STANDARD_HOURS;
   let credit = 0;
   let leaveSeen = 0;
   for (const r of inRange) {
+    // A scheduled off is not a working day: counting it would either dilute the
+    // pay-credit percentage (as a free full day) or drag it down (as an unworked
+    // one). Neither is true of a day nobody was rostered to work.
+    if (r.status === "week-off") {
+      summary.weekOff++;
+      continue;
+    }
     summary.markedDays++;
     if (r.status === "leave") {
       summary.leave++;
@@ -220,6 +316,8 @@ export function getAttendanceSummary(
       }
     }
   }
+  summary.leaveRemaining = Math.max(0, paidLeaveAllowance - summary.leave);
+  summary.leaveOverBy = Math.max(0, summary.leave - paidLeaveAllowance);
   summary.creditFactor = summary.markedDays > 0 ? credit / summary.markedDays : 1;
   summary.hoursWorked = Math.round(summary.hoursWorked * 100) / 100;
   summary.shortfallHours = Math.max(0, Math.round((summary.expectedHours - summary.hoursWorked) * 100) / 100);

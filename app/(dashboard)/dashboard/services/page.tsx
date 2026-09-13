@@ -327,7 +327,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, invento
     priceRangeMax:    serviceToEdit?.priceRangeMax ? String(serviceToEdit.priceRangeMax) : "",
     assignedStaffIds: serviceToEdit?.assignedStaffIds ?? [] as string[],
     multiStylist:     serviceToEdit?.multiStylist ?? false,
-    inventoryUsage:   serviceToEdit?.inventoryUsage ?? [] as { itemId: string; qty: number }[],
+    inventoryUsage:   serviceToEdit?.inventoryUsage ?? [] as string[],
   });
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
   const [done, setDone] = useState(false);
@@ -335,7 +335,6 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, invento
   const [customPrice, setCustomPrice] = useState("");
   const [customDuration, setCustomDuration] = useState("");
   const [usageItemId, setUsageItemId] = useState("");
-  const [usageQty, setUsageQty] = useState("");
 
   const price = Number(form.price) || 0;
   const rangeMin = Number(form.priceRangeMin) || 0;
@@ -401,18 +400,13 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, invento
   };
 
   const addUsage = () => {
-    const qty = Number(usageQty);
-    if (!usageItemId || !Number.isFinite(qty) || qty <= 0) return;
-    // Re-picking an item replaces its quantity rather than listing it twice —
-    // two rows for one product would double what checkout takes off stock.
-    const rest = form.inventoryUsage.filter((u) => u.itemId !== usageItemId);
-    set("inventoryUsage", [...rest, { itemId: usageItemId, qty }]);
+    if (!usageItemId || form.inventoryUsage.includes(usageItemId)) return;
+    set("inventoryUsage", [...form.inventoryUsage, usageItemId]);
     setUsageItemId("");
-    setUsageQty("");
   };
 
   const removeUsage = (itemId: string) =>
-    set("inventoryUsage", form.inventoryUsage.filter((u) => u.itemId !== itemId));
+    set("inventoryUsage", form.inventoryUsage.filter((id) => id !== itemId));
 
   const toggleStaff = (id: string) => {
     const cur = [...form.assignedStaffIds];
@@ -609,20 +603,19 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, invento
           {!form.isPackage && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Products Used <span style={{ textTransform: "none", fontWeight: 500, color: "#c0c0d0" }}>(optional — stock consumed each time this service is done)</span>
+                Products Used <span style={{ textTransform: "none", fontWeight: 500, color: "#c0c0d0" }}>(optional — counted each time this service is done)</span>
               </label>
               {form.inventoryUsage.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {form.inventoryUsage.map((usage) => {
-                    const item = inventoryList.find((i) => i.id === usage.itemId);
+                  {form.inventoryUsage.map((itemId) => {
+                    const item = inventoryList.find((i) => i.id === itemId);
                     return (
-                      <div key={usage.itemId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 6, background: "#F5F3FF" }}>
+                      <div key={itemId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 6, background: "#F5F3FF" }}>
                         <Boxes size={13} color="#7C3AED" style={{ flexShrink: 0 }} />
                         <span style={{ fontSize: 13, fontWeight: 500, color: "#1a1a2e", flex: 1 }}>
                           {item ? `${item.brand ? item.brand + " " : ""}${item.name}` : "Deleted product"}
                         </span>
-                        <span style={{ fontSize: 11, color: "#9898b0" }}>{usage.qty} {item?.unit ?? ""}</span>
-                        <button type="button" onClick={() => removeUsage(usage.itemId)} aria-label={`Remove ${item?.name ?? "product"}`}
+                        <button type="button" onClick={() => removeUsage(itemId)} aria-label={`Remove ${item?.name ?? "product"}`}
                           style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 2 }}>
                           <X size={13} color="#7C3AED" />
                         </button>
@@ -633,17 +626,16 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, invento
               )}
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <select value={usageItemId} onChange={(e) => setUsageItemId(e.target.value)}
-                  style={{ flex: "2 1 140px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+                  style={{ flex: "3 1 180px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none", background: "#fff" }}>
                   <option value="">Choose a product…</option>
-                  {inventoryList.map((item) => (
-                    <option key={item.id} value={item.id}>{item.brand ? `${item.brand} ` : ""}{item.name}</option>
-                  ))}
+                  {inventoryList
+                    .filter((item) => !form.inventoryUsage.includes(item.id))
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>{item.brand ? `${item.brand} ` : ""}{item.name}</option>
+                    ))}
                 </select>
-                <input type="number" value={usageQty} onChange={(e) => setUsageQty(e.target.value)}
-                  placeholder={usageItemId ? `Qty (${inventoryList.find((i) => i.id === usageItemId)?.unit ?? "units"})` : "Qty"}
-                  style={{ flex: "1 1 80px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
-                <button type="button" onClick={addUsage} disabled={!usageItemId || !(Number(usageQty) > 0)}
-                  style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 8, border: "none", background: usageItemId && Number(usageQty) > 0 ? "#7C3AED" : "#e8e8f0", color: usageItemId && Number(usageQty) > 0 ? "#fff" : "#b0b0c8", fontSize: 12, fontWeight: 700, cursor: usageItemId && Number(usageQty) > 0 ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 4 }}>
+                <button type="button" onClick={addUsage} disabled={!usageItemId}
+                  style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 8, border: "none", background: usageItemId ? "#7C3AED" : "#e8e8f0", color: usageItemId ? "#fff" : "#b0b0c8", fontSize: 12, fontWeight: 700, cursor: usageItemId ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 4 }}>
                   <Plus size={13} /> Add
                 </button>
               </div>

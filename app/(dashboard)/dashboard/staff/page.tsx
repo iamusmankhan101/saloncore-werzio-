@@ -178,8 +178,11 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
       payType: form.payType as StaffPayType,
       commissionRate: (form.payType === "commission" || form.payType === "both") && form.commissionRate ? Number(form.commissionRate) : undefined,
       baseSalary: (form.payType === "salary" || form.payType === "both") && form.baseSalary ? Number(form.baseSalary) : undefined,
-      paidLeavesPerMonth: (form.payType === "salary" || form.payType === "both") && form.paidLeavesPerMonth ? Number(form.paidLeavesPerMonth) : undefined,
+      paidLeavesPerMonth: form.paidLeavesPerMonth !== "" && Number(form.paidLeavesPerMonth) >= 0 ? Number(form.paidLeavesPerMonth) : undefined,
       standardHoursPerDay: Number(form.standardHoursPerDay) > 0 ? Number(form.standardHoursPerDay) : undefined,
+      // Set on the Staff record's own page; preserved here so editing from the
+      // list doesn't silently put the person back on the salon-wide roster.
+      weeklyOffDays: staff?.weeklyOffDays,
     };
 
     onSave(savedStaff, selectedServiceIds);
@@ -276,14 +279,15 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
                 <input type="number" min="0" value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value)} placeholder="e.g. 30000"
                   style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Paid Leaves / Month</label>
-                <input type="number" min="0" value={form.paidLeavesPerMonth} onChange={(e) => set("paidLeavesPerMonth", e.target.value)} placeholder="e.g. 2"
-                  style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
-                <div style={{ fontSize: 11, color: "#b0b0c8" }}>Leave days marked in Attendance, up to this many per pay period, are paid in full. Further leaves reduce salary. Leave blank for no paid leave.</div>
-              </div>
             </>
           )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Paid Leaves / Month</label>
+            <input type="number" min="0" value={form.paidLeavesPerMonth} onChange={(e) => set("paidLeavesPerMonth", e.target.value)} placeholder="e.g. 2"
+              style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+            <div style={{ fontSize: 11, color: "#b0b0c8" }}>Leave days marked in Attendance, up to this many per pay period, are paid in full; further leaves reduce salary. Leave blank to use the salon default from Settings → Business Hours.</div>
+          </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Standard Hours / Day</label>

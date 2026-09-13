@@ -22,7 +22,6 @@ import {
   ADVANCE_NON_REFUNDABLE_NOTE,
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
-import { consumptionForSale } from "@/lib/inventory-usage";
 import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, fillTemplate } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
@@ -456,19 +455,15 @@ export default function POSPage() {
         saveAppointments(updatedAppointments);
       }
 
-      // Stock leaves on two routes: sold over the counter, and used up performing
-      // the services on the ticket (lib/inventory-usage.ts). Both are applied in
-      // one pass — a product that is retailed *and* consumed by a service on the
-      // same sale has to lose both amounts, which two sequential saves off the
-      // same `inventory` snapshot would not do.
+      // Only retail lines move stock. Back-bar products are tracked by how often
+      // a service reaches for them (lib/inventory-usage.ts), not by quantity —
+      // one bottle covers an unpredictable number of clients — so there is no
+      // amount to take off here. Stock for those is corrected by counting.
       const soldProducts = cart.filter(e => e.type === "product");
-      const consumed = consumptionForSale(cartLineItems, services);
-      if (soldProducts.length > 0 || consumed.size > 0) {
+      if (soldProducts.length > 0) {
         const updated = inventory.map(item => {
           const sold = soldProducts.find(e => e.itemId === item.id);
-          const used = consumed.get(item.id) ?? 0;
-          const out = (sold?.qty ?? 0) + used;
-          return out > 0 ? { ...item, currentStock: Math.max(0, item.currentStock - out) } : item;
+          return sold ? { ...item, currentStock: Math.max(0, item.currentStock - sold.qty) } : item;
         });
         setInventory(updated);
         saveInventory(updated);

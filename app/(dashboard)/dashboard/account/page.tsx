@@ -6,6 +6,7 @@ import { Banknote, Bot, Check, ChevronLeft, ChevronRight, Clock, Copy, ImageIcon
 import { useRouter } from "next/navigation";
 import { AuthUser, getCurrentUser, signOut, updateCurrentPassword, updateCurrentUser } from "@/lib/auth";
 import { saveSettings, settingsStore } from "@/lib/settings-store";
+import { DEFAULT_WEEKLY_OFF_DAYS } from "@/lib/attendance";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import { getStoredStaff, getStoredClients, saveClients } from "@/lib/storage";
@@ -399,6 +400,7 @@ function SalonProfile() {
           </select>
         </Field>
       </div>
+
       {saved && <div style={{ marginTop: 16 }}><SavedBanner /></div>}
       {saveFailed && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "#fef2f2", borderRadius: 10, fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 16 }}>
@@ -410,11 +412,23 @@ function SalonProfile() {
   );
 }
 
+/** Index is JS getDay(): 0 is Sunday. */
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 function BusinessHours() {
   const [hours, setHours] = useState<BusinessHour[]>(() => (settingsStore.hours as BusinessHour[]).map((hour) => ({ ...hour })));
   const [standardHours, setStandardHours] = useState(() =>
     String((settingsStore.attendance as { standardHoursPerDay?: number } | undefined)?.standardHoursPerDay ?? 8));
+  const [leavesPerMonth, setLeavesPerMonth] = useState(() =>
+    String((settingsStore.attendance as { leavesPerMonth?: number } | undefined)?.leavesPerMonth ?? 0));
+  const [offDays, setOffDays] = useState<number[]>(() => {
+    const stored = (settingsStore.attendance as { weeklyOffDays?: number[] } | undefined)?.weeklyOffDays;
+    return Array.isArray(stored) ? [...stored] : [...DEFAULT_WEEKLY_OFF_DAYS];
+  });
   const [saved, setSaved] = useState(false);
+
+  const toggleOffDay = (day: number) =>
+    setOffDays((current) => current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort());
 
   function updateHour(index: number, patch: Partial<BusinessHour>) {
     setHours((current) => current.map((hour, i) => (i === index ? { ...hour, ...patch } : hour)));
@@ -423,8 +437,13 @@ function BusinessHours() {
   function save() {
     hours.forEach((hour, index) => Object.assign(settingsStore.hours[index], hour));
     const parsed = Number(standardHours);
-    (settingsStore.attendance as { standardHoursPerDay: number }).standardHoursPerDay =
-      Number.isFinite(parsed) && parsed > 0 ? parsed : 8;
+    const attendance = settingsStore.attendance as { standardHoursPerDay: number; leavesPerMonth: number; weeklyOffDays: number[] };
+    attendance.standardHoursPerDay = Number.isFinite(parsed) && parsed > 0 ? parsed : 8;
+    const leaves = Number(leavesPerMonth);
+    attendance.leavesPerMonth = Number.isFinite(leaves) && leaves >= 0 ? Math.floor(leaves) : 0;
+    // Stored sorted so the register and the settings screen list the same days
+    // in the same order; an empty list is a valid "no weekly off" answer.
+    attendance.weeklyOffDays = [...offDays].sort();
     saveSettings();
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2200);
@@ -465,6 +484,46 @@ function BusinessHours() {
           What clocked check-in/check-out times on the Attendance register are measured against, and what
           counts as one full day when a salary is pro-rated in Payouts. Individual staff can override this
           on their own Staff record.
+        </div>
+      </div>
+      <div style={{ marginTop: 16, padding: "16px 18px", background: "#fafafd", border: "1px solid #eeeeF6", borderRadius: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#242438", marginBottom: 6 }}>Weekly Offs</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {WEEKDAY_NAMES.map((name, day) => {
+            const on = offDays.includes(day);
+            return (
+              <button key={name} type="button" onClick={() => toggleOffDay(day)}
+                style={{ padding: "7px 13px", borderRadius: 9, fontSize: 12, fontWeight: 750, cursor: "pointer",
+                  border: `1.5px solid ${on ? "#7C3AED" : "#e8e8f0"}`, background: on ? "#F5F3FF" : "#fff",
+                  color: on ? "#7C3AED" : "#9999b0", transition: "all 0.12s" }}>
+                {name}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 11.5, color: "#9999b0", marginTop: 8, lineHeight: 1.6 }}>
+          {offDays.length === 0
+            ? "No weekly off — staff are treated as working every day."
+            : `${offDays.length} off day${offDays.length === 1 ? "" : "s"} a week (${offDays.map((d) => WEEKDAY_NAMES[d]).join(", ")}).`}
+          {" "}Rostered off days show as Week Off on the register, don&rsquo;t count as absences, and are left out of
+          the pay-credit calculation. Individual staff can override this on their own Staff record.
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16, padding: "16px 18px", background: "#fafafd", border: "1px solid #eeeeF6", borderRadius: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#242438", marginBottom: 6 }}>Paid Leaves Allowed</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <input
+            type="number" min="0" step="1"
+            style={{ ...inputStyle, width: 110 }}
+            value={leavesPerMonth}
+            onChange={(event) => setLeavesPerMonth(event.target.value)}
+          />
+          <span style={{ fontSize: 12, color: "#9999b0" }}>leave days per month</span>
+        </div>
+        <div style={{ fontSize: 11.5, color: "#9999b0", marginTop: 8, lineHeight: 1.6 }}>
+          The default for staff with no figure of their own. Leave days within the allowance are paid in full;
+          anything beyond it is unpaid. Set it per person on the Attendance register or their Staff record.
         </div>
       </div>
       {saved && <div style={{ marginTop: 16 }}><SavedBanner /></div>}

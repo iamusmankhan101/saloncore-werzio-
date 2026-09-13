@@ -6,9 +6,10 @@ import type { Staff } from "@/lib/types";
 import { getActiveSection, inSection } from "@/lib/sections";
 import {
   getAttendance, setAttendanceStatus, setAttendanceTimes, getAttendanceSummary,
-  hoursWorked, nowTimeString, standardHoursFor,
+  hoursWorked, nowTimeString, standardHoursFor, isWeeklyOff, leaveAllowanceFor, weeklyOffDaysFor,
   type AttendanceRecord, type AttendanceStatus,
 } from "@/lib/attendance";
+import { getStoredStaff as readStaff, saveStaff } from "@/lib/storage";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
 import { ClipboardCheck, ChevronLeft, ChevronRight, CheckCheck, LogIn, LogOut, Clock } from "lucide-react";
@@ -19,8 +20,11 @@ const STATUS_META: Record<AttendanceStatus, { label: string; color: string; bg: 
   "half-day": { label: "Half-day", color: "#0284c7", bg: "#e0f2fe" },
   absent:     { label: "Absent",   color: "#dc2626", bg: "#fef2f2" },
   leave:      { label: "Leave",    color: "#7C3AED", bg: "#F5F3FF" },
+  "week-off": { label: "Week Off", color: "#6b6b8a", bg: "#f4f4f9" },
 };
-const STATUS_ORDER: AttendanceStatus[] = ["present", "late", "half-day", "absent", "leave"];
+const STATUS_ORDER: AttendanceStatus[] = ["present", "late", "half-day", "absent", "leave", "week-off"];
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function todayStr(): string { return new Date().toLocaleDateString("en-CA"); }
 
@@ -76,9 +80,25 @@ export default function AttendancePage() {
     refresh();
   }
 
+  // Rostered-off staff are marked off rather than present: "everyone in today"
+  // should never quietly put a person on the register for a day they don't work.
   function markAllPresent() {
-    staffList.forEach((s) => setAttendanceStatus(s.id, selectedDate, "present"));
+    staffList.forEach((s) =>
+      setAttendanceStatus(s.id, selectedDate, isWeeklyOff(s, selectedDate) ? "week-off" : "present"));
     refresh();
+  }
+
+  /**
+   * Leave allowance is stored on the staff record, so it is edited against the
+   * full list rather than the section-filtered one this page renders.
+   */
+  function setLeaveAllowance(staffId: string, value: string) {
+    const trimmed = value.trim();
+    const parsed = Number(trimmed);
+    const next = trimmed === "" || !Number.isFinite(parsed) || parsed < 0 ? undefined : Math.floor(parsed);
+    const all = readStaff();
+    saveStaff(all.map((st) => (st.id === staffId ? { ...st, paidLeavesPerMonth: next } : st)));
+    setStaffList((current) => current.map((st) => (st.id === staffId ? { ...st, paidLeavesPerMonth: next } : st)));
   }
 
   function setTime(staffId: string, field: "checkIn" | "checkOut", value: string) {
@@ -112,7 +132,7 @@ export default function AttendancePage() {
   const monthlySummaries = useMemo(
     () => staffList.map((s) => ({
       staff: s,
-      summary: getAttendanceSummary(s.id, month.start, month.end, records, s.paidLeavesPerMonth ?? 0, standardHoursFor(s)),
+      summary: getAttendanceSummary(s.id, month.start, month.end, records, leaveAllowanceFor(s), standardHoursFor(s), s),
       standardHours: standardHoursFor(s),
     })),
     [staffList, month, records],
@@ -171,7 +191,12 @@ export default function AttendancePage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
-                    <div style={{ fontSize: 11, color: "#9898b0", textTransform: "capitalize" }}>{s.role.replace(/-/g, " ")}</div>
+                    <div style={{ fontSize: 11, color: "#9898b0", textTransform: "capitalize" }}>
+                      {s.role.replace(/-/g, " ")}
+                      {isWeeklyOff(s, selectedDate) && (
+                        <span style={{ textTransform: "none", color: STATUS_META["week-off"].color, fontWeight: 700 }}> · rostered off</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -266,13 +291,13 @@ export default function AttendancePage() {
         <div style={{ marginTop: 8 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: "#1a1a2e", marginBottom: 12 }}>{month.label} Summary</div>
           <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebf0", overflow: "hidden", overflowX: "auto" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1.6fr repeat(5, 0.7fr) 0.8fr 1.1fr 0.9fr", padding: "10px 20px", background: "#faf9fd", borderBottom: "1px solid #f0f0f5", minWidth: 780 }}>
-              {["STAFF", "PRESENT", "LATE", "HALF-DAY", "ABSENT", "LEAVE", "MARKED", "HOURS", "PAY CREDIT"].map((h) => (
+            <div style={{ display: "grid", gridTemplateColumns: "1.6fr repeat(5, 0.62fr) 0.7fr 1.05fr 0.8fr 1.05fr", padding: "10px 20px", background: "#faf9fd", borderBottom: "1px solid #f0f0f5", minWidth: 900 }}>
+              {["STAFF", "PRESENT", "LATE", "HALF-DAY", "ABSENT", "LEAVE", "WEEK OFF", "MARKED", "HOURS", "PAY CREDIT", "LEAVES ALLOWED"].map((h) => (
                 <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#8e89a3", letterSpacing: "0.06em" }}>{h}</div>
               ))}
             </div>
             {monthlySummaries.map(({ staff, summary, standardHours }) => (
-              <div key={staff.id} style={{ display: "grid", gridTemplateColumns: "1.6fr repeat(5, 0.7fr) 0.8fr 1.1fr 0.9fr", padding: "12px 20px", borderBottom: "1px solid #f8f8fc", alignItems: "center", minWidth: 780 }}>
+              <div key={staff.id} style={{ display: "grid", gridTemplateColumns: "1.6fr repeat(5, 0.62fr) 0.7fr 1.05fr 0.8fr 1.05fr", padding: "12px 20px", borderBottom: "1px solid #f8f8fc", alignItems: "center", minWidth: 900 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>
                   {staff.name}
                   <span style={{ fontSize: 10, color: "#b0b0c8", fontWeight: 600, marginLeft: 6 }}>{fmtHours(standardHours)}/day</span>
@@ -281,7 +306,16 @@ export default function AttendancePage() {
                 <div style={{ fontSize: 12, color: STATUS_META.late.color, fontWeight: 700 }}>{summary.late}</div>
                 <div style={{ fontSize: 12, color: STATUS_META["half-day"].color, fontWeight: 700 }}>{summary.halfDay}</div>
                 <div style={{ fontSize: 12, color: STATUS_META.absent.color, fontWeight: 700 }}>{summary.absent}</div>
-                <div style={{ fontSize: 12, color: STATUS_META.leave.color, fontWeight: 700 }}>{summary.leave}</div>
+                <div style={{ fontSize: 12, color: STATUS_META.leave.color, fontWeight: 700 }}>
+                  {summary.leave}
+                  {summary.leaveOverBy > 0 && (
+                    <div style={{ fontSize: 10, color: "#dc2626", fontWeight: 700 }}>{summary.leaveOverBy} unpaid</div>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 700 }}>
+                  {summary.weekOff}
+                  <div style={{ fontSize: 10, color: "#b0b0c8", fontWeight: 600 }}>of {summary.scheduledOffDays}</div>
+                </div>
                 <div style={{ fontSize: 12, color: "#6b6b8a" }}>{summary.markedDays}</div>
                 <div style={{ fontSize: 12, color: "#6b6b8a" }}>
                   {summary.daysWithTimes === 0 ? (
@@ -299,6 +333,19 @@ export default function AttendancePage() {
                 <div style={{ fontSize: 12, fontWeight: 750, color: summary.creditFactor < 1 ? "#d97706" : "#059669" }}>
                   {Math.round(summary.creditFactor * 100)}%
                 </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input
+                    type="number" min="0" step="1"
+                    aria-label={`Paid leaves allowed per month for ${staff.name}`}
+                    value={staff.paidLeavesPerMonth ?? ""}
+                    placeholder={String(summary.leaveAllowance)}
+                    onChange={(e) => setLeaveAllowance(staff.id, e.target.value)}
+                    style={{ width: 52, padding: "5px 7px", borderRadius: 7, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }}
+                  />
+                  <span style={{ fontSize: 11, color: summary.leaveOverBy > 0 ? "#dc2626" : "#9898b0", fontWeight: 600 }}>
+                    {summary.leaveOverBy > 0 ? `${summary.leaveOverBy} over` : `${summary.leaveRemaining} left`}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -307,6 +354,14 @@ export default function AttendancePage() {
             A day with both times clocked counts as the fraction of a standard day actually worked (hours over
             the standard don&rsquo;t add extra pay); days without times fall back to their status alone.
             Change the standard day in Settings, or per person on their Staff record.
+          </div>
+          <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 6, lineHeight: 1.6 }}>
+            <strong style={{ color: "#8e89a3" }}>Leaves allowed</strong> is per month, editable above — blank follows the
+            salon default in Settings → Business Hours. Leave days within the allowance are paid in full; the rest are
+            unpaid. <strong style={{ color: "#8e89a3" }}>Week Off</strong> counts the rostered days off marked so far
+            against how many the roster puts in {month.label} — the default weekend is two a week, and the days can be
+            changed for the salon in Settings or for one person on their Staff record. Rostered days off are not
+            absences and don&rsquo;t affect pay credit.
           </div>
         </div>
       )}

@@ -101,6 +101,14 @@ const defaults = {
     // A full working day in hours — what the register measures clocked time
     // against, and what salary pro-ration treats as one whole day.
     standardHoursPerDay: 8,
+    // Paid leave days a month for staff with no figure of their own. 0 keeps the
+    // previous behaviour — nobody gains paid leave until the salon sets this.
+    leavesPerMonth: 0,
+    // Weekly offs for the whole salon, as JS getDay() numbers (0 = Sunday). Two
+    // entries is the standard weekend, hence two offs a week; add or remove days
+    // to match how the salon actually closes. Individual staff can override on
+    // their own record.
+    weeklyOffDays: [0, 6],
   },
   notifications: {
     apptReminder: true,

@@ -14,8 +14,10 @@ import { Check, X, Plus, FileDown } from "lucide-react";
 import { exportStaffPdf } from "@/lib/export-pdf";
 import { settingsStore } from "@/lib/settings-store";
 import { getActiveSection, inSection } from "@/lib/sections";
+import { weeklyOffDaysFor } from "@/lib/attendance";
 
 /** Sentinel select value that reveals the free-text role field — never stored. */
+const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const CUSTOM_ROLE = "__custom__";
 
 const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
@@ -85,6 +87,21 @@ function EditModal({
     paidLeavesPerMonth: staff.paidLeavesPerMonth != null ? String(staff.paidLeavesPerMonth) : "",
     standardHoursPerDay: staff.standardHoursPerDay != null ? String(staff.standardHoursPerDay) : "",
   });
+  // null = follow the salon roster; an array (empty included) = this person's own.
+  const [offDays, setOffDays] = useState<number[] | null>(staff.weeklyOffDays ?? null);
+  const usesSalonRoster = offDays === null;
+  const salonOffDays = weeklyOffDaysFor(null);
+  const salonOffLabel = salonOffDays.length === 0
+    ? "no weekly off"
+    : salonOffDays.map((d) => WEEKDAY_NAMES[d]).join(", ");
+  // The first pick starts from the salon roster, so overriding a weekend means
+  // adjusting two days rather than rebuilding the week from nothing.
+  const toggleOffDay = (day: number) =>
+    setOffDays((current) => {
+      const base = current ?? salonOffDays;
+      return base.includes(day) ? base.filter((d) => d !== day) : [...base, day].sort();
+    });
+
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
     servicesList.filter((s) => s.assignedStaffIds.includes(staff.id)).map((s) => s.id),
   );
@@ -113,8 +130,9 @@ function EditModal({
       payType: form.payType as StaffPayType,
       commissionRate: (form.payType === "commission" || form.payType === "both") && form.commissionRate ? Number(form.commissionRate) : undefined,
       baseSalary: (form.payType === "salary" || form.payType === "both") && form.baseSalary ? Number(form.baseSalary) : undefined,
-      paidLeavesPerMonth: (form.payType === "salary" || form.payType === "both") && form.paidLeavesPerMonth ? Number(form.paidLeavesPerMonth) : undefined,
+      paidLeavesPerMonth: form.paidLeavesPerMonth !== "" && Number(form.paidLeavesPerMonth) >= 0 ? Number(form.paidLeavesPerMonth) : undefined,
       standardHoursPerDay: Number(form.standardHoursPerDay) > 0 ? Number(form.standardHoursPerDay) : undefined,
+      weeklyOffDays: offDays ?? undefined,
     };
     onSave(updatedStaff, selectedServiceIds);
     setDone(true);
@@ -198,12 +216,42 @@ function EditModal({
                 <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Base Salary (PKR / pay period)</label>
                 <input type="number" min="0" style={inp} value={form.baseSalary} onChange={(e) => set("baseSalary", e.target.value)} placeholder="e.g. 30000" />
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Paid Leaves / Month</label>
-                <input type="number" min="0" style={inp} value={form.paidLeavesPerMonth} onChange={(e) => set("paidLeavesPerMonth", e.target.value)} placeholder="e.g. 2" />
-              </div>
             </>
           )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Paid Leaves / Month</label>
+            <input type="number" min="0" style={inp} value={form.paidLeavesPerMonth} onChange={(e) => set("paidLeavesPerMonth", e.target.value)} placeholder="e.g. 2" />
+            <div style={{ fontSize: 11, color: "#b0b0c8" }}>Leave days marked in Attendance, up to this many per pay period, are paid in full; further leaves reduce salary. Leave blank to use the salon default from Settings → Business Hours.</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Weekly Offs</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {WEEKDAY_NAMES.map((day, index) => {
+                const on = (offDays ?? salonOffDays).includes(index);
+                return (
+                  <button key={day} type="button" onClick={() => toggleOffDay(index)}
+                    style={{ padding: "6px 11px", borderRadius: 8, fontSize: 11.5, fontWeight: 750, cursor: "pointer",
+                      border: `1.5px solid ${on ? "#7C3AED" : "#e8e8f0"}`, background: on ? "#F5F3FF" : "#fff",
+                      color: on ? "#7C3AED" : "#9898b0" }}>
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 11, color: "#b0b0c8" }}>
+              {usesSalonRoster
+                ? `Following the salon roster (${salonOffLabel}). Pick days here to override it for this person.`
+                : offDays!.length === 0
+                  ? "No weekly off — works every day."
+                  : `${offDays!.length} off day${offDays!.length === 1 ? "" : "s"} a week.`}
+              {!usesSalonRoster && (
+                <button type="button" onClick={() => setOffDays(null)}
+                  style={{ marginLeft: 6, background: "none", border: "none", padding: 0, color: "#7C3AED", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  Use salon roster
+                </button>
+              )}
+            </div>
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Standard Hours / Day</label>
             <input type="number" min="0" step="0.5" style={inp} value={form.standardHoursPerDay} onChange={(e) => set("standardHoursPerDay", e.target.value)} placeholder="e.g. 8" />

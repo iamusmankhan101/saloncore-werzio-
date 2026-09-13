@@ -1,6 +1,11 @@
 // ─── Back-bar inventory usage ─────────────────────────────────────────────────
-// How much of each stock item the salon has actually got through performing
-// services on clients, as opposed to selling over the counter.
+// How often each stock item gets reached for performing services on clients, as
+// opposed to being sold over the counter.
+//
+// Counted in uses, not quantity. A tube or bottle lasts an unpredictable number
+// of services, so "how much does one haircut consume" has no answer anyone can
+// give — but "this colour was used on 43 clients this month" is exact, and it is
+// what tells the salon which products are actually earning their shelf space.
 //
 // Nothing here is a separate log. A service records what it consumes per
 // performance (Service.inventoryUsage), and the work already leaves two records
@@ -10,25 +15,21 @@
 // mapping was made, and it cannot drift out of step with the sales it is
 // derived from.
 
-import type { Appointment, InventoryItem, Service } from "@/lib/types";
+import type { Appointment, Service } from "@/lib/types";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 
 export interface ServiceUsageBreakdown {
   serviceId: string;
   serviceName: string;
-  /** Performances of this service that consumed the item. */
+  /** Performances of this service that used the item. */
   times: number;
-  /** Quantity consumed, in the item's own unit. */
-  qty: number;
 }
 
 export interface ItemUsage {
   itemId: string;
-  /** Service performances that consumed this item, across every service. */
+  /** Service performances that used this item, across every service. */
   timesUsed: number;
-  /** Total quantity consumed, in the item's own unit. */
-  qtyUsed: number;
-  /** Which services account for it, biggest consumer first. */
+  /** Which services account for it, biggest user first. */
   byService: ServiceUsageBreakdown[];
   /** YYYY-MM-DD of the most recent performance that used it. */
   lastUsedDate?: string;
@@ -79,6 +80,23 @@ function performedServices(service: Service, byId: Map<string, Service>): Servic
   // A package whose members have all been deleted still consumes its own
   // mapping, if it somehow has one, rather than silently consuming nothing.
   return members.length > 0 ? members : [service];
+}
+
+/**
+ * The item ids a service uses.
+ *
+ * `inventoryUsage` briefly held `{ itemId, qty }` objects before quantities were
+ * dropped, so anything saved in that window is still on the record and is read
+ * here rather than migrated — a stored service is rewritten only when someone
+ * edits it, and a mapping that silently stopped counting would be worse than a
+ * three-line read.
+ */
+function usedItemIds(service: Service): string[] {
+  const raw = service.inventoryUsage as unknown;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry) => typeof entry === "string" ? entry : (entry as { itemId?: unknown })?.itemId)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
 }
 
 /**
@@ -165,25 +183,21 @@ export function computeInventoryUsage(
   const usage = new Map<string, ItemUsage>();
 
   for (const { service, count, date } of collectPerformances(invoices, appointments, services, window)) {
-    for (const mapped of service.inventoryUsage ?? []) {
-      if (!mapped.itemId || !(mapped.qty > 0)) continue;
-
-      let entry = usage.get(mapped.itemId);
+    for (const itemId of usedItemIds(service)) {
+      let entry = usage.get(itemId);
       if (!entry) {
-        entry = { itemId: mapped.itemId, timesUsed: 0, qtyUsed: 0, byService: [] };
-        usage.set(mapped.itemId, entry);
+        entry = { itemId, timesUsed: 0, byService: [] };
+        usage.set(itemId, entry);
       }
       entry.timesUsed += count;
-      entry.qtyUsed += mapped.qty * count;
       if (!entry.lastUsedDate || date > entry.lastUsedDate) entry.lastUsedDate = date;
 
       let breakdown = entry.byService.find((b) => b.serviceId === service.id);
       if (!breakdown) {
-        breakdown = { serviceId: service.id, serviceName: service.name, times: 0, qty: 0 };
+        breakdown = { serviceId: service.id, serviceName: service.name, times: 0 };
         entry.byService.push(breakdown);
       }
       breakdown.times += count;
-      breakdown.qty += mapped.qty * count;
     }
   }
 
@@ -195,42 +209,10 @@ export function computeInventoryUsage(
 
 /** Zero-filled usage for one item, so callers can render a row unconditionally. */
 export function usageFor(usage: Map<string, ItemUsage>, itemId: string): ItemUsage {
-  return usage.get(itemId) ?? { itemId, timesUsed: 0, qtyUsed: 0, byService: [] };
-}
-
-/**
- * What one cart's worth of services consumes, as itemId → quantity. Used at
- * checkout to take the back-bar products off stock alongside the retail lines.
- */
-export function consumptionForSale(
-  lines: { type: string; sourceId?: string; description: string; qty: number }[],
-  services: Service[],
-): Map<string, number> {
-  const byId = new Map(services.map((s) => [s.id, s]));
-  const byName = new Map(services.map((s) => [s.name.trim().toLowerCase(), s]));
-  const consumed = new Map<string, number>();
-
-  for (const line of lines) {
-    if (line.type !== "service") continue;
-    const sold = resolveService(line, byId, byName);
-    if (!sold) continue;
-    for (const service of performedServices(sold, byId)) {
-      for (const mapped of service.inventoryUsage ?? []) {
-        if (!mapped.itemId || !(mapped.qty > 0)) continue;
-        consumed.set(mapped.itemId, (consumed.get(mapped.itemId) ?? 0) + mapped.qty * Math.max(1, line.qty));
-      }
-    }
-  }
-  return consumed;
+  return usage.get(itemId) ?? { itemId, timesUsed: 0, byService: [] };
 }
 
 /** Services that map to an item — for the inventory item's own detail view. */
 export function servicesUsingItem(services: Service[], itemId: string): Service[] {
-  return services.filter((s) => (s.inventoryUsage ?? []).some((u) => u.itemId === itemId && u.qty > 0));
-}
-
-/** Human-readable quantity, e.g. "120 ml". Falls back to a bare number. */
-export function fmtQty(qty: number, item?: InventoryItem): string {
-  const rounded = Math.round(qty * 100) / 100;
-  return item?.unit ? `${rounded} ${item.unit}` : String(rounded);
+  return services.filter((s) => usedItemIds(s).includes(itemId));
 }

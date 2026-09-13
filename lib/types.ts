@@ -58,6 +58,13 @@ export interface Staff {
   paidLeavesPerMonth?: number;
   /** A full working day for this person, in hours. Overrides the salon-wide standard (Settings → Attendance) for part-timers and split shifts. */
   standardHoursPerDay?: number;
+  /**
+   * Weekdays this person is off each week, as JS `getDay()` numbers (0 = Sunday).
+   * Overrides the salon-wide roster in Settings → Attendance, for the stylist who
+   * takes Monday instead of the weekend. An empty array means no weekly off at
+   * all and is honoured as such; leave the field unset to follow the salon.
+   */
+  weeklyOffDays?: number[];
 }
 
 export interface Service {
@@ -77,14 +84,15 @@ export interface Service {
   /** Ad-hoc services bundled into this Deal/Package that aren't part of the master service list. */
   customServices?: { name: string; price?: number; durationMin?: number }[];
   /**
-   * Inventory consumed each time this service is performed on a client — the
-   * tube of colour a dye job gets through, not something sold over the counter.
-   * `qty` is per performance, in the item's own unit, so a line selling the
-   * service twice consumes twice this much. Absent on services that use nothing
-   * trackable. Retail sales stay on the invoice as product lines; this is the
-   * back-bar side, which never appears on a bill.
+   * Inventory item ids this service uses on the client — the colour a dye job
+   * opens, not something sold over the counter. Deliberately just a list, with
+   * no quantity: one tube lasts an unpredictable number of services, so what a
+   * single performance gets through is not a figure anyone can state, and asking
+   * for it produced guesses. What is countable is how often a product was
+   * reached for, which is what this drives. Retail sales stay on the invoice as
+   * product lines; this is the back-bar side, which never appears on a bill.
    */
-  inventoryUsage?: { itemId: string; qty: number }[];
+  inventoryUsage?: string[];
   assignedStaffIds: string[];
   /** When true, all of assignedStaffIds work together as a team on this service (e.g. bridal hair + makeup done jointly), rather than assignedStaffIds being a pool of individually-eligible stylists. Informational only — doesn't affect booking, calendar, or payroll. */
   multiStylist?: boolean;

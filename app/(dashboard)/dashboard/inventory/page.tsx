@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { getStoredInventory, saveInventory, getStoredServices, getStoredAppointments } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
-import { computeInventoryUsage, fmtQty, usageFor, type ItemUsage } from "@/lib/inventory-usage";
+import { computeInventoryUsage, usageFor, type ItemUsage } from "@/lib/inventory-usage";
 import { checkLowStockAlerts } from "@/lib/whatsapp-scheduler";
 import { settingsStore } from "@/lib/settings-store";
 import type { InventoryItem, InventoryCategory, InventoryUnit, Service } from "@/lib/types";
@@ -733,7 +733,7 @@ function UsageModal({ item, usage, services, onClose }: {
 }) {
   const counted = new Set(usage.byService.map((b) => b.serviceId));
   const unused = services.filter(
-    (sv) => !counted.has(sv.id) && (sv.inventoryUsage ?? []).some((u) => u.itemId === item.id && u.qty > 0),
+    (sv) => !counted.has(sv.id) && (sv.inventoryUsage ?? []).includes(item.id),
   );
 
   return (
@@ -744,10 +744,6 @@ function UsageModal({ item, usage, services, onClose }: {
           <div>
             <div style={{ fontSize: 22, fontWeight: 850, color: "var(--accent)", lineHeight: 1.1 }}>{usage.timesUsed}</div>
             <div style={{ fontSize: 10, fontWeight: 800, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Times Used</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 850, color: "#1a1a2e", lineHeight: 1.1 }}>{fmtQty(usage.qtyUsed, item)}</div>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Total Consumed</div>
           </div>
           {usage.lastUsedDate && (
             <div>
@@ -771,9 +767,7 @@ function UsageModal({ item, usage, services, onClose }: {
             {usage.byService.map((b) => (
               <div key={b.serviceId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "11px 14px", borderBottom: "1px solid #f8f8fc" }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{b.serviceName}</span>
-                <span style={{ fontSize: 12, color: "#9898b0", whiteSpace: "nowrap" }}>
-                  <strong style={{ color: "var(--accent)" }}>{b.times}×</strong> · {fmtQty(b.qty, item)}
-                </span>
+                <span style={{ fontSize: 12, color: "var(--accent)", fontWeight: 750, whiteSpace: "nowrap" }}>{b.times}×</span>
               </div>
             ))}
             {unused.map((sv) => (
@@ -843,7 +837,9 @@ function ItemRow({ item, isLast, usage, onEdit, onDelete, onShowUsage }: {
           <button type="button" onClick={onShowUsage} title={`See which services used ${item.name}`}
             style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>{usage.timesUsed}×</div>
-            <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 1 }}>{fmtQty(usage.qtyUsed, item)}</div>
+            <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 1 }}>
+              {usage.byService.length} service{usage.byService.length === 1 ? "" : "s"}
+            </div>
           </button>
         ) : (
           <span style={{ fontSize: 12, color: "#c8c8d8" }}>—</span>

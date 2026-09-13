@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { getStoredStaff, getStoredAppointments, getStoredServices } from "@/lib/storage";
 import { getPayouts, savePayouts, lastPayoutEnd, revenueInPeriod, type Payout, type PayoutStatus } from "@/lib/payouts";
-import { getAttendanceSummary, standardHoursFor, type AttendanceSummary } from "@/lib/attendance";
+import { getAttendanceSummary, standardHoursFor, leaveAllowanceFor, type AttendanceSummary } from "@/lib/attendance";
 import type { Staff, Appointment, Service, StaffPayType } from "@/lib/types";
 import { fmtCurrency as fmt } from "@/lib/format";
 import {
@@ -77,7 +77,7 @@ function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, o
     // dependency list stays property-specific and the memo is preserved.
     () => getAttendanceSummary(
       staff.id, form.periodStart, form.periodEnd, undefined,
-      staff.paidLeavesPerMonth ?? 0,
+      leaveAllowanceFor({ paidLeavesPerMonth: staff.paidLeavesPerMonth }),
       standardHoursFor({ standardHoursPerDay: staff.standardHoursPerDay }),
     ),
     [staff.id, form.periodStart, form.periodEnd, staff.paidLeavesPerMonth, staff.standardHoursPerDay],
@@ -204,7 +204,7 @@ function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, o
                   <>
                     <div style={{ fontSize: 12, color: "#6b6b8a" }}>
                       {attendance.present} present · {attendance.late} late · {attendance.halfDay} half-day · {attendance.absent} absent · {attendance.leave} leave
-                      {attendance.leave > 0 && <span style={{ color: "#b0b0c8" }}> ({attendance.paidLeave} paid{staff.paidLeavesPerMonth ? ` of ${staff.paidLeavesPerMonth} allowed` : ""})</span>}
+                      {attendance.leave > 0 && <span style={{ color: "#b0b0c8" }}> ({attendance.paidLeave} paid{attendance.leaveAllowance ? ` of ${attendance.leaveAllowance} allowed` : ""})</span>}
                       <span style={{ color: "#b0b0c8" }}> · {attendance.markedDays} day{attendance.markedDays === 1 ? "" : "s"} marked</span>
                     </div>
                     {attendance.daysWithTimes > 0 && (
@@ -504,7 +504,7 @@ export default function PayoutsPage() {
             const lastEnd = lastPayoutEnd(s.id, payouts);
             const periodStart = lastEnd ? addDays(lastEnd, 1) : startOfMonth();
             const revenue = revenueInPeriod(s.id, appointments, services, periodStart, todayStr());
-            const estAttendance = getAttendanceSummary(s.id, periodStart, todayStr(), undefined, s.paidLeavesPerMonth ?? 0, standardHoursFor(s));
+            const estAttendance = getAttendanceSummary(s.id, periodStart, todayStr(), undefined, leaveAllowanceFor(s), standardHoursFor(s));
             const estSalary = estAttendance.markedDays > 0 ? Math.round((s.baseSalary ?? 0) * estAttendance.creditFactor) : (s.baseSalary ?? 0);
             const estimated = payType === "commission" ? Math.round(revenue * (s.commissionRate ?? 0) / 100)
               : payType === "both" ? Math.round(revenue * (s.commissionRate ?? 0) / 100) + estSalary
