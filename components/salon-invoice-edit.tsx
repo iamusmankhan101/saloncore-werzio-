@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { X, Plus, Trash2, Save } from "lucide-react";
 import {
   updateSalonInvoice, newBlankItem,
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import type { PaymentMethod } from "@/lib/types";
+import { getStoredServices, getStoredAppointments, saveAppointments } from "@/lib/storage";
+import { upsoldLineIds } from "@/lib/upsell";
 import { fmtCurrency as fmt } from "@/lib/format";
 
 const METHOD_OPTIONS: { value: PaymentMethod | ""; label: string }[] = [
@@ -38,6 +40,20 @@ export default function SalonInvoiceEdit({ invoice, onClose, onSaved }: Props) {
   const [notes,          setNotes]          = useState(invoice.notes || "");
   const [paymentMethod,  setPaymentMethod]  = useState<PaymentMethod | "">(invoice.paymentMethod || "");
   const [saving,         setSaving]         = useState(false);
+  const [pickedServiceId, setPickedServiceId] = useState("");
+
+  // Read once: nothing in this modal changes the catalogue or the booking.
+  const services = useMemo(() => getStoredServices().filter(sv => sv.isActive), []);
+  const appointment = useMemo(
+    () => invoice.appointmentId ? getStoredAppointments().find(a => a.id === invoice.appointmentId) : undefined,
+    [invoice.appointmentId],
+  );
+  // Flagged live off the edited items, so a service added below is marked the
+  // moment it appears rather than after saving.
+  const upsoldIds = useMemo(
+    () => upsoldLineIds({ ...invoice, items }, appointment),
+    [invoice, items, appointment],
+  );
 
   const subtotal = Math.max(0, Math.round(items.reduce((s, i) => s + i.qty * i.unitPrice, 0)));
   const clampedDiscount  = Math.min(Math.max(0, Math.round(discount)), subtotal);
@@ -61,6 +77,27 @@ export default function SalonInvoiceEdit({ invoice, onClose, onSaved }: Props) {
     setItems(list => [...list, newBlankItem()]);
   }
 
+  /**
+   * Adds a line from the service list rather than a blank one.
+   *
+   * A hand-typed line still counts as an upsell — it isn't on the booking — but
+   * it carries no sourceId, so it can't be matched back to the service if it is
+   * ever renamed, and it can't be split across a team service's stylists. Picking
+   * from the list fills in the name, the price and that link in one go.
+   */
+  function addService() {
+    const service = services.find(sv => sv.id === pickedServiceId);
+    if (!service) return;
+    setItems(list => [...list, {
+      ...newBlankItem(),
+      sourceId: service.id,
+      description: service.name,
+      unitPrice: service.price,
+      total: service.price,
+    }]);
+    setPickedServiceId("");
+  }
+
   function handleSave() {
     if (saving || items.length === 0) return;
     setSaving(true);
@@ -75,6 +112,16 @@ export default function SalonInvoiceEdit({ invoice, onClose, onSaved }: Props) {
       notes: notes.trim(),
     };
     updateSalonInvoice(updated);
+
+    // Commission is computed from the appointment's totalAmount, not the bill,
+    // so a service added here has to move that figure too. Without it an upsell
+    // added after checkout would earn its incentive but not the ordinary
+    // commission on the same service — the money would only half arrive.
+    if (appointment && total !== appointment.totalAmount) {
+      const all = getStoredAppointments();
+      saveAppointments(all.map(a => a.id === appointment.id ? { ...a, totalAmount: total } : a));
+    }
+
     onSaved(updated);
     setSaving(false);
     onClose();
@@ -104,8 +151,16 @@ export default function SalonInvoiceEdit({ invoice, onClose, onSaved }: Props) {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {items.map(item => (
                 <div key={item.id} style={{ display: "grid", gridTemplateColumns: "1fr 56px 90px 90px 28px", gap: 6, alignItems: "center" }}>
-                  <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })}
-                    placeholder="Description" style={inputStyle} />
+                  <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                    <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })}
+                      placeholder="Description" style={inputStyle} />
+                    {upsoldIds.has(item.id) && (
+                      <span title="Not on the original booking — counts towards the stylist's upsell incentive"
+                        style={{ flexShrink: 0, fontSize: 9, fontWeight: 800, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em" }}>
+                        UPSELL
+                      </span>
+                    )}
+                  </div>
                   <input type="number" min={0} value={item.qty} onChange={e => updateItem(item.id, { qty: Math.max(0, Number(e.target.value) || 0) })}
                     style={{ ...inputStyle, textAlign: "right" }} />
                   <input type="number" min={0} value={item.unitPrice} onChange={e => updateItem(item.id, { unitPrice: Math.max(0, Number(e.target.value) || 0) })}
@@ -121,10 +176,30 @@ export default function SalonInvoiceEdit({ invoice, onClose, onSaved }: Props) {
                 <div style={{ fontSize: 12, color: "#c8c8e0", textAlign: "center", padding: "12px 0" }}>No items — add at least one below.</div>
               )}
             </div>
-            <button type="button" onClick={addItem}
-              style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, border: "1px dashed #d8d4ea", background: "#faf9fd", fontSize: 12, fontWeight: 700, color: "#7C3AED", cursor: "pointer" }}>
-              <Plus size={13} /> Add Item
-            </button>
+            <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <select value={pickedServiceId} onChange={e => setPickedServiceId(e.target.value)}
+                style={{ ...inputStyle, width: "auto", flex: "2 1 180px", minWidth: 0 }}>
+                <option value="">Add a service…</option>
+                {services.map(sv => (
+                  <option key={sv.id} value={sv.id}>{sv.name} — {fmt(sv.price)}</option>
+                ))}
+              </select>
+              <button type="button" onClick={addService} disabled={!pickedServiceId}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: pickedServiceId ? "#7C3AED" : "#e8e8f0", fontSize: 12, fontWeight: 700, color: pickedServiceId ? "#fff" : "#b0b0c8", cursor: pickedServiceId ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}>
+                <Plus size={13} /> Add Service
+              </button>
+              <button type="button" onClick={addItem}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, border: "1px dashed #d8d4ea", background: "#faf9fd", fontSize: 12, fontWeight: 700, color: "#7C3AED", cursor: "pointer", whiteSpace: "nowrap" }}>
+                <Plus size={13} /> Custom Line
+              </button>
+            </div>
+            {appointment && upsoldIds.size > 0 && (
+              <div style={{ marginTop: 8, fontSize: 11, color: "#92400e", lineHeight: 1.6 }}>
+                {upsoldIds.size} line{upsoldIds.size === 1 ? "" : "s"} not on the original booking
+                ({appointment.serviceNames.join(", ") || "no services booked"}) — these count towards
+                {" "}{appointment.staffName || "the stylist"}&rsquo;s upsell incentive in Payouts.
+              </div>
+            )}
           </div>
 
           {/* Discounts */}

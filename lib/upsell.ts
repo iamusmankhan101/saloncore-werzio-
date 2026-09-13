@@ -156,6 +156,25 @@ export function upsellInPeriod(
   return { value: lines.reduce((sum, l) => sum + l.amount, 0), lines };
 }
 
+/**
+ * Which lines of one invoice were sold beyond the booking, as a set of line ids.
+ *
+ * For showing the person editing an invoice what their additions are worth —
+ * the same rule the payout uses, so the editor can't disagree with the payslip.
+ * Everything is upsold when the sale has no appointment behind it to compare
+ * against, so those return an empty set rather than flagging the whole bill.
+ */
+export function upsoldLineIds(invoice: SalonInvoice, appt: Appointment | undefined): Set<string> {
+  if (!appt) return new Set();
+  const booked = bookedCounts(appt);
+  const ids = new Set<string>();
+  for (const line of invoice.items) {
+    if (line.type !== "service") continue;
+    if (upsoldUnits(line, booked) > 0) ids.add(line.id);
+  }
+  return ids;
+}
+
 /** The incentive itself: upsold value × the staff member's upsell rate. */
 export function upsellIncentive(value: number, ratePercent?: number): number {
   const rate = Number(ratePercent);
