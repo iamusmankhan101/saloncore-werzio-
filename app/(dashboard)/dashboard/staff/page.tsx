@@ -23,6 +23,7 @@ const ROLE_COLORS: Record<string, { color: string; bg: string }> = {
 
 import { fmtCurrency as fmt } from "@/lib/format";
 import { revenueInPeriod, ALL_TIME_START, ALL_TIME_END } from "@/lib/payouts";
+import { upsellInPeriod, upsellIncentive } from "@/lib/upsell";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 
 /**
@@ -38,9 +39,14 @@ import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
  */
 function getStaffStats(staff: Staff, appointments: Appointment[], services: Service[], invoices: SalonInvoice[]) {
   const mine = appointments.filter((a) => a.staffId === staff.id);
+  const upsold = upsellInPeriod(staff, invoices, appointments, services, ALL_TIME_START, ALL_TIME_END).value;
   return {
     total: mine.length,
     revenue: Math.round(revenueInPeriod(staff, appointments, services, ALL_TIME_START, ALL_TIME_END, invoices)),
+    upsoldValue: Math.round(upsold),
+    // Shown only where a rate is set — an incentive of zero against real upsold
+    // value reads as a bug rather than as "no rate configured".
+    upsellIncentive: upsellIncentive(upsold, staff.upsellCommissionRate),
   };
 }
 
@@ -907,6 +913,12 @@ export default function StaffPage() {
                 <div>
                   <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Revenue</div>
                   <div style={{ fontSize: 14, fontWeight: 900, color: "var(--accent)", marginTop: 4 }}>{fmt(stats.revenue)}</div>
+                  {stats.upsoldValue > 0 && (
+                    <div style={{ fontSize: 10, color: "#b45309", fontWeight: 700, marginTop: 2 }}>
+                      {fmt(stats.upsoldValue)} upsold
+                      {stats.upsellIncentive > 0 && ` · ${fmt(stats.upsellIncentive)} incentive`}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "50%", background: "#f0eeff", transition: "transform 0.15s" }} className="hover-scale">
                   <ChevronRight size={14} color="#7C3AED" />

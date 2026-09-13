@@ -16,6 +16,7 @@ import { settingsStore } from "@/lib/settings-store";
 import { getActiveSection, inSection } from "@/lib/sections";
 import { weeklyOffDaysFor } from "@/lib/attendance";
 import { revenueInPeriod, invoiceBelongsTo, ALL_TIME_START, ALL_TIME_END } from "@/lib/payouts";
+import { upsellInPeriod, upsellIncentive } from "@/lib/upsell";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 
 /** Sentinel select value that reveals the free-text role field — never stored. */
@@ -411,6 +412,12 @@ export default function StaffProfilePage() {
     [appointments, id],
   );
 
+  // Read out as plain values before the memo: the React compiler can't preserve
+  // memoization across optional property reads on a possibly-null object, and
+  // these two are the only things the block needs from `staff`.
+  const staffName = staff?.name ?? "";
+  const staffUpsellRate = staff?.upsellCommissionRate;
+
   const stats = useMemo(() => {
     const completed  = myAppts.filter((a) => a.status === "completed");
     const noShow     = myAppts.filter((a) => a.status === "no-show");
@@ -420,7 +427,7 @@ export default function StaffProfilePage() {
     // first, so a salon that books nothing showed every figure at zero. Money
     // goes through revenueInPeriod; the counts around it have to follow, or the
     // page reads "PKR 46,000 across 0 services".
-    const staffRef = { id, name: staff?.name ?? "" };
+    const staffRef = { id, name: staffName };
     const myWalkIns = invoices.filter((inv) => !inv.appointmentId && invoiceBelongsTo(inv, staffRef));
 
     const totalRev   = Math.round(revenueInPeriod(staffRef, appointments, services, ALL_TIME_START, ALL_TIME_END, invoices));
@@ -433,6 +440,10 @@ export default function StaffProfilePage() {
     const avgTicket  = salesCount ? totalRev / salesCount : 0;
     // Rate over appointments only: a walk-in cannot be a no-show.
     const noShowRate = myAppts.length ? Math.round((noShow.length / myAppts.length) * 100) : 0;
+
+    const upsold = upsellInPeriod(staffRef, invoices, appointments, services, ALL_TIME_START, ALL_TIME_END);
+    const upsoldValue = Math.round(upsold.value);
+    const upsellPay = upsellIncentive(upsold.value, staffUpsellRate);
 
     const uniqueClients = new Set([
       ...myAppts.map((a) => a.clientId),
@@ -488,10 +499,11 @@ export default function StaffProfilePage() {
 
     return {
       total: myAppts.length, completed: completed.length, servicesDone, noShow: noShow.length,
+      upsoldValue, upsellPay, upsellSales: upsold.lines.length,
       upcoming, totalRev, avgTicket, noShowRate, uniqueClients,
       revWeek, revMonth, revLastMonth, topServices, topClients,
     };
-  }, [myAppts, id, appointments, services, invoices, staff?.name]);
+  }, [myAppts, id, appointments, services, invoices, staffName, staffUpsellRate]);
 
   const recentCompleted = useMemo(
     () => [...myAppts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12),
@@ -598,6 +610,15 @@ export default function StaffProfilePage() {
           <StatCard label="Avg Ticket"         value={fmt(stats.avgTicket)}    sub="per sale"                     icon={Star}         color="#d97706" />
           <StatCard label="Unique Clients"     value={stats.uniqueClients}     sub="clients served"               icon={Users}        color="#db2777" />
           <StatCard label="No-show Rate"       value={`${stats.noShowRate}%`}  sub={`${stats.noShow} no-shows`}  icon={XCircle}      color={stats.noShowRate > 20 ? "#dc2626" : "#9ca3af"} />
+          <StatCard
+            label="Upsold"
+            value={fmt(stats.upsoldValue)}
+            sub={staff?.upsellCommissionRate
+              ? `${fmt(stats.upsellPay)} incentive at ${staff.upsellCommissionRate}%`
+              : "no upsell rate set"}
+            icon={TrendingUp}
+            color="#d97706"
+          />
         </div>
 
         {/* ── Revenue breakdown + Top services ─────────────────────────────── */}

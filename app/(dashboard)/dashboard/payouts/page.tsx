@@ -588,6 +588,7 @@ export default function PayoutsPage() {
                       {payType === "commission" ? `${s.commissionRate ?? 0}% commission`
                         : payType === "both" ? `${s.commissionRate ?? 0}% + salary`
                         : "Fixed salary"}
+                      {s.upsellCommissionRate ? ` · ${s.upsellCommissionRate}% upsell` : ""}
                     </span>
                   </div>
                 </div>
@@ -599,6 +600,9 @@ export default function PayoutsPage() {
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 10, color: "#9898b0", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>Est. Amount</div>
                     <div style={{ fontSize: 16, fontWeight: 900, color: "var(--accent)", marginTop: 2 }}>{fmt(estimated)}</div>
+                    {estUpsell > 0 && (
+                      <div style={{ fontSize: 10, color: "#b45309", fontWeight: 700, marginTop: 2 }}>incl. {fmt(estUpsell)} upsell</div>
+                    )}
                   </div>
                 </div>
                 <button onClick={() => setProcessingFor(s)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", borderRadius: 10, border: "none", background: "var(--accent-gradient)", color: "#fff", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>

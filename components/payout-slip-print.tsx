@@ -55,16 +55,24 @@ export default function PayoutSlipPrint({
   const logo     = (settingsStore.salon as { logo?: string }).logo || "";
   const initials = salonName.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
 
+  // The upsell incentive is folded into baseAmount, so it has to be taken back
+  // out before the salary line is derived — otherwise "Base Salary" would silently
+  // absorb it and the slip wouldn't add up against the stylist's own arithmetic.
+  const upsellAmount = payout.upsellAmount ?? 0;
   const rows: { label: string; amount?: string }[] = [];
   if (payout.payType === "commission" || payout.payType === "both") {
     const commissionAmount = Math.round(payout.revenueGenerated * (payout.commissionRate ?? 0) / 100);
     rows.push({ label: `Revenue Generated (${fmtDate(payout.periodStart)} – ${fmtDate(payout.periodEnd)})`, amount: fmt(payout.revenueGenerated) });
     rows.push({ label: `Commission (${payout.commissionRate ?? 0}%)`, amount: fmt(commissionAmount) });
     if (payout.payType === "both") {
-      rows.push({ label: "Base Salary", amount: fmt(payout.baseAmount - commissionAmount) });
+      rows.push({ label: "Base Salary", amount: fmt(payout.baseAmount - commissionAmount - upsellAmount) });
     }
   } else {
-    rows.push({ label: "Base Salary", amount: fmt(payout.baseAmount) });
+    rows.push({ label: "Base Salary", amount: fmt(payout.baseAmount - upsellAmount) });
+  }
+  if (upsellAmount > 0) {
+    rows.push({ label: `Upsold Services${payout.upsellValue ? ` (${fmt(payout.upsellValue)})` : ""}`, amount: "" });
+    rows.push({ label: `Upsell Incentive (${payout.upsellRate ?? 0}%)`, amount: fmt(upsellAmount) });
   }
 
   const content = (

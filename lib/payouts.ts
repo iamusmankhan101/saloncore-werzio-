@@ -115,8 +115,8 @@ export function staffRevenueFromAppointment(appt: Appointment, staffId: string, 
  */
 export function invoiceBelongsTo(invoice: SalonInvoice, staff: StaffRef): boolean {
   if (invoice.staffId) return invoice.staffId === staff.id;
-  const named = invoice.staffName.trim().toLowerCase();
-  const mine = staff.name.trim().toLowerCase();
+  const named = (invoice.staffName ?? "").trim().toLowerCase();
+  const mine = (staff.name ?? "").trim().toLowerCase();
   return !!named && !!mine && named === mine;
 }
 

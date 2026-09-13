@@ -131,8 +131,9 @@ export interface StaffRef {
 function sellerOf(invoice: SalonInvoice, appt: Appointment | undefined, staff: StaffRef): string | undefined {
   if (appt) return appt.staffId;
   if (invoice.staffId) return invoice.staffId;
-  const named = invoice.staffName.trim().toLowerCase();
-  return named && named === staff.name.trim().toLowerCase() ? staff.id : undefined;
+  const named = (invoice.staffName ?? "").trim().toLowerCase();
+  const mine = (staff.name ?? "").trim().toLowerCase();
+  return named && mine && named === mine ? staff.id : undefined;
 }
 
 /**
