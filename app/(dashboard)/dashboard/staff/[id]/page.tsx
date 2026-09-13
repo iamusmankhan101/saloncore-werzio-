@@ -15,7 +15,7 @@ import { exportStaffPdf } from "@/lib/export-pdf";
 import { settingsStore } from "@/lib/settings-store";
 import { getActiveSection, inSection } from "@/lib/sections";
 import { weeklyOffDaysFor } from "@/lib/attendance";
-import { revenueInPeriod, ALL_TIME_START, ALL_TIME_END } from "@/lib/payouts";
+import { revenueInPeriod, invoiceBelongsTo, ALL_TIME_START, ALL_TIME_END } from "@/lib/payouts";
 import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
 
 /** Sentinel select value that reveals the free-text role field — never stored. */
@@ -415,15 +415,29 @@ export default function StaffProfilePage() {
     const completed  = myAppts.filter((a) => a.status === "completed");
     const noShow     = myAppts.filter((a) => a.status === "no-show");
     const upcoming   = myAppts.filter((a) => !["completed","cancelled","no-show"].includes(a.status));
-    // Money figures come from revenueInPeriod so walk-in POS sales count too —
-    // summing appointment totals alone reads as zero in a salon that books
-    // nothing. The counts below stay appointment-based, which is what they say.
+    // A stylist's work reaches the books by two routes — a booked appointment, or
+    // a walk-in rung up at the counter — and this page used to see only the
+    // first, so a salon that books nothing showed every figure at zero. Money
+    // goes through revenueInPeriod; the counts around it have to follow, or the
+    // page reads "PKR 46,000 across 0 services".
     const staffRef = { id, name: staff?.name ?? "" };
+    const myWalkIns = invoices.filter((inv) => !inv.appointmentId && invoiceBelongsTo(inv, staffRef));
+
     const totalRev   = Math.round(revenueInPeriod(staffRef, appointments, services, ALL_TIME_START, ALL_TIME_END, invoices));
-    const avgTicket  = completed.length ? totalRev / completed.length : 0;
+    // Service lines, not invoices: one sale can be three services done.
+    const walkInServices = myWalkIns.reduce(
+      (n, inv) => n + inv.items.filter((i) => i.type === "service").reduce((q, i) => q + Math.max(1, i.qty), 0), 0);
+    const servicesDone = completed.length + walkInServices;
+    // Per sale rather than per service — a ticket is what one client paid.
+    const salesCount = completed.length + myWalkIns.length;
+    const avgTicket  = salesCount ? totalRev / salesCount : 0;
+    // Rate over appointments only: a walk-in cannot be a no-show.
     const noShowRate = myAppts.length ? Math.round((noShow.length / myAppts.length) * 100) : 0;
 
-    const uniqueClients = new Set(myAppts.map((a) => a.clientId)).size;
+    const uniqueClients = new Set([
+      ...myAppts.map((a) => a.clientId),
+      ...myWalkIns.map((inv) => inv.clientId ?? `walkin:${inv.id}`),
+    ].filter(Boolean)).size;
 
     // Revenue periods
     const weekStart      = startOf("week");
@@ -442,6 +456,15 @@ export default function StaffProfilePage() {
       for (const name of appt.serviceNames) {
         serviceCount[name]   = (serviceCount[name] ?? 0) + 1;
         serviceRevenue[name] = (serviceRevenue[name] ?? 0) + (appt.totalAmount ?? 0) / appt.serviceNames.length;
+      }
+    }
+    for (const inv of myWalkIns) {
+      for (const item of inv.items) {
+        if (item.type !== "service") continue;
+        const name = item.description.trim() || "Service";
+        const qty = Math.max(1, item.qty);
+        serviceCount[name]   = (serviceCount[name] ?? 0) + qty;
+        serviceRevenue[name] = (serviceRevenue[name] ?? 0) + (item.total || 0);
       }
     }
     const topServices = Object.entries(serviceCount)
@@ -464,7 +487,7 @@ export default function StaffProfilePage() {
       .slice(0, 6);
 
     return {
-      total: myAppts.length, completed: completed.length, noShow: noShow.length,
+      total: myAppts.length, completed: completed.length, servicesDone, noShow: noShow.length,
       upcoming, totalRev, avgTicket, noShowRate, uniqueClients,
       revWeek, revMonth, revLastMonth, topServices, topClients,
     };
@@ -569,10 +592,10 @@ export default function StaffProfilePage() {
 
         {/* ── 6 Key stat cards ─────────────────────────────────────────────── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
-          <StatCard label="Total Revenue"      value={fmt(stats.totalRev)}    sub="from completed appts"         icon={TrendingUp}   color="#7C3AED" />
-          <StatCard label="Services Done"      value={stats.completed}         sub="completed appointments"       icon={CheckCircle2} color="#059669" />
+          <StatCard label="Total Revenue"      value={fmt(stats.totalRev)}    sub="appointments + POS sales"     icon={TrendingUp}   color="#7C3AED" />
+          <StatCard label="Services Done"      value={stats.servicesDone}      sub="completed + sold at POS"      icon={CheckCircle2} color="#059669" />
           <StatCard label="Total Appointments" value={stats.total}             sub={`${stats.upcoming.length} upcoming`} icon={Calendar}  color="#0284c7" />
-          <StatCard label="Avg Ticket"         value={fmt(stats.avgTicket)}    sub="per completed service"        icon={Star}         color="#d97706" />
+          <StatCard label="Avg Ticket"         value={fmt(stats.avgTicket)}    sub="per sale"                     icon={Star}         color="#d97706" />
           <StatCard label="Unique Clients"     value={stats.uniqueClients}     sub="clients served"               icon={Users}        color="#db2777" />
           <StatCard label="No-show Rate"       value={`${stats.noShowRate}%`}  sub={`${stats.noShow} no-shows`}  icon={XCircle}      color={stats.noShowRate > 20 ? "#dc2626" : "#9ca3af"} />
         </div>
@@ -593,7 +616,7 @@ export default function StaffProfilePage() {
           {/* Top services */}
           <Section title="Top Services" icon={Scissors}>
             {stats.topServices.length === 0 ? (
-              <div style={{ fontSize: 13, color: "#9898b0", fontStyle: "italic" }}>No completed appointments yet.</div>
+              <div style={{ fontSize: 13, color: "#9898b0", fontStyle: "italic" }}>No services done yet.</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {stats.topServices.map((svc) => (

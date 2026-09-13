@@ -104,6 +104,22 @@ export function staffRevenueFromAppointment(appt: Appointment, staffId: string, 
  * Dates wide enough to mean "all time" for the YYYY-MM-DD string comparisons
  * revenueInPeriod does. Cheaper and clearer than a second code path.
  */
+/**
+ * Whether a walk-in sale belongs to this staff member.
+ *
+ * Exported so the pages that count sales use the same rule as the one that
+ * counts the money — a stylist's sale count and revenue disagreeing is worse
+ * than either being slightly off. Invoices written before `staffId` existed
+ * carry only a name, so that is matched as a fallback; an invoice naming nobody
+ * belongs to nobody rather than to everybody.
+ */
+export function invoiceBelongsTo(invoice: SalonInvoice, staff: StaffRef): boolean {
+  if (invoice.staffId) return invoice.staffId === staff.id;
+  const named = invoice.staffName.trim().toLowerCase();
+  const mine = staff.name.trim().toLowerCase();
+  return !!named && !!mine && named === mine;
+}
+
 export const ALL_TIME_START = "0000-01-01";
 export const ALL_TIME_END = "9999-12-31";
 
@@ -136,14 +152,9 @@ export function revenueInPeriod(
     .filter((a) => a.status === "completed" && a.date >= start && a.date <= end)
     .reduce((sum, a) => sum + staffRevenueFromAppointment(a, staff.id, services), 0);
 
-  const named = staff.name.trim().toLowerCase();
   const fromWalkIns = invoices
     .filter((inv) => !inv.appointmentId && inv.date >= start && inv.date <= end)
-    .filter((inv) => inv.staffId
-      ? inv.staffId === staff.id
-      // Older invoices recorded only the name; an unnamed sale belongs to nobody
-      // rather than to everybody.
-      : !!named && inv.staffName.trim().toLowerCase() === named)
+    .filter((inv) => invoiceBelongsTo(inv, staff))
     .reduce((sum, inv) => sum + (inv.total || 0), 0);
 
   return fromAppointments + fromWalkIns;
