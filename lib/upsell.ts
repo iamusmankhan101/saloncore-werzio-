@@ -1,16 +1,22 @@
 // ─── Service upsell ───────────────────────────────────────────────────────────
-// What a stylist sold on top of what the client actually booked — the facial
-// added to a cut-and-blow-dry at the chair, not the cut itself.
+// What a stylist sold on top of what the client came in for — the facial added
+// to a cut-and-blow-dry at the chair, not the cut itself.
 //
-// There is no "upsold" flag anywhere, and there doesn't need to be: the booking
-// says what was agreed in advance and the invoice says what was paid for, and
-// POS never writes the cart back onto the appointment, so the two stay
-// independent records. Anything on the bill that isn't on the booking was sold
-// during the visit.
+// Two signals say a line was upsold, and either is enough:
 //
-// Only appointment-linked sales can be measured. A walk-in booked nothing, so
-// nothing about the sale is "extra" — counting it would pay an upsell rate on
-// ordinary counter trade.
+//  1. It was added to an invoice that already existed. The bill is written when
+//     the client arrives, so anything appended afterwards was sold during the
+//     visit. The invoice editor stamps `upsell` on those lines, and it can be
+//     toggled by hand for the cases that rule misses.
+//
+//  2. It isn't on the client's booking. Where an appointment exists, it records
+//     what was agreed in advance, and POS never writes the cart back onto it, so
+//     anything on the bill and not on the booking was sold during the visit.
+//
+// The second signal alone was the original design, and it is worthless to the
+// many salons that take walk-ins and never book anything — there is no booking
+// to compare against, so nothing is ever "extra" and the incentive never pays.
+// The explicit flag is what makes this work for a counter-trade salon.
 
 import type { Appointment, Service } from "./types";
 import type { SalonInvoice, SalonInvoiceItem } from "./salon-invoices";
@@ -93,15 +99,40 @@ function paidRatio(invoice: SalonInvoice): number {
  * multiStylist is worked by the whole assigned team, so its upsell is split
  * between them rather than going to whoever happened to be on the booking.
  */
-function creditShare(line: SalonInvoiceItem, appt: Appointment, staffId: string, services: Service[]): number {
+function creditShare(
+  line: SalonInvoiceItem,
+  seller: string | undefined,
+  staff: StaffRef,
+  services: Service[],
+): number {
   const service = line.sourceId
     ? services.find((s) => s.id === line.sourceId)
     : services.find((s) => s.name.trim().toLowerCase() === line.description.trim().toLowerCase());
 
   if (service?.multiStylist && service.assignedStaffIds.length >= 2) {
-    return service.assignedStaffIds.includes(staffId) ? 1 / service.assignedStaffIds.length : 0;
+    return service.assignedStaffIds.includes(staff.id) ? 1 / service.assignedStaffIds.length : 0;
   }
-  return appt.staffId === staffId ? 1 : 0;
+  return seller === staff.id ? 1 : 0;
+}
+
+export interface StaffRef {
+  id: string;
+  name: string;
+}
+
+/**
+ * Who made a sale, as a staff id.
+ *
+ * Appointment-linked invoices name the stylist on the booking. A walk-in names
+ * them only on the invoice, and older invoices carry just `staffName` — so the
+ * name is matched against the roster when no id was recorded. Two staff sharing
+ * a first name would collide, which is why the id is now stored at checkout.
+ */
+function sellerOf(invoice: SalonInvoice, appt: Appointment | undefined, staff: StaffRef): string | undefined {
+  if (appt) return appt.staffId;
+  if (invoice.staffId) return invoice.staffId;
+  const named = invoice.staffName.trim().toLowerCase();
+  return named && named === staff.name.trim().toLowerCase() ? staff.id : undefined;
 }
 
 /**
@@ -111,7 +142,7 @@ function creditShare(line: SalonInvoiceItem, appt: Appointment, staffId: string,
  * the sale is made, which is also the period the commission on it falls into.
  */
 export function upsellInPeriod(
-  staffId: string,
+  staff: StaffRef,
   invoices: SalonInvoice[],
   appointments: Appointment[],
   services: Service[],
@@ -122,22 +153,26 @@ export function upsellInPeriod(
   const lines: UpsellLine[] = [];
 
   for (const invoice of invoices) {
-    if (!invoice.appointmentId) continue;
     if (invoice.date < start || invoice.date > end) continue;
-    const appt = apptById.get(invoice.appointmentId);
-    if (!appt) continue;
-
-    const booked = bookedCounts(appt);
+    const appt = invoice.appointmentId ? apptById.get(invoice.appointmentId) : undefined;
+    const seller = sellerOf(invoice, appt, staff);
+    // Only a booking can be "gone beyond"; without one the explicit flag is the
+    // only signal, and bookedCounts on an absent appointment would upsell
+    // everything on the bill.
+    const booked = appt ? bookedCounts(appt) : undefined;
     const ratio = paidRatio(invoice);
 
     for (const line of invoice.items) {
       if (line.type !== "service") continue;
       // Consumed for every line, upsold or not, so the booking allowance is
       // spent in order rather than being re-offered to a later line.
-      const units = upsoldUnits(line, booked);
+      const offBooking = booked ? upsoldUnits(line, booked) : 0;
+      // A flagged line is upsold in full; an off-booking one only for the units
+      // beyond what was booked.
+      const units = line.upsell ? Math.max(1, line.qty) : offBooking;
       if (units <= 0) continue;
 
-      const share = creditShare(line, appt, staffId, services);
+      const share = creditShare(line, seller, staff, services);
       if (share <= 0) continue;
 
       const amount = (line.unitPrice || 0) * units * ratio * share;
@@ -161,16 +196,15 @@ export function upsellInPeriod(
  *
  * For showing the person editing an invoice what their additions are worth —
  * the same rule the payout uses, so the editor can't disagree with the payslip.
- * Everything is upsold when the sale has no appointment behind it to compare
- * against, so those return an empty set rather than flagging the whole bill.
+ * With no appointment to compare against, only explicitly flagged lines count;
+ * treating the whole bill as upsold would be the obvious wrong answer.
  */
 export function upsoldLineIds(invoice: SalonInvoice, appt: Appointment | undefined): Set<string> {
-  if (!appt) return new Set();
-  const booked = bookedCounts(appt);
+  const booked = appt ? bookedCounts(appt) : undefined;
   const ids = new Set<string>();
   for (const line of invoice.items) {
     if (line.type !== "service") continue;
-    if (upsoldUnits(line, booked) > 0) ids.add(line.id);
+    if (line.upsell || (booked && upsoldUnits(line, booked) > 0)) ids.add(line.id);
   }
   return ids;
 }

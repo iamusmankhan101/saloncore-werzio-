@@ -56,9 +56,13 @@ function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, o
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
   const [done, setDone] = useState(false);
 
+  // Read here rather than threaded through props: the modal needs the bills for
+  // both walk-in revenue and upsell, and nothing it does changes them.
+  const invoices = useMemo(() => getSalonInvoices(), []);
+  const staffRef = useMemo(() => ({ id: staff.id, name: staff.name }), [staff.id, staff.name]);
   const revenue = useMemo(
-    () => revenueInPeriod(staff.id, appointments, services, form.periodStart, form.periodEnd),
-    [staff.id, appointments, services, form.periodStart, form.periodEnd],
+    () => revenueInPeriod(staffRef, appointments, services, form.periodStart, form.periodEnd, invoices),
+    [staffRef, appointments, services, form.periodStart, form.periodEnd, invoices],
   );
   const hasTeamRevenue = useMemo(() => appointments.some((a) =>
     a.status === "completed" && a.date >= form.periodStart && a.date <= form.periodEnd &&
@@ -74,8 +78,8 @@ function ProcessPayoutModal({ staff, appointments, services, payouts, onClose, o
   // Services sold on top of what the client booked. Read straight from the
   // invoices rather than the appointments, which only record the booking.
   const upsell = useMemo(
-    () => upsellInPeriod(staff.id, getSalonInvoices(), appointments, services, form.periodStart, form.periodEnd),
-    [staff.id, appointments, services, form.periodStart, form.periodEnd],
+    () => upsellInPeriod(staffRef, invoices, appointments, services, form.periodStart, form.periodEnd),
+    [staffRef, invoices, appointments, services, form.periodStart, form.periodEnd],
   );
   const upsellRate = Number(form.upsellRate) || 0;
   const upsellAmount = upsellIncentive(upsell.value, upsellRate);
@@ -562,11 +566,11 @@ export default function PayoutsPage() {
             const payType = s.payType ?? "commission";
             const lastEnd = lastPayoutEnd(s.id, payouts);
             const periodStart = lastEnd ? addDays(lastEnd, 1) : startOfMonth();
-            const revenue = revenueInPeriod(s.id, appointments, services, periodStart, todayStr());
+            const revenue = revenueInPeriod(s, appointments, services, periodStart, todayStr(), invoices);
             const estAttendance = getAttendanceSummary(s.id, periodStart, todayStr(), undefined, leaveAllowanceFor(s), standardHoursFor(s));
             const estSalary = estAttendance.markedDays > 0 ? Math.round((s.baseSalary ?? 0) * estAttendance.creditFactor) : (s.baseSalary ?? 0);
             const estUpsell = upsellIncentive(
-              upsellInPeriod(s.id, invoices, appointments, services, periodStart, todayStr()).value,
+              upsellInPeriod(s, invoices, appointments, services, periodStart, todayStr()).value,
               s.upsellCommissionRate,
             );
             const estimated = (payType === "commission" ? Math.round(revenue * (s.commissionRate ?? 0) / 100)

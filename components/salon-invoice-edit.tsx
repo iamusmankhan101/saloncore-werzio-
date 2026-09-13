@@ -74,7 +74,12 @@ export default function SalonInvoiceEdit({ invoice, onClose, onSaved }: Props) {
   }
 
   function addItem() {
-    setItems(list => [...list, newBlankItem()]);
+    setItems(list => [...list, { ...newBlankItem(), upsell: true }]);
+  }
+
+  /** Lets the flag be corrected by hand — an addition that was really a fix. */
+  function toggleUpsell(id: string) {
+    setItems(list => list.map(i => i.id === id ? { ...i, upsell: !i.upsell } : i));
   }
 
   /**
@@ -90,6 +95,9 @@ export default function SalonInvoiceEdit({ invoice, onClose, onSaved }: Props) {
     if (!service) return;
     setItems(list => [...list, {
       ...newBlankItem(),
+      // The bill already existed, so a service added now was sold during the
+      // visit. Correctable with the chip on the line if it wasn't.
+      upsell: true,
       sourceId: service.id,
       description: service.name,
       unitPrice: service.price,
@@ -154,11 +162,17 @@ export default function SalonInvoiceEdit({ invoice, onClose, onSaved }: Props) {
                   <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                     <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })}
                       placeholder="Description" style={inputStyle} />
-                    {upsoldIds.has(item.id) && (
-                      <span title="Not on the original booking — counts towards the stylist's upsell incentive"
-                        style={{ flexShrink: 0, fontSize: 9, fontWeight: 800, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em" }}>
+                    {item.type === "service" && (
+                      <button type="button" onClick={() => toggleUpsell(item.id)}
+                        title={upsoldIds.has(item.id)
+                          ? "Counts towards the stylist's upsell incentive — click to unmark"
+                          : "Mark as an upsell, so it counts towards the stylist's incentive"}
+                        style={{ flexShrink: 0, fontSize: 9, fontWeight: 800, letterSpacing: "0.04em", padding: "3px 7px", borderRadius: 20, cursor: "pointer",
+                          color: upsoldIds.has(item.id) ? "#92400e" : "#c0c0d0",
+                          background: upsoldIds.has(item.id) ? "#fffbeb" : "#fff",
+                          border: upsoldIds.has(item.id) ? "1px solid #fde68a" : "1px dashed #e8e8f0" }}>
                         UPSELL
-                      </span>
+                      </button>
                     )}
                   </div>
                   <input type="number" min={0} value={item.qty} onChange={e => updateItem(item.id, { qty: Math.max(0, Number(e.target.value) || 0) })}
@@ -193,11 +207,12 @@ export default function SalonInvoiceEdit({ invoice, onClose, onSaved }: Props) {
                 <Plus size={13} /> Custom Line
               </button>
             </div>
-            {appointment && upsoldIds.size > 0 && (
+            {upsoldIds.size > 0 && (
               <div style={{ marginTop: 8, fontSize: 11, color: "#92400e", lineHeight: 1.6 }}>
-                {upsoldIds.size} line{upsoldIds.size === 1 ? "" : "s"} not on the original booking
-                ({appointment.serviceNames.join(", ") || "no services booked"}) — these count towards
-                {" "}{appointment.staffName || "the stylist"}&rsquo;s upsell incentive in Payouts.
+                {upsoldIds.size} line{upsoldIds.size === 1 ? "" : "s"} marked as an upsell
+                {appointment ? ` (booked: ${appointment.serviceNames.join(", ") || "nothing"})` : ""} — these count
+                towards {invoice.staffName || appointment?.staffName || "the stylist"}&rsquo;s upsell incentive in Payouts.
+                Click a UPSELL chip to change it.
               </div>
             )}
           </div>

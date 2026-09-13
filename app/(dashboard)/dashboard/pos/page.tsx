@@ -429,6 +429,7 @@ export default function POSPage() {
         clientPhone:   selectedClient?.phone ? normalizePhone(selectedClient.phone) : "",
         clientEmail:   selectedClient?.email,
         staffName:     staffMember?.name || "",
+        staffId:       staffMember?.id,
         section:       saleSection,
         items:         cartLineItems,
         subtotal, discountAmount: wholePkr(discountAmount + loyaltyDiscount), discount2Amount: discountAmount2, taxAmount, total,

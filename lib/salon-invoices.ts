@@ -22,6 +22,17 @@ export interface SalonInvoiceItem {
    * written before this field existed, and on hand-typed lines.
    */
   sourceId?: string;
+  /**
+   * Marks this line as sold on top of what the client originally came in for.
+   *
+   * Set automatically on any line added while editing an existing invoice — the
+   * bill was written when the client arrived, so anything appended after that
+   * was sold during the visit — and toggleable by hand for the cases that rule
+   * misses. Needed because most salons take walk-ins with no booking to compare
+   * the bill against, which is the only other way to tell an upsell from the
+   * job the client came for.
+   */
+  upsell?: boolean;
   description: string;
   qty: number;
   unitPrice: number;
@@ -37,6 +48,8 @@ export interface SalonInvoice {
   clientPhone: string;
   clientEmail?: string;
   staffName: string;
+  /** Who made the sale. Absent on invoices written before this was recorded, where staffName is the only clue. */
+  staffId?: string;
   items: SalonInvoiceItem[];
   subtotal: number;
   discountAmount: number;   // flat discount in PKR (primary discount + loyalty redemption combined)

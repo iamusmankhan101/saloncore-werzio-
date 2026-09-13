@@ -1,6 +1,8 @@
 import { locationUserKey } from "./locations";
 import { persistEntity } from "./turso-sync";
 import type { Appointment, Service, StaffPayType } from "./types";
+import type { SalonInvoice } from "./salon-invoices";
+import type { StaffRef } from "./upsell";
 
 export type PayoutStatus = "pending" | "paid";
 
@@ -98,9 +100,44 @@ export function staffRevenueFromAppointment(appt: Appointment, staffId: string, 
   }, 0);
 }
 
-/** Revenue a staff member generated from completed appointments within [start, end] inclusive, splitting team-service revenue evenly among the assigned stylist team. */
-export function revenueInPeriod(staffId: string, appointments: Appointment[], services: Service[], start: string, end: string): number {
-  return appointments
+/**
+ * Revenue a staff member generated within [start, end] inclusive.
+ *
+ * Two sources, because a salon's work reaches the books by two routes and only
+ * one of them used to be counted:
+ *
+ *  - Completed appointments, which carry the sale total once POS has closed
+ *    them out. Team-service revenue is split evenly among the assigned stylists.
+ *  - Walk-in invoices with no appointment behind them. Counting these is what
+ *    makes the figure right for a salon that books nothing and rings everything
+ *    up at the counter — previously every stylist in such a salon showed zero
+ *    revenue, and so zero commission, however much they had taken.
+ *
+ * Appointment-linked invoices are deliberately skipped: their money is already
+ * counted through the appointment, and adding the invoice as well would pay
+ * commission twice on one sale.
+ */
+export function revenueInPeriod(
+  staff: StaffRef,
+  appointments: Appointment[],
+  services: Service[],
+  start: string,
+  end: string,
+  invoices: SalonInvoice[] = [],
+): number {
+  const fromAppointments = appointments
     .filter((a) => a.status === "completed" && a.date >= start && a.date <= end)
-    .reduce((sum, a) => sum + staffRevenueFromAppointment(a, staffId, services), 0);
+    .reduce((sum, a) => sum + staffRevenueFromAppointment(a, staff.id, services), 0);
+
+  const named = staff.name.trim().toLowerCase();
+  const fromWalkIns = invoices
+    .filter((inv) => !inv.appointmentId && inv.date >= start && inv.date <= end)
+    .filter((inv) => inv.staffId
+      ? inv.staffId === staff.id
+      // Older invoices recorded only the name; an unnamed sale belongs to nobody
+      // rather than to everybody.
+      : !!named && inv.staffName.trim().toLowerCase() === named)
+    .reduce((sum, inv) => sum + (inv.total || 0), 0);
+
+  return fromAppointments + fromWalkIns;
 }
