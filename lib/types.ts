@@ -76,6 +76,15 @@ export interface Service {
   packageServiceIds?: string[];
   /** Ad-hoc services bundled into this Deal/Package that aren't part of the master service list. */
   customServices?: { name: string; price?: number; durationMin?: number }[];
+  /**
+   * Inventory consumed each time this service is performed on a client — the
+   * tube of colour a dye job gets through, not something sold over the counter.
+   * `qty` is per performance, in the item's own unit, so a line selling the
+   * service twice consumes twice this much. Absent on services that use nothing
+   * trackable. Retail sales stay on the invoice as product lines; this is the
+   * back-bar side, which never appears on a bill.
+   */
+  inventoryUsage?: { itemId: string; qty: number }[];
   assignedStaffIds: string[];
   /** When true, all of assignedStaffIds work together as a team on this service (e.g. bridal hair + makeup done jointly), rather than assignedStaffIds being a pool of individually-eligible stylists. Informational only — doesn't affect booking, calendar, or payroll. */
   multiStylist?: boolean;

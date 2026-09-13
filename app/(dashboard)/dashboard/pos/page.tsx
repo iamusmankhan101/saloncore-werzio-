@@ -22,6 +22,7 @@ import {
   ADVANCE_NON_REFUNDABLE_NOTE,
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
+import { consumptionForSale } from "@/lib/inventory-usage";
 import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, fillTemplate } from "@/lib/whatsapp-scheduler";
 import { getCurrentPlan } from "@/lib/plan-limits";
@@ -256,8 +257,10 @@ export default function POSPage() {
   }, [clients, clientQ]);
 
   // ── Totals ────────────────────────────────────────────────────────────────
+  // sourceId keeps the Service/InventoryItem this line was rung up from, so
+  // back-bar consumption stays countable after a rename (lib/inventory-usage.ts).
   const cartLineItems: SalonInvoiceItem[] = cart.map(e => ({
-    id: e.cartId, type: e.type, description: e.name,
+    id: e.cartId, type: e.type, sourceId: e.itemId, description: e.name,
     qty: e.qty, unitPrice: wholePkr(e.unitPrice), total: wholePkr(e.total),
   }));
   const rawSubtotal    = wholePkr(cartLineItems.reduce((s, i) => s + i.total, 0));
@@ -453,11 +456,19 @@ export default function POSPage() {
         saveAppointments(updatedAppointments);
       }
 
+      // Stock leaves on two routes: sold over the counter, and used up performing
+      // the services on the ticket (lib/inventory-usage.ts). Both are applied in
+      // one pass — a product that is retailed *and* consumed by a service on the
+      // same sale has to lose both amounts, which two sequential saves off the
+      // same `inventory` snapshot would not do.
       const soldProducts = cart.filter(e => e.type === "product");
-      if (soldProducts.length > 0) {
+      const consumed = consumptionForSale(cartLineItems, services);
+      if (soldProducts.length > 0 || consumed.size > 0) {
         const updated = inventory.map(item => {
           const sold = soldProducts.find(e => e.itemId === item.id);
-          return sold ? { ...item, currentStock: Math.max(0, item.currentStock - sold.qty) } : item;
+          const used = consumed.get(item.id) ?? 0;
+          const out = (sold?.qty ?? 0) + used;
+          return out > 0 ? { ...item, currentStock: Math.max(0, item.currentStock - out) } : item;
         });
         setInventory(updated);
         saveInventory(updated);

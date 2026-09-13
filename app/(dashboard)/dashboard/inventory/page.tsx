@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { getStoredInventory, saveInventory } from "@/lib/storage";
+import { getStoredInventory, saveInventory, getStoredServices, getStoredAppointments } from "@/lib/storage";
+import { getSalonInvoices } from "@/lib/salon-invoices";
+import { computeInventoryUsage, fmtQty, usageFor, type ItemUsage } from "@/lib/inventory-usage";
 import { checkLowStockAlerts } from "@/lib/whatsapp-scheduler";
 import { settingsStore } from "@/lib/settings-store";
-import type { InventoryItem, InventoryCategory, InventoryUnit } from "@/lib/types";
+import type { InventoryItem, InventoryCategory, InventoryUnit, Service } from "@/lib/types";
 import { getSectionOptions, getActiveSection, inSection, defaultSectionForNewRecord } from "@/lib/sections";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
@@ -720,10 +722,77 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
   );
 }
 
+// ── Usage Breakdown Modal ──────────────────────────────────────────────────────
+/**
+ * Which services got through this item, and how often. Services mapped to the
+ * item but never yet performed are listed too, at zero — otherwise a mapping
+ * that is simply not selling looks identical to one that was never made.
+ */
+function UsageModal({ item, usage, services, onClose }: {
+  item: InventoryItem; usage: ItemUsage; services: Service[]; onClose: () => void;
+}) {
+  const counted = new Set(usage.byService.map((b) => b.serviceId));
+  const unused = services.filter(
+    (sv) => !counted.has(sv.id) && (sv.inventoryUsage ?? []).some((u) => u.itemId === item.id && u.qty > 0),
+  );
+
+  return (
+    <Overlay onClose={onClose}>
+      <ModalHeader title={`Used On Clients — ${item.name}`} onClose={onClose} />
+      <div style={{ padding: "18px 24px 24px" }}>
+        <div style={{ display: "flex", gap: 24, padding: "14px 16px", borderRadius: 12, background: "#faf9fd", marginBottom: 18 }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 850, color: "var(--accent)", lineHeight: 1.1 }}>{usage.timesUsed}</div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Times Used</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 850, color: "#1a1a2e", lineHeight: 1.1 }}>{fmtQty(usage.qtyUsed, item)}</div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Total Consumed</div>
+          </div>
+          {usage.lastUsedDate && (
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 850, color: "#1a1a2e", lineHeight: 1.1 }}>
+                {new Date(usage.lastUsedDate + "T12:00:00").toLocaleDateString("en-PK", { day: "numeric", month: "short" })}
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#9898b0", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Last Used</div>
+            </div>
+          )}
+        </div>
+
+        {usage.byService.length === 0 && unused.length === 0 ? (
+          <div style={{ padding: "28px 8px", textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: "#b0b0c8", fontWeight: 600 }}>No service uses this item yet</div>
+            <div style={{ fontSize: 12, color: "#c8c8d8", marginTop: 6, lineHeight: 1.6 }}>
+              Open a service under Services and add it under &ldquo;Products Used&rdquo; to start counting.
+            </div>
+          </div>
+        ) : (
+          <div style={{ maxHeight: 300, overflowY: "auto", border: "1px solid #f0f0f8", borderRadius: 12 }}>
+            {usage.byService.map((b) => (
+              <div key={b.serviceId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "11px 14px", borderBottom: "1px solid #f8f8fc" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>{b.serviceName}</span>
+                <span style={{ fontSize: 12, color: "#9898b0", whiteSpace: "nowrap" }}>
+                  <strong style={{ color: "var(--accent)" }}>{b.times}×</strong> · {fmtQty(b.qty, item)}
+                </span>
+              </div>
+            ))}
+            {unused.map((sv) => (
+              <div key={sv.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "11px 14px", borderBottom: "1px solid #f8f8fc" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#9898b0" }}>{sv.name}</span>
+                <span style={{ fontSize: 12, color: "#c8c8d8", whiteSpace: "nowrap" }}>Not performed yet</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Overlay>
+  );
+}
+
 // ── Item Table Row ─────────────────────────────────────────────────────────────
-function ItemRow({ item, isLast, onEdit, onDelete }: {
-  item: InventoryItem; isLast: boolean;
-  onEdit: () => void; onDelete: () => void;
+function ItemRow({ item, isLast, usage, onEdit, onDelete, onShowUsage }: {
+  item: InventoryItem; isLast: boolean; usage: ItemUsage;
+  onEdit: () => void; onDelete: () => void; onShowUsage: () => void;
 }) {
   const status = stockStatus(item);
   const badge  = STATUS_BADGE[status];
@@ -734,7 +803,7 @@ function ItemRow({ item, isLast, onEdit, onDelete }: {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "2.2fr 110px 130px 100px 130px 110px 90px",
+      gridTemplateColumns: "2.2fr 110px 130px 120px 100px 130px 110px 90px",
       padding: "13px 20px",
       borderBottom: isLast ? "none" : "1px solid #f4f4f8",
       borderLeft: leftBorder,
@@ -766,6 +835,19 @@ function ItemRow({ item, isLast, onEdit, onDelete }: {
         <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 1 }}>
           Min: {item.minStock} {item.unit}
         </div>
+      </div>
+
+      {/* Used on clients — back-bar consumption, not retail sales */}
+      <div>
+        {usage.timesUsed > 0 ? (
+          <button type="button" onClick={onShowUsage} title={`See which services used ${item.name}`}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>{usage.timesUsed}×</div>
+            <div style={{ fontSize: 10, color: "#b0b0c8", marginTop: 1 }}>{fmtQty(usage.qtyUsed, item)}</div>
+          </button>
+        ) : (
+          <span style={{ fontSize: 12, color: "#c8c8d8" }}>—</span>
+        )}
       </div>
 
       {/* Last restocked */}
@@ -813,9 +895,18 @@ export default function InventoryPage() {
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [services, setServices] = useState<Service[]>([]);
+  const [usage, setUsage] = useState<Map<string, ItemUsage>>(new Map());
+  const [usageItem, setUsageItem] = useState<InventoryItem | null>(null);
 
   useEffect(() => {
     setItems(getStoredInventory());
+    // Back-bar usage is derived, not logged — see lib/inventory-usage.ts. Read
+    // once on mount alongside the stock itself; nothing on this page changes a
+    // sale, so it cannot go stale while the page is open.
+    const serviceList = getStoredServices();
+    setServices(serviceList);
+    setUsage(computeInventoryUsage(getSalonInvoices(), getStoredAppointments(), serviceList));
     checkLowStockAlerts();
   }, []);
 
@@ -896,6 +987,7 @@ export default function InventoryPage() {
       {editItem   && <EditModal   item={editItem} onClose={() => setEditItem(null)} onSave={(updated) => persist(items.map((i) => i.id === updated.id ? updated : i))} items={items} />}
       {deleteItem && <DeleteModal item={deleteItem} onClose={() => setDeleteItem(null)} onDelete={() => persist(getStoredInventory().filter((i) => i.id !== deleteItem.id))} />}
       {showReminder && <ReminderModal alertItems={alertItems} onClose={() => setShowReminder(false)} />}
+      {usageItem && <UsageModal item={usageItem} usage={usageFor(usage, usageItem.id)} services={services} onClose={() => setUsageItem(null)} />}
       {showImport && (
         <InventoryImportModal
           existing={items}
@@ -1056,6 +1148,8 @@ export default function InventoryPage() {
                       <div className="mobile-list-title">{item.name}</div>
                       <div className="mobile-list-sub">
                         {item.brand}{item.supplier ? ` · ${item.supplier}` : ""} · {fmt(item.costPrice)}
+                        {usageFor(usage, item.id).timesUsed > 0 &&
+                          ` · used ${usageFor(usage, item.id).timesUsed}×`}
                       </div>
                       <div className="mobile-stock-bar-wrap">
                         <div className="mobile-stock-bar" style={{ width: `${stockPct}%`, background: barColor }} />
@@ -1516,8 +1610,8 @@ export default function InventoryPage() {
           <div className="table-scroll-wrap" style={{ background: "#fff", borderRadius: 18, border: "1px solid rgba(226,223,235,.95)", boxShadow: "0 8px 28px rgba(38,25,75,.04)", overflow: "hidden" }}>
             <div className="table-scroll-inner">
               <div className="inv-table-inner" style={{ background: "#fff" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "2.2fr 110px 130px 100px 130px 110px 90px", padding: "12px 20px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd", alignItems: "center" }}>
-                  {["ITEM", "CATEGORY", "STOCK", "RESTOCKED", "COST PRICE", "STATUS", "ACTIONS"].map((h) => (
+                <div style={{ display: "grid", gridTemplateColumns: "2.2fr 110px 130px 120px 100px 130px 110px 90px", padding: "12px 20px", borderBottom: "1px solid #f0f0f5", background: "#faf9fd", alignItems: "center" }}>
+                  {["ITEM", "CATEGORY", "STOCK", "USED ON CLIENTS", "RESTOCKED", "COST PRICE", "STATUS", "ACTIONS"].map((h) => (
                     <div key={h} style={{ fontSize: 10, fontWeight: 800, color: "#8e89a3", letterSpacing: "0.08em" }}>{h}</div>
                   ))}
                 </div>
@@ -1534,8 +1628,10 @@ export default function InventoryPage() {
                       key={item.id}
                       item={item}
                       isLast={i === filtered.length - 1}
+                      usage={usageFor(usage, item.id)}
                       onEdit={() => setEditItem(item)}
                       onDelete={() => setDeleteItem(item)}
+                      onShowUsage={() => setUsageItem(item)}
                     />
                   ))
                 )}

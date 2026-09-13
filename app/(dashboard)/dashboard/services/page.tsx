@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getStoredServices, saveServices, getStoredStaff, subscribeToStoredData } from "@/lib/storage";
-import type { Service, Staff } from "@/lib/types";
-import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search, Lock, Upload, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
+import { getStoredServices, saveServices, getStoredStaff, getStoredInventory, subscribeToStoredData } from "@/lib/storage";
+import type { InventoryItem, Service, Staff } from "@/lib/types";
+import { X, Plus, Clock, Scissors, DollarSign, Users, Sparkles, Check, Pencil, Trash2, Package as PackageIcon, Search, Lock, Upload, Download, FileSpreadsheet, ChevronDown, Boxes } from "lucide-react";
 import { getSectionOptions, getActiveSection, inSection, defaultSectionForNewRecord } from "@/lib/sections";
 import PageTitle from "@/components/page-title";
 import MobilePageHeader from "@/components/mobile-page-header";
@@ -302,8 +302,8 @@ function ServiceImportModal({ existing, staffList, onClose, onImport }: {
 }
 
 // ── Add/Edit Service Modal ────────────────────────────────────────────────────
-function AddEditServiceModal({ onClose, onSave, staffList, servicesList, serviceToEdit }: {
-  onClose: () => void; onSave: (s: Service) => void; staffList: Staff[]; servicesList: Service[]; serviceToEdit?: Service;
+function AddEditServiceModal({ onClose, onSave, staffList, servicesList, inventoryList, serviceToEdit }: {
+  onClose: () => void; onSave: (s: Service) => void; staffList: Staff[]; servicesList: Service[]; inventoryList: InventoryItem[]; serviceToEdit?: Service;
 }) {
   const isEditing = !!serviceToEdit;
   const isEditingPackage = serviceToEdit?.category === "package";
@@ -327,12 +327,15 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
     priceRangeMax:    serviceToEdit?.priceRangeMax ? String(serviceToEdit.priceRangeMax) : "",
     assignedStaffIds: serviceToEdit?.assignedStaffIds ?? [] as string[],
     multiStylist:     serviceToEdit?.multiStylist ?? false,
+    inventoryUsage:   serviceToEdit?.inventoryUsage ?? [] as { itemId: string; qty: number }[],
   });
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
   const [done, setDone] = useState(false);
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
   const [customDuration, setCustomDuration] = useState("");
+  const [usageItemId, setUsageItemId] = useState("");
+  const [usageQty, setUsageQty] = useState("");
 
   const price = Number(form.price) || 0;
   const rangeMin = Number(form.priceRangeMin) || 0;
@@ -397,6 +400,20 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
     recalcComponentTotals(cur);
   };
 
+  const addUsage = () => {
+    const qty = Number(usageQty);
+    if (!usageItemId || !Number.isFinite(qty) || qty <= 0) return;
+    // Re-picking an item replaces its quantity rather than listing it twice —
+    // two rows for one product would double what checkout takes off stock.
+    const rest = form.inventoryUsage.filter((u) => u.itemId !== usageItemId);
+    set("inventoryUsage", [...rest, { itemId: usageItemId, qty }]);
+    setUsageItemId("");
+    setUsageQty("");
+  };
+
+  const removeUsage = (itemId: string) =>
+    set("inventoryUsage", form.inventoryUsage.filter((u) => u.itemId !== itemId));
+
   const toggleStaff = (id: string) => {
     const cur = [...form.assignedStaffIds];
     set("assignedStaffIds", cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]);
@@ -419,6 +436,7 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
       customServices:   !form.isPackage && form.customServices.length > 0 ? form.customServices : undefined,
       assignedStaffIds: form.assignedStaffIds,
       multiStylist:     form.multiStylist && form.assignedStaffIds.length >= 2 ? true : undefined,
+      inventoryUsage:   form.inventoryUsage.length > 0 ? form.inventoryUsage : undefined,
       isActive:         serviceToEdit?.isActive ?? true,
     });
     setDone(true);
@@ -588,6 +606,50 @@ function AddEditServiceModal({ onClose, onSave, staffList, servicesList, service
               </div>
             </div>
           )}
+          {!form.isPackage && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Products Used <span style={{ textTransform: "none", fontWeight: 500, color: "#c0c0d0" }}>(optional — stock consumed each time this service is done)</span>
+              </label>
+              {form.inventoryUsage.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {form.inventoryUsage.map((usage) => {
+                    const item = inventoryList.find((i) => i.id === usage.itemId);
+                    return (
+                      <div key={usage.itemId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 6, background: "#F5F3FF" }}>
+                        <Boxes size={13} color="#7C3AED" style={{ flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 500, color: "#1a1a2e", flex: 1 }}>
+                          {item ? `${item.brand ? item.brand + " " : ""}${item.name}` : "Deleted product"}
+                        </span>
+                        <span style={{ fontSize: 11, color: "#9898b0" }}>{usage.qty} {item?.unit ?? ""}</span>
+                        <button type="button" onClick={() => removeUsage(usage.itemId)} aria-label={`Remove ${item?.name ?? "product"}`}
+                          style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 2 }}>
+                          <X size={13} color="#7C3AED" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <select value={usageItemId} onChange={(e) => setUsageItemId(e.target.value)}
+                  style={{ flex: "2 1 140px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none", background: "#fff" }}>
+                  <option value="">Choose a product…</option>
+                  {inventoryList.map((item) => (
+                    <option key={item.id} value={item.id}>{item.brand ? `${item.brand} ` : ""}{item.name}</option>
+                  ))}
+                </select>
+                <input type="number" value={usageQty} onChange={(e) => setUsageQty(e.target.value)}
+                  placeholder={usageItemId ? `Qty (${inventoryList.find((i) => i.id === usageItemId)?.unit ?? "units"})` : "Qty"}
+                  style={{ flex: "1 1 80px", minWidth: 0, padding: "8px 10px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 12, color: "#1a1a2e", outline: "none" }} />
+                <button type="button" onClick={addUsage} disabled={!usageItemId || !(Number(usageQty) > 0)}
+                  style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 8, border: "none", background: usageItemId && Number(usageQty) > 0 ? "#7C3AED" : "#e8e8f0", color: usageItemId && Number(usageQty) > 0 ? "#fff" : "#b0b0c8", fontSize: 12, fontWeight: 700, cursor: usageItemId && Number(usageQty) > 0 ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 4 }}>
+                  <Plus size={13} /> Add
+                </button>
+              </div>
+              {inventoryList.length === 0 && <div style={{ fontSize: 12, color: "#9898b0" }}>No products in Inventory yet.</div>}
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {!form.variablePrice && (
               <>
@@ -681,6 +743,7 @@ function DeleteConfirmModal({ name, onConfirm, onCancel }: { name: string; onCon
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
@@ -694,6 +757,7 @@ export default function ServicesPage() {
     const load = () => {
       setServices(getStoredServices());
       setStaff(getStoredStaff());
+      setInventory(getStoredInventory());
     };
     load();
     // Re-read whenever a DB sync (or another tab) rewrites localStorage, so this
@@ -779,6 +843,7 @@ export default function ServicesPage() {
           onSave={handleSaveService}
           staffList={staff}
           servicesList={services}
+          inventoryList={inventory}
           serviceToEdit={editingService ?? undefined}
         />
       )}

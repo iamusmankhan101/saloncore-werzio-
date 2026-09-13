@@ -14,6 +14,14 @@ export type SalonInvoiceItemType = "service" | "product";
 export interface SalonInvoiceItem {
   id: string;
   type: SalonInvoiceItemType;
+  /**
+   * The Service or InventoryItem this line was rung up from. Recorded so back-bar
+   * consumption can be counted per item long after the sale (see
+   * lib/inventory-usage.ts) without matching on `description`, which is a free
+   * text copy that drifts the moment a service is renamed. Absent on invoices
+   * written before this field existed, and on hand-typed lines.
+   */
+  sourceId?: string;
   description: string;
   qty: number;
   unitPrice: number;
