@@ -129,6 +129,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
     commissionRate: staff?.commissionRate ? String(staff.commissionRate) : "",
     baseSalary: staff?.baseSalary ? String(staff.baseSalary) : "",
     paidLeavesPerMonth: staff?.paidLeavesPerMonth != null ? String(staff.paidLeavesPerMonth) : "",
+    upsellCommissionRate: staff?.upsellCommissionRate != null ? String(staff.upsellCommissionRate) : "",
     standardHoursPerDay: staff?.standardHoursPerDay != null ? String(staff.standardHoursPerDay) : "",
   });
   const sectionOptions = getSectionOptions(staffList);
@@ -182,6 +183,7 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
       standardHoursPerDay: Number(form.standardHoursPerDay) > 0 ? Number(form.standardHoursPerDay) : undefined,
       // Set on the Staff record's own page; preserved here so editing from the
       // list doesn't silently put the person back on the salon-wide roster.
+      upsellCommissionRate: form.upsellCommissionRate !== "" && Number(form.upsellCommissionRate) > 0 ? Number(form.upsellCommissionRate) : undefined,
       weeklyOffDays: staff?.weeklyOffDays,
     };
 
@@ -281,6 +283,13 @@ function StaffFormModal({ onClose, onSave, staff, servicesList, staffList }: { o
               </div>
             </>
           )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Upsell Incentive (%)</label>
+            <input type="number" min="0" max="100" value={form.upsellCommissionRate} onChange={(e) => set("upsellCommissionRate", e.target.value)} placeholder="e.g. 10"
+              style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none" }} />
+            <div style={{ fontSize: 11, color: "#b0b0c8" }}>Extra commission on services sold beyond what the client booked, paid on top of any normal commission. Leave blank for none.</div>
+          </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Paid Leaves / Month</label>

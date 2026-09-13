@@ -15,8 +15,14 @@ export interface Payout {
   revenueGenerated: number;
   /** Commission % snapshot at the time this payout was processed (commission only). */
   commissionRate?: number;
-  /** Computed pay before adjustments — revenue × rate for commission, or baseSalary for salary. */
+  /** Computed pay before adjustments — revenue × rate for commission, or baseSalary for salary, plus any upsell incentive. */
   baseAmount: number;
+  /** Value of services sold beyond what clients booked, in the period. */
+  upsellValue?: number;
+  /** Upsell incentive % snapshot at the time this payout was processed. */
+  upsellRate?: number;
+  /** upsellValue × upsellRate, already included in baseAmount. */
+  upsellAmount?: number;
   /** Manual bonus (positive) or deduction (negative). */
   adjustment: number;
   adjustmentNote?: string;

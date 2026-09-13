@@ -85,6 +85,7 @@ function EditModal({
     commissionRate: staff.commissionRate ? String(staff.commissionRate) : "",
     baseSalary: staff.baseSalary ? String(staff.baseSalary) : "",
     paidLeavesPerMonth: staff.paidLeavesPerMonth != null ? String(staff.paidLeavesPerMonth) : "",
+    upsellCommissionRate: staff.upsellCommissionRate != null ? String(staff.upsellCommissionRate) : "",
     standardHoursPerDay: staff.standardHoursPerDay != null ? String(staff.standardHoursPerDay) : "",
   });
   // null = follow the salon roster; an array (empty included) = this person's own.
@@ -132,6 +133,7 @@ function EditModal({
       baseSalary: (form.payType === "salary" || form.payType === "both") && form.baseSalary ? Number(form.baseSalary) : undefined,
       paidLeavesPerMonth: form.paidLeavesPerMonth !== "" && Number(form.paidLeavesPerMonth) >= 0 ? Number(form.paidLeavesPerMonth) : undefined,
       standardHoursPerDay: Number(form.standardHoursPerDay) > 0 ? Number(form.standardHoursPerDay) : undefined,
+      upsellCommissionRate: form.upsellCommissionRate !== "" && Number(form.upsellCommissionRate) > 0 ? Number(form.upsellCommissionRate) : undefined,
       weeklyOffDays: offDays ?? undefined,
     };
     onSave(updatedStaff, selectedServiceIds);
@@ -218,6 +220,11 @@ function EditModal({
               </div>
             </>
           )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Upsell Incentive (%)</label>
+            <input type="number" min="0" max="100" style={inp} value={form.upsellCommissionRate} onChange={(e) => set("upsellCommissionRate", e.target.value)} placeholder="e.g. 10" />
+            <div style={{ fontSize: 11, color: "#b0b0c8" }}>Extra commission on services sold beyond what the client booked, paid on top of any normal commission. Leave blank for none.</div>
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Paid Leaves / Month</label>
             <input type="number" min="0" style={inp} value={form.paidLeavesPerMonth} onChange={(e) => set("paidLeavesPerMonth", e.target.value)} placeholder="e.g. 2" />

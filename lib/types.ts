@@ -54,6 +54,14 @@ export interface Staff {
   commissionRate?: number;
   /** Fixed pay-period amount (PKR). Used when payType is "salary" or "both". */
   baseSalary?: number;
+  /**
+   * Extra commission %, paid only on services sold beyond what the client
+   * booked (see lib/upsell.ts). Stacks on top of any ordinary commission rather
+   * than replacing it — the upsold service is still revenue the stylist earns
+   * their normal rate on; this rewards having made the sale at all. Applies
+   * whatever the pay type, so a salaried stylist can still earn on upselling.
+   */
+  upsellCommissionRate?: number;
   /** How many "Leave" attendance days per month/pay period count as fully paid before further leaves start reducing salary. Defaults to 0 (unpaid) when unset. */
   paidLeavesPerMonth?: number;
   /** A full working day for this person, in hours. Overrides the salon-wide standard (Settings → Attendance) for part-timers and split shifts. */
