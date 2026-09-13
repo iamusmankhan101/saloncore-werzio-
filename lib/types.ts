@@ -171,6 +171,29 @@ export interface Appointment {
   createdAt?: string;
   /** Which salon section this appointment belongs to — derived from the assigned staff member's section. Free text, cosmetic only. */
   section?: string;
+  /**
+   * What the client said about the visit, taken at the desk on the way out.
+   *
+   * Distinct from the `client_feedback` table behind Dashboard → Feedback, which
+   * holds what clients submit themselves through the link sent after a visit.
+   * This is the counter conversation — the complaint made in person that would
+   * otherwise never be written down — so it lives on the appointment, is
+   * editable by staff, and syncs with everything else on the record.
+   *
+   * Only meaningful once the appointment is completed.
+   */
+  feedback?: AppointmentFeedback;
+}
+
+export interface AppointmentFeedback {
+  /** 1–5. Absent when the client gave a comment but no score. */
+  rating?: number;
+  review?: string;
+  complaint?: string;
+  /** Whether the complaint has been dealt with. Meaningless without one. */
+  complaintResolved?: boolean;
+  /** ISO timestamp of the last edit, for "recorded on" display. */
+  recordedAt: string;
 }
 
 export interface Payment {

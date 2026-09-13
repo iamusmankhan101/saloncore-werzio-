@@ -4,8 +4,8 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import { getSalonInvoices, saveSalonInvoices } from "@/lib/salon-invoices";
 import { recordDeletions } from "@/lib/turso-sync";
-import type { Appointment, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
-import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2, Upload, Download, FileSpreadsheet, Check } from "lucide-react";
+import type { Appointment, AppointmentFeedback, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
+import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2, Upload, Download, FileSpreadsheet, Check, Star, AlertTriangle, MessageSquare } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert, purgeQueuedAppointmentMessages, normalizePhone } from "@/lib/whatsapp-scheduler";
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
@@ -426,13 +426,66 @@ function FilterSelect({ label, value, onChange, children, disabled }: { label: s
 
 // ── Detail Modal ──────────────────────────────────────────────────────────────
 
+/**
+ * Star rating. Read-only when `onChange` is omitted, so the same component
+ * serves the editor in the detail modal and the badge in the list.
+ */
+function Stars({ value, onChange, size = 15 }: { value?: number; onChange?: (n: number) => void; size?: number }) {
+  return (
+    <span style={{ display: "inline-flex", gap: 2 }}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const on = (value ?? 0) >= n;
+        const star = <Star size={size} fill={on ? "#f59e0b" : "none"} color={on ? "#f59e0b" : "#d0d0e0"} />;
+        if (!onChange) return <span key={n} style={{ display: "inline-flex" }}>{star}</span>;
+        return (
+          <button key={n} type="button" aria-label={`${n} star${n === 1 ? "" : "s"}`}
+            // Clicking the current rating clears it — otherwise a mis-tapped star
+            // can never be undone, and 1 star is not a neutral place to leave it.
+            onClick={() => onChange(value === n ? 0 : n)}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex" }}>
+            {star}
+          </button>
+        );
+      })}
+    </span>
+  );
+}
+
+/**
+ * What the list rows show of a visit's feedback: the rating, and an unresolved
+ * complaint. A complaint that has been dealt with is deliberately quiet — the
+ * flag is there to be chased, so leaving it up after it is settled trains people
+ * to ignore it.
+ */
+function FeedbackBadge({ feedback }: { feedback?: AppointmentFeedback }) {
+  if (!feedback) return null;
+  const openComplaint = !!feedback.complaint && !feedback.complaintResolved;
+  if (!feedback.rating && !openComplaint) return null;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 3 }}>
+      {feedback.rating ? <Stars value={feedback.rating} size={11} /> : null}
+      {openComplaint && (
+        <span title={feedback.complaint} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 800, color: "#dc2626", background: "#fef2f2", padding: "2px 6px", borderRadius: 20, whiteSpace: "nowrap" }}>
+          <AlertTriangle size={9} /> COMPLAINT
+        </span>
+      )}
+    </span>
+  );
+}
+
 const FLOW_STEPS: AppointmentStatus[] = ["booked", "confirmed", "arrived", "in-progress", "completed"];
 
-function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusChange }: {
+function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusChange, onSaveFeedback }: {
   appt: Appointment; onClose: () => void; clients: Client[]; staffList: Staff[];
   allServices: Service[]; onStatusChange: (apptId: string, status: AppointmentStatus) => void;
+  onSaveFeedback: (apptId: string, feedback: AppointmentFeedback | undefined) => void;
 }) {
   const [currentStatus, setCurrentStatus] = useState<AppointmentStatus>(appt.status);
+  const [rating, setRating] = useState(appt.feedback?.rating ?? 0);
+  const [review, setReview] = useState(appt.feedback?.review ?? "");
+  const [complaint, setComplaint] = useState(appt.feedback?.complaint ?? "");
+  const [complaintResolved, setComplaintResolved] = useState(appt.feedback?.complaintResolved ?? false);
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
   const cfg          = STATUS[currentStatus];
   const [photos, setPhotos] = useState<{ before?: string; after?: string }>({});
   // A ref (not state) so it latches synchronously — a rapid double-click/double-tap
@@ -455,6 +508,23 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
   const flowIdx      = FLOW_STEPS.indexOf(currentStatus);
   const nextStep     = flowIdx !== -1 && flowIdx < FLOW_STEPS.length - 1 ? FLOW_STEPS[flowIdx + 1] : null;
   const isTerminal   = ["completed", "cancelled", "no-show"].includes(currentStatus);
+
+  function saveFeedback() {
+    const trimmedReview = review.trim();
+    const trimmedComplaint = complaint.trim();
+    // Clearing every field removes the record rather than storing an empty one,
+    // so "has feedback" stays a simple presence check everywhere else.
+    const hasAnything = rating > 0 || trimmedReview || trimmedComplaint;
+    onSaveFeedback(appt.id, hasAnything ? {
+      rating: rating > 0 ? rating : undefined,
+      review: trimmedReview || undefined,
+      complaint: trimmedComplaint || undefined,
+      complaintResolved: trimmedComplaint ? complaintResolved : undefined,
+      recordedAt: new Date().toISOString(),
+    } : undefined);
+    setFeedbackSaved(true);
+    window.setTimeout(() => setFeedbackSaved(false), 2000);
+  }
 
   function changeStatus(newStatus: AppointmentStatus) {
     if (terminalLockRef.current) return;
@@ -665,6 +735,55 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#065f46" }}>Appointment Completed</div>
                 <div style={{ fontSize: 11, color: "#047857", marginTop: 1 }}>Client stats updated · Follow-up WhatsApp queued</div>
               </div>
+            </div>
+          )}
+
+          {/* Review & complaint — only once the visit has actually happened */}
+          {currentStatus === "completed" && (
+            <div style={{ border: "1px solid #ebebf0", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <MessageSquare size={15} color="#7C3AED" />
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>Customer Review &amp; Complaint</span>
+                </div>
+                {appt.feedback?.recordedAt && (
+                  <span style={{ fontSize: 10, color: "#b0b0c8", fontWeight: 600 }}>
+                    Recorded {new Date(appt.feedback.recordedAt).toLocaleDateString("en-PK", { day: "numeric", month: "short" })}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Rating</span>
+                <Stars value={rating} onChange={setRating} size={20} />
+                {rating > 0 && <span style={{ fontSize: 11, color: "#b0b0c8" }}>{rating}/5 · tap again to clear</span>}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Review</label>
+                <textarea value={review} onChange={(e) => setReview(e.target.value)} rows={2}
+                  placeholder="What the client said about the visit…"
+                  style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", resize: "vertical", fontFamily: "inherit" }} />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.06em" }}>Complaint</label>
+                <textarea value={complaint} onChange={(e) => setComplaint(e.target.value)} rows={2}
+                  placeholder="Anything the client was unhappy about…"
+                  style={{ padding: "9px 12px", borderRadius: 8, border: complaint.trim() ? "1px solid #fecaca" : "1px solid #e8e8f0", fontSize: 13, color: "#1a1a2e", outline: "none", resize: "vertical", fontFamily: "inherit", background: complaint.trim() ? "#fffafa" : "#fff" }} />
+                {complaint.trim() && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <input type="checkbox" checked={complaintResolved} onChange={(e) => setComplaintResolved(e.target.checked)}
+                      style={{ width: 14, height: 14, accentColor: "#059669", cursor: "pointer" }} />
+                    <span style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 600 }}>Resolved</span>
+                  </label>
+                )}
+              </div>
+
+              <button type="button" onClick={saveFeedback}
+                style={{ alignSelf: "flex-start", padding: "8px 18px", borderRadius: 9, border: "none", background: feedbackSaved ? "#059669" : "#7C3AED", color: "#fff", fontSize: 12.5, fontWeight: 750, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                {feedbackSaved ? "Saved" : "Save Feedback"}
+              </button>
             </div>
           )}
         </div>
@@ -1492,6 +1611,14 @@ export default function AppointmentsPage() {
           clients={clients}
           staffList={staffList}
           allServices={services}
+          onSaveFeedback={(apptId, feedback) => {
+            setAppointments((prev) => {
+              const updated = prev.map((a) => a.id === apptId ? { ...a, feedback } : a);
+              saveAppointments(updated);
+              return updated;
+            });
+            setSelected((prev) => prev && prev.id === apptId ? { ...prev, feedback } : prev);
+          }}
           onStatusChange={(apptId, newStatus) => {
             setAppointments((prev) => {
               const updated = prev.map((a) => a.id === apptId ? { ...a, status: newStatus } : a);
@@ -1923,6 +2050,7 @@ export default function AppointmentsPage() {
                     <span style={{ width: 4, height: 4, borderRadius: "50%", background: cfg.color }} />
                     {cfg.label}
                   </span>
+                  <FeedbackBadge feedback={appt.feedback} />
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{fmt(appt.totalAmount)}</div>
                 {/* Checkout button — visible for arrived / in-progress / completed, until it's actually been invoiced */}
@@ -1974,6 +2102,9 @@ export default function AppointmentsPage() {
                       {cfg.label}
                     </span>
                   </div>
+                  {appt.feedback && (
+                    <div style={{ paddingLeft: 44 }}><FeedbackBadge feedback={appt.feedback} /></div>
+                  )}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 44 }}>
                     <div style={{ fontSize: 11, color: "#9898b0", display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }}>
                       <Clock size={10} />
