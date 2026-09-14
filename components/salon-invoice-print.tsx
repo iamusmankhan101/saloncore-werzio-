@@ -245,7 +245,8 @@ interface Props {
   invoice: SalonInvoice;
   salonName: string;
   salonPhone: string;
-  salonEmail: string;
+  /** Accepted but not printed — invoices show the phone as the contact. */
+  salonEmail?: string;
   salonAddress: string;
   onClose: () => void;
   onMarkPaid?: () => void;
@@ -253,7 +254,7 @@ interface Props {
 }
 
 export default function SalonInvoicePrint({
-  invoice, salonName, salonPhone, salonEmail, salonAddress,
+  invoice, salonName, salonPhone, salonAddress,
   onClose, onMarkPaid, onEdit,
 }: Props) {
   const [mounted, setMounted]           = useState(false);
@@ -416,7 +417,6 @@ export default function SalonInvoicePrint({
                   <div className="sip-biz" style={{ fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>{salonName}</div>
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 2 }}>
                     {salonAddress && <div>{salonAddress}</div>}
-                    {salonEmail   && <div>{salonEmail}</div>}
                     {salonPhone   && <div>{salonPhone}</div>}
                   </div>
                 </div>
@@ -439,7 +439,6 @@ export default function SalonInvoicePrint({
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 4 }}>{invoice.clientName}</div>
                   <div style={{ fontSize: 12, color: "#555", lineHeight: 1.9 }}>
                     {invoice.clientPhone && <div>{invoice.clientPhone}</div>}
-                    {invoice.clientEmail && <div>{invoice.clientEmail}</div>}
                   </div>
                 </div>
 
@@ -553,8 +552,11 @@ export default function SalonInvoicePrint({
               <div style={{ marginBottom: 36 }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Terms</div>
                 <div style={{ fontSize: 12, color: "#555", lineHeight: 1.8 }}>
-                  Payment is due upon receipt. Thank you for your business!<br />
-                  For queries, contact us at {salonEmail || salonPhone}.
+                  Payment is due upon receipt. Thank you for your business!
+                  {salonPhone && <>
+                    <br />
+                    For queries, contact us at {salonPhone}.
+                  </>}
                 </div>
               </div>
 

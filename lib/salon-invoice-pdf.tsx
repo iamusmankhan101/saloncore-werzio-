@@ -82,7 +82,6 @@ function InvoiceDocument({ invoice, salon }: {
           <View>
             <Text style={styles.salonName}>{salonName}</Text>
             {!!salon.address && <Text style={styles.salonLine}>{salon.address}</Text>}
-            {!!salon.email   && <Text style={styles.salonLine}>{salon.email}</Text>}
             {!!salon.phone   && <Text style={styles.salonLine}>{salon.phone}</Text>}
           </View>
           {salon.logo ? (
@@ -100,7 +99,6 @@ function InvoiceDocument({ invoice, salon }: {
             <Text style={styles.sectionLabel}>Bill To</Text>
             <Text style={styles.billName}>{invoice.clientName}</Text>
             {!!invoice.clientPhone && <Text style={styles.billLine}>{invoice.clientPhone}</Text>}
-            {!!invoice.clientEmail && <Text style={styles.billLine}>{invoice.clientEmail}</Text>}
           </View>
           <View style={styles.metaCol}>
             <Text style={styles.sectionLabel}>Invoice</Text>
@@ -205,8 +203,8 @@ function InvoiceDocument({ invoice, salon }: {
         <View style={styles.termsBlock}>
           <Text style={styles.sectionLabel}>Terms</Text>
           <Text style={styles.termsText}>
-            Payment is due upon receipt. Thank you for your business!{"\n"}
-            For queries, contact us at {salon.email || salon.phone || "—"}.
+            Payment is due upon receipt. Thank you for your business!
+            {!!salon.phone && `\nFor queries, contact us at ${salon.phone}.`}
           </Text>
         </View>
 
