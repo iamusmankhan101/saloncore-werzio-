@@ -58,8 +58,12 @@ const MINUTE_MS = 60_000;
 const REMINDER_TARGET_GRACE_MS = 75 * MINUTE_MS;
 const REMINDER_MIN_LEAD_MS = 30 * MINUTE_MS;
 const FOLLOWUP_STALE_GRACE_MS = 36 * 60 * MINUTE_MS;
-const POS_JITTER_MIN_MS = 10 * 60_000;
-const POS_JITTER_MAX_MS = 15 * 60_000;
+// Kept in step with posReceiptDelayMs in /api/whatsapp/queue-pos-receipt, which
+// is the path POS receipts actually take now: a receipt goes out on the sale,
+// so this is jitter around "now" and not the 10-15 min pacing the outbound
+// automations above use.
+const POS_JITTER_MIN_MS = 1 * 60_000;
+const POS_JITTER_MAX_MS = 2 * 60_000;
 
 export function getWaLogs(): WaLogEntry[] {
   if (typeof window === "undefined") return [];
@@ -247,7 +251,7 @@ const newBookingTierGate = makeTierGate(FAST_JITTER_MIN_MS, FAST_JITTER_MAX_MS);
 const reminderTierGate = makeTierGate(REMINDER_TIER_MIN_MS, REMINDER_TIER_MAX_MS);
 const followupTierGate = makeTierGate(FOLLOWUP_TIER_MIN_MS, FOLLOWUP_TIER_MAX_MS);
 
-/** Random 10-15 min delay for POS invoice + thank-you sends, applied per transaction/client. */
+/** Random 1-2 min delay for POS invoice + thank-you sends, applied per transaction/client. */
 export function posJitterMs(): number {
   return randBetween(POS_JITTER_MIN_MS, POS_JITTER_MAX_MS);
 }

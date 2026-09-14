@@ -13,8 +13,20 @@ interface RequestBody {
   thankYouText?: string;
 }
 
+/**
+ * How long a POS receipt waits before it goes out. The receipt is the one
+ * automated message the client is actively expecting — they just paid and
+ * watched the invoice print — so it goes out while they are still in the
+ * chair rather than on the old 10-15 min anti-ban schedule, which regularly
+ * landed after they had already left.
+ *
+ * The 1-2 min that remains is jitter, not spacing: a send that lands the same
+ * second as every checkout is a machine-readable pattern, and the drain cron
+ * needs a tick to pick the row up either way. Random on every call, never a
+ * fixed 90s — a constant offset is just as regular as no offset at all.
+ */
 function posReceiptDelayMs() {
-  return 10 * 60_000 + Math.floor(Math.random() * 5 * 60_000);
+  return 60_000 + Math.floor(Math.random() * 60_000);
 }
 
 async function ensureTable() {
@@ -57,83 +69,57 @@ export async function POST(request: NextRequest) {
   try {
     await ensureTable();
 
-    // Chain this invoice's delay after the salon's most recently queued/sent invoice
-    // (any client) instead of independently jittering from "now" — otherwise several
-    // checkouts close together each roll their own 10-15min window and can land only
-    // minutes apart. Anchoring on the last one in line keeps every send 10-15 min
-    // after the one before it, in a single sequential chain, regardless of client.
-    //
-    // The anchor lookup and the insert run inside one write transaction — two
-    // checkouts landing within the same second each open their own transaction,
-    // but SQLite/libsql only allows one writer at a time, so the second one's
-    // SELECT can't run until the first has committed its INSERT. Without this,
-    // both requests could read the same "latest" anchor before either INSERT
-    // lands, and both then chain off the same stale anchor — which is exactly
-    // how a busy checkout period ends up with invoices only minutes apart
-    // despite the 10-15 min chaining logic.
-    const tx = await db.transaction("write");
-    let scheduledAt: string;
-    try {
-      const priorRow = await tx.execute({
-        sql: `SELECT COALESCE(sent_at, scheduled_at) AS anchor_at FROM wa_pos_receipt_queue
-              WHERE user_id = ? AND invoice_id != ?
-              ORDER BY anchor_at DESC LIMIT 1`,
-        args: [actor.userId, body.invoice.id],
-      });
-      const anchorAt = priorRow.rows[0]?.anchor_at as string | undefined;
-      const ownEarliest = Date.now() + posReceiptDelayMs();
-      const afterPrior = anchorAt ? new Date(anchorAt).getTime() + posReceiptDelayMs() : 0;
-      scheduledAt = new Date(Math.max(ownEarliest, afterPrior)).toISOString();
+    // Each receipt is now scheduled off its own checkout, not chained behind the
+    // salon's last queued invoice. The chain existed to hold every send 10-15
+    // min apart; with the receipt going out on the sale, there is nothing to
+    // anchor on, and with no anchor read there is no read-then-write race for a
+    // transaction to close — two simultaneous checkouts simply insert two rows.
+    const scheduledAt = new Date(Date.now() + posReceiptDelayMs()).toISOString();
 
-      await tx.execute({
-        sql: `INSERT INTO wa_pos_receipt_queue
-                (id, user_id, invoice_id, invoice_number, phone, client_name, invoice_json, salon_json, thank_you_text, scheduled_at, status, attempts, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)
-              ON CONFLICT(user_id, invoice_id) DO UPDATE SET
-                phone = excluded.phone,
-                client_name = excluded.client_name,
-                invoice_json = excluded.invoice_json,
-                salon_json = excluded.salon_json,
-                thank_you_text = excluded.thank_you_text,
-                scheduled_at = CASE
-                  WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.scheduled_at
-                  ELSE excluded.scheduled_at
-                END,
-                status = CASE
-                  WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.status
-                  ELSE 'pending'
-                END,
-                attempts = CASE
-                  WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.attempts
-                  ELSE 0
-                END,
-                last_error = CASE
-                  WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.last_error
-                  ELSE NULL
-                END,
-                sent_at = CASE
-                  WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.sent_at
-                  ELSE NULL
-                END`,
-        args: [
-          id,
-          actor.userId,
-          body.invoice.id,
-          body.invoice.number,
-          body.phone,
-          body.invoice.clientName,
-          JSON.stringify(body.invoice),
-          JSON.stringify(body.salon),
-          body.thankYouText || "",
-          scheduledAt,
-          new Date().toISOString(),
-        ],
-      });
-      await tx.commit();
-    } catch (error) {
-      await tx.rollback().catch(() => {});
-      throw error;
-    }
+    await db.execute({
+      sql: `INSERT INTO wa_pos_receipt_queue
+              (id, user_id, invoice_id, invoice_number, phone, client_name, invoice_json, salon_json, thank_you_text, scheduled_at, status, attempts, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)
+            ON CONFLICT(user_id, invoice_id) DO UPDATE SET
+              phone = excluded.phone,
+              client_name = excluded.client_name,
+              invoice_json = excluded.invoice_json,
+              salon_json = excluded.salon_json,
+              thank_you_text = excluded.thank_you_text,
+              scheduled_at = CASE
+                WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.scheduled_at
+                ELSE excluded.scheduled_at
+              END,
+              status = CASE
+                WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.status
+                ELSE 'pending'
+              END,
+              attempts = CASE
+                WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.attempts
+                ELSE 0
+              END,
+              last_error = CASE
+                WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.last_error
+                ELSE NULL
+              END,
+              sent_at = CASE
+                WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.sent_at
+                ELSE NULL
+              END`,
+      args: [
+        id,
+        actor.userId,
+        body.invoice.id,
+        body.invoice.number,
+        body.phone,
+        body.invoice.clientName,
+        JSON.stringify(body.invoice),
+        JSON.stringify(body.salon),
+        body.thankYouText || "",
+        scheduledAt,
+        new Date().toISOString(),
+      ],
+    });
     return Response.json({ ok: true, queued: true, scheduledAt });
   } catch (error) {
     console.error("[whatsapp/queue-pos-receipt]", error);

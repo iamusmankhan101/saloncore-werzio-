@@ -7,8 +7,13 @@
  * for 5-10 minutes to apply the same jitter every other automated WhatsApp
  * send in this app uses).
  *
- * Needs a cron schedule more frequent than Vercel Hobby's once-a-day limit to
- * actually hit the 5-10 min target — on Hobby this still drains, just later.
+ * Also drains wa_pos_receipt_queue, whose rows are scheduled only 1-2 min out —
+ * a POS receipt is sent on the sale, not paced. That is the shortest deadline
+ * here and it is what sets the cron schedule: this runs every minute
+ * (vercel.json), because a row due 90 seconds from now is not sent on time by a
+ * job that runs on the hour. The per-kind and cross-type gaps below, not the
+ * poll interval, are what keep the *paced* message types apart — see
+ * getLastSentAtMs and globalTargetGapMs.
  */
 
 import { NextRequest } from "next/server";
@@ -52,12 +57,15 @@ function spacingDelayMs(kind: QueueKind): number {
   return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
 }
 
-// Invoices sent in a tight cluster (a busy checkout period) read as a bot
-// blast, so every invoice in a same-tick backlog gets a full 10-15 min step —
-// same cumulative-gap pattern as spacingDelayMs above (2nd collided item lands
-// 10-15 min out, 3rd lands 20-30 min out, ...).
+// A POS receipt is expected mail: the client paid a minute ago and watched the
+// invoice print, so it is sent on the sale rather than paced like the outbound
+// automations above (see posReceiptDelayMs in /api/whatsapp/queue-pos-receipt).
+// What is left is only the step between receipts that collide inside one tick —
+// enough that a checkout rush doesn't leave the provider with five invoices in
+// the same second, and short enough that the fifth client still has theirs
+// before they reach the door (2nd lands 1-2 min out, 3rd 2-4 min, ...).
 function posSpacingDelayMs(): number {
-  return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
+  return randBetween(1 * MINUTE_MS, 2 * MINUTE_MS);
 }
 
 // A failed send is almost never worth retrying immediately — the usual causes
@@ -483,7 +491,11 @@ function minGapMsForKind(kind: QueueKind): number {
   if (kind === "winback") return 30 * MINUTE_MS;
   return 10 * MINUTE_MS;
 }
-const POS_MIN_GAP_MS = 10 * MINUTE_MS;
+// The floor between two invoice sends. Was 10 min, matching the old spacing;
+// at that width a second checkout inside the same 10 minutes had its receipt
+// pushed past the client's visit, which is the delay this is meant to remove.
+// A 1 min floor still keeps two receipts off the same second.
+const POS_MIN_GAP_MS = 1 * MINUTE_MS;
 
 // SEND_LIMIT_PER_RUN only caps how many messages go out within one cron
 // invocation — it does nothing to stop a *later* invocation from sending
@@ -525,6 +537,17 @@ async function getLastSentAtMs(
 // its own detectable regularity.
 function globalTargetGapMs(): number {
   return randBetween(10 * MINUTE_MS, 15 * MINUTE_MS);
+}
+
+// The same cross-type floor, drawn narrow for POS receipts. At the full 10-15
+// min a receipt was held behind any unrelated automated message the salon
+// happened to send in the last quarter hour — a reminder for tomorrow's
+// appointment could push the receipt for the sale happening right now past the
+// client's visit. A receipt is also the one message a recipient is expecting,
+// so it is the least likely of the automated types to be reported, which is
+// what the cross-type gap is ultimately protecting against.
+function posGlobalTargetGapMs(): number {
+  return randBetween(1 * MINUTE_MS, 2 * MINUTE_MS);
 }
 async function getLastAnySentAtMs(
   userId: string,
@@ -755,7 +778,7 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
     }
     const lastAnySent = await getLastAnySentAtMs(item.userId, lastSentCache);
     if (lastAnySent != null) {
-      const targetGap = globalTargetGapMs();
+      const targetGap = posGlobalTargetGapMs();
       const elapsed = Date.now() - lastAnySent;
       if (elapsed < targetGap) {
         await deferPosReceipt(item, targetGap - elapsed, "Deferred to keep automated WhatsApp sends spaced apart from other message types.");
