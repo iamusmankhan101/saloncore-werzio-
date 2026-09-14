@@ -8,12 +8,17 @@
  * send in this app uses).
  *
  * Also drains wa_pos_receipt_queue, whose rows are scheduled only 1-2 min out —
- * a POS receipt is sent on the sale, not paced. That is the shortest deadline
- * here and it is what sets the cron schedule: this runs every minute
- * (vercel.json), because a row due 90 seconds from now is not sent on time by a
- * job that runs on the hour. The per-kind and cross-type gaps below, not the
- * poll interval, are what keep the *paced* message types apart — see
- * getLastSentAtMs and globalTargetGapMs.
+ * a POS receipt is meant to reach the client on the sale, not paced like the
+ * types above.
+ *
+ * That deadline is NOT met by the current schedule, and the reason is a plan
+ * limit, not an oversight: Hobby accounts may only run a cron expression once
+ * per day, and a sub-daily expression fails the deployment outright rather
+ * than being downgraded. The 24 entries in vercel.json are 24 separate
+ * once-a-day jobs at "0 0", "0 1" ... "0 23" — the legal way to get hourly
+ * coverage on Hobby — so a receipt due 90 seconds from now actually goes out
+ * at the next hourly tick. Per-minute drains (and the 1-2 min receipt) need
+ * Pro, or a send that does not route through this cron at all.
  */
 
 import { NextRequest } from "next/server";
