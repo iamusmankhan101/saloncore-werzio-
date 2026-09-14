@@ -7,6 +7,7 @@ import { ADVANCE_NON_REFUNDABLE_NOTE, balanceDue, type SalonInvoice } from "@/li
 import { settingsStore } from "@/lib/settings-store";
 import SalonCentralWordmark from "@/components/salon-central-wordmark";
 import { fmtCurrency as fmt } from "@/lib/format";
+import { rasterizeLogoForThermal } from "@/lib/escpos-raster";
 
 /**
  * An amount with its currency word in a span of its own, so the 80mm rules can
@@ -123,19 +124,47 @@ function receiptLayoutRules(scope: string): string {
     ${scope} .sip-sheet .sip-totals-box, ${scope} .sip-sheet .sip-totals-box * { font-weight: 800 !important; }
     /* Headings stay only slightly larger, so the salon name still reads first. */
     ${scope} .sip-sheet h1, ${scope} .sip-sheet h2, ${scope} .sip-sheet .sip-biz { font-size: 13px !important; font-weight: 800 !important; }
-    /* The salon's own logo eats most of a 72mm column and prints as a grey smear
-       on thermal — likewise the solid-black initials circle standing in for a
-       missing one. Only those two are dropped: this used to hide every img in
-       the sheet, which took the Salon Central wordmark in the footer with it. */
-    ${scope} .sip-sheet .sip-logo { display: none !important; }
+    /* ── Salon logo ────────────────────────────────────────────────────────
+       The A4 sheet hangs the logo to the right of the salon name at 90px tall.
+       On a 72mm roll that is most of the column, and beside the name rather
+       than above it, so the receipt header is rebuilt here: the block centres
+       and reverses (the logo is the second child in the DOM, so column-reverse
+       lifts it above the name without touching the A4 markup).
+       Capped in mm because what matters is how much paper it costs — 18mm of
+       an 80mm roll, before a single line of the sale.
+       grayscale+contrast is what keeps it from printing as the grey smear this
+       rule used to avoid by hiding it: the head has one dot value, so every
+       mid-tone in a colour logo has to be dithered into a speckle, and pushing
+       the tones apart first leaves far less of the image in that middle band. */
+    ${scope} .sip-sheet .sip-head {
+      display: flex !important;
+      flex-direction: column-reverse !important;
+      align-items: center !important;
+      text-align: center !important;
+      margin-bottom: 8px !important;
+    }
+    ${scope} .sip-sheet .sip-logo {
+      display: block !important;
+      width: auto !important;
+      height: auto !important;
+      max-width: 40mm !important;
+      max-height: 20mm !important;
+      object-fit: contain !important;
+      margin: 0 auto 2mm !important;
+      filter: grayscale(1) contrast(1.6) !important;
+    }
+    /* The stand-in for a missing logo stays hidden: it is a 90px solid-black
+       disc, which on thermal is ~24mm of pure burn for two initials the salon
+       name repeats on the very next line. */
     ${scope} .sip-sheet .sip-logo-fallback { display: none !important; }
     /* The wordmark's own image is sized in percentages of this wrapper, so
        shrinking the wrapper scales the mark with it — but only while the 104:51
        ratio holds, otherwise the crop inside slips. Sized in mm because what
        matters is how much of the roll it takes: 14mm, and the height follows. */
     ${scope} .sip-sheet .sip-foot [aria-label="Salon Central"] { width: 14mm !important; height: 6.87mm !important; }
-    /* Every side-by-side block becomes one stacked column. */
-    ${scope} .sip-sheet .sip-head,
+    /* Every side-by-side block becomes one stacked column. (.sip-head is stacked
+       too, but by the flex rule above — it needs the logo lifted above the name,
+       and a display:block here would silently win and put it back beside.) */
     ${scope} .sip-sheet .sip-parties,
     ${scope} .sip-sheet .sip-totals,
     ${scope} .sip-sheet .sip-foot { display: block !important; margin-bottom: 8px !important; }
@@ -254,13 +283,20 @@ export default function SalonInvoicePrint({
     setThermalStatus("printing");
     setThermalError("");
     try {
+      const paperWidthMm = printer.paperWidthMm || 80;
+      // Rasterized here rather than in the route because the logo is a data URL
+      // in whatever format the salon uploaded, and only the browser can decode
+      // it. Returns null for "no logo" and for "logo wouldn't decode" alike —
+      // both simply print a receipt without a mark.
+      const logoRaster = logo ? await rasterizeLogoForThermal(logo, paperWidthMm) : null;
       const res = await fetch("/api/print", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           printerIp: printer.ip,
           printerPort: printer.port || 9100,
-          paperWidthMm: printer.paperWidthMm || 80,
+          paperWidthMm,
+          logo: logoRaster ?? undefined,
           salonName,
           salonPhone,
           salonAddress,

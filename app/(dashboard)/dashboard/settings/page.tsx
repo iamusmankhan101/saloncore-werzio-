@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Store, Clock, Bell, Palette, Shield, Smartphone, ChevronRight, Check, Sparkles, Banknote, PrinterIcon } from "lucide-react";
 import { settingsStore, saveSettings } from "@/lib/settings-store";
+import { rasterizeLogoForThermal } from "@/lib/escpos-raster";
 import { getActiveLocationFilter, locationName, updateActiveLocationDetails } from "@/lib/locations";
 import PageTitle from "@/components/page-title";
 
@@ -460,11 +461,20 @@ function ThermalPrinterSection() {
     setTesting(true);
     setTestMsg("");
     try {
+      // The test receipt carries the logo too — rasterizing it is the part of a
+      // real receipt most likely to come out wrong (a logo too faint, too big,
+      // or inverted), and this is where it can be checked without ringing up a
+      // sale to do it.
+      const salonLogo = (settingsStore.salon as { logo?: string }).logo || "";
+      const logoRaster = salonLogo
+        ? await rasterizeLogoForThermal(salonLogo, form.paperWidthMm)
+        : null;
       const res = await fetch("/api/print", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           printerIp: form.ip, printerPort: form.port, paperWidthMm: form.paperWidthMm,
+          logo: logoRaster ?? undefined,
           salonName: (settingsStore.salon as { name: string }).name,
           salonPhone: (settingsStore.salon as { phone: string }).phone,
           salonAddress: (settingsStore.salon as { address: string }).address,

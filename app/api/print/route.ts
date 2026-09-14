@@ -37,6 +37,46 @@ function text(s: string): Buffer {
   return Buffer.from(s + "\n", "utf8");
 }
 
+/**
+ * GS v 0 — print a raster bit image. The bitmap arrives already sized,
+ * thresholded and packed by the browser (see lib/escpos-raster.ts); all this
+ * does is put the width and height in front of it, each as a low/high byte
+ * pair. Width is counted in BYTES and height in DOT ROWS, which is the detail
+ * worth remembering: passing dots where bytes are expected prints a garbled
+ * band eight times too wide and then eats the rest of the receipt as image
+ * data.
+ */
+function rasterImage(widthBytes: number, height: number, bitmap: Buffer): Buffer {
+  return Buffer.concat([
+    Buffer.from([GS, 0x76, 0x30, 0x00,
+      widthBytes & 0xff, (widthBytes >> 8) & 0xff,
+      height & 0xff, (height >> 8) & 0xff]),
+    bitmap,
+  ]);
+}
+
+/** Guards against a malformed or oversized bitmap wedging the print head. */
+const MAX_LOGO_BYTES = 120_000;
+
+function logoBuffer(logo: ReceiptData["logo"]): Buffer | null {
+  if (!logo?.base64 || !logo.widthBytes || !logo.height) return null;
+  if (!Number.isInteger(logo.widthBytes) || !Number.isInteger(logo.height)) return null;
+  if (logo.widthBytes < 1 || logo.widthBytes > 72 || logo.height < 1 || logo.height > 2047) return null;
+
+  let bitmap: Buffer;
+  try {
+    bitmap = Buffer.from(logo.base64, "base64");
+  } catch {
+    return null;
+  }
+  // The printer reads exactly widthBytes * height bytes and treats whatever
+  // follows as more image data, so a short buffer doesn't print a clipped logo
+  // — it swallows the invoice text into the bitmap.
+  const expected = logo.widthBytes * logo.height;
+  if (bitmap.length !== expected || expected > MAX_LOGO_BYTES) return null;
+  return rasterImage(logo.widthBytes, logo.height, bitmap);
+}
+
 function divider(char = "-", len = 32): Buffer {
   return text(char.repeat(len));
 }
@@ -83,7 +123,13 @@ function buildReceipt(data: ReceiptData): Buffer {
    * to be set after the init, not before.
    */
   push(CMD.boldOn);
-  push(CMD.alignCenter, CMD.heavyOn, CMD.doubleOn);
+  push(CMD.alignCenter);
+  // The mark goes above the name, and only if it survived validation — a salon
+  // with no logo, or one whose bitmap didn't arrive intact, still gets a
+  // receipt that starts cleanly at the salon name.
+  const logo = logoBuffer(data.logo);
+  if (logo) push(logo, CMD.lf);
+  push(CMD.heavyOn, CMD.doubleOn);
   push(text(data.salonName.toUpperCase()));
   push(CMD.doubleOff, CMD.heavyOff);
 
@@ -211,6 +257,11 @@ function sendToprinter(ip: string, port: number, data: Buffer): Promise<void> {
 interface ReceiptData {
   /** Loaded paper width in mm — 80 or 58. Defaults to 80 (48 characters). */
   paperWidthMm?: number;
+  /**
+   * The salon logo, already rasterized to 1-bit by the browser. Optional: it is
+   * absent when the salon has no logo, and dropped when it fails validation.
+   */
+  logo?: { widthBytes: number; height: number; base64: string };
   salonName: string;
   salonPhone: string;
   salonAddress: string;
