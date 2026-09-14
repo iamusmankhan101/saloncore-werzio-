@@ -132,10 +132,17 @@ function receiptLayoutRules(scope: string): string {
        lifts it above the name without touching the A4 markup).
        Capped in mm because what matters is how much paper it costs — 18mm of
        an 80mm roll, before a single line of the sale.
-       grayscale+contrast is what keeps it from printing as the grey smear this
-       rule used to avoid by hiding it: the head has one dot value, so every
-       mid-tone in a colour logo has to be dithered into a speckle, and pushing
-       the tones apart first leaves far less of the image in that middle band. */
+       The filter binarises the mark to solid black, because the head has one
+       dot value and no grey: anything in between is dithered into a speckle,
+       which is what made the logo print washed out. CSS has no threshold
+       filter, so this builds one — brightness(0.75) scales the cut point to
+       0.5 (0.5 / 0.75 = 0.667 = 170/255) and contrast(10000%) then drives
+       everything below it to black and everything above it to white, with a
+       transition band about two levels wide. 170 is deliberate: it is the same
+       BLACK_THRESHOLD the ESC/POS path thresholds at (lib/escpos-raster.ts),
+       so the two thermal paths render the same logo the same way. It sits
+       above the midpoint because brand colours are mid-luminance — a #5B21B6
+       purple lands at ~60 and a 128 cut would drop half a wordmark to white. */
     ${scope} .sip-sheet .sip-head {
       display: flex !important;
       flex-direction: column-reverse !important;
@@ -151,7 +158,7 @@ function receiptLayoutRules(scope: string): string {
       max-height: 20mm !important;
       object-fit: contain !important;
       margin: 0 auto 2mm !important;
-      filter: grayscale(1) contrast(1.6) !important;
+      filter: grayscale(1) brightness(0.75) contrast(10000%) !important;
     }
     /* The stand-in for a missing logo stays hidden: it is a 90px solid-black
        disc, which on thermal is ~24mm of pure burn for two initials the salon
