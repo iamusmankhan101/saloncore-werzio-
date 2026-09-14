@@ -35,11 +35,18 @@ const MAX_LOGO_HEIGHT_DOTS = 160;
  * Luminance at or above this stays white. A logo is flat art, not a photo, so
  * this thresholds rather than dithers: dithering renders a solid mid-tone fill
  * as a speckle of alternating dots, which is precisely the "low quality ink"
- * look the rest of this receipt was changed to avoid. Set above the midpoint
- * because brand colors are usually mid-luminance (a #5B21B6 purple lands at
- * ~60) and thresholding them at 128 would drop half a wordmark to white.
+ * look the rest of this receipt was changed to avoid.
+ *
+ * Sitting this close to white is deliberate. A salon logo is typically fine
+ * line art in a light brand tone — a thin gold or grey ring, lettering inside
+ * it — and at a midpoint cut of 128, or even 170, most of that lands ABOVE the
+ * threshold and prints as nothing: a broken ring with a blank middle. Anything
+ * that is not near-white therefore burns. The cost is that a genuinely
+ * off-white background (a scan, a JPEG halo) can also burn, so a logo saved on
+ * a cream ground prints its rectangle; a PNG on transparent or pure white,
+ * which is what the upload resizer produces, does not.
  */
-const BLACK_THRESHOLD = 170;
+const BLACK_THRESHOLD = 230;
 
 export interface ThermalRaster {
   /** Bytes per row — always widthDots / 8. */

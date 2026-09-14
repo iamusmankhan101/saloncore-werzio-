@@ -143,14 +143,16 @@ function receiptLayoutRules(scope: string): string {
        The filter binarises the mark to solid black, because the head has one
        dot value and no grey: anything in between is dithered into a speckle,
        which is what made the logo print washed out. CSS has no threshold
-       filter, so this builds one — brightness(0.75) scales the cut point to
-       0.5 (0.5 / 0.75 = 0.667 = 170/255) and contrast(10000%) then drives
-       everything below it to black and everything above it to white, with a
-       transition band about two levels wide. 170 is deliberate: it is the same
-       BLACK_THRESHOLD the ESC/POS path thresholds at (lib/escpos-raster.ts),
-       so the two thermal paths render the same logo the same way. It sits
-       above the midpoint because brand colours are mid-luminance — a #5B21B6
-       purple lands at ~60 and a 128 cut would drop half a wordmark to white. */
+       filter, so this builds one — brightness(0.5543) scales the cut point onto
+       contrast's pivot (0.5 / 0.5543 = 0.902 = 230/255) and contrast(10000%)
+       then drives everything below it to black and everything above it to
+       white, with a transition band about two levels wide. 230 is the same
+       BLACK_THRESHOLD the ESC/POS path uses (lib/escpos-raster.ts), so the two
+       thermal paths render the same logo identically — change one and change
+       the other. The cut sits near white because salon logos are fine line art
+       in light brand tones: at a 170 cut, a thin gold ring and the lettering
+       inside it fell above the threshold and printed as a broken circle around
+       an empty middle. */
     ${scope} .sip-sheet .sip-head {
       display: flex !important;
       flex-direction: column-reverse !important;
@@ -166,7 +168,7 @@ function receiptLayoutRules(scope: string): string {
       max-height: 20mm !important;
       object-fit: contain !important;
       margin: 0 auto 2mm !important;
-      filter: grayscale(1) brightness(0.75) contrast(10000%) !important;
+      filter: grayscale(1) brightness(0.5543) contrast(10000%) !important;
     }
     /* The stand-in for a missing logo stays hidden: it is a 90px solid-black
        disc, which on thermal is ~24mm of pure burn for two initials the salon
