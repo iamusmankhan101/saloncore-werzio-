@@ -19,6 +19,14 @@ const CMD = {
   alignRight:  Buffer.from([ESC, 0x61, 0x02]),
   boldOn:      Buffer.from([ESC, 0x45, 0x01]),
   boldOff:     Buffer.from([ESC, 0x45, 0x00]),
+  /**
+   * Double-strike: the head passes the same line twice. Stacked on top of the
+   * emphasis that is now on for the whole receipt (see buildReceipt), it is
+   * what separates a heading from the body once every line is already bold —
+   * and it is the darkest a line gets without doubling its size.
+   */
+  heavyOn:     Buffer.from([ESC, 0x47, 0x01]),
+  heavyOff:    Buffer.from([ESC, 0x47, 0x00]),
   doubleOn:    Buffer.from([GS,  0x21, 0x11]),  // double width + height
   doubleOff:   Buffer.from([GS,  0x21, 0x00]),
   cut:         Buffer.from([GS,  0x56, 0x00]),  // full cut
@@ -66,9 +74,18 @@ function buildReceipt(data: ReceiptData): Buffer {
 
   // ── Header ────────────────────────────────────────────────────────────────
   push(CMD.init);
-  push(CMD.alignCenter, CMD.boldOn, CMD.doubleOn);
+  /**
+   * Emphasis stays on from here to the cut. Font A at regular weight is a
+   * single dot column per stem, which on a head that is cold, worn, or fed
+   * cheap paper prints grey and patchy — the "low ink" look, except there is no
+   * ink. Bold lays a second column against each stem, so a dropped element
+   * thins a character instead of erasing it. ESC @ above clears this, so it has
+   * to be set after the init, not before.
+   */
+  push(CMD.boldOn);
+  push(CMD.alignCenter, CMD.heavyOn, CMD.doubleOn);
   push(text(data.salonName.toUpperCase()));
-  push(CMD.doubleOff, CMD.boldOff);
+  push(CMD.doubleOff, CMD.heavyOff);
 
   if (data.salonAddress) push(text(data.salonAddress));
   if (data.salonPhone)   push(text(`Tel: ${data.salonPhone}`));
@@ -78,7 +95,7 @@ function buildReceipt(data: ReceiptData): Buffer {
 
   // ── Invoice meta ──────────────────────────────────────────────────────────
   push(CMD.alignLeft);
-  push(CMD.boldOn, text(`Invoice: ${data.invoice.number}`), CMD.boldOff);
+  push(CMD.heavyOn, text(`Invoice: ${data.invoice.number}`), CMD.heavyOff);
   push(text(`Date   : ${data.invoice.date}`));
   push(text(`Client : ${data.invoice.clientName}`));
   if (data.invoice.clientPhone) push(text(`Phone  : ${data.invoice.clientPhone}`));
@@ -87,7 +104,7 @@ function buildReceipt(data: ReceiptData): Buffer {
   push(divider("-", W));
 
   // ── Items ──────────────────────────────────────────────────────────────────
-  push(CMD.boldOn, padLine("ITEM", "TOTAL", W), CMD.boldOff);
+  push(CMD.heavyOn, padLine("ITEM", "TOTAL", W), CMD.heavyOff);
   push(divider("-", W));
 
   for (const item of data.invoice.items) {
@@ -113,9 +130,9 @@ function buildReceipt(data: ReceiptData): Buffer {
   if (data.invoice.taxAmount > 0)
     push(padLine("Tax", `${data.currency} ${data.invoice.taxAmount.toFixed(0)}`, W));
 
-  push(CMD.boldOn);
+  push(CMD.heavyOn);
   push(padLine("TOTAL", `${data.currency} ${data.invoice.total.toFixed(0)}`, W));
-  push(CMD.boldOff);
+  push(CMD.heavyOff);
 
   if (data.invoice.paymentMethod) {
     const METHOD: Record<string, string> = {
@@ -132,14 +149,14 @@ function buildReceipt(data: ReceiptData): Buffer {
     const advance = data.invoice.advanceAmount ?? 0;
     const balance = Math.max(0, data.invoice.total - advance);
     push(padLine("Advance paid", `${data.currency} ${advance.toFixed(0)}`, W));
-    push(CMD.boldOn);
+    push(CMD.heavyOn);
     push(padLine("BALANCE DUE", `${data.currency} ${balance.toFixed(0)}`, W));
-    push(CMD.boldOff);
+    push(CMD.heavyOff);
   }
 
-  push(CMD.alignCenter, CMD.boldOn);
+  push(CMD.alignCenter, CMD.heavyOn);
   push(text(isPaid ? "** PAID **" : isAdvance ? "** ADVANCE PAID **" : "** UNPAID **"));
-  push(CMD.boldOff);
+  push(CMD.heavyOff);
 
   // The refund term has to be on the customer's copy, not just the PDF.
   if (isAdvance) {

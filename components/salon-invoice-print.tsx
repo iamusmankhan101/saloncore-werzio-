@@ -95,6 +95,32 @@ function receiptLayoutRules(scope: string): string {
     /* overflow-wrap:anywhere so a long email or address breaks instead of
        overflowing the roll — word-break alone leaves unbroken tokens hanging. */
     ${scope} .sip-sheet * { font-size: 11px !important; letter-spacing: 0 !important; overflow-wrap: anywhere !important; }
+
+    /* ── Ink ───────────────────────────────────────────────────────────────────
+       The head burns one dot value — there is no grey. The A4 sheet's #555
+       body text, #aaa placeholders and #e8e8e8 hairlines are all dithered down
+       to a scatter of dots, which is what reads as weak, patchy ink on the
+       roll (and fades further as the paper ages). Everything is pushed to pure
+       black and to bold: at 11px on a 72mm roll a regular weight is one dot
+       column per stem, so a single cold or worn head element drops out of the
+       letter. print-color-adjust keeps the browser from lightening any of it
+       back on the way to the driver, and font-smoothing:none stops the
+       antialiased grey fringe that prints as a ragged edge. */
+    ${scope} .sip-sheet, ${scope} .sip-sheet * {
+      color: #000 !important;
+      font-weight: 700 !important;
+      border-color: #000 !important;
+      opacity: 1 !important;
+      text-shadow: none !important;
+      -webkit-font-smoothing: none !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    /* The one thing that must stay white, or the whole receipt inverts. */
+    ${scope} .sip-sheet { background: #fff !important; }
+    /* The amounts are what the customer checks, so they keep the extra weight
+       the A4 sheet gives them rather than flattening into the rule above. */
+    ${scope} .sip-sheet .sip-totals-box, ${scope} .sip-sheet .sip-totals-box * { font-weight: 800 !important; }
     /* Headings stay only slightly larger, so the salon name still reads first. */
     ${scope} .sip-sheet h1, ${scope} .sip-sheet h2, ${scope} .sip-sheet .sip-biz { font-size: 13px !important; font-weight: 800 !important; }
     /* The salon's own logo eats most of a 72mm column and prints as a grey smear
@@ -127,7 +153,11 @@ function receiptLayoutRules(scope: string): string {
        each the amounts wrapped to "PKR" / "30,000" on two lines. */
     ${scope} .sip-sheet .sip-items th,
     ${scope} .sip-sheet .sip-items td { white-space: normal !important; padding: 3px 0 !important; vertical-align: top !important; }
-    ${scope} .sip-sheet .sip-items th { background: transparent !important; }
+    /* The tint is on the row, not the cells, so clearing only the cells left the
+       band showing through behind them — and a flat grey has to be dithered,
+       which prints as the same speckle the greys above were causing. */
+    ${scope} .sip-sheet .sip-items th,
+    ${scope} .sip-sheet .sip-items thead tr { background: transparent !important; }
     ${scope} .sip-sheet .sip-items th:nth-child(1),
     ${scope} .sip-sheet .sip-items td:nth-child(1) { width: auto !important; padding-right: 2mm !important; }
     ${scope} .sip-sheet .sip-items th:nth-child(2),
