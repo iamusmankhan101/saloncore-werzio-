@@ -124,6 +124,14 @@ function receiptLayoutRules(scope: string): string {
     ${scope} .sip-sheet .sip-totals-box, ${scope} .sip-sheet .sip-totals-box * { font-weight: 800 !important; }
     /* Headings stay only slightly larger, so the salon name still reads first. */
     ${scope} .sip-sheet h1, ${scope} .sip-sheet h2, ${scope} .sip-sheet .sip-biz { font-size: 13px !important; font-weight: 800 !important; }
+    /* ── Invoice number ────────────────────────────────────────────────────
+       Promoted into the header and given the only type size on the receipt
+       larger than the salon name, because it is what both sides quote when a
+       sale is queried. The meta-table row it duplicates is dropped rather than
+       printed twice — 72mm of paper does not have room to say it twice. */
+    ${scope} .sip-sheet .sip-invno { display: block !important; font-size: 14px !important; font-weight: 800 !important; margin-top: 1.5mm !important; letter-spacing: 0.04em !important; }
+    ${scope} .sip-sheet .sip-invno-row { display: none !important; }
+
     /* ── Salon logo ────────────────────────────────────────────────────────
        The A4 sheet hangs the logo to the right of the salon name at 90px tall.
        On a 72mm roll that is most of the column, and beside the name rather
@@ -426,6 +434,11 @@ export default function SalonInvoicePrint({
                     {salonAddress && <div>{salonAddress}</div>}
                     {salonPhone   && <div>{salonPhone}</div>}
                   </div>
+                  {/* Receipt only — on a roll the invoice number belongs in the
+                      header, not eight lines down in the meta table. Hidden
+                      inline so A4 and the on-screen sheet are unchanged; the
+                      80mm rules switch it on (a CSS !important beats inline). */}
+                  <div className="sip-invno" style={{ display: "none" }}>{invoice.number}</div>
                 </div>
 
                 {/* Logo */}
@@ -461,7 +474,7 @@ export default function SalonInvoicePrint({
                         ["Payment:", METHOD_LABELS[invoice.paymentMethod ?? ""] ?? "—"],
                         ["Status:", isPaid ? "PAID" : isAdvance ? "ADVANCE PAID" : "UNPAID"],
                       ].map(([label, value]) => (
-                        <tr key={label}>
+                        <tr key={label} className={label === "Invoice No:" ? "sip-invno-row" : undefined}>
                           <td style={{ padding: "3px 0", color: "#555", width: "45%" }}>{label}</td>
                           <td style={{ padding: "3px 0", color: "#111", fontWeight: 600, textAlign: "right" }}>{value}</td>
                         </tr>
