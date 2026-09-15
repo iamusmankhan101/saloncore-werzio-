@@ -1,23 +1,24 @@
 "use client";
 
 /**
- * /client/[salonId] — the page a customer lands on after scanning a salon QR code.
+ * The customer-facing app shell for /client/[salonId].
  *
- * Deliberately public and session-less: a walk-in scans the code at the chair
- * and gets the service menu, an install button, and the offers opt-in without
- * signing in. The salon is identified by the path segment, matching the
- * existing /loyalty-card/[salonId] convention.
+ * Structured like a native app rather than a page: a compact sticky app bar,
+ * a scrollable body, and a persistent booking CTA pinned above the home
+ * indicator. The earlier layout spent the whole first screen on a header, so
+ * the service menu — the reason anyone scans the code — started below the
+ * fold.
  *
  * The QR code may also carry ?station= (which chair), ?staff= or ?c= (a known
- * customer id) — those are passed through to the subscription so a broadcast
- * can later be narrowed to one person.
+ * customer id); those ride along into the push subscription so a broadcast can
+ * later be narrowed to one person.
  */
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  BellRing, BellOff, CalendarPlus, Check, Clock, CreditCard,
-  Loader2, MapPin, Phone, Scissors, Sparkles,
+  BellRing, BellOff, CalendarPlus, Check, ChevronRight, Clock, CreditCard,
+  MapPin, Phone, Scissors, Search, Sparkles, X,
 } from "lucide-react";
 import type { Service } from "@/lib/types";
 import InstallPrompt from "@/components/install-prompt";
@@ -45,17 +46,29 @@ function money(amount: number, currency = "PKR") {
 export default function ClientApp({ salonId }: { salonId: string }) {
   return (
     // useSearchParams needs a Suspense boundary for this route to stay statically shell-rendered.
-    <Suspense fallback={<CenteredSpinner />}>
+    <Suspense fallback={<LoadingScreen />}>
       <ClientAppInner salonId={salonId} />
     </Suspense>
   );
 }
 
-function CenteredSpinner() {
+/** Skeleton rather than a spinner: the shell is identical to the loaded layout,
+ *  so the page doesn't visibly jump when data arrives. */
+function LoadingScreen() {
   return (
-    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#faf9fc" }}>
-      <Loader2 size={28} color={ACCENT} style={{ animation: "spin 1s linear infinite" }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    <div className="ca-root">
+      <div className="ca-bar">
+        <div className="ca-skel" style={{ width: 34, height: 34, borderRadius: 11 }} />
+        <div className="ca-skel" style={{ width: 130, height: 15, borderRadius: 6 }} />
+      </div>
+      <div style={{ padding: "16px 16px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="ca-skel" style={{ height: 86, borderRadius: 18 }} />
+        <div className="ca-skel" style={{ height: 62, borderRadius: 16 }} />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="ca-skel" style={{ height: 56, borderRadius: 14 }} />
+        ))}
+      </div>
+      <Styles />
     </div>
   );
 }
@@ -68,11 +81,13 @@ function ClientAppInner({ salonId }: { salonId: string }) {
   const [data, setData]       = useState<SalonResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("all");
+  const [search, setSearch]   = useState("");
 
-  const [subscribed, setSubscribed] = useState(false);
-  const [busy, setBusy]             = useState(false);
-  const [pushMsg, setPushMsg]       = useState("");
+  const [subscribed, setSubscribed]   = useState(false);
+  const [busy, setBusy]               = useState(false);
+  const [pushMsg, setPushMsg]         = useState("");
   const [pushBlocked, setPushBlocked] = useState(false);
+  const [offersHidden, setOffersHidden] = useState(false);
 
   // Remember which salon this device belongs to, so /client — the start_url
   // baked into apps installed before the per-salon manifest shipped — can send
@@ -136,9 +151,9 @@ function ClientAppInner({ salonId }: { salonId: string }) {
 
   const salon    = data?.settings?.salon ?? {};
   const currency = salon.currency || "PKR";
+  const salonName = salon.name || "Our Salon";
 
-  // Only live, bookable services — a package's component rows and retired
-  // services shouldn't appear on a customer-facing menu.
+  // Only live, bookable services — retired ones shouldn't appear on a menu.
   const services = useMemo(
     () => (data?.services ?? []).filter((s) => s.isActive !== false),
     [data],
@@ -150,170 +165,173 @@ function ClientAppInner({ salonId }: { salonId: string }) {
     return [...seen.entries()].sort((a, b) => b[1] - a[1]);
   }, [services]);
 
-  const visible = category === "all" ? services : services.filter((s) => s.category === category);
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return services.filter((s) => {
+      if (category !== "all" && s.category !== category) return false;
+      if (!q) return true;
+      return s.name.toLowerCase().includes(q) || (s.description ?? "").toLowerCase().includes(q);
+    });
+  }, [services, category, search]);
 
-  if (loading) return <CenteredSpinner />;
+  if (loading) return <LoadingScreen />;
 
   if (!data?.ok) {
     return (
-      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#faf9fc" }}>
+      <div className="ca-root" style={{ display: "grid", placeItems: "center", padding: 24 }}>
         <div style={{ textAlign: "center", maxWidth: 320 }}>
-          <Scissors size={36} color="#c4c2d4" />
-          <h1 style={{ fontSize: 18, color: "#1a1a2e", margin: "14px 0 6px" }}>Salon not found</h1>
-          <p style={{ fontSize: 14, color: "#777790", lineHeight: 1.6 }}>
+          <Scissors size={34} color="#c4c2d4" />
+          <h1 style={{ fontSize: 17, color: "#1a1a2e", margin: "14px 0 6px" }}>Salon not found</h1>
+          <p style={{ fontSize: 13.5, color: "#8b8ba3", lineHeight: 1.6 }}>
             {data?.error ?? "This link may have expired. Please ask reception for a fresh QR code."}
           </p>
         </div>
+        <Styles />
       </div>
     );
   }
 
+  const showOffers = !subscribed && !offersHidden && !pushBlocked;
+
   return (
-    <div style={{ minHeight: "100vh", background: "#faf9fc", paddingBottom: "calc(32px + env(safe-area-inset-bottom))" }}>
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header style={{
-        background: `linear-gradient(135deg, ${ACCENT} 0%, #9333ea 100%)`,
-        color: "#fff", padding: "calc(28px + env(safe-area-inset-top)) 20px 30px",
-        borderRadius: "0 0 26px 26px",
-      }}>
-        <div style={{ maxWidth: 520, margin: "0 auto" }}>
-          {salon.logo && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={salon.logo} alt="" width={54} height={54}
-              style={{ borderRadius: 14, objectFit: "cover", marginBottom: 12, background: "rgba(255,255,255,.2)" }} />
-          )}
-          <h1 style={{ margin: 0, fontSize: 24, lineHeight: 1.2, fontWeight: 800 }}>
-            {salon.name || "Our Salon"}
-          </h1>
-          <p style={{ margin: "8px 0 0", fontSize: 13.5, opacity: 0.9, lineHeight: 1.5 }}>
-            {station ? `Welcome — you're at station ${station}.` : "Welcome! Here's what we offer today."}
-          </p>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 14, fontSize: 12.5, opacity: 0.92 }}>
+    <div className="ca-root">
+      {/* ── App bar ───────────────────────────────────────────────────────── */}
+      <header className="ca-bar">
+        {salon.logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={salon.logo} alt="" className="ca-bar-logo" />
+        ) : (
+          <div className="ca-bar-logo ca-bar-logo-fallback"><Scissors size={16} color={ACCENT} /></div>
+        )}
+        <div className="ca-bar-text">
+          <div className="ca-bar-name">{salonName}</div>
+          {station && <div className="ca-bar-sub">Station {station}</div>}
+        </div>
+        <button
+          onClick={subscribed ? disable : enable}
+          disabled={busy || pushBlocked}
+          aria-label={subscribed ? "Turn off notifications" : "Enable offers and notifications"}
+          className={`ca-bell${subscribed ? " ca-bell-on" : ""}`}
+        >
+          {subscribed ? <BellRing size={17} /> : <BellOff size={17} />}
+        </button>
+      </header>
+
+      <main className="ca-main">
+        {/* ── Salon card ──────────────────────────────────────────────────── */}
+        <section className="ca-hero">
+          <div className="ca-hero-title">
+            {station ? `Welcome to chair ${station}` : "Welcome in"}
+          </div>
+          <div className="ca-hero-name">{salonName}</div>
+          <div className="ca-hero-actions">
             {salon.phone && (
-              <a href={`tel:${salon.phone}`} style={{ display: "flex", alignItems: "center", gap: 6, color: "#fff", textDecoration: "none" }}>
-                <Phone size={13} /> {salon.phone}
+              <a href={`tel:${salon.phone}`} className="ca-chip">
+                <Phone size={13} /> Call
               </a>
             )}
             {salon.address && (
-              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <MapPin size={13} /> {salon.address}
-              </span>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main style={{ maxWidth: 520, margin: "0 auto", padding: "18px 16px 0", display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* ── Offers & notifications opt-in ────────────────────────────────── */}
-        <section style={cardStyle}>
-          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-            <div style={{
-              flexShrink: 0, width: 40, height: 40, borderRadius: 12, display: "grid", placeItems: "center",
-              background: subscribed ? "#ecfdf5" : "rgba(124,58,237,.08)",
-            }}>
-              {subscribed ? <Check size={19} color="#059669" /> : <Sparkles size={19} color={ACCENT} />}
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <h2 style={{ margin: "0 0 4px", fontSize: 15.5, color: "#1a1a2e" }}>
-                {subscribed ? "Offers are on" : "Enable Offers & Notifications"}
-              </h2>
-              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#777790" }}>
-                {subscribed
-                  ? "You'll hear from us about discounts, last-minute openings and your appointment reminders."
-                  : "Get discounts, last-minute slots and appointment reminders straight to your phone. No spam."}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
-            {!subscribed ? (
-              <button
-                onClick={enable}
-                disabled={busy || pushBlocked}
-                style={{
-                  ...primaryButton,
-                  opacity: busy || pushBlocked ? 0.55 : 1,
-                  cursor: busy || pushBlocked ? "not-allowed" : "pointer",
-                }}
+              <a
+                href={`https://maps.google.com/?q=${encodeURIComponent(salon.address)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="ca-chip"
               >
-                {busy
-                  ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Turning on…</>
-                  : <><BellRing size={16} /> Enable Offers & Notifications</>}
-              </button>
-            ) : (
-              <button onClick={disable} disabled={busy} style={secondaryButton}>
-                <BellOff size={15} /> Turn off notifications
-              </button>
+                <MapPin size={13} /> Directions
+              </a>
             )}
-
-            <InstallPrompt accent={ACCENT} />
           </div>
-
-          {pushMsg && (
-            <p style={{
-              margin: "12px 0 0", fontSize: 12.5, lineHeight: 1.6,
-              color: pushBlocked ? "#b45309" : "#059669",
-            }}>
-              {pushMsg}
-            </p>
-          )}
         </section>
 
-        {/* ── Quick actions ─────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <a href={`/online-booking?salon=${encodeURIComponent(salonId)}`} style={quickAction}>
-            <CalendarPlus size={18} color={ACCENT} />
-            <span>Book an appointment</span>
-          </a>
-          <a href={`/loyalty-card/${encodeURIComponent(salonId)}`} style={quickAction}>
-            <CreditCard size={18} color={ACCENT} />
-            <span>My loyalty card</span>
-          </a>
-        </div>
-
-        {/* ── Service menu ──────────────────────────────────────────────────── */}
-        <section style={{ ...cardStyle, padding: "18px 0 6px" }}>
-          <h2 style={{ margin: "0 18px 12px", fontSize: 15.5, color: "#1a1a2e" }}>
-            Our services {services.length > 0 && <span style={{ color: "#9898b0", fontWeight: 500 }}>({services.length})</span>}
-          </h2>
-
-          {categories.length > 1 && (
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "0 18px 14px", WebkitOverflowScrolling: "touch" }}>
-              <CategoryChip label="All" active={category === "all"} onClick={() => setCategory("all")} />
-              {categories.map(([cat, count]) => (
-                <CategoryChip
-                  key={cat}
-                  label={`${cat} (${count})`}
-                  active={category === cat}
-                  onClick={() => setCategory(cat)}
-                />
-              ))}
+        {/* ── Offers opt-in ───────────────────────────────────────────────── */}
+        {showOffers && (
+          <section className="ca-offer">
+            <div className="ca-offer-icon"><Sparkles size={17} color={ACCENT} /></div>
+            <div className="ca-offer-text">
+              <div className="ca-offer-title">Get offers & reminders</div>
+              <div className="ca-offer-sub">Discounts and last-minute slots. No spam.</div>
             </div>
-          )}
+            <button onClick={enable} disabled={busy} className="ca-offer-btn">
+              {busy ? "…" : "Enable"}
+            </button>
+            <button onClick={() => setOffersHidden(true)} aria-label="Dismiss" className="ca-offer-x">
+              <X size={14} />
+            </button>
+          </section>
+        )}
+
+        {subscribed && pushMsg && (
+          <div className="ca-note ca-note-ok"><Check size={14} /> {pushMsg}</div>
+        )}
+        {!subscribed && pushMsg && (
+          <div className="ca-note ca-note-warn">{pushMsg}</div>
+        )}
+
+        <InstallPrompt accent={ACCENT} />
+
+        {/* ── Quick actions ───────────────────────────────────────────────── */}
+        <section className="ca-quick">
+          <a href={`/online-booking?salon=${encodeURIComponent(salonId)}`} className="ca-quick-item">
+            <CalendarPlus size={17} color={ACCENT} />
+            <span>Book</span>
+            <ChevronRight size={15} color="#c4c2d4" style={{ marginLeft: "auto" }} />
+          </a>
+          <a href={`/loyalty-card/${encodeURIComponent(salonId)}`} className="ca-quick-item">
+            <CreditCard size={17} color={ACCENT} />
+            <span>Loyalty card</span>
+            <ChevronRight size={15} color="#c4c2d4" style={{ marginLeft: "auto" }} />
+          </a>
+        </section>
+
+        {/* ── Services ────────────────────────────────────────────────────── */}
+        <section className="ca-services">
+          <div className="ca-sticky">
+            <div className="ca-search">
+              <Search size={15} color="#a3a1b8" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={`Search ${services.length} services`}
+                aria-label="Search services"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} aria-label="Clear search" className="ca-search-x">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {categories.length > 1 && (
+              <div className="ca-cats">
+                <Chip label="All" active={category === "all"} onClick={() => setCategory("all")} />
+                {categories.map(([cat, count]) => (
+                  <Chip
+                    key={cat}
+                    label={`${cat} ${count}`}
+                    active={category === cat}
+                    onClick={() => setCategory(cat)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
 
           {visible.length === 0 ? (
-            <p style={{ margin: 0, padding: "10px 18px 22px", fontSize: 13.5, color: "#9898b0" }}>
-              No services listed yet — please ask at reception.
+            <p className="ca-empty">
+              {search ? `No services match "${search}".` : "No services listed yet — please ask at reception."}
             </p>
           ) : (
-            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            <ul className="ca-list">
               {visible.map((s) => (
-                <li key={s.id} style={{
-                  display: "flex", justifyContent: "space-between", gap: 14,
-                  padding: "13px 18px", borderTop: "1px solid #f0eef6",
-                }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 650, color: "#1a1a2e" }}>{s.name}</div>
-                    {s.description && (
-                      <div style={{ fontSize: 12.5, color: "#9898b0", marginTop: 3, lineHeight: 1.5 }}>{s.description}</div>
-                    )}
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#9898b0", marginTop: 5 }}>
-                      <Clock size={12} /> {s.durationMin} min
-                    </div>
+                <li key={s.id} className="ca-item">
+                  <div className="ca-item-main">
+                    <div className="ca-item-name">{s.name}</div>
+                    {s.description && <div className="ca-item-desc">{s.description}</div>}
+                    <div className="ca-item-meta"><Clock size={11} /> {s.durationMin} min</div>
                   </div>
-                  <div style={{ flexShrink: 0, fontSize: 14, fontWeight: 800, color: ACCENT, whiteSpace: "nowrap" }}>
+                  <div className="ca-item-price">
                     {s.variablePrice && s.priceRangeMin != null && s.priceRangeMax != null
-                      ? `${money(s.priceRangeMin, currency)}–${money(s.priceRangeMax, currency).replace(`${currency} `, "")}`
+                      ? <>{money(s.priceRangeMin, currency)}<span className="ca-item-plus">+</span></>
                       : money(s.price, currency)}
                   </div>
                 </li>
@@ -322,58 +340,237 @@ function ClientAppInner({ salonId }: { salonId: string }) {
           )}
         </section>
 
-        <p style={{ textAlign: "center", fontSize: 11.5, color: "#b4b2c6", margin: "4px 0 0" }}>
-          Powered by Salon Central
-        </p>
+        <p className="ca-footer">Powered by Salon Central</p>
       </main>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      {/* ── Persistent booking CTA ────────────────────────────────────────── */}
+      <div className="ca-cta">
+        <a href={`/online-booking?salon=${encodeURIComponent(salonId)}`} className="ca-cta-btn">
+          <CalendarPlus size={17} /> Book appointment
+        </a>
+      </div>
+
+      <Styles />
     </div>
   );
 }
 
-function CategoryChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        flexShrink: 0, padding: "7px 14px", borderRadius: 999, cursor: "pointer",
-        border: active ? "none" : "1px solid #e3e0eb",
-        background: active ? ACCENT : "#fff",
-        color: active ? "#fff" : "#6b6b8a",
-        fontSize: 12.5, fontWeight: 700, textTransform: "capitalize",
-      }}
-    >
+    <button onClick={onClick} className={`ca-chip-cat${active ? " ca-chip-cat-on" : ""}`}>
       {label}
     </button>
   );
 }
 
-const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #ece9f4",
-  borderRadius: 18,
-  padding: 18,
-  boxShadow: "0 6px 22px rgba(38,25,75,.045)",
-};
+/**
+ * Kept as one style block rather than inline styles: hover/active/focus states,
+ * sticky positioning and the skeleton animation can't be expressed inline, and
+ * tap feedback is most of what separates an app from a web page on a phone.
+ */
+function Styles() {
+  return (
+    <style>{`
+      .ca-root {
+        min-height: 100vh;
+        min-height: 100dvh;
+        background: #f6f5fa;
+        color: #1a1a2e;
+        -webkit-font-smoothing: antialiased;
+      }
+      .ca-root * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
 
-const primaryButton: React.CSSProperties = {
-  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-  width: "100%", padding: "13px 18px", borderRadius: 14, border: "none",
-  background: ACCENT, color: "#fff", fontSize: 14, fontWeight: 800,
-  boxShadow: `0 6px 18px ${ACCENT}33`,
-};
+      /* ── App bar ── */
+      .ca-bar {
+        position: sticky; top: 0; z-index: 20;
+        display: flex; align-items: center; gap: 10px;
+        padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+        background: rgba(246,245,250,.88);
+        backdrop-filter: saturate(180%) blur(14px);
+        -webkit-backdrop-filter: saturate(180%) blur(14px);
+        border-bottom: 1px solid rgba(26,26,46,.06);
+      }
+      .ca-bar-logo {
+        width: 34px; height: 34px; border-radius: 11px; object-fit: cover;
+        background: #fff; border: 1px solid rgba(26,26,46,.07); flex-shrink: 0;
+      }
+      .ca-bar-logo-fallback { display: grid; place-items: center; }
+      .ca-bar-text { min-width: 0; flex: 1; }
+      .ca-bar-name {
+        font-size: 15px; font-weight: 700; letter-spacing: -.01em;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .ca-bar-sub { font-size: 11.5px; color: #8b8ba3; margin-top: 1px; }
+      .ca-bell {
+        flex-shrink: 0; width: 34px; height: 34px; border-radius: 11px; cursor: pointer;
+        display: grid; place-items: center;
+        border: 1px solid rgba(26,26,46,.08); background: #fff; color: #8b8ba3;
+        transition: transform .12s ease, background .15s ease, color .15s ease;
+      }
+      .ca-bell:active { transform: scale(.92); }
+      .ca-bell-on { background: ${ACCENT}; border-color: ${ACCENT}; color: #fff; }
+      .ca-bell:disabled { opacity: .45; cursor: not-allowed; }
 
-const secondaryButton: React.CSSProperties = {
-  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-  width: "100%", padding: "12px 18px", borderRadius: 14,
-  border: "1px solid #e3e0eb", background: "#fff",
-  color: "#6b6b8a", fontSize: 13.5, fontWeight: 750, cursor: "pointer",
-};
+      /* ── Body ── */
+      .ca-main {
+        padding: 12px 14px 0;
+        display: flex; flex-direction: column; gap: 12px;
+        /* clear the pinned CTA */
+        padding-bottom: calc(86px + env(safe-area-inset-bottom));
+        max-width: 560px; margin: 0 auto;
+      }
 
-const quickAction: React.CSSProperties = {
-  display: "flex", flexDirection: "column", gap: 8, padding: "15px 14px",
-  background: "#fff", border: "1px solid #ece9f4", borderRadius: 16,
-  textDecoration: "none", color: "#1a1a2e", fontSize: 13, fontWeight: 700,
-  boxShadow: "0 6px 22px rgba(38,25,75,.045)",
-};
+      .ca-hero {
+        background: linear-gradient(135deg, ${ACCENT} 0%, #9333ea 100%);
+        color: #fff; border-radius: 18px; padding: 16px 18px;
+        box-shadow: 0 8px 22px rgba(124,58,237,.22);
+      }
+      .ca-hero-title { font-size: 12px; font-weight: 700; opacity: .85; letter-spacing: .02em; }
+      .ca-hero-name { font-size: 20px; font-weight: 800; letter-spacing: -.02em; margin-top: 3px; line-height: 1.25; }
+      .ca-hero-actions { display: flex; gap: 8px; margin-top: 13px; flex-wrap: wrap; }
+      .ca-chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 7px 13px; border-radius: 999px;
+        background: rgba(255,255,255,.18); color: #fff;
+        font-size: 12.5px; font-weight: 650; text-decoration: none;
+        transition: background .15s ease, transform .12s ease;
+      }
+      .ca-chip:active { transform: scale(.96); background: rgba(255,255,255,.3); }
+
+      /* ── Offers ── */
+      .ca-offer {
+        position: relative; display: flex; align-items: center; gap: 11px;
+        background: #fff; border: 1px solid rgba(26,26,46,.06);
+        border-radius: 16px; padding: 13px 14px;
+        box-shadow: 0 2px 10px rgba(38,25,75,.04);
+      }
+      .ca-offer-icon {
+        flex-shrink: 0; width: 36px; height: 36px; border-radius: 11px;
+        background: rgba(124,58,237,.08); display: grid; place-items: center;
+      }
+      .ca-offer-text { min-width: 0; flex: 1; }
+      .ca-offer-title { font-size: 14px; font-weight: 700; }
+      .ca-offer-sub { font-size: 12px; color: #8b8ba3; margin-top: 2px; line-height: 1.45; }
+      .ca-offer-btn {
+        flex-shrink: 0; border: none; border-radius: 10px; cursor: pointer;
+        background: ${ACCENT}; color: #fff; font-size: 13px; font-weight: 750;
+        padding: 9px 15px; transition: transform .12s ease;
+      }
+      .ca-offer-btn:active { transform: scale(.94); }
+      .ca-offer-btn:disabled { opacity: .6; }
+      .ca-offer-x {
+        position: absolute; top: 6px; right: 6px; border: none; background: transparent;
+        color: #c4c2d4; cursor: pointer; padding: 4px; line-height: 0; border-radius: 6px;
+      }
+
+      .ca-note {
+        display: flex; align-items: center; gap: 7px;
+        font-size: 12.5px; line-height: 1.5; border-radius: 12px; padding: 10px 13px;
+      }
+      .ca-note-ok   { background: #ecfdf5; color: #047857; }
+      .ca-note-warn { background: #fffbeb; color: #b45309; }
+
+      /* ── Quick actions ── */
+      .ca-quick { display: flex; flex-direction: column; gap: 1px; border-radius: 16px; overflow: hidden; }
+      .ca-quick-item {
+        display: flex; align-items: center; gap: 11px;
+        background: #fff; padding: 14px 15px; text-decoration: none; color: #1a1a2e;
+        font-size: 14px; font-weight: 650; transition: background .15s ease;
+      }
+      .ca-quick-item:active { background: #f1eefb; }
+
+      /* ── Services ── */
+      /* No overflow:hidden here — it would make this the sticky header's scroll
+         container, permanently offsetting it by its top value and killing the stick.
+         Corners are rounded on the children that actually paint instead. */
+      .ca-services { background: #fff; border-radius: 18px; }
+      .ca-sticky {
+        position: sticky; top: calc(54px + env(safe-area-inset-top)); z-index: 10;
+        background: rgba(255,255,255,.96);
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        padding: 12px 14px 10px; border-bottom: 1px solid rgba(26,26,46,.05);
+        border-radius: 18px 18px 0 0;
+      }
+      .ca-search {
+        display: flex; align-items: center; gap: 8px;
+        background: #f2f1f7; border-radius: 11px; padding: 9px 12px;
+      }
+      .ca-search input {
+        flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+        font-size: 14px; font-family: inherit; color: #1a1a2e;
+      }
+      .ca-search input::placeholder { color: #a3a1b8; }
+      .ca-search-x { border: none; background: transparent; color: #a3a1b8; cursor: pointer; padding: 2px; line-height: 0; }
+
+      .ca-cats {
+        display: flex; gap: 7px; overflow-x: auto; margin-top: 10px;
+        scrollbar-width: none; -webkit-overflow-scrolling: touch;
+      }
+      .ca-cats::-webkit-scrollbar { display: none; }
+      .ca-chip-cat {
+        flex-shrink: 0; padding: 6px 13px; border-radius: 999px; cursor: pointer;
+        border: 1px solid rgba(26,26,46,.09); background: #fff; color: #6b6b8a;
+        font-size: 12.5px; font-weight: 650; text-transform: capitalize; white-space: nowrap;
+        transition: transform .12s ease;
+      }
+      .ca-chip-cat:active { transform: scale(.95); }
+      .ca-chip-cat-on { background: ${ACCENT}; border-color: ${ACCENT}; color: #fff; }
+
+      .ca-list { list-style: none; margin: 0; padding: 0; }
+      .ca-item {
+        display: flex; justify-content: space-between; gap: 14px; align-items: flex-start;
+        padding: 13px 15px; border-bottom: 1px solid #f4f2f9;
+      }
+      .ca-item:last-child { border-bottom: none; border-radius: 0 0 18px 18px; }
+      .ca-item-main { min-width: 0; }
+      .ca-item-name { font-size: 14px; font-weight: 650; line-height: 1.35; }
+      .ca-item-desc {
+        font-size: 12px; color: #8b8ba3; margin-top: 3px; line-height: 1.45;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      }
+      .ca-item-meta {
+        display: flex; align-items: center; gap: 4px;
+        font-size: 11.5px; color: #a3a1b8; margin-top: 5px;
+      }
+      .ca-item-price {
+        flex-shrink: 0; font-size: 14px; font-weight: 800; color: ${ACCENT};
+        white-space: nowrap; padding-top: 1px;
+      }
+      .ca-item-plus { opacity: .6; margin-left: 1px; }
+      .ca-empty { margin: 0; padding: 22px 16px 26px; font-size: 13.5px; color: #a3a1b8; text-align: center; }
+      .ca-footer { text-align: center; font-size: 11px; color: #b9b7c9; margin: 2px 0 0; }
+
+      /* ── Pinned CTA ── */
+      .ca-cta {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+        padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+        background: linear-gradient(to top, #f6f5fa 62%, rgba(246,245,250,0));
+        pointer-events: none;
+      }
+      .ca-cta-btn {
+        pointer-events: auto;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        max-width: 532px; margin: 0 auto;
+        padding: 15px 20px; border-radius: 15px;
+        background: ${ACCENT}; color: #fff; text-decoration: none;
+        font-size: 15px; font-weight: 750; letter-spacing: -.01em;
+        box-shadow: 0 8px 22px rgba(124,58,237,.3);
+        transition: transform .12s ease;
+      }
+      .ca-cta-btn:active { transform: scale(.975); }
+
+      /* ── Skeleton ── */
+      .ca-skel {
+        background: linear-gradient(90deg, #ecebf3 25%, #f5f4f9 50%, #ecebf3 75%);
+        background-size: 200% 100%;
+        animation: ca-shimmer 1.4s ease-in-out infinite;
+      }
+      @keyframes ca-shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
+
+      @media (prefers-reduced-motion: reduce) {
+        .ca-skel { animation: none; }
+        .ca-root *, .ca-root *::before { transition: none !important; }
+      }
+    `}</style>
+  );
+}

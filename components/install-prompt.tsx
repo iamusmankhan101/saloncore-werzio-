@@ -86,11 +86,14 @@ export default function InstallPrompt({ accent = "#7C3AED" }: { accent?: string 
     <>
       <button
         onClick={handleInstall}
+        // Secondary styling on purpose: the page already has one filled accent
+        // button pinned at the bottom ("Book appointment"). Two competing
+        // full-width primaries read as a choice rather than a clear next step.
         style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          width: "100%", padding: "13px 18px", borderRadius: 14, border: "none",
-          background: accent, color: "#fff", fontSize: 14, fontWeight: 800,
-          cursor: "pointer", boxShadow: `0 6px 18px ${accent}33`,
+          width: "100%", padding: "12px 18px", borderRadius: 14,
+          border: `1px solid ${accent}33`, background: "#fff", color: accent,
+          fontSize: 13.5, fontWeight: 750, cursor: "pointer",
         }}
       >
         <Download size={16} /> Install App
