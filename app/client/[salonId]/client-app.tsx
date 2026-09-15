@@ -14,7 +14,7 @@
  * later be narrowed to one person.
  */
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   BellRing, BellOff, CalendarPlus, Check, ChevronRight, Clock, CreditCard,
@@ -22,12 +22,14 @@ import {
 } from "lucide-react";
 import type { Service } from "@/lib/types";
 import InstallPrompt from "@/components/install-prompt";
+import { resolveSalonTheme, type SalonTheme } from "@/lib/salon-theme";
 import {
   checkPushSupport, getExistingSubscription, subscribeToPush, unsubscribeFromPush,
 } from "@/lib/push-client";
 
 interface SalonSettings {
   salon?: { name?: string; phone?: string; address?: string; logo?: string; currency?: string };
+  appearance?: { accent?: string };
 }
 
 interface SalonResponse {
@@ -36,8 +38,6 @@ interface SalonResponse {
   services?: Service[];
   settings?: SalonSettings;
 }
-
-const ACCENT = "#7C3AED";
 
 function money(amount: number, currency = "PKR") {
   return `${currency} ${Math.round(amount).toLocaleString("en-PK")}`;
@@ -83,6 +83,8 @@ function ClientAppInner({ salonId }: { salonId: string }) {
   const [category, setCategory] = useState("all");
   const [search, setSearch]   = useState("");
 
+  const [theme, setTheme]     = useState<SalonTheme | null>(null);
+
   const [subscribed, setSubscribed]   = useState(false);
   const [busy, setBusy]               = useState(false);
   const [pushMsg, setPushMsg]         = useState("");
@@ -110,6 +112,20 @@ function ClientAppInner({ salonId }: { salonId: string }) {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [salonId]);
+
+  // ─── Resolve this salon's colours ──────────────────────────────────────────
+  // Reading the logo means decoding an image, so it can't be done during
+  // render. resolveSalonTheme never rejects — a salon with no colour and no
+  // readable logo resolves to the house purple.
+  useEffect(() => {
+    if (!data) return;
+    let cancelled = false;
+    resolveSalonTheme({
+      chosenAccent: data.settings?.appearance?.accent,
+      logo: data.settings?.salon?.logo,
+    }).then((resolved) => { if (!cancelled) setTheme(resolved); });
+    return () => { cancelled = true; };
+  }, [data]);
 
   // ─── Reflect the device's existing push state ──────────────────────────────
   useEffect(() => {
@@ -191,17 +207,21 @@ function ClientAppInner({ salonId }: { salonId: string }) {
     );
   }
 
+  // The skeleton is neutral grey, so holding it until the accent resolves is
+  // what keeps a gold salon from flashing purple on every open.
+  if (!theme) return <LoadingScreen />;
+
   const showOffers = !subscribed && !offersHidden && !pushBlocked;
 
   return (
-    <div className="ca-root">
+    <div className="ca-root" style={theme.vars as CSSProperties}>
       {/* ── App bar ───────────────────────────────────────────────────────── */}
       <header className="ca-bar">
         {salon.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={salon.logo} alt="" className="ca-bar-logo" />
         ) : (
-          <div className="ca-bar-logo ca-bar-logo-fallback"><Scissors size={16} color={ACCENT} /></div>
+          <div className="ca-bar-logo ca-bar-logo-fallback"><Scissors size={16} /></div>
         )}
         <div className="ca-bar-text">
           <div className="ca-bar-name">{salonName}</div>
@@ -246,7 +266,7 @@ function ClientAppInner({ salonId }: { salonId: string }) {
         {/* ── Offers opt-in ───────────────────────────────────────────────── */}
         {showOffers && (
           <section className="ca-offer">
-            <div className="ca-offer-icon"><Sparkles size={17} color={ACCENT} /></div>
+            <div className="ca-offer-icon"><Sparkles size={17} /></div>
             <div className="ca-offer-text">
               <div className="ca-offer-title">Get offers & reminders</div>
               <div className="ca-offer-sub">Discounts and last-minute slots. No spam.</div>
@@ -267,17 +287,17 @@ function ClientAppInner({ salonId }: { salonId: string }) {
           <div className="ca-note ca-note-warn">{pushMsg}</div>
         )}
 
-        <InstallPrompt accent={ACCENT} />
+        <InstallPrompt accent={theme.accent} />
 
         {/* ── Quick actions ───────────────────────────────────────────────── */}
         <section className="ca-quick">
           <a href={`/online-booking?salon=${encodeURIComponent(salonId)}`} className="ca-quick-item">
-            <CalendarPlus size={17} color={ACCENT} />
+            <CalendarPlus size={17} className="ca-quick-icon" />
             <span>Book</span>
             <ChevronRight size={15} color="#c4c2d4" style={{ marginLeft: "auto" }} />
           </a>
           <a href={`/loyalty-card/${encodeURIComponent(salonId)}`} className="ca-quick-item">
-            <CreditCard size={17} color={ACCENT} />
+            <CreditCard size={17} className="ca-quick-icon" />
             <span>Loyalty card</span>
             <ChevronRight size={15} color="#c4c2d4" style={{ marginLeft: "auto" }} />
           </a>
@@ -394,7 +414,7 @@ function Styles() {
         width: 34px; height: 34px; border-radius: 11px; object-fit: cover;
         background: #fff; border: 1px solid rgba(26,26,46,.07); flex-shrink: 0;
       }
-      .ca-bar-logo-fallback { display: grid; place-items: center; }
+      .ca-bar-logo-fallback { display: grid; place-items: center; color: var(--ca-accent, #7C3AED); }
       .ca-bar-text { min-width: 0; flex: 1; }
       .ca-bar-name {
         font-size: 15px; font-weight: 700; letter-spacing: -.01em;
@@ -408,7 +428,7 @@ function Styles() {
         transition: transform .12s ease, background .15s ease, color .15s ease;
       }
       .ca-bell:active { transform: scale(.92); }
-      .ca-bell-on { background: ${ACCENT}; border-color: ${ACCENT}; color: #fff; }
+      .ca-bell-on { background: var(--ca-accent, #7C3AED); border-color: var(--ca-accent, #7C3AED); color: #fff; }
       .ca-bell:disabled { opacity: .45; cursor: not-allowed; }
 
       /* ── Body ── */
@@ -421,9 +441,9 @@ function Styles() {
       }
 
       .ca-hero {
-        background: linear-gradient(135deg, ${ACCENT} 0%, #9333ea 100%);
+        background: var(--ca-accent-gradient, linear-gradient(135deg, #7C3AED 0%, #9333ea 100%));
         color: #fff; border-radius: 18px; padding: 16px 18px;
-        box-shadow: 0 8px 22px rgba(124,58,237,.22);
+        box-shadow: 0 8px 22px var(--ca-accent-shadow, rgba(124,58,237,.22));
       }
       .ca-hero-title { font-size: 12px; font-weight: 700; opacity: .85; letter-spacing: .02em; }
       .ca-hero-name { font-size: 20px; font-weight: 800; letter-spacing: -.02em; margin-top: 3px; line-height: 1.25; }
@@ -446,14 +466,15 @@ function Styles() {
       }
       .ca-offer-icon {
         flex-shrink: 0; width: 36px; height: 36px; border-radius: 11px;
-        background: rgba(124,58,237,.08); display: grid; place-items: center;
+        background: var(--ca-accent-dim, rgba(124,58,237,.08)); display: grid; place-items: center;
+        color: var(--ca-accent, #7C3AED);
       }
       .ca-offer-text { min-width: 0; flex: 1; }
       .ca-offer-title { font-size: 14px; font-weight: 700; }
       .ca-offer-sub { font-size: 12px; color: #8b8ba3; margin-top: 2px; line-height: 1.45; }
       .ca-offer-btn {
         flex-shrink: 0; border: none; border-radius: 10px; cursor: pointer;
-        background: ${ACCENT}; color: #fff; font-size: 13px; font-weight: 750;
+        background: var(--ca-accent, #7C3AED); color: #fff; font-size: 13px; font-weight: 750;
         padding: 9px 15px; transition: transform .12s ease;
       }
       .ca-offer-btn:active { transform: scale(.94); }
@@ -477,7 +498,9 @@ function Styles() {
         background: #fff; padding: 14px 15px; text-decoration: none; color: #1a1a2e;
         font-size: 14px; font-weight: 650; transition: background .15s ease;
       }
-      .ca-quick-item:active { background: #f1eefb; }
+      .ca-quick-item:active { background: var(--ca-accent-dim, rgba(124,58,237,.08)); }
+      /* The row's label stays near-black; only the leading icon carries the brand. */
+      .ca-quick-icon { color: var(--ca-accent, #7C3AED); flex-shrink: 0; }
 
       /* ── Services ── */
       /* No overflow:hidden here — it would make this the sticky header's scroll
@@ -514,7 +537,7 @@ function Styles() {
         transition: transform .12s ease;
       }
       .ca-chip-cat:active { transform: scale(.95); }
-      .ca-chip-cat-on { background: ${ACCENT}; border-color: ${ACCENT}; color: #fff; }
+      .ca-chip-cat-on { background: var(--ca-accent, #7C3AED); border-color: var(--ca-accent, #7C3AED); color: #fff; }
 
       .ca-list { list-style: none; margin: 0; padding: 0; }
       .ca-item {
@@ -533,7 +556,7 @@ function Styles() {
         font-size: 11.5px; color: #a3a1b8; margin-top: 5px;
       }
       .ca-item-price {
-        flex-shrink: 0; font-size: 14px; font-weight: 800; color: ${ACCENT};
+        flex-shrink: 0; font-size: 14px; font-weight: 800; color: var(--ca-accent, #7C3AED);
         white-space: nowrap; padding-top: 1px;
       }
       .ca-item-plus { opacity: .6; margin-left: 1px; }
@@ -552,9 +575,9 @@ function Styles() {
         display: flex; align-items: center; justify-content: center; gap: 8px;
         max-width: 532px; margin: 0 auto;
         padding: 15px 20px; border-radius: 15px;
-        background: ${ACCENT}; color: #fff; text-decoration: none;
+        background: var(--ca-accent, #7C3AED); color: #fff; text-decoration: none;
         font-size: 15px; font-weight: 750; letter-spacing: -.01em;
-        box-shadow: 0 8px 22px rgba(124,58,237,.3);
+        box-shadow: 0 8px 22px var(--ca-accent-glow, rgba(124,58,237,.3));
         transition: transform .12s ease;
       }
       .ca-cta-btn:active { transform: scale(.975); }
