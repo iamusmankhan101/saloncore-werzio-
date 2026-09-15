@@ -95,7 +95,7 @@ function SuspensionGate({ reason }: { reason: string | null }) {
             </Link>
             <div style={{ fontSize: 11, color: "#b0b0c8", textAlign: "center", lineHeight: 1.6 }}>
               Submit your payment screenshot in Billing. Admin reviews within minutes.<br />
-              Questions? Contact <strong>support@werzio.com</strong>
+              Questions? Contact <strong>support@saloncentral.xyz</strong>
             </div>
           </div>
         </div>

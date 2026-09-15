@@ -81,11 +81,11 @@ Each page has a unique icon and gradient:
 ## URLs
 
 All pages are accessible at:
-- `https://app.werzio.com/terms`
-- `https://app.werzio.com/privacy`
-- `https://app.werzio.com/data-processing`
-- `https://app.werzio.com/payments`
-- `https://app.werzio.com/platform`
+- `https://app.saloncentral.xyz/terms`
+- `https://app.saloncentral.xyz/privacy`
+- `https://app.saloncentral.xyz/data-processing`
+- `https://app.saloncentral.xyz/payments`
+- `https://app.saloncentral.xyz/platform`
 
 ## Next Steps
 
@@ -98,9 +98,9 @@ All pages are accessible at:
 ## Contact Information
 
 All pages include contact details:
-- **Email**: support@werzio.com (Terms), privacy@werzio.com (Privacy)
+- **Email**: support@saloncentral.xyz (Terms), privacy@saloncentral.xyz (Privacy)
 - **Phone**: +92 305 8562523
-- **Website**: app.werzio.com
+- **Website**: app.saloncentral.xyz
 
 ## Build Status
 

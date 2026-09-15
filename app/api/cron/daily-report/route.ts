@@ -267,7 +267,7 @@ function buildReportEmail(
     </div>
 
     <div style="background:#f8f8fc;padding:16px 36px;border-top:1px solid #ebebf0;text-align:center;color:#b0b0c8;font-size:11px;line-height:1.7">
-      Salon Central · Salon Management Platform · <a href="https://werzio.com" style="color:#7C3AED;text-decoration:none">werzio.com</a><br>
+      Salon Central · Salon Management Platform · <a href="https://saloncentral.xyz" style="color:#7C3AED;text-decoration:none">saloncentral.xyz</a><br>
       Automated daily report — generated ${new Date().toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Karachi" })} PKT
     </div>
   </div>
@@ -335,8 +335,8 @@ export async function GET(req: NextRequest) {
 
     try {
       const { error } = await resend.emails.send({
-        from:    "Salon Central Reports <noreply@werzio.com>",
-        replyTo: "support@werzio.com",
+        from:    "Salon Central Reports <noreply@saloncentral.xyz>",
+        replyTo: "support@saloncentral.xyz",
         to:      [toEmail],
         subject,
         html,

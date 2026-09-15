@@ -7,10 +7,10 @@ const testName = "Test User";
 async function testVerification() {
   try {
     console.log("Testing verification email generation...");
-    console.log("Target domain: app.werzio.com");
+    console.log("Target domain: app.saloncentral.xyz");
     console.log("");
     
-    const response = await fetch("https://app.werzio.com/api/send-verification", {
+    const response = await fetch("https://app.saloncentral.xyz/api/send-verification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
@@ -26,7 +26,7 @@ async function testVerification() {
     
     if (result.devUrl) {
       console.log("\n✓ Dev URL generated:", result.devUrl);
-      console.log("Domain check:", result.devUrl.includes("app.werzio.com") ? "✓ CORRECT" : "✗ WRONG DOMAIN");
+      console.log("Domain check:", result.devUrl.includes("app.saloncentral.xyz") ? "✓ CORRECT" : "✗ WRONG DOMAIN");
     }
     
     if (result.ok) {

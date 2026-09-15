@@ -3,7 +3,7 @@
 ## Quick Checks
 
 ### 1. Check if user exists in database
-Visit: `https://app.werzio.com/api/debug/users`
+Visit: `https://app.saloncentral.xyz/api/debug/users`
 
 This will show all users in the database with their email verification status.
 
@@ -96,7 +96,7 @@ Make sure these are set in Vercel:
 TURSO_DATABASE_URL=libsql://...
 TURSO_AUTH_TOKEN=eyJ...
 RESEND_API_KEY=re_...
-NEXT_PUBLIC_APP_URL=https://app.werzio.com
+NEXT_PUBLIC_APP_URL=https://app.saloncentral.xyz
 ```
 
 ## Testing Sign-In Locally

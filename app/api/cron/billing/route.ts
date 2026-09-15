@@ -71,7 +71,7 @@ function emailBase(title: string, body: string, accentColor = "#7C3AED"): string
     </div>
     <div style="background:#f8f8fc;padding:16px 36px;border-top:1px solid #ebebf0;text-align:center;color:#b0b0c8;font-size:11px;line-height:1.6">
       Salon Central · Salon Management Platform<br>
-      Automated billing notification — <a href="https://werzio.com" style="color:#7C3AED;text-decoration:none">werzio.com</a>
+      Automated billing notification — <a href="https://saloncentral.xyz" style="color:#7C3AED;text-decoration:none">saloncentral.xyz</a>
     </div>
   </div>
 </body>
@@ -180,8 +180,8 @@ async function runDaily(resend: Resend): Promise<{ invoicesGenerated: number; em
         const mail = issuedEmail(user, result.invoice);
         try {
           const { error } = await resend.emails.send({
-            from: "Salon Central Billing <noreply@werzio.com>",
-            replyTo: "support@werzio.com",
+            from: "Salon Central Billing <noreply@saloncentral.xyz>",
+            replyTo: "support@saloncentral.xyz",
             to: [user.email],
             subject: mail.subject,
             html: mail.html,
@@ -216,8 +216,8 @@ async function runDaily(resend: Resend): Promise<{ invoicesGenerated: number; em
       const mail = overdueEmail(user, inv);
       try {
         const { error } = await resend.emails.send({
-          from: "Salon Central Billing <noreply@werzio.com>",
-          replyTo: "support@werzio.com",
+          from: "Salon Central Billing <noreply@saloncentral.xyz>",
+          replyTo: "support@saloncentral.xyz",
           to: [user.email],
           subject: mail.subject,
           html: mail.html,
@@ -245,8 +245,8 @@ async function runDaily(resend: Resend): Promise<{ invoicesGenerated: number; em
         const mail = suspendedEmail(user, inv);
         try {
           const { error } = await resend.emails.send({
-            from: "Salon Central Billing <noreply@werzio.com>",
-            replyTo: "support@werzio.com",
+            from: "Salon Central Billing <noreply@saloncentral.xyz>",
+            replyTo: "support@saloncentral.xyz",
             to: [user.email],
             subject: mail.subject,
             html: mail.html,

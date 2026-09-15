@@ -204,7 +204,7 @@ export async function PATCH(req: NextRequest) {
     ]);
     if (!client) return Response.json({ ok: false, error: "Client not found." }, { status: 404 });
 
-    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.werzio.com";
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.saloncentral.xyz";
     await upsertObject(client, salonName, settings, appBaseUrl);
     return Response.json({ ok: true });
   } catch (err) {

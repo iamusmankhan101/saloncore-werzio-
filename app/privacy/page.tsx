@@ -62,7 +62,7 @@ export default function PrivacyPage() {
           {/* Introduction */}
           <section style={{ marginBottom: 40 }}>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
-              At Salon Central ("<strong>we</strong>", "<strong>us</strong>", or "<strong>our</strong>"), we are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website <a href="https://app.werzio.com" style={{ color: "#7C3AED", textDecoration: "none" }}>app.werzio.com</a> and use our services.
+              At Salon Central ("<strong>we</strong>", "<strong>us</strong>", or "<strong>our</strong>"), we are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website <a href="https://app.saloncentral.xyz" style={{ color: "#7C3AED", textDecoration: "none" }}>app.saloncentral.xyz</a> and use our services.
             </p>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563" }}>
               Please read this Privacy Policy carefully. If you do not agree with the terms of this Privacy Policy, please do not access the site or use our services.
@@ -218,13 +218,13 @@ export default function PrivacyPage() {
             </p>
             <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "16px 20px" }}>
               <div style={{ fontSize: 14, color: "#374151", marginBottom: 8 }}>
-                <strong>Email:</strong> <a href="mailto:privacy@werzio.com" style={{ color: "#7C3AED", textDecoration: "none" }}>privacy@werzio.com</a>
+                <strong>Email:</strong> <a href="mailto:privacy@saloncentral.xyz" style={{ color: "#7C3AED", textDecoration: "none" }}>privacy@saloncentral.xyz</a>
               </div>
               <div style={{ fontSize: 14, color: "#374151", marginBottom: 8 }}>
                 <strong>Phone:</strong> +92 305 8562523
               </div>
               <div style={{ fontSize: 14, color: "#374151" }}>
-                <strong>Website:</strong> <a href="https://app.werzio.com" style={{ color: "#7C3AED", textDecoration: "none" }}>app.werzio.com</a>
+                <strong>Website:</strong> <a href="https://app.saloncentral.xyz" style={{ color: "#7C3AED", textDecoration: "none" }}>app.saloncentral.xyz</a>
               </div>
             </div>
           </section>

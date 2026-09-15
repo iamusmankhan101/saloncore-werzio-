@@ -63,7 +63,7 @@ export default function TermsPage() {
           <section style={{ marginBottom: 40 }}>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1a1a2e", marginBottom: 16 }}>1. Acceptance of Terms</h2>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
-              These Terms of Use ("<strong>Terms</strong>") are an agreement between you, whether personally or on behalf of an entity ("<strong>user</strong>," "<strong>you</strong>" or "<strong>your</strong>") and Salon Central ("<strong>Salon Central</strong>", "<strong>we</strong>", "<strong>us</strong>" or "<strong>our</strong>"), concerning your access to and use of our website located at <a href="https://app.werzio.com" style={{ color: "#7C3AED", textDecoration: "none" }}>app.werzio.com</a> (collectively, the "<strong>Website</strong>").
+              These Terms of Use ("<strong>Terms</strong>") are an agreement between you, whether personally or on behalf of an entity ("<strong>user</strong>," "<strong>you</strong>" or "<strong>your</strong>") and Salon Central ("<strong>Salon Central</strong>", "<strong>we</strong>", "<strong>us</strong>" or "<strong>our</strong>"), concerning your access to and use of our website located at <a href="https://app.saloncentral.xyz" style={{ color: "#7C3AED", textDecoration: "none" }}>app.saloncentral.xyz</a> (collectively, the "<strong>Website</strong>").
             </p>
             <p style={{ fontSize: 15, lineHeight: 1.8, color: "#4b5563", marginBottom: 16 }}>
               Please note that we offer many services. Your use of Salon Central products or services, including without limitation our online business management software platform and related services designed for salons, spas, and other beauty and wellness businesses, are provided by Salon Central pursuant to those agreements you enter when you use those products and services.
@@ -146,13 +146,13 @@ export default function TermsPage() {
             </p>
             <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "16px 20px" }}>
               <div style={{ fontSize: 14, color: "#374151", marginBottom: 8 }}>
-                <strong>Email:</strong> <a href="mailto:support@werzio.com" style={{ color: "#7C3AED", textDecoration: "none" }}>support@werzio.com</a>
+                <strong>Email:</strong> <a href="mailto:support@saloncentral.xyz" style={{ color: "#7C3AED", textDecoration: "none" }}>support@saloncentral.xyz</a>
               </div>
               <div style={{ fontSize: 14, color: "#374151", marginBottom: 8 }}>
                 <strong>Phone:</strong> +92 305 8562523
               </div>
               <div style={{ fontSize: 14, color: "#374151" }}>
-                <strong>Website:</strong> <a href="https://app.werzio.com" style={{ color: "#7C3AED", textDecoration: "none" }}>app.werzio.com</a>
+                <strong>Website:</strong> <a href="https://app.saloncentral.xyz" style={{ color: "#7C3AED", textDecoration: "none" }}>app.saloncentral.xyz</a>
               </div>
             </div>
           </section>
