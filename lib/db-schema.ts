@@ -183,6 +183,27 @@ export async function ensureAllTables(): Promise<void> {
     )
   `);
 
+  // ─── Web Push Subscriptions ────────────────────────────────────────────────
+  // One row per browser/device that opted into offers from a salon.
+  // `endpoint` is the browser-issued push URL and the natural key: a device
+  // that re-subscribes returns the same endpoint and must update in place
+  // rather than duplicate. `client_id` is nullable — a walk-in can opt in
+  // before the salon knows who they are, and the row is upgraded later.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id                TEXT PRIMARY KEY,
+      user_id           TEXT NOT NULL,
+      client_id         TEXT,
+      endpoint          TEXT NOT NULL UNIQUE,
+      p256dh            TEXT NOT NULL,
+      auth              TEXT NOT NULL,
+      user_agent        TEXT,
+      created_at        TEXT NOT NULL,
+      last_success_at   TEXT,
+      failure_count     INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+
   // ─── Create Indexes ────────────────────────────────────────────────────────
   const indexes = [
     "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
@@ -194,6 +215,8 @@ export async function ensureAllTables(): Promise<void> {
     "CREATE INDEX IF NOT EXISTS idx_products_user_id ON products(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_payment_requests_user_id ON payment_requests(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_push_subs_client ON push_subscriptions(user_id, client_id)",
   ];
 
   for (const indexSql of indexes) {

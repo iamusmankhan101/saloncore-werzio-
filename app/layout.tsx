@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
 import { headers } from "next/headers";
+import PWARegister from "@/components/pwa-register";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -16,8 +17,20 @@ export const metadata: Metadata = {
   },
   description: "WhatsApp-native salon booking & client management platform",
   icons: {
-    icon: [{ url: "/salon-central-favicon.png", type: "image/png", sizes: "1254x1254" }],
-    apple: { url: "/salon-central-favicon.png", sizes: "1254x1254", type: "image/png" },
+    icon: [
+      { url: "/salon-central-favicon.png", type: "image/png", sizes: "1254x1254" },
+      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+  },
+  // PWA: makes the app installable and, on iOS, unlocks Web Push (which only
+  // works once the site has been added to the Home Screen).
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Salon Central",
+    statusBarStyle: "default",
   },
 };
 
@@ -28,6 +41,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Tints the Android task-switcher header and the standalone status bar to
+  // match the manifest's theme_color.
+  themeColor: "#7C3AED",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -42,6 +58,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {nonce && <meta name="csp-nonce" content={nonce} />}
       </head>
       <body className={montserrat.className} suppressHydrationWarning>
+        {/* Registers /sw.js once for the whole app (scope "/") — push + offline. */}
+        <PWARegister />
         {children}
       </body>
     </html>

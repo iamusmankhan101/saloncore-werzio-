@@ -134,6 +134,11 @@ export async function middleware(req: NextRequest) {
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    // worker-src must be explicit: it falls back to script-src, and
+    // 'strict-dynamic' there makes the browser ignore 'self', which would
+    // block /sw.js from registering at all (PWA install + Web Push).
+    "worker-src 'self'",
+    "manifest-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
