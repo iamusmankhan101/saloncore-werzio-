@@ -33,17 +33,37 @@ import {
 export const runtime = "nodejs";
 
 /**
- * Prefer the configured public URL: behind Vercel's proxy `req.nextUrl.origin`
- * can resolve to an internal deployment host, which would bake an unreachable
- * URL into a printed code.
+ * Resolves the origin a printed QR code should point at.
+ *
+ * The request's own host wins over NEXT_PUBLIC_APP_URL. That ordering is
+ * deliberate and was learned the hard way: after the werzio.com -> saloncentral
+ * .xyz move, NEXT_PUBLIC_APP_URL still held the retired domain, so every code
+ * generated pointed at a host that no longer resolved. A wrong link is a
+ * config fix; a wrong *printed* code is a reprint of every chair in the salon.
+ *
+ * Staff generate codes while logged into the real dashboard, so the host they
+ * are browsing is by definition a domain customers can reach — and it tracks
+ * automatically if the domain ever changes again.
+ *
+ * The exceptions are hosts that are real but not durable: Vercel preview
+ * deployments (which expire) and localhost. There we fall back to the
+ * configured canonical URL, so a code printed from a preview build still
+ * points somewhere permanent.
  */
 function publicOrigin(req: NextRequest): string {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "");
-  if (configured) return configured;
 
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  const host  = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
-  return host ? `${proto}://${host}` : req.nextUrl.origin;
+
+  const ephemeral =
+    !host ||
+    host.endsWith(".vercel.app") ||
+    host.startsWith("localhost") ||
+    host.startsWith("127.0.0.1");
+
+  if (!ephemeral) return `${proto}://${host}`;
+  return configured || (host ? `${proto}://${host}` : req.nextUrl.origin);
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
