@@ -35,7 +35,9 @@ const nextConfig: NextConfig = {
   // Prevent Next.js from bundling @libsql/client — load it from Node.js at
   // runtime instead. Bundling it causes two class instances (ESM + CJS) which
   // breaks private class fields (#promiseLimitFunction).
-  serverExternalPackages: ["@libsql/client"],
+  // sharp is a native module (salon-logo resizing for PWA icons) — same
+  // reason as @libsql/client: bundling it breaks the native bindings.
+  serverExternalPackages: ["@libsql/client", "sharp"],
 
   async headers() {
     return [

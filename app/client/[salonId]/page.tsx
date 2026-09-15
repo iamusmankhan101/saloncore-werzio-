@@ -41,6 +41,20 @@ export async function generateMetadata({
       : "Book services, view your loyalty card and get offers from your salon.",
     // Overrides the generic manifest set in the root layout.
     manifest: `/api/manifest/${encodeURIComponent(salonId)}`,
+    // iOS does not read icons from the manifest — the Home Screen icon comes
+    // from apple-touch-icon, so the salon's logo has to be declared here too
+    // or iPhone installs would still show the Salon Central mark.
+    icons: {
+      icon: [
+        { url: `/api/salon-icon/${encodeURIComponent(salonId)}?size=192`, sizes: "192x192", type: "image/png" },
+        { url: `/api/salon-icon/${encodeURIComponent(salonId)}?size=512`, sizes: "512x512", type: "image/png" },
+      ],
+      apple: {
+        url: `/api/salon-icon/${encodeURIComponent(salonId)}?size=180`,
+        sizes: "180x180",
+        type: "image/png",
+      },
+    },
     appleWebApp: {
       capable: true,
       title: salonName ? salonName.slice(0, 12) : "Salon",

@@ -57,6 +57,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sal
   }
 
   const base = `/client/${encodeURIComponent(salonId)}`;
+  const icon = `/api/salon-icon/${encodeURIComponent(salonId)}`;
 
   return Response.json(
     {
@@ -74,10 +75,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sal
       lang: "en",
       dir: "ltr",
       categories: ["lifestyle", "business"],
+      // The salon's own logo, resized server-side. /api/salon-icon falls back
+      // to the Salon Central mark when a salon hasn't uploaded one, so these
+      // entries always resolve to a real image.
       icons: [
-        { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-        { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-        { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        { src: `${icon}?size=192`, sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: `${icon}?size=512`, sizes: "512x512", type: "image/png", purpose: "any" },
+        { src: `${icon}?size=512&purpose=maskable`, sizes: "512x512", type: "image/png", purpose: "maskable" },
       ],
     },
     {
