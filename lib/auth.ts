@@ -247,6 +247,16 @@ export async function signOut() {
   const sessionId = localStorage.getItem(SESSION_KEY);
   localStorage.removeItem(SESSION_KEY);
   if (sessionId) localStorage.removeItem(`werzio_user_cache_${sessionId}`);
+
+  // Drop the offline shell and asset caches. They are built to hold no tenant
+  // data (see public/sw.js), but a shared reception PC changing hands is
+  // exactly when that guarantee is worth enforcing rather than trusting.
+  try {
+    navigator.serviceWorker?.controller?.postMessage({ type: "CLEAR_CACHES" });
+  } catch {
+    /* no worker registered, or messaging blocked — nothing cached to clear */
+  }
+
   try {
     await fetch("/api/auth/signout", {
       method: "POST",

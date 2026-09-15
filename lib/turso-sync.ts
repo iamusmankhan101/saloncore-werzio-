@@ -9,6 +9,13 @@ import {
   reconcileSave,
   sameRecordContent,
 } from "./sync-records";
+import {
+  clearPending,
+  isDefinitelyOffline,
+  listPending,
+  markPending,
+  type PendingWrite,
+} from "./offline-queue";
 
 const ENTITIES = ["clients", "appointments", "staff", "services", "inventory", "salon_invoices", "expenses", "attendance", "payouts", "cash_flow_income", DELETED_RECORDS_ENTITY] as const;
 type Entity = typeof ENTITIES[number];
@@ -269,6 +276,9 @@ export function recordDeletions(entity: Entity, ids: string[]): Promise<boolean>
  * functions should use this too rather than a bare fire-and-forget fetch.
  */
 async function retryFetch(url: string, options: RequestInit, label: string, tries = 3): Promise<boolean> {
+  // Don't spend 1s + 2s + 4s proving what the browser already knows. The
+  // caller queues the write and it goes up on reconnect instead.
+  if (isDefinitelyOffline()) return false;
   try {
     const r = await fetch(url, options);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -326,14 +336,31 @@ export async function syncLocalDataToDB(): Promise<boolean> {
  * can warn the cashier instead of silently losing the sale from every device
  * but the one that rang it up) can await the result.
  */
-export function saveToDB(entity: Entity, data: unknown[]): Promise<boolean> {
+export async function saveToDB(entity: Entity, data: unknown[], locationId?: string): Promise<boolean> {
   const user = getCurrentUser();
-  if (!user) return Promise.resolve(false);
+  if (!user) return false;
   const dataOwnerId = user.salonOwnerId || user.id;
-  const locationId = getActiveLocationFilter();
+  // Explicit when flushing the outbox: the queued write belongs to whichever
+  // branch was active when it was made, which may not be the active one now.
+  const loc = locationId ?? getActiveLocationFilter();
 
-  const body = JSON.stringify({ entity, data, userId: dataOwnerId, locationId });
-  return retryFetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body }, `saveToDB:${entity}`);
+  const body = JSON.stringify({ entity, data, userId: dataOwnerId, locationId: loc });
+  const ok = await retryFetch("/api/db", { method: "POST", headers: { "Content-Type": "application/json" }, body }, `saveToDB:${entity}`);
+  trackWrite({ kind: "entity", entity, locationId: loc }, ok);
+  return ok;
+}
+
+/**
+ * Queues a failed write for retry on reconnect, or clears it once it lands.
+ *
+ * Called on every outcome rather than only on failure: a save that succeeds
+ * after an offline spell is exactly what should empty the outbox, and routing
+ * both outcomes through one place keeps the queue from drifting out of step
+ * with what Turso actually holds.
+ */
+function trackWrite(w: PendingWrite, ok: boolean): void {
+  if (ok) clearPending(w);
+  else markPending(w);
 }
 
 export interface PersistOptions {
@@ -390,27 +417,32 @@ export async function persistEntity(entity: Entity, list: unknown[], options: Pe
  * previously looked identical to a successful one until the next refresh
  * quietly reverted it.
  */
-export function saveSettingsToDB(data: object): Promise<boolean> {
+export async function saveSettingsToDB(data: object): Promise<boolean> {
   const user = getCurrentUser();
-  if (!user) return Promise.resolve(false);
+  if (!user) return false;
   const body = JSON.stringify({ userId: user.salonOwnerId || user.id, data });
-  return retryFetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body }, "saveSettingsToDB");
+  const ok = await retryFetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body }, "saveSettingsToDB");
+  trackWrite({ kind: "settings" }, ok);
+  return ok;
 }
 
 /**
  * Save loyalty transaction history to Turso. Still fire-and-forget from most
  * callers, but no longer gives up silently on the first network hiccup.
  */
-export function saveLoyaltyHistoryToDB(data: unknown[]): Promise<boolean> {
+export async function saveLoyaltyHistoryToDB(data: unknown[], locationId?: string): Promise<boolean> {
   const user = getCurrentUser();
-  if (!user) return Promise.resolve(false);
+  if (!user) return false;
+  const loc = locationId ?? getActiveLocationFilter();
 
   const body = JSON.stringify({
     userId: user.salonOwnerId || user.id,
-    locationId: getActiveLocationFilter(),
+    locationId: loc,
     data,
   });
-  return retryFetch("/api/loyalty", { method: "POST", headers: { "Content-Type": "application/json" }, body }, "saveLoyaltyHistoryToDB");
+  const ok = await retryFetch("/api/loyalty", { method: "POST", headers: { "Content-Type": "application/json" }, body }, "saveLoyaltyHistoryToDB");
+  trackWrite({ kind: "loyalty", locationId: loc }, ok);
+  return ok;
 }
 
 /**
@@ -427,4 +459,104 @@ export function syncWalletPass(clientId: string, client?: unknown): void {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ salonId: user.salonOwnerId || user.id, clientId, client }),
   }).catch(() => {});
+}
+
+// ─── Outbox flush ────────────────────────────────────────────────────────────
+
+/**
+ * Pushes everything the outbox still owes Turso.
+ *
+ * Each entry is resolved against localStorage *now* rather than against
+ * whatever the data looked like when the write first failed, so a record
+ * edited five times during an outage syncs once, in its final state. An entry
+ * whose data has since vanished locally is dropped rather than retried
+ * forever — there is nothing left to push.
+ *
+ * Returns the number of entries that landed. Entries that fail stay queued.
+ */
+export async function flushPendingWrites(): Promise<number> {
+  if (typeof window === "undefined") return 0;
+  if (!getCurrentUser()) return 0;
+
+  const pending = listPending();
+  if (pending.length === 0) return 0;
+  if (isDefinitelyOffline()) return 0;
+
+  let flushed = 0;
+  // Sequential on purpose: these are whole-list writes to the same few rows,
+  // and firing them together is how a slow connection turns into a pile of
+  // half-applied pushes racing each other.
+  for (const item of pending) {
+    try {
+      const sent = await flushOne(item);
+      if (sent) flushed++;
+    } catch (err) {
+      console.warn("[flushPendingWrites] entry failed, staying queued:", err);
+    }
+  }
+  return flushed;
+}
+
+function readLocalList(key: string): unknown[] | null {
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function flushOne(item: PendingWrite): Promise<boolean> {
+  switch (item.kind) {
+    case "entity": {
+      const list = readLocalList(entityStorageKey(item.entity as Entity, item.locationId));
+      // Nothing local to push — the queue entry outlived its data (cleared
+      // branch, signed-out cleanup). Drop it instead of retrying forever.
+      if (!list) { clearPending(item); return false; }
+      return saveToDB(item.entity as Entity, list, item.locationId);
+    }
+    case "loyalty": {
+      const list = readLocalList(locationUserKey("werzio_loyalty_history", item.locationId));
+      if (!list) { clearPending(item); return false; }
+      return saveLoyaltyHistoryToDB(list, item.locationId);
+    }
+    case "settings": {
+      const raw = localStorage.getItem(userKey("werzio_settings"));
+      if (!raw) { clearPending(item); return false; }
+      try {
+        return await saveSettingsToDB(JSON.parse(raw) as object);
+      } catch {
+        clearPending(item);
+        return false;
+      }
+    }
+  }
+}
+
+/** Set once the listeners are attached — this is wired from the dashboard
+ *  layout, which remounts on navigation. */
+let flushListenersAttached = false;
+
+/**
+ * Flushes the outbox whenever the connection comes back.
+ *
+ * Listens on three signals because none is reliable alone: `online` fires on
+ * reconnect but not when a laptop wakes with wifi already up; a tab returning
+ * to the foreground catches that case; and the initial call covers a reload
+ * that happens while still offline and then recovers. All three funnel into
+ * the same flush, which no-ops when the queue is empty.
+ */
+export function startOfflineFlush(): void {
+  if (typeof window === "undefined" || flushListenersAttached) return;
+  flushListenersAttached = true;
+
+  const attempt = () => { flushPendingWrites().catch(() => {}); };
+
+  window.addEventListener("online", attempt);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") attempt();
+  });
+  attempt();
 }
