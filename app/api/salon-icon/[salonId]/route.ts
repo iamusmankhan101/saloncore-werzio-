@@ -19,7 +19,6 @@
  */
 
 import { NextRequest } from "next/server";
-import sharp from "sharp";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -27,7 +26,13 @@ export const runtime = "nodejs";
 /** Logos are user-uploaded; cap the decode so a huge one can't wedge a function. */
 const MAX_LOGO_BYTES = 8 * 1024 * 1024;
 
-async function getSalonLogo(salonId: string): Promise<Buffer | null> {
+interface StoredLogo {
+  bytes: Buffer;
+  /** From the data URL header, so the unresized fallback serves a truthful type. */
+  mime: string;
+}
+
+async function getSalonLogo(salonId: string): Promise<StoredLogo | null> {
   try {
     const row = await db.execute({
       sql: "SELECT data FROM salon_data WHERE entity = ?",
@@ -38,17 +43,55 @@ async function getSalonLogo(salonId: string): Promise<Buffer | null> {
     const logo = JSON.parse(row.rows[0].data as string)?.salon?.logo;
     if (typeof logo !== "string" || !logo.startsWith("data:image/")) return null;
 
-    const base64 = logo.slice(logo.indexOf(",") + 1);
+    const comma = logo.indexOf(",");
+    if (comma === -1) return null;
+    const base64 = logo.slice(comma + 1);
     if (!base64) return null;
     // 4 base64 chars per 3 bytes — check before allocating.
     if (base64.length * 0.75 > MAX_LOGO_BYTES) return null;
 
-    const buf = Buffer.from(base64, "base64");
-    return buf.length > 0 ? buf : null;
+    const mimeMatch = /^data:(image\/[a-z0-9.+-]+)/i.exec(logo);
+    const bytes = Buffer.from(base64, "base64");
+    return bytes.length > 0 ? { bytes, mime: mimeMatch?.[1] ?? "image/png" } : null;
   } catch (err) {
     console.error("[salon-icon] logo lookup failed:", err);
     return null;
   }
+}
+
+/**
+ * sharp is a native module, so it can be present at build time and still fail
+ * to load in the deployed function (a missing platform binary). Imported at
+ * module scope that failure throws before the handler ever runs — which no
+ * try/catch in here can catch, so the route 500s for *every* salon, including
+ * the logo-less path that has no resizing to do. Resolving it lazily turns
+ * that into a degraded icon instead of a dead endpoint.
+ */
+async function loadSharp() {
+  try {
+    return (await import("sharp")).default;
+  } catch (err) {
+    console.error("[salon-icon] sharp unavailable — serving the logo unresized:", err);
+    return null;
+  }
+}
+
+/**
+ * The stored logo, untouched. Already capped at 300×300 by the uploader, so
+ * it is a usable icon at every size the manifest asks for — the browser
+ * scales it. Not as good as a real resize (no white flattening, so a
+ * transparent logo sits on black in an iOS home-screen icon), but it is the
+ * salon's own mark, which is the whole point of this endpoint.
+ */
+function unresized(logo: StoredLogo) {
+  return new Response(new Uint8Array(logo.bytes), {
+    headers: {
+      "Content-Type": logo.mime,
+      // Shorter than the resized path's hour: this is a degraded response, so
+      // a deploy that restores sharp shouldn't stay papered over for long.
+      "Cache-Control": "public, max-age=300",
+    },
+  });
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ salonId: string }> }) {
@@ -66,6 +109,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ salo
     return Response.redirect(new URL("/icons/icon-512.png", req.nextUrl.origin), 302);
   }
 
+  const sharp = await loadSharp();
+  if (!sharp) return unresized(logo);
+
   try {
     // Flattened onto white rather than left transparent: iOS renders a
     // transparent apple-touch-icon on a black background, which turns a dark
@@ -73,7 +119,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ salo
     const inner = maskable ? Math.round(size * 0.7) : size;
     const pad = Math.round((size - inner) / 2);
 
-    const resized = await sharp(logo)
+    const resized = await sharp(logo.bytes)
       .resize(inner, inner, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
       .extend({
         top: pad, bottom: size - inner - pad,
@@ -93,7 +139,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ salo
       },
     });
   } catch (err) {
+    // Fall back to the salon's own logo rather than the Salon Central mark —
+    // a soft icon still identifies the right salon.
     console.error("[salon-icon] resize failed:", err);
-    return Response.redirect(new URL("/icons/icon-512.png", req.nextUrl.origin), 302);
+    return unresized(logo);
   }
 }
