@@ -1,18 +1,24 @@
 {
   "id": "/client",
-  "name": "Salon Central — Your Salon Card",
+  "name": "Salon Central \u2014 Your Salon App",
   "short_name": "Salon Central",
-  "description": "Book services, view your loyalty card and get offers from your salon.",
+  "description": "Scan your salon's QR code to see services, offers and your loyalty card.",
   "start_url": "/client",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#7C3AED",
   "lang": "en",
   "dir": "ltr",
-  "categories": ["lifestyle", "business"],
+  "categories": [
+    "lifestyle",
+    "business"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",
