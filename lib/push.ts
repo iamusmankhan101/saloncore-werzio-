@@ -87,7 +87,7 @@ export function initWebPush(): typeof webpush {
 
   // The VAPID "subject" must be a mailto: or https: URL identifying the sender;
   // push services reject anything else.
-  const raw = process.env.VAPID_MAILTO?.trim() || "admin@saloncentral.app";
+  const raw = process.env.VAPID_MAILTO?.trim() || "support@saloncentral.xyz";
   const subject = /^(mailto:|https?:\/\/)/.test(raw) ? raw : `mailto:${raw}`;
 
   webpush.setVapidDetails(subject, publicKey, privateKey);
