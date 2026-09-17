@@ -2,7 +2,9 @@
  * /api/cron/followup
  *
  * Runs daily at 06:00 UTC (11:00 PKT).
- * Queues follow-up WhatsApp messages for appointments completed yesterday.
+ * Queues follow-up WhatsApp messages for visits that finished yesterday — both
+ * completed appointments and POS/manual invoices, since a walk-in salon often
+ * has no booking record at all and the till receipt is the only proof of a visit.
  * The paced /api/cron/booking-queue drain sends the rows later, one at a time.
  */
 
@@ -120,9 +122,13 @@ async function hasFollowupForSameDay(userId: string, phone: string, apptDate: st
 
 async function queueFollowup(input: {
   userId: string;
-  appt: Appointment;
+  /** Appointment id, or `inv_<invoice id>` for a POS/manual sale. */
+  visitId: string;
+  clientName: string;
   phone: string;
   text: string;
+  visitDate: string;
+  visitTime: string;
   scheduledAt: string;
 }) {
   const now = new Date().toISOString();
@@ -131,13 +137,13 @@ async function queueFollowup(input: {
             (id, user_id, kind, phone, text, client_name, appt_date, appt_time, scheduled_at, status, attempts, created_at)
           VALUES (?, ?, 'followup', ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
     args: [
-      `followup_${input.appt.id}`,
+      `followup_${input.visitId}`,
       input.userId,
       input.phone,
       input.text,
-      input.appt.clientName,
-      input.appt.date,
-      input.appt.startTime,
+      input.clientName,
+      input.visitDate,
+      input.visitTime,
       input.scheduledAt,
       now,
     ],
@@ -169,6 +175,63 @@ interface Appointment {
 }
 
 interface Client { id: string; phone: string; name: string; }
+
+interface InvoiceItem { type?: string; description?: string; }
+
+/** A sale rung up at the till (or typed by hand) — see lib/salon-invoices.ts. */
+interface PosInvoice {
+  id: string;
+  clientId?: string;
+  clientName: string;
+  clientPhone: string;
+  items?: InvoiceItem[];
+  date: string;
+  createdAt?: string;
+}
+
+/**
+ * An imported or hand-written sale can carry a date with no usable timestamp.
+ * Treat it as a late-afternoon visit so the configured delay still lands at a
+ * sane hour rather than at midnight.
+ */
+const FALLBACK_INVOICE_TIME = "17:00";
+
+function salonLocalParts(ms: number, timezone: string): { date: string; time: string } {
+  return {
+    date: new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(ms),
+    time: new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).format(ms),
+  };
+}
+
+/**
+ * When the client actually left, as a salon-local date + time. The drain
+ * re-derives the follow-up window from these two columns, so they have to
+ * reconstruct `completedAt` through appointmentStartMs, not just approximate it.
+ */
+function invoiceVisitTime(inv: PosInvoice, timezone: string): { date: string; time: string; completedAt: number } | null {
+  const createdMs = inv.createdAt ? Date.parse(inv.createdAt) : NaN;
+  if (Number.isFinite(createdMs)) {
+    const parts = salonLocalParts(createdMs, timezone);
+    const date = inv.date?.trim() || parts.date;
+    const completedAt = appointmentStartMs(date, parts.time, timezone);
+    return { date, time: parts.time, completedAt: completedAt ?? createdMs };
+  }
+  if (!inv.date?.trim()) return null;
+  const completedAt = appointmentStartMs(inv.date, FALLBACK_INVOICE_TIME, timezone);
+  if (completedAt == null) return null;
+  return { date: inv.date, time: FALLBACK_INVOICE_TIME, completedAt };
+}
+
+/** The {{service}} variable — a product-only sale falls back to the first line. */
+function invoiceServiceName(inv: PosInvoice): string {
+  const items = inv.items ?? [];
+  const service = items.find((item) => item.type === "service");
+  return (service ?? items[0])?.description || "";
+}
 
 function followupScheduledAt(baseMs: number, settings: Record<string, unknown>, spacingMs: number): string {
   const hours = settings.hours as SalonHoursDay[] | undefined;
@@ -216,14 +279,24 @@ async function runFollowupCron() {
       if (s?.wasender?.enabled === false) continue;
       if (!activeWhatsAppCredential(providerConfig) || !autoFollowup || !template) continue;
 
-      // Load appointments
+      // Load appointments and till sales. A POS-only salon has no appointments
+      // row at all, so neither source may be skipped on account of the other.
       const apptRow = await db.execute({
         sql: "SELECT data FROM salon_data WHERE entity = ?",
         args: [`${userId}_appointments`],
       });
-      if (apptRow.rows.length === 0) continue;
+      const invoiceRow = await db.execute({
+        sql: "SELECT data FROM salon_data WHERE entity = ?",
+        args: [`${userId}_salon_invoices`],
+      });
+      if (apptRow.rows.length === 0 && invoiceRow.rows.length === 0) continue;
 
-      const appointments: Appointment[] = JSON.parse(apptRow.rows[0].data as string);
+      const appointments: Appointment[] = apptRow.rows.length > 0
+        ? JSON.parse(apptRow.rows[0].data as string)
+        : [];
+      const invoices: PosInvoice[] = invoiceRow.rows.length > 0
+        ? JSON.parse(invoiceRow.rows[0].data as string)
+        : [];
       const clientsRow = await db.execute({
         sql: "SELECT data FROM salon_data WHERE entity = ?",
         args: [`${userId}_clients`],
@@ -267,9 +340,68 @@ async function runFollowupCron() {
         scheduleDelayMs += followupSpacingMs();
         await queueFollowup({
           userId,
-          appt,
+          visitId: appt.id,
+          clientName: appt.clientName,
           phone,
           text,
+          visitDate: appt.date,
+          visitTime: appt.startTime,
+          scheduledAt: followupScheduledAt(Date.now() + scheduleDelayMs, s, scheduleDelayMs),
+        });
+        queuedPhones.add(phone);
+        queued++;
+      }
+
+      // ── POS / manual sales ──────────────────────────────────────────────
+      // Run after the appointments above so that a booking billed at the till
+      // is followed up once, from its appointment record. The shared
+      // `queuedPhones` set and the phone+date check below are what actually
+      // enforce that, which also means a booking that was never marked
+      // completed still gets a follow-up off its receipt.
+      const eligibleInvoices = invoices
+        .map((inv) => {
+          const visit = invoiceVisitTime(inv, timezone);
+          return visit ? { inv, ...visit } : null;
+        })
+        .filter((entry): entry is { inv: PosInvoice; date: string; time: string; completedAt: number } => {
+          if (!entry) return false;
+          const dueAt = entry.completedAt + followupDelayMinutes * MINUTE_MS;
+          return dueAt <= now.getTime() && now.getTime() - dueAt <= dueLookbackMs;
+        });
+
+      for (const { inv, date, time } of eligibleInvoices) {
+        // Namespaced so an invoice id can never collide with an appointment id.
+        const visitId = `inv_${inv.id}`;
+        if (await alreadySent(userId, visitId)) { skipped++; continue; }
+        if (await alreadyQueued(userId, visitId)) { skipped++; continue; }
+
+        let rawPhone = inv.clientPhone || "";
+        if (!rawPhone && inv.clientId) {
+          rawPhone = clients.find((c) => c.id === inv.clientId)?.phone || "";
+        }
+        const phone = normalizePhone(rawPhone);
+        if (!phone) { skipped++; continue; }
+        if (isFakePlaceholderPhone(phone)) { skipped++; continue; }
+        if (queuedPhones.has(phone)) { skipped++; continue; }
+        if (await hasFollowupForSameDay(userId, phone, date)) { skipped++; continue; }
+
+        const text = fillTemplate(template, {
+          name:       inv.clientName,
+          service:    invoiceServiceName(inv),
+          date,
+          time:       to12h(time),
+          salon_name: salonName,
+        });
+
+        scheduleDelayMs += followupSpacingMs();
+        await queueFollowup({
+          userId,
+          visitId,
+          clientName: inv.clientName,
+          phone,
+          text,
+          visitDate: date,
+          visitTime: time,
           scheduledAt: followupScheduledAt(Date.now() + scheduleDelayMs, s, scheduleDelayMs),
         });
         queuedPhones.add(phone);
