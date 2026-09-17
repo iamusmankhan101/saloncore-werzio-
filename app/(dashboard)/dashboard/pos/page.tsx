@@ -56,6 +56,8 @@ interface CartEntry {
   name: string;
   qty: number;
   unitPrice: number;
+  /** Catalog price when the line was rung up — lets the till show "was X" and reset an override. */
+  basePrice: number;
   total: number;
   variablePrice?: boolean;
   priceRangeMin?: number;
@@ -157,6 +159,7 @@ export default function POSPage() {
               name,
               qty:       1,
               unitPrice: price,
+              basePrice: price,
               total:     price,
             };
           })
@@ -283,7 +286,8 @@ export default function POSPage() {
   const advanceAmount = isAdvance ? Math.max(0, Math.min(rawAdvance, total)) : 0;
   const balanceAmount = isAdvance ? Math.max(0, total - advanceAmount) : 0;
   const totalQty = cart.reduce((s, e) => s + e.qty, 0);
-  const hasUnpricedVariable = cart.some(e => e.variablePrice && e.unitPrice <= 0);
+  // Prices are editable per line, so guard every line — not just the variable-priced ones.
+  const hasUnpricedLine = cart.some(e => e.unitPrice <= 0);
   const noPaymentSelected = !isCredit && !payMethod;
 
   // ── Cart ops ──────────────────────────────────────────────────────────────
@@ -293,7 +297,7 @@ export default function POSPage() {
       if (hit) return prev.map(e => e.itemId === item.id ? { ...e, qty: e.qty + 1, total: (e.qty + 1) * e.unitPrice } : e);
       return [...prev, {
         cartId: crypto.randomUUID(), itemId: item.id, type: item.type, name: item.name, qty: 1,
-        unitPrice: item.price, total: item.price, variablePrice: item.variablePrice,
+        unitPrice: item.price, basePrice: item.price, total: item.price, variablePrice: item.variablePrice,
         priceRangeMin: item.priceRangeMin, priceRangeMax: item.priceRangeMax,
       }];
     });
@@ -367,7 +371,8 @@ export default function POSPage() {
   }
 
   function updateUnitPrice(cartId: string, price: number) {
-    setCart(prev => prev.map(e => e.cartId === cartId ? { ...e, unitPrice: price, total: price * e.qty } : e));
+    const next = Math.max(0, price);
+    setCart(prev => prev.map(e => e.cartId === cartId ? { ...e, unitPrice: next, total: next * e.qty } : e));
   }
 
   // ── Quick-add client ──────────────────────────────────────────────────────
@@ -1216,24 +1221,36 @@ export default function POSPage() {
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6, marginBottom: 14 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: "#1d1d2f", lineHeight: 1.3 }}>{entry.name}</div>
-                          {entry.variablePrice ? (
-                            <div style={{ marginTop: 4 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                <span style={{ fontSize: 11, color: "#b0b0c8" }}>PKR</span>
-                                <input type="number" value={entry.unitPrice || ""} onChange={(e) => updateUnitPrice(entry.cartId, Number(e.target.value) || 0)}
-                                  placeholder="Enter price" aria-label={`Price for ${entry.name}`}
-                                  style={{ width: 84, fontSize: 12, padding: "3px 6px", borderRadius: 6, border: entry.unitPrice > 0 ? "1px solid #e0dff0" : "1px solid #f59e0b", outline: "none" }} />
-                                <span style={{ fontSize: 11, color: "#b0b0c8" }}>each</span>
-                              </div>
-                              {entry.priceRangeMin && entry.priceRangeMax && (
-                                <div style={{ fontSize: 10, color: "#c8c8d8", marginTop: 3, whiteSpace: "nowrap" }}>
-                                  Range: {pkr(entry.priceRangeMin)} – {pkr(entry.priceRangeMax)}
-                                </div>
+                          {/* Every line is priced at the till — hair volume, length and
+                              condition move the real price off the catalog number. */}
+                          <div style={{ marginTop: 4 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                              <span style={{ fontSize: 11, color: "#b0b0c8" }}>PKR</span>
+                              <input type="number" min={0} step={50} inputMode="numeric"
+                                value={entry.unitPrice || ""}
+                                onChange={(e) => updateUnitPrice(entry.cartId, Number(e.target.value) || 0)}
+                                onFocus={(e) => e.currentTarget.select()}
+                                placeholder="Enter price" aria-label={`Price for ${entry.name}`}
+                                style={{ width: 84, fontSize: 12, fontWeight: 700, color: "#1d1d2f", padding: "3px 6px", borderRadius: 6, background: "#fff", border: entry.unitPrice > 0 ? "1px solid #e0dff0" : "1px solid #f59e0b", outline: "none" }} />
+                              <span style={{ fontSize: 11, color: "#b0b0c8" }}>each</span>
+                              {entry.basePrice > 0 && entry.unitPrice !== entry.basePrice && (
+                                <button type="button" onClick={() => updateUnitPrice(entry.cartId, entry.basePrice)}
+                                  title={`Reset to catalog price ${pkr(entry.basePrice)}`}
+                                  style={{ border: "1px solid #eaeaf4", background: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 10, fontWeight: 700, color: "#7C3AED", padding: "2px 6px" }}>
+                                  Reset
+                                </button>
                               )}
                             </div>
-                          ) : (
-                            <div style={{ fontSize: 11, color: "#b0b0c8", marginTop: 2 }}>{pkr(entry.unitPrice)} each</div>
-                          )}
+                            {entry.variablePrice && entry.priceRangeMin && entry.priceRangeMax ? (
+                              <div style={{ fontSize: 10, color: "#c8c8d8", marginTop: 3, whiteSpace: "nowrap" }}>
+                                Range: {pkr(entry.priceRangeMin)} – {pkr(entry.priceRangeMax)}
+                              </div>
+                            ) : entry.basePrice > 0 && entry.unitPrice !== entry.basePrice ? (
+                              <div style={{ fontSize: 10, color: "#c8c8d8", marginTop: 3, whiteSpace: "nowrap" }}>
+                                Catalog: {pkr(entry.basePrice)}
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                         <button type="button" onClick={() => setCart(prev => prev.filter(e => e.cartId !== entry.cartId))}
                           style={{ border: "none", background: "#f8f4ff", borderRadius: 6, cursor: "pointer", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -1472,25 +1489,25 @@ export default function POSPage() {
                 </div>
               )}
 
-              {hasUnpricedVariable && (
+              {hasUnpricedLine && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, color: "#d97706" }}>
-                  <AlertCircle size={13} /> Enter a price for the variable-priced item(s) before checkout
+                  <AlertCircle size={13} /> Enter a price for every item before checkout
                 </div>
               )}
-              {!hasUnpricedVariable && noPaymentSelected && (
+              {!hasUnpricedLine && noPaymentSelected && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, color: "#d97706" }}>
                   <AlertCircle size={13} /> Select a payment method (or Pay Later/Credit) before checkout
                 </div>
               )}
               {/* Complete button */}
-              <button type="button" onClick={completeSale} disabled={completing || hasUnpricedVariable || noPaymentSelected}
+              <button type="button" onClick={completeSale} disabled={completing || hasUnpricedLine || noPaymentSelected}
                 style={{
                   width: "100%", padding: "14px 0", borderRadius: 13, border: "none",
-                  background: (completing || hasUnpricedVariable || noPaymentSelected) ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
-                  color: (completing || hasUnpricedVariable || noPaymentSelected) ? "#aaaabc" : "#fff",
-                  fontSize: 15, fontWeight: 900, cursor: (completing || hasUnpricedVariable || noPaymentSelected) ? "not-allowed" : "pointer",
+                  background: (completing || hasUnpricedLine || noPaymentSelected) ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
+                  color: (completing || hasUnpricedLine || noPaymentSelected) ? "#aaaabc" : "#fff",
+                  fontSize: 15, fontWeight: 900, cursor: (completing || hasUnpricedLine || noPaymentSelected) ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-                  boxShadow: (completing || hasUnpricedVariable || noPaymentSelected) ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
+                  boxShadow: (completing || hasUnpricedLine || noPaymentSelected) ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
                   letterSpacing: "-0.01em", transition: "all 0.15s",
                 }}
                 onMouseEnter={e => { if (!completing) e.currentTarget.style.transform = "translateY(-1px)"; }}
