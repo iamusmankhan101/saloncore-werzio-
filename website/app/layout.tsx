@@ -89,14 +89,14 @@ const jsonLd = {
   areaServed: { "@type": "Country", name: "Pakistan" },
   contactPoint: {
     "@type": "ContactPoint",
-    telephone: "+923058562523",
+    telephone: "+923029646928",
     contactType: "sales",
     availableLanguage: ["English", "Urdu"],
   },
   // Matches the WhatsApp number used site-wide in Navbar/Footer/Pricing's
   // "Contact Sales" links — not the number that was in the schema doc, which
   // didn't appear anywhere else in the codebase.
-  sameAs: ["https://wa.me/923058562523"],
+  sameAs: ["https://wa.me/923029646928"],
   knowsAbout: [
     "Salon Management Software",
     "Beauty Salon POS",
