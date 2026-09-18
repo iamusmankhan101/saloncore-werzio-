@@ -678,6 +678,18 @@ async function hasServerSideLog(apptId: string, type: WaMsgType): Promise<boolea
   }
 }
 
+async function hasServerSideLogByPhone(phone: string, type: WaMsgType, since: string): Promise<boolean> {
+  const user = getCurrentUser();
+  if (!user) return false;
+  try {
+    const res = await fetch(`/api/wa/messages?userId=${encodeURIComponent(user.id)}&phone=${encodeURIComponent(phone)}&type=${encodeURIComponent(type)}&since=${encodeURIComponent(since)}`);
+    const data = await res.json() as { ok?: boolean; exists?: boolean };
+    return data.ok === true && data.exists === true;
+  } catch {
+    return false;
+  }
+}
+
 async function callSendApi(
   phone: string,
   text: string,
@@ -833,6 +845,9 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
   let scheduleIndex = 0;
 
   if (queueNewBirthdays) {
+    // Determine the start of today for server log checks
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+    
     for (const client of birthdayClients) {
       const sentKey = `${client.id}_${year}`;
       if (sent[sentKey]) continue;
@@ -840,6 +855,14 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
 
       const phone = normalizePhone(client.phone);
       if (!phone) continue;
+      
+      // Check if the server cron already sent this birthday message today
+      if (await hasServerSideLogByPhone(phone, "birthday", todayStart)) {
+        sent[sentKey] = todayKey;
+        localStorage.setItem(locationUserKey(BIRTHDAY_SENT_KEY), JSON.stringify(sent));
+        continue;
+      }
+      
       newQueueItems.push({
         id: client.id,
         retries: 0,
@@ -857,16 +880,26 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
   const queue = getQueue(BIRTHDAY_QUEUE_KEY);
   const remaining: QueueItem[] = [];
   let sentOneThisTick = false;
+  const todayStartCheck = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+
   for (const item of queue) {
-    if (item.sendAfter && Date.now() < item.sendAfter) { remaining.push(item); continue; }
     const client = clients.find((candidate) => candidate.id === item.id);
     const clientName = client?.name ?? item.clientName ?? "there";
     const phone = item.phone ?? (client?.phone ? normalizePhone(client.phone) : "");
     const sentKey = `${item.id}_${year}`;
     if (sent[sentKey]) continue;
-    if (!phone) {
+    if (!phone) continue;
+
+    // On initial load (queueNewBirthdays), or if the item is due, check the server log
+    // This purges items that the server cron sent while they were sitting in the local queue
+    const isDue = !item.sendAfter || Date.now() >= item.sendAfter;
+    if ((queueNewBirthdays || isDue) && await hasServerSideLogByPhone(phone, "birthday", todayStartCheck)) {
+      sent[sentKey] = todayKey;
+      localStorage.setItem(locationUserKey(BIRTHDAY_SENT_KEY), JSON.stringify(sent));
       continue;
     }
+
+    if (!isDue) { remaining.push(item); continue; }
 
     if (sentOneThisTick) {
       remaining.push({ ...item, sendAfter: Date.now() + randBetween(BIRTHDAY_NEXT_SEND_MIN_MS, BIRTHDAY_NEXT_SEND_MAX_MS) });

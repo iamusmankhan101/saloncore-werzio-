@@ -59,11 +59,22 @@ export async function GET(req: NextRequest) {
     await ensureTable();
 
     const apptId = req.nextUrl.searchParams.get("apptId");
+    const phone = req.nextUrl.searchParams.get("phone");
     const type = req.nextUrl.searchParams.get("type");
+    const since = req.nextUrl.searchParams.get("since");
+
     if (apptId && type) {
       const result = await db.execute({
         sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND appt_id = ? AND type = ? AND status = 'sent' LIMIT 1",
         args: [userId, apptId, type],
+      });
+      return Response.json({ ok: true, exists: result.rows.length > 0 });
+    }
+
+    if (phone && type && since) {
+      const result = await db.execute({
+        sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND phone = ? AND type = ? AND timestamp >= ? AND status = 'sent' LIMIT 1",
+        args: [userId, phone, type, since],
       });
       return Response.json({ ok: true, exists: result.rows.length > 0 });
     }
