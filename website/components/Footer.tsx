@@ -56,6 +56,7 @@ export default function Footer() {
             The all-in-one operating system for Pakistan&apos;s beauty industry.
             Manage bookings, staff, and revenue, all from one dashboard.
           </p>
+          <a href="tel:+923029646928" className={styles.phone}>+92 302 9646928</a>
         </div>
 
         {/* ── Link cols ── */}

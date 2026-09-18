@@ -31,7 +31,18 @@
   line-height: 1.75;
 }
 
-/* ── LINK COLUMNS ───────────────────── */
+.phone {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #ffffff;
+  text-decoration: none;
+  transition: opacity .15s;
+}
+.phone:hover { opacity: 0.8; }
+
+/* ── LINK COLUMNS───────────────────── */
 .cols {
   display: flex;
   gap: 56px;
