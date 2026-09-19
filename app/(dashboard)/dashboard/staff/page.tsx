@@ -1,5 +1,6 @@
 "use client";
 
+import { appointmentHasStaff } from "@/lib/appointment-staff";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredStaff, saveStaff, getStoredServices, saveServices, getStoredAppointments, subscribeToStoredData } from "@/lib/storage";
@@ -38,7 +39,7 @@ import { getSalonInvoices, type SalonInvoice } from "@/lib/salon-invoices";
  * appointments, and quietly folding them in would make the label a lie.
  */
 function getStaffStats(staff: Staff, appointments: Appointment[], services: Service[], invoices: SalonInvoice[]) {
-  const mine = appointments.filter((a) => a.staffId === staff.id);
+  const mine = appointments.filter((a) => appointmentHasStaff(a, staff.id));
   const upsold = upsellInPeriod(staff, invoices, appointments, services, ALL_TIME_START, ALL_TIME_END).value;
   return {
     total: mine.length,

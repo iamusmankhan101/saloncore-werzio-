@@ -1,5 +1,6 @@
 "use client";
 
+import { appointmentHasStaff } from "@/lib/appointment-staff";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getStoredAppointments, getStoredClients, getStoredStaff } from "@/lib/storage";
@@ -435,7 +436,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             staffListScoped.map((s) => {
-              const staffTodayAppts = todayApptsScoped.filter((a) => a.staffId === s.id);
+              const staffTodayAppts = todayApptsScoped.filter((a) => appointmentHasStaff(a, s.id));
               const busy = staffTodayAppts.some((a) => a.status === "in-progress" || a.status === "arrived");
               return (
                 <div

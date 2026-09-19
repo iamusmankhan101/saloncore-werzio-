@@ -1,3 +1,4 @@
+import { appointmentStaffIds } from "@/lib/appointment-staff";
 import { locationUserKey } from "./locations";
 import { persistEntity } from "./turso-sync";
 import type { Appointment, Service, StaffPayType } from "./types";
@@ -92,7 +93,10 @@ export function staffRevenueFromAppointment(appt: Appointment, staffId: string, 
       return s ? { s, price: appt.servicePrices?.[idx] ?? s.price ?? 0 } : null;
     })
     .filter((x): x is { s: Service; price: number } => Boolean(x));
-  if (apptServices.length === 0) return appt.staffId === staffId ? total : 0;
+  // Ordinary services are shared evenly by everyone booked on the appointment.
+  const apptStaff = appointmentStaffIds(appt);
+  const ownShare = apptStaff.includes(staffId) ? 1 / apptStaff.length : 0;
+  if (apptServices.length === 0) return total * ownShare;
 
   const priceSum = apptServices.reduce((sum, x) => sum + (x.price || 0), 0);
   return apptServices.reduce((credited, { s, price }) => {
@@ -101,7 +105,7 @@ export function staffRevenueFromAppointment(appt: Appointment, staffId: string, 
     if (s.multiStylist && s.assignedStaffIds.length >= 2) {
       return s.assignedStaffIds.includes(staffId) ? credited + portion / s.assignedStaffIds.length : credited;
     }
-    return appt.staffId === staffId ? credited + portion : credited;
+    return credited + portion * ownShare;
   }, 0);
 }
 

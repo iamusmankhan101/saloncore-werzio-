@@ -1,5 +1,6 @@
 "use client";
 
+import { appointmentHasStaff } from "@/lib/appointment-staff";
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -408,7 +409,7 @@ export default function StaffProfilePage() {
 
   // ── Computed stats ──────────────────────────────────────────────────────────
   const myAppts = useMemo(
-    () => appointments.filter((a) => a.staffId === id),
+    () => appointments.filter((a) => appointmentHasStaff(a, id ?? "")),
     [appointments, id],
   );
 

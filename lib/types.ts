@@ -207,6 +207,14 @@ export interface Appointment {
   dayNumber?: number;
   /** How many days the booking group spans. */
   totalDays?: number;
+  /**
+   * Every stylist booked on this appointment when there is more than one, lead
+   * (`staffId`) first. Read through lib/appointment-staff.ts, which falls back
+   * to `staffId` alone for single-stylist bookings.
+   */
+  staffIds?: string[];
+  /** Names matching `staffIds`, for display without a staff lookup. */
+  staffNames?: string[];
 }
 
 export interface AppointmentFeedback {

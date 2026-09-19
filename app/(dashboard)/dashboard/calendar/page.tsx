@@ -1,5 +1,6 @@
 "use client";
 
+import { appointmentHasStaff } from "@/lib/appointment-staff";
 import { useState, useEffect, useRef } from "react";
 import { getStoredAppointments, getStoredStaff, getStoredServices } from "@/lib/storage";
 import type { AppointmentStatus, Appointment, Staff, Service } from "@/lib/types";
@@ -296,7 +297,7 @@ export default function CalendarPage() {
   // Staff-column day view
   const dayStaff     = staffList.filter((s) => s.isActive !== false && (staffFilter === "all" || s.id === staffFilter));
   const dayAppts     = appointments.filter((a) => a.date === dayDate);
-  const unassigned   = dayAppts.filter((a) => !dayStaff.some((s) => s.id === a.staffId));
+  const unassigned   = dayAppts.filter((a) => !dayStaff.some((s) => appointmentHasStaff(a, s.id)));
   const dayLabel     = dayDate
     ? parseDate(dayDate).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })
     : "";
@@ -306,7 +307,8 @@ export default function CalendarPage() {
   // (or a no-longer-active) staff member attached, so nothing silently disappears.
   const columns: { id: string; name: string; color: string; appts: Appointment[]; count: number }[] = [
     ...dayStaff.map((st) => {
-      const appts = dayAppts.filter((a) => a.staffId === st.id);
+      // A multi-stylist booking blocks time in each of its stylists' columns.
+      const appts = dayAppts.filter((a) => appointmentHasStaff(a, st.id));
       return { id: st.id, name: st.name, color: st.color || "#7c3aed", appts, count: appts.length };
     }),
     ...(staffFilter === "all" && unassigned.length > 0

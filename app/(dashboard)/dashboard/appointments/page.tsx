@@ -1,5 +1,6 @@
 "use client";
 
+import { appointmentStaffIds } from "@/lib/appointment-staff";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import { getSalonInvoices, saveSalonInvoices } from "@/lib/salon-invoices";
@@ -503,6 +504,9 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
   const services     = allServices.filter((s) => appt.serviceIds.includes(s.id));
   const teamStaffIds = Array.from(new Set(services.filter((s) => s.multiStylist && s.assignedStaffIds.length >= 2).flatMap((s) => s.assignedStaffIds)));
   const teamStaff    = teamStaffIds.map((sid) => staffList.find((s) => s.id === sid)).filter((s): s is Staff => Boolean(s));
+  const bookedStaff  = appointmentStaffIds(appt).map((sid, i) =>
+    staffList.find((s) => s.id === sid) ?? { id: sid, name: appt.staffNames?.[i] ?? "Stylist", color: undefined }
+  );
   const client       = clients.find((c) => c.id === appt.clientId);
   const durationMin  = toMin(appt.endTime) - toMin(appt.startTime);
   const flowIdx      = FLOW_STEPS.indexOf(currentStatus);
@@ -602,7 +606,7 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
 
           {/* Info rows */}
-          <InfoRow icon={<User size={14} color="#9898b0" />} label={teamStaff.length >= 2 ? "Stylist Team" : "Stylist"}>
+          <InfoRow icon={<User size={14} color="#9898b0" />} label={teamStaff.length >= 2 ? "Stylist Team" : bookedStaff.length >= 2 ? "Stylists" : "Stylist"}>
             {teamStaff.length >= 2 ? (
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
                 {teamStaff.map((s) => (
@@ -612,6 +616,15 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
                   </span>
                 ))}
                 <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 7px", borderRadius: 20, letterSpacing: "0.04em" }}>Team</span>
+              </div>
+            ) : bookedStaff.length >= 2 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+                {bookedStaff.map((s, i) => (
+                  <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color ?? "#ccc", display: "inline-block" }} />
+                    {s.name}{i === 0 && <span style={{ fontSize: 10, color: "#9898b0" }}>(lead)</span>}
+                  </span>
+                ))}
               </div>
             ) : (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -812,11 +825,17 @@ function checkoutHref(apptId: string, status: AppointmentStatus): string {
   return `/dashboard/pos?appointmentId=${encodeURIComponent(apptId)}${advance ? "&advance=1" : ""}`;
 }
 
+/** " +2" when other stylists are booked alongside the lead, for compact rows. */
+function extraStylistsLabel(appt: Appointment): string {
+  const extra = appointmentStaffIds(appt).length - 1;
+  return extra > 0 ? ` +${extra}` : "";
+}
+
 /** One day of a booking. A multi-day booking is saved as one appointment per day. */
-type DayForm = { date: string; startTime: string; staffId: string; serviceIds: string[]; prices: Record<string, string> };
+type DayForm = { date: string; startTime: string; staffId: string; extraStaffIds: string[]; serviceIds: string[]; prices: Record<string, string> };
 
 const MAX_BOOKING_DAYS = 30;
-const emptyDay = (): DayForm => ({ date: "", startTime: "", staffId: "", serviceIds: [], prices: {} });
+const emptyDay = (): DayForm => ({ date: "", startTime: "", staffId: "", extraStaffIds: [], serviceIds: [], prices: {} });
 
 /** YYYY-MM-DD `n` days after `date`, in local time. */
 function addDaysToDateKey(date: string, n: number): string {
@@ -903,7 +922,10 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
         i === activeDay ? { ...d, date: v }
           : i > activeDay && !d.date && v ? { ...d, date: addDaysToDateKey(v, i - activeDay) }
           : d));
-    } else if (k === "staffId" || k === "startTime") {
+    } else if (k === "staffId") {
+      // The lead can't also be listed as an additional stylist.
+      updateDay((d) => ({ ...d, staffId: v, extraStaffIds: d.extraStaffIds.filter((id) => id !== v) }));
+    } else if (k === "startTime") {
       updateDay((d) => ({ ...d, [k]: v }));
     } else {
       setForm((f) => ({ ...f, [k]: v }));
@@ -923,6 +945,12 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
     });
     setActiveDay((a) => Math.min(a, count - 1));
   };
+
+  const toggleExtraStylist = (staffId: string) =>
+    updateDay((d) => ({
+      ...d,
+      extraStaffIds: d.extraStaffIds.includes(staffId) ? d.extraStaffIds.filter((id) => id !== staffId) : [...d.extraStaffIds, staffId],
+    }));
 
   const setServicePrice = (serviceId: string, value: string) =>
     updateDay((d) => ({ ...d, prices: { ...d.prices, [serviceId]: value } }));
@@ -985,7 +1013,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       } else {
         staffId = "";
       }
-      return { ...f, serviceIds, staffId };
+      return { ...f, serviceIds, staffId, extraStaffIds: f.extraStaffIds.filter((id) => id !== staffId) };
     });
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.durationMin, 0);
   const totalPrice = dayTotal(day);
@@ -1039,6 +1067,11 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
 
     const appts: Appointment[] = days.map((d, i) => {
       const staffObj = staffList.find((s) => s.id === d.staffId);
+      // A team service already names its team through the service; extra
+      // stylists only apply to an ordinary booking.
+      const extras = servicesForDay(d).some((s) => s.multiStylist && s.assignedStaffIds.length >= 2)
+        ? []
+        : d.extraStaffIds.map((id) => staffList.find((s) => s.id === id)).filter((s): s is Staff => Boolean(s));
       const svcs = servicesForDay(d);
       const prices = svcs.map((s) => dayServicePrice(d, s));
       return {
@@ -1048,6 +1081,10 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
         staffId: d.staffId,
         staffName: staffObj?.name ?? "",
         section: staffObj?.section,
+        ...(extras.length > 0 ? {
+          staffIds: [d.staffId, ...extras.map((s) => s.id)],
+          staffNames: [staffObj?.name ?? "", ...extras.map((s) => s.name)],
+        } : {}),
         serviceIds: svcs.map((s) => s.id),
         serviceNames: svcs.map((s) => s.name),
         servicePrices: prices,
@@ -1297,6 +1334,27 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
             )}
           </FormField>
 
+          {!isTeamBooking && day.staffId && (
+            <FormField label={`Additional stylists${day.extraStaffIds.length > 0 ? ` (${day.extraStaffIds.length})` : " (optional)"}`}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {staffList.filter((s) => s.isActive && s.id !== day.staffId).map((s) => {
+                  const on = day.extraStaffIds.includes(s.id);
+                  return (
+                    <button key={s.id} type="button" aria-pressed={on} onClick={() => toggleExtraStylist(s.id)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, cursor: "pointer", fontSize: 12, fontWeight: 600, border: `1px solid ${on ? "#7C3AED" : "#e8e8f0"}`, background: on ? "#F5F3FF" : "#fff", color: on ? "#7C3AED" : "#4a4a6a" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color ?? "#ccc" }} />
+                      {s.name}
+                      {on && <Check size={12} />}
+                    </button>
+                  );
+                })}
+              </div>
+              {day.extraStaffIds.length > 0 && (
+                <div style={{ fontSize: 11, color: "#9898b0", marginTop: 6 }}>The booking shows on each stylist&apos;s calendar, and its revenue is split evenly between them for commission.</div>
+              )}
+            </FormField>
+          )}
+
           <FormField label={`Services${day.serviceIds.length > 0 ? ` (${day.serviceIds.length} selected)` : ""}`}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {availableServices.length > 0 && (
@@ -1520,7 +1578,7 @@ function CancellationsTab({ appointments, staffList, onReschedule, onSelect }: {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: staff?.color ?? "#ccc", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.8)", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }} />
-                  <span style={{ fontSize: 13, color: "#1a1a2e", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}</span>
+                  <span style={{ fontSize: 13, color: "#1a1a2e", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}{extraStylistsLabel(appt)}</span>
                 </div>
                 <div>
                   <span style={{
@@ -1596,7 +1654,7 @@ function CancellationsTab({ appointments, staffList, onReschedule, onSelect }: {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 44, gap: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                       <span style={{ width: 7, height: 7, borderRadius: "50%", background: staff?.color ?? "#ccc", flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, color: "#4a4a6a", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}</span>
+                      <span style={{ fontSize: 12, color: "#4a4a6a", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}{extraStylistsLabel(appt)}</span>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button
@@ -1699,7 +1757,7 @@ export default function AppointmentsPage() {
       })
       .filter((a) => {
         if (statusFilter !== "all" && a.status !== statusFilter) return false;
-        if (staffFilter !== "all" && a.staffId !== staffFilter) return false;
+        if (staffFilter !== "all" && !appointmentStaffIds(a).includes(staffFilter)) return false;
         if (!inSection(a, sectionFilter)) return false;
         if (dateFilter && a.date !== dateFilter) return false;
         if (search) {
@@ -2247,7 +2305,7 @@ export default function AppointmentsPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: staff?.color ?? "#ccc", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.8)", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }} />
-                  <span style={{ fontSize: 13, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}</span>
+                  <span style={{ fontSize: 13, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{appt.staffName.split(" ")[0]}{extraStylistsLabel(appt)}</span>
                   {isTeamAppt && (
                     <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em", flexShrink: 0 }}>Team</span>
                   )}
@@ -2325,7 +2383,7 @@ export default function AppointmentsPage() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 44, gap: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                       <span style={{ width: 7, height: 7, borderRadius: "50%", background: staff?.color ?? "#ccc", flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, color: "#4a4a6a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{appt.staffName.split(" ")[0]}</span>
+                      <span style={{ fontSize: 12, color: "#4a4a6a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{appt.staffName.split(" ")[0]}{extraStylistsLabel(appt)}</span>
                       {isTeamAppt && (
                         <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em", flexShrink: 0 }}>Team</span>
                       )}
