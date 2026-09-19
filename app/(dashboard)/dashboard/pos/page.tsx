@@ -171,6 +171,9 @@ export default function POSPage() {
         setSaleNotes(`Appointment checkout${appt.date ? ` · ${appt.date}` : ""}`);
         setApptBanner(`Checking out: ${appt.clientName} · ${appt.serviceNames.join(", ")} · ${appt.date}`);
         setCheckoutAppointmentId(appt.id);
+        // Booked from the appointment form before the client has come in — the
+        // point of checking out now is to take the advance.
+        if (params.get("advance") === "1") setIsAdvance(true);
       }
     }
 
@@ -453,10 +456,14 @@ export default function POSPage() {
       // Checking out from a booked appointment doesn't otherwise touch the
       // appointment record — mark it completed so it's reflected in the
       // calendar and in dashboard/revenue stats that key off appointment status.
+      // An advance is taken before the visit, so that booking stays as it is.
       if (checkoutAppointmentId) {
+        const advanceOnly = !isCredit && isAdvance;
         const freshAppointments = getStoredAppointments();
         const updatedAppointments = freshAppointments.map(a =>
-          a.id === checkoutAppointmentId ? { ...a, status: "completed" as const, totalAmount: total } : a
+          a.id === checkoutAppointmentId
+            ? advanceOnly ? { ...a, totalAmount: total } : { ...a, status: "completed" as const, totalAmount: total }
+            : a
         );
         saveAppointments(updatedAppointments);
       }

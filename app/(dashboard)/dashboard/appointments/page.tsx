@@ -794,9 +794,20 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
 
 // ── Create Modal ──────────────────────────────────────────────────────────────
 
+// Checkout is offered from the moment of booking (to take an advance) until the
+// appointment has an invoice. Cancelled / no-show bookings have nothing to bill.
+const CHECKOUT_STATUSES: AppointmentStatus[] = ["booked", "confirmed", "arrived", "in-progress", "completed"];
+
+/** Before the client arrives, checkout means taking an advance — POS opens with it switched on. */
+function checkoutHref(apptId: string, status: AppointmentStatus): string {
+  const advance = status === "booked" || status === "confirmed";
+  return `/dashboard/pos?appointmentId=${encodeURIComponent(apptId)}${advance ? "&advance=1" : ""}`;
+}
+
 function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onClose: () => void; onAdd: (appt: Appointment, newClientObj?: Client) => void; clients: Client[]; staffList: Staff[]; allServices: Service[] }) {
   const [form, setForm] = useState({ clientId: "", staffId: "", serviceIds: [] as string[], date: "", startTime: "", notes: "" });
   const [done, setDone] = useState(false);
+  const [createdApptId, setCreatedApptId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // useState updates aren't applied synchronously, so a fast double-click can fire
   // handleBook twice before React re-renders to disable the button — both calls
@@ -968,6 +979,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
 
     try {
       onAdd(appt, newClientObj);
+      setCreatedApptId(appt.id);
       setDone(true);
     } catch (error) {
       console.error("[appointments] Could not create appointment", error);
@@ -985,7 +997,16 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
           <div style={{ fontWeight: 700, fontSize: 18, color: "#1a1a2e", marginBottom: 8 }}>Appointment Created</div>
           <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 24 }}>The appointment has been booked successfully.</div>
-          <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, background: "#7C3AED", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            {/* Straight to POS with this booking in the cart and Advance switched on,
+                so the deposit is taken and billed while the client is still here. */}
+            {createdApptId && (
+              <a href={checkoutHref(createdApptId, "booked")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 10, background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                <ShoppingCart size={14} /> Checkout
+              </a>
+            )}
+            <button onClick={onClose} style={{ padding: "10px 32px", borderRadius: 10, background: createdApptId ? "#fff" : "#7C3AED", border: createdApptId ? "1px solid #e0e0ea" : "none", color: createdApptId ? "#4a4a6a" : "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button>
+          </div>
         </div>
       </div>
     );
@@ -2055,9 +2076,9 @@ export default function AppointmentsPage() {
                 <div style={{ fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{fmt(appt.totalAmount)}</div>
                 {/* Checkout button — visible for arrived / in-progress / completed, until it's actually been invoiced */}
                 <div onClick={(e) => e.stopPropagation()}>
-                  {["arrived", "in-progress", "completed"].includes(appt.status) && !invoicedApptIds.has(appt.id) ? (
+                  {CHECKOUT_STATUSES.includes(appt.status) && !invoicedApptIds.has(appt.id) ? (
                     <a
-                      href={`/dashboard/pos?appointmentId=${appt.id}`}
+                      href={checkoutHref(appt.id, appt.status)}
                       style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "var(--accent-gradient)", color: "#fff", fontSize: 11, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap", boxShadow: "0 3px 8px var(--accent-glow)" }}
                     >
                       <ShoppingCart size={11} /> Checkout
@@ -2082,7 +2103,7 @@ export default function AppointmentsPage() {
               const staff = staffList.find((s) => s.id === appt.staffId);
               const isTeamAppt = services.some((s) => appt.serviceIds.includes(s.id) && s.multiStylist && s.assignedStaffIds.length >= 2);
               const isLast = i === filtered.length - 1;
-              const canCheckout = ["arrived", "in-progress", "completed"].includes(appt.status) && !invoicedApptIds.has(appt.id);
+              const canCheckout = CHECKOUT_STATUSES.includes(appt.status) && !invoicedApptIds.has(appt.id);
               return (
                 <div
                   key={appt.id}
@@ -2122,7 +2143,7 @@ export default function AppointmentsPage() {
                     </div>
                     {canCheckout && (
                       <a
-                        href={`/dashboard/pos?appointmentId=${appt.id}`}
+                        href={checkoutHref(appt.id, appt.status)}
                         onClick={(e) => e.stopPropagation()}
                         style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "var(--accent-gradient)", color: "#fff", fontSize: 11, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
                       >
