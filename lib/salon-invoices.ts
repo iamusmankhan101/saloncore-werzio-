@@ -93,6 +93,9 @@ export function balanceDue(inv: Pick<SalonInvoice, "status" | "total" | "advance
 /** Shown on any invoice carrying an advance, on screen and on the PDF. */
 export const ADVANCE_NON_REFUNDABLE_NOTE = "Advance payment is non-refundable.";
 
+/** Printed on every invoice — A4, PDF and thermal receipt. */
+export const PAYMENT_NON_REFUNDABLE_NOTE = "Payment is non-refundable.";
+
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
 const BASE_KEY     = "werzio_salon_invoices";

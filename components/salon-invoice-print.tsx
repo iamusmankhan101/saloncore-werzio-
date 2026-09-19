@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Printer, CheckCircle, Pencil } from "lucide-react";
-import { ADVANCE_NON_REFUNDABLE_NOTE, balanceDue, type SalonInvoice } from "@/lib/salon-invoices";
+import { ADVANCE_NON_REFUNDABLE_NOTE, PAYMENT_NON_REFUNDABLE_NOTE, balanceDue, type SalonInvoice } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
 import SalonCentralWordmark from "@/components/salon-central-wordmark";
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -575,6 +575,8 @@ export default function SalonInvoicePrint({
                 <div style={{ fontSize: 12, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Terms</div>
                 <div style={{ fontSize: 12, color: "#555", lineHeight: 1.8 }}>
                   Payment is due upon receipt. Thank you for your business!
+                  <br />
+                  <strong style={{ color: "#111" }}>{PAYMENT_NON_REFUNDABLE_NOTE}</strong>
                   {salonPhone && <>
                     <br />
                     For queries, contact us at {salonPhone}.

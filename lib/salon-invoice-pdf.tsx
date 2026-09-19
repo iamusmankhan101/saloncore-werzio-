@@ -1,5 +1,5 @@
 import { Document, Page, StyleSheet, Text, View, Image, renderToBuffer } from "@react-pdf/renderer";
-import { ADVANCE_NON_REFUNDABLE_NOTE, balanceDue, type SalonInvoice } from "@/lib/salon-invoices";
+import { ADVANCE_NON_REFUNDABLE_NOTE, PAYMENT_NON_REFUNDABLE_NOTE, balanceDue, type SalonInvoice } from "@/lib/salon-invoices";
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash", jazzcash: "JazzCash", easypaisa: "EasyPaisa",
@@ -204,6 +204,8 @@ function InvoiceDocument({ invoice, salon }: {
           <Text style={styles.sectionLabel}>Terms</Text>
           <Text style={styles.termsText}>
             Payment is due upon receipt. Thank you for your business!
+            {"\n"}
+            <Text style={{ fontFamily: "Helvetica-Bold", color: "#111111" }}>{PAYMENT_NON_REFUNDABLE_NOTE}</Text>
             {!!salon.phone && `\nFor queries, contact us at ${salon.phone}.`}
           </Text>
         </View>

@@ -204,10 +204,13 @@ function buildReceipt(data: ReceiptData): Buffer {
   push(text(isPaid ? "** PAID **" : isAdvance ? "** ADVANCE PAID **" : "** UNPAID **"));
   push(CMD.heavyOff);
 
-  // The refund term has to be on the customer's copy, not just the PDF.
+  // The refund terms have to be on the customer's copy, not just the PDF.
   if (isAdvance) {
     for (const line of wrap("Advance payment is non-refundable.", W)) push(text(line));
   }
+  push(CMD.heavyOn);
+  for (const line of wrap("Payment is non-refundable.", W)) push(text(line));
+  push(CMD.heavyOff);
 
   if (data.invoice.notes) {
     push(CMD.alignLeft);
