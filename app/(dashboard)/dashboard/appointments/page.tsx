@@ -882,6 +882,11 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   // Services are the master control — the stylist is derived from what's selected, so
   // the checklist always shows the full catalog rather than narrowing by staffId.
   const availableServices = allServices;
+  const [serviceQuery, setServiceQuery] = useState("");
+  const serviceNeedle = serviceQuery.trim().toLowerCase();
+  const visibleServices = serviceNeedle
+    ? availableServices.filter((s) => s.name.toLowerCase().includes(serviceNeedle) || String(s.category ?? "").toLowerCase().includes(serviceNeedle))
+    : availableServices;
 
   const selectedServices = allServices.filter((s) => form.serviceIds.includes(s.id));
   const teamService = selectedServices.find((s) => s.multiStylist && s.assignedStaffIds.length >= 2);
@@ -1174,9 +1179,23 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
 
           <FormField label={`Services${form.serviceIds.length > 0 ? ` (${form.serviceIds.length} selected)` : ""}`}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {availableServices.length > 0 && (
+                <div style={{ position: "relative", marginBottom: 2 }}>
+                  <Search size={14} color="#9898b0" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                  <input
+                    type="search"
+                    value={serviceQuery}
+                    onChange={(e) => setServiceQuery(e.target.value)}
+                    placeholder="Search services…"
+                    style={{ ...selectStyle, paddingLeft: 34 }}
+                  />
+                </div>
+              )}
               {availableServices.length === 0 ? (
                 <div style={{ fontSize: 13, color: "#b0b0c8", padding: "8px 0" }}>No services set up yet.</div>
-              ) : availableServices.map((sv) => {
+              ) : visibleServices.length === 0 ? (
+                <div style={{ fontSize: 13, color: "#b0b0c8", padding: "8px 0" }}>No services match “{serviceQuery.trim()}”.</div>
+              ) : visibleServices.map((sv) => {
                 const checked = form.serviceIds.includes(sv.id);
                 const isTeam = sv.multiStylist && sv.assignedStaffIds.length >= 2;
                 const teamNames = isTeam ? sv.assignedStaffIds.map((sid) => staffList.find((s) => s.id === sid)?.name).filter(Boolean) : [];
