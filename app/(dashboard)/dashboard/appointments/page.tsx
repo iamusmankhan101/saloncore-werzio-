@@ -631,12 +631,14 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
                 // appointment was booked, and totalAmount is a snapshot that
                 // never gets recalculated, so showing live prices here could add
                 // up to a different number than "Total Amount" below.
-                const liveSum = services.reduce((s, sv) => s + sv.price, 0);
+                // Hand-set booking prices (servicePrices) weight the split when present.
+                const weightOf = (sv: Service) => appt.servicePrices?.[appt.serviceIds.indexOf(sv.id)] ?? sv.price;
+                const liveSum = services.reduce((s, sv) => s + weightOf(sv), 0);
                 return services.map((sv) => (
                   <div key={sv.id} style={{ display: "flex", justifyContent: "space-between" }}>
                     <span>{sv.name}</span>
                     <span style={{ color: "#7C3AED", fontWeight: 600 }}>
-                      {fmt(liveSum > 0 ? appt.totalAmount * (sv.price / liveSum) : appt.totalAmount / services.length)}
+                      {fmt(liveSum > 0 ? appt.totalAmount * (weightOf(sv) / liveSum) : appt.totalAmount / services.length)}
                     </span>
                   </div>
                 ));
@@ -647,6 +649,12 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
               ))}
             </div>
           </InfoRow>
+
+          {(appt.totalDays ?? 1) > 1 && (
+            <InfoRow icon={<CalendarDays size={14} color="#9898b0" />} label="Booking">
+              Day {appt.dayNumber} of {appt.totalDays}
+            </InfoRow>
+          )}
 
           <InfoRow icon={<Clock size={14} color="#9898b0" />} label="Duration">
             {fmtTime(appt.startTime)} – {fmtTime(appt.endTime)} <span style={{ color: "#9898b0", fontSize: 11 }}>({durationMin} min)</span>
@@ -804,8 +812,34 @@ function checkoutHref(apptId: string, status: AppointmentStatus): string {
   return `/dashboard/pos?appointmentId=${encodeURIComponent(apptId)}${advance ? "&advance=1" : ""}`;
 }
 
-function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onClose: () => void; onAdd: (appt: Appointment, newClientObj?: Client) => void; clients: Client[]; staffList: Staff[]; allServices: Service[] }) {
-  const [form, setForm] = useState({ clientId: "", staffId: "", serviceIds: [] as string[], date: "", startTime: "", notes: "" });
+/** One day of a booking. A multi-day booking is saved as one appointment per day. */
+type DayForm = { date: string; startTime: string; staffId: string; serviceIds: string[]; prices: Record<string, string> };
+
+const MAX_BOOKING_DAYS = 30;
+const emptyDay = (): DayForm => ({ date: "", startTime: "", staffId: "", serviceIds: [], prices: {} });
+
+/** YYYY-MM-DD `n` days after `date`, in local time. */
+function addDaysToDateKey(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** The price typed for a service on this day, or its catalog price when left blank. */
+function dayServicePrice(day: DayForm, svc: Service): number {
+  const raw = day.prices[svc.id];
+  const n = raw === undefined || raw.trim() === "" ? NaN : Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : svc.price;
+}
+
+function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onClose: () => void; onAdd: (appts: Appointment[], newClientObj?: Client) => void; clients: Client[]; staffList: Staff[]; allServices: Service[] }) {
+  const [form, setForm] = useState({ clientId: "", notes: "" });
+  const [days, setDays] = useState<DayForm[]>(() => [emptyDay()]);
+  const [activeDay, setActiveDay] = useState(0);
+  const day = days[activeDay] ?? days[0];
+  const updateDay = (fn: (d: DayForm) => DayForm) =>
+    setDays((ds) => ds.map((d, i) => (i === activeDay ? fn(d) : d)));
   const [done, setDone] = useState(false);
   const [createdApptId, setCreatedApptId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -861,7 +895,37 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
     setClientDropdownOpen(false);
   };
 
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: string, v: string) => {
+    if (k === "date") {
+      // Later days still without a date follow on from this one, so a 3-day
+      // booking only needs its first date picked.
+      setDays((ds) => ds.map((d, i) =>
+        i === activeDay ? { ...d, date: v }
+          : i > activeDay && !d.date && v ? { ...d, date: addDaysToDateKey(v, i - activeDay) }
+          : d));
+    } else if (k === "staffId" || k === "startTime") {
+      updateDay((d) => ({ ...d, [k]: v }));
+    } else {
+      setForm((f) => ({ ...f, [k]: v }));
+    }
+  };
+
+  const changeDayCount = (n: number) => {
+    const count = Math.max(1, Math.min(MAX_BOOKING_DAYS, Math.floor(n) || 1));
+    setDays((ds) => {
+      if (count <= ds.length) return ds.slice(0, count);
+      const next = [...ds];
+      while (next.length < count) {
+        const prev = next[next.length - 1];
+        next.push({ ...emptyDay(), date: prev.date ? addDaysToDateKey(prev.date, 1) : "", startTime: prev.startTime });
+      }
+      return next;
+    });
+    setActiveDay((a) => Math.min(a, count - 1));
+  };
+
+  const setServicePrice = (serviceId: string, value: string) =>
+    updateDay((d) => ({ ...d, prices: { ...d.prices, [serviceId]: value } }));
   const setNC = (k: string, v: string) => setNewClientForm((f) => ({ ...f, [k]: v }));
   const canSaveNewClient = newClientForm.name.trim();
 
@@ -888,7 +952,12 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
     ? availableServices.filter((s) => s.name.toLowerCase().includes(serviceNeedle) || String(s.category ?? "").toLowerCase().includes(serviceNeedle))
     : availableServices;
 
-  const selectedServices = allServices.filter((s) => form.serviceIds.includes(s.id));
+  const servicesForDay = (d: DayForm) =>
+    d.serviceIds.map((id) => allServices.find((s) => s.id === id)).filter((s): s is Service => Boolean(s));
+  const dayTotal = (d: DayForm) => servicesForDay(d).reduce((sum, s) => sum + dayServicePrice(d, s), 0);
+  const dayIsComplete = (d: DayForm) => !!d.staffId && d.serviceIds.length > 0 && !!d.date && !!d.startTime;
+
+  const selectedServices = servicesForDay(day);
   const teamService = selectedServices.find((s) => s.multiStylist && s.assignedStaffIds.length >= 2);
   const isTeamBooking = !!teamService;
   const teamStaff = isTeamBooking
@@ -902,7 +971,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   // Selecting a service auto-assigns the stylist(s): the full team for a team service,
   // or the single eligible stylist when the chosen service(s) narrow it down to one.
   const toggleService = (id: string) =>
-    setForm((f) => {
+    updateDay((f) => {
       const serviceIds = f.serviceIds.includes(id) ? f.serviceIds.filter((s) => s !== id) : [...f.serviceIds, id];
       const selected = allServices.filter((s) => serviceIds.includes(s.id));
       const team = selected.find((s) => s.multiStylist && s.assignedStaffIds.length >= 2);
@@ -919,8 +988,10 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       return { ...f, serviceIds, staffId };
     });
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.durationMin, 0);
-  const totalPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
-  const canSubmit = (newClient ? newClientSaved : !!form.clientId) && form.staffId && form.serviceIds.length > 0 && form.date && form.startTime;
+  const totalPrice = dayTotal(day);
+  const grandTotal = days.reduce((sum, d) => sum + dayTotal(d), 0);
+  const isMultiDay = days.length > 1;
+  const canSubmit = (newClient ? newClientSaved : !!form.clientId) && days.every(dayIsComplete);
 
   const handleBook = () => {
     // Guards against a double-click/double-submit creating two separate
@@ -948,10 +1019,10 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
         gender: "female",
         tags: ["New"],
         source: "walk-in",
-        createdAt: form.date || new Date().toISOString().split("T")[0],
-        totalVisits: 1,
-        totalSpend: totalPrice,
-        lastVisitDate: form.date,
+        createdAt: days[0].date || new Date().toISOString().split("T")[0],
+        totalVisits: days.length,
+        totalSpend: grandTotal,
+        lastVisitDate: days.reduce((latest, d) => (d.date > latest ? d.date : latest), ""),
         averageRating: 5.0,
       };
       finalClientId = newId;
@@ -961,30 +1032,40 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       finalClientName = existing?.name ?? "";
     }
 
-    const staffObj = staffList.find((s) => s.id === form.staffId);
+    const now = Date.now();
+    const bookingGroupId = isMultiDay ? `bg_${now}` : undefined;
+    const source = newClient ? "walk-in" : (clients.find((c) => c.id === form.clientId)?.source ?? "walk-in");
+    const createdAt = new Date().toISOString();
 
-    const appt: Appointment = {
-      id: "a_" + Date.now(),
-      clientId: finalClientId,
-      clientName: finalClientName,
-      staffId: form.staffId,
-      staffName: staffObj?.name ?? "",
-      section: staffObj?.section,
-      serviceIds: form.serviceIds,
-      serviceNames: selectedServices.map((s) => s.name),
-      date: form.date,
-      startTime: form.startTime,
-      endTime: addMinutes(form.startTime, totalDuration),
-      status: "booked",
-      totalAmount: totalPrice,
-      source: newClient ? "walk-in" : (clients.find((c) => c.id === form.clientId)?.source ?? "walk-in"),
-      notes: form.notes || undefined,
-      createdAt: new Date().toISOString(),
-    };
+    const appts: Appointment[] = days.map((d, i) => {
+      const staffObj = staffList.find((s) => s.id === d.staffId);
+      const svcs = servicesForDay(d);
+      const prices = svcs.map((s) => dayServicePrice(d, s));
+      return {
+        id: i === 0 ? `a_${now}` : `a_${now}_${i + 1}`,
+        clientId: finalClientId,
+        clientName: finalClientName,
+        staffId: d.staffId,
+        staffName: staffObj?.name ?? "",
+        section: staffObj?.section,
+        serviceIds: svcs.map((s) => s.id),
+        serviceNames: svcs.map((s) => s.name),
+        servicePrices: prices,
+        date: d.date,
+        startTime: d.startTime,
+        endTime: addMinutes(d.startTime, svcs.reduce((sum, s) => sum + s.durationMin, 0)),
+        status: "booked",
+        totalAmount: prices.reduce((sum, p) => sum + p, 0),
+        source,
+        notes: form.notes || undefined,
+        createdAt,
+        ...(bookingGroupId ? { bookingGroupId, dayNumber: i + 1, totalDays: days.length } : {}),
+      };
+    });
 
     try {
-      onAdd(appt, newClientObj);
-      setCreatedApptId(appt.id);
+      onAdd(appts, newClientObj);
+      setCreatedApptId(appts[0].id);
       setDone(true);
     } catch (error) {
       console.error("[appointments] Could not create appointment", error);
@@ -1001,7 +1082,11 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
         <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, width: 380, maxWidth: "100%", padding: "48px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>✓</div>
           <div style={{ fontWeight: 700, fontSize: 18, color: "#1a1a2e", marginBottom: 8 }}>Appointment Created</div>
-          <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 24 }}>The appointment has been booked successfully.</div>
+          <div style={{ fontSize: 13, color: "#9898b0", marginBottom: 24 }}>
+            {isMultiDay
+              ? `${days.length}-day booking saved — one appointment per day, ${fmt(grandTotal)} in total.`
+              : "The appointment has been booked successfully."}
+          </div>
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
             {/* Straight to POS with this booking in the cart and Advance switched on,
                 so the deposit is taken and billed while the client is still here. */}
@@ -1149,6 +1234,41 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
             )}
           </FormField>
 
+          <FormField label="Number of days">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", border: "1px solid #e8e8f0", borderRadius: 10, overflow: "hidden" }}>
+                <button type="button" aria-label="One day fewer" onClick={() => changeDayCount(days.length - 1)} disabled={days.length <= 1}
+                  style={{ width: 38, height: 38, border: "none", background: "#fff", fontSize: 18, color: days.length <= 1 ? "#d0d0e0" : "#7C3AED", cursor: days.length <= 1 ? "not-allowed" : "pointer" }}>−</button>
+                <input type="number" min={1} max={MAX_BOOKING_DAYS} value={days.length} onChange={(e) => { if (e.target.value !== "") changeDayCount(Number(e.target.value)); }} aria-label="Number of days"
+                  style={{ width: 48, height: 38, border: "none", borderLeft: "1px solid #e8e8f0", borderRight: "1px solid #e8e8f0", textAlign: "center", fontSize: 14, fontWeight: 700, color: "#1a1a2e", outline: "none" }} />
+                <button type="button" aria-label="One more day" onClick={() => changeDayCount(days.length + 1)} disabled={days.length >= MAX_BOOKING_DAYS}
+                  style={{ width: 38, height: 38, border: "none", background: "#fff", fontSize: 18, color: "#7C3AED", cursor: "pointer" }}>+</button>
+              </div>
+              <span style={{ fontSize: 12, color: "#9898b0" }}>{isMultiDay ? "Set the date, stylist, services and prices for each day." : "Single-day appointment"}</span>
+            </div>
+          </FormField>
+
+          {isMultiDay && (
+            <div role="tablist" aria-label="Booking days" style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+              {days.map((d, i) => {
+                const active = i === activeDay;
+                const complete = dayIsComplete(d);
+                return (
+                  <button key={i} type="button" role="tab" aria-selected={active} onClick={() => setActiveDay(i)}
+                    style={{ flexShrink: 0, textAlign: "left", padding: "8px 12px", borderRadius: 10, cursor: "pointer", border: `1px solid ${active ? "#7C3AED" : "#e8e8f0"}`, background: active ? "#F5F3FF" : "#fff" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: active ? "#7C3AED" : "#1a1a2e" }}>
+                      Day {i + 1}
+                      <span title={complete ? "Complete" : "Needs date, time, stylist and a service"} style={{ width: 6, height: 6, borderRadius: "50%", background: complete ? "#059669" : "#f59e0b" }} />
+                    </div>
+                    <div style={{ fontSize: 11, color: "#9898b0", whiteSpace: "nowrap" }}>
+                      {d.date || "No date"} · {fmt(dayTotal(d))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           <FormField label={isTeamBooking ? "Stylist Team" : "Stylist"}>
             {isTeamBooking ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1165,7 +1285,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
               </div>
             ) : (
               <select
-                value={form.staffId}
+                value={day.staffId}
                 onChange={(e) => set("staffId", e.target.value)}
                 style={selectStyle}
               >
@@ -1177,7 +1297,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
             )}
           </FormField>
 
-          <FormField label={`Services${form.serviceIds.length > 0 ? ` (${form.serviceIds.length} selected)` : ""}`}>
+          <FormField label={`Services${day.serviceIds.length > 0 ? ` (${day.serviceIds.length} selected)` : ""}`}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {availableServices.length > 0 && (
                 <div style={{ position: "relative", marginBottom: 2 }}>
@@ -1196,7 +1316,8 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
               ) : visibleServices.length === 0 ? (
                 <div style={{ fontSize: 13, color: "#b0b0c8", padding: "8px 0" }}>No services match “{serviceQuery.trim()}”.</div>
               ) : visibleServices.map((sv) => {
-                const checked = form.serviceIds.includes(sv.id);
+                const checked = day.serviceIds.includes(sv.id);
+                const chargedPrice = dayServicePrice(day, sv);
                 const isTeam = sv.multiStylist && sv.assignedStaffIds.length >= 2;
                 const teamNames = isTeam ? sv.assignedStaffIds.map((sid) => staffList.find((s) => s.id === sid)?.name).filter(Boolean) : [];
                 return (
@@ -1214,7 +1335,26 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
                           <div style={{ fontSize: 11, color: "#9898b0" }}>{sv.durationMin} min</div>
                         </div>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#7C3AED" }}>{fmt(sv.price)}</span>
+                      {checked ? (
+                        // Editable once ticked, so a package or negotiated rate can be
+                        // charged per service per day. Blank falls back to the list price.
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                          <input
+                            type="number"
+                            min={0}
+                            inputMode="numeric"
+                            value={day.prices[sv.id] ?? String(sv.price)}
+                            onChange={(e) => setServicePrice(sv.id, e.target.value)}
+                            aria-label={`Price for ${sv.name}`}
+                            style={{ width: 100, padding: "6px 8px", borderRadius: 8, border: "1px solid #d8d0f8", background: "#fff", textAlign: "right", fontSize: 13, fontWeight: 600, color: "#7C3AED", outline: "none" }}
+                          />
+                          {chargedPrice !== sv.price && (
+                            <span style={{ fontSize: 10, color: "#9898b0" }}>List {fmt(sv.price)}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#7C3AED" }}>{fmt(sv.price)}</span>
+                      )}
                     </div>
                     {isTeam && (
                       <div style={{ fontSize: 11, color: "#7C3AED", paddingLeft: 24 }}>Worked together by: {teamNames.join(", ")}</div>
@@ -1227,10 +1367,10 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <FormField label="Date">
-              <input type="date" value={form.date} onChange={(e) => set("date", e.target.value)} style={selectStyle} />
+              <input type="date" value={day.date} onChange={(e) => set("date", e.target.value)} style={selectStyle} />
             </FormField>
             <FormField label="Start Time">
-              <input type="time" value={form.startTime} onChange={(e) => set("startTime", e.target.value)} style={selectStyle} />
+              <input type="time" value={day.startTime} onChange={(e) => set("startTime", e.target.value)} style={selectStyle} />
             </FormField>
           </div>
 
@@ -1238,7 +1378,20 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
             <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Any special requests or notes…" rows={2} style={{ ...selectStyle, resize: "none", lineHeight: 1.5 }} />
           </FormField>
 
-          {form.serviceIds.length > 0 && (
+          {isMultiDay ? (
+            <div style={{ background: "#F5F3FF", border: "1px solid #EDE9FE", borderRadius: 10, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+              {days.map((d, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b6b8a" }}>
+                  <span>Day {i + 1}{d.date ? ` · ${d.date}` : ""} · {d.serviceIds.length} service{d.serviceIds.length === 1 ? "" : "s"}</span>
+                  <span style={{ fontWeight: 600 }}>{fmt(dayTotal(d))}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #EDE9FE", paddingTop: 8, marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: "#7C3AED" }}>{days.length} days total</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#7C3AED" }}>{fmt(grandTotal)}</div>
+              </div>
+            </div>
+          ) : day.serviceIds.length > 0 && (
             <div style={{ background: "#F5F3FF", border: "1px solid #EDE9FE", borderRadius: 10, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontSize: 12, color: "#7C3AED" }}>{totalDuration} min total</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#7C3AED" }}>{fmt(totalPrice)}</div>
@@ -1254,7 +1407,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
               disabled={!canSubmit || submitting}
               style={{ flex: 2, padding: "11px 0", borderRadius: 10, border: "none", background: canSubmit && !submitting ? "#7C3AED" : "#e8e8f0", fontSize: 13, fontWeight: 600, color: canSubmit && !submitting ? "#fff" : "#b0b0c8", cursor: canSubmit && !submitting ? "pointer" : "not-allowed" }}
             >
-              {submitting ? "Booking…" : "Book Appointment"}
+              {submitting ? "Booking…" : isMultiDay ? `Book ${days.length} Days` : "Book Appointment"}
             </button>
           </div>
         </div>
@@ -1509,9 +1662,15 @@ export default function AppointmentsPage() {
     setClients(getStoredClients());
     setStaffList(getStoredStaff());
     setServices(getStoredServices());
-    setInvoicedApptIds(new Set(
+    // A multi-day booking is billed on one invoice linked to a single day, so
+    // every day of that booking counts as invoiced.
+    const invoiced = new Set(
       getSalonInvoices().filter((inv) => inv.appointmentId).map((inv) => inv.appointmentId as string)
-    ));
+    );
+    const storedAppts = getStoredAppointments();
+    const invoicedGroups = new Set(storedAppts.filter((a) => a.bookingGroupId && invoiced.has(a.id)).map((a) => a.bookingGroupId));
+    for (const a of storedAppts) if (a.bookingGroupId && invoicedGroups.has(a.bookingGroupId)) invoiced.add(a.id);
+    setInvoicedApptIds(invoiced);
   }, []);
 
   // Deep-link support: opening /dashboard/appointments?id=<apptId> (e.g. from the
@@ -1695,7 +1854,7 @@ export default function AppointmentsPage() {
           clients={clients}
           staffList={staffList}
           allServices={services}
-          onAdd={(newAppt, newClientObj) => {
+          onAdd={(newAppts, newClientObj) => {
             // Computed and persisted directly (not via setState updater callbacks) so
             // saveClients() has actually run — and getStoredClients() can see the new
             // client — before enqueueWhatsAppConfirmation reads it below. React defers
@@ -1708,28 +1867,36 @@ export default function AppointmentsPage() {
             // props (captured at this render). Those go stale the instant a second
             // booking is created before this component re-renders, which would let a
             // fast double-submit silently overwrite the first booking with the second.
-            const updatedAppts = [newAppt, ...getStoredAppointments()];
+            const updatedAppts = [...newAppts, ...getStoredAppointments()];
             saveAppointments(updatedAppts);
             setAppointments(updatedAppts);
 
             const storedClients = getStoredClients();
             const updatedClients = newClientObj
               ? [newClientObj, ...storedClients]
-              : storedClients.map((c) => c.id === newAppt.clientId
-                  ? { ...c, totalVisits: c.totalVisits + 1, totalSpend: c.totalSpend + newAppt.totalAmount, lastVisitDate: newAppt.date }
+              : storedClients.map((c) => c.id === newAppts[0].clientId
+                  ? {
+                      ...c,
+                      // One visit per day, matching the per-appointment reversal in deleteChecked.
+                      totalVisits: c.totalVisits + newAppts.length,
+                      totalSpend: c.totalSpend + newAppts.reduce((sum, a) => sum + a.totalAmount, 0),
+                      lastVisitDate: newAppts.reduce((latest, a) => (a.date > latest ? a.date : latest), c.lastVisitDate ?? ""),
+                    }
                   : c);
             saveClients(updatedClients);
             setClients(updatedClients);
 
-            enqueueWhatsAppConfirmation(newAppt.id).catch((error) => {
-              console.warn("[appointments] WhatsApp confirmation queue skipped", error);
-            });
-            // sendGroupBookingAlert is async — a bare try/catch around the call site
-            // only catches synchronous throws, not a later rejection inside the
-            // returned promise, so that rejection must be caught here instead.
-            sendGroupBookingAlert(newAppt).catch((error) => {
-              console.warn("[appointments] WhatsApp group alert skipped", error);
-            });
+            for (const newAppt of newAppts) {
+              enqueueWhatsAppConfirmation(newAppt.id).catch((error) => {
+                console.warn("[appointments] WhatsApp confirmation queue skipped", error);
+              });
+              // sendGroupBookingAlert is async — a bare try/catch around the call site
+              // only catches synchronous throws, not a later rejection inside the
+              // returned promise, so that rejection must be caught here instead.
+              sendGroupBookingAlert(newAppt).catch((error) => {
+                console.warn("[appointments] WhatsApp group alert skipped", error);
+              });
+            }
           }}
         />
       )}
@@ -2084,6 +2251,9 @@ export default function AppointmentsPage() {
                   {isTeamAppt && (
                     <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em", flexShrink: 0 }}>Team</span>
                   )}
+                  {(appt.totalDays ?? 1) > 1 && (
+                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#b45309", background: "#fffbeb", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em", flexShrink: 0 }}>Day {appt.dayNumber}/{appt.totalDays}</span>
+                  )}
                 </div>
                 <div>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 800, color: cfg.color, background: cfg.bg, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap" }}>
@@ -2158,6 +2328,9 @@ export default function AppointmentsPage() {
                       <span style={{ fontSize: 12, color: "#4a4a6a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{appt.staffName.split(" ")[0]}</span>
                       {isTeamAppt && (
                         <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#7C3AED", background: "#F5F3FF", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em", flexShrink: 0 }}>Team</span>
+                      )}
+                      {(appt.totalDays ?? 1) > 1 && (
+                        <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#b45309", background: "#fffbeb", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em", flexShrink: 0 }}>Day {appt.dayNumber}/{appt.totalDays}</span>
                       )}
                     </div>
                     {canCheckout && (

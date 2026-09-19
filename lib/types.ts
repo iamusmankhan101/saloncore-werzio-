@@ -191,6 +191,22 @@ export interface Appointment {
    * Only meaningful once the appointment is completed.
    */
   feedback?: AppointmentFeedback;
+  /**
+   * Price charged for each service, index-aligned with `serviceIds`. Set when the
+   * booking was priced by hand (e.g. a bridal package); absent on older records,
+   * which fall back to the catalog price.
+   */
+  servicePrices?: number[];
+  /**
+   * A booking that runs over several days is stored as one appointment per day,
+   * all sharing this id, so each day keeps its own date, stylist and services
+   * while checkout can still bill the whole booking on one invoice.
+   */
+  bookingGroupId?: string;
+  /** 1-based position of this day within its booking group. */
+  dayNumber?: number;
+  /** How many days the booking group spans. */
+  totalDays?: number;
 }
 
 export interface AppointmentFeedback {

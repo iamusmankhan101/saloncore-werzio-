@@ -84,14 +84,19 @@ export function lastPayoutEnd(staffId: string, payouts: Payout[]): string | null
  */
 export function staffRevenueFromAppointment(appt: Appointment, staffId: string, services: Service[]): number {
   const total = appt.totalAmount ?? 0;
+  // Weighted by the price charged on this booking when it was priced by hand,
+  // otherwise by the catalog price.
   const apptServices = appt.serviceIds
-    .map((id) => services.find((s) => s.id === id))
-    .filter((s): s is Service => Boolean(s));
+    .map((id, idx) => {
+      const s = services.find((sv) => sv.id === id);
+      return s ? { s, price: appt.servicePrices?.[idx] ?? s.price ?? 0 } : null;
+    })
+    .filter((x): x is { s: Service; price: number } => Boolean(x));
   if (apptServices.length === 0) return appt.staffId === staffId ? total : 0;
 
-  const priceSum = apptServices.reduce((sum, s) => sum + (s.price || 0), 0);
-  return apptServices.reduce((credited, s) => {
-    const weight = priceSum > 0 ? (s.price || 0) / priceSum : 1 / apptServices.length;
+  const priceSum = apptServices.reduce((sum, x) => sum + (x.price || 0), 0);
+  return apptServices.reduce((credited, { s, price }) => {
+    const weight = priceSum > 0 ? (price || 0) / priceSum : 1 / apptServices.length;
     const portion = total * weight;
     if (s.multiStylist && s.assignedStaffIds.length >= 2) {
       return s.assignedStaffIds.includes(staffId) ? credited + portion / s.assignedStaffIds.length : credited;

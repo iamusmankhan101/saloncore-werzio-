@@ -121,6 +121,8 @@ export default function POSPage() {
   const [now,       setNow]       = useState(new Date());
   const [apptBanner, setApptBanner] = useState<string | null>(null);
   const [checkoutAppointmentId, setCheckoutAppointmentId] = useState<string | null>(null);
+  /** Every day of the booking being checked out — just the one appointment unless it spans several days. */
+  const [checkoutGroupIds, setCheckoutGroupIds] = useState<string[]>([]);
 
   useEffect(() => {
     const allServices  = getStoredServices().filter(s => s.isActive);
@@ -137,8 +139,17 @@ export default function POSPage() {
     const params       = new URLSearchParams(window.location.search);
     const apptId       = params.get("appointmentId");
     if (apptId) {
-      const appt = getStoredAppointments().find(a => a.id === apptId);
+      const storedAppts = getStoredAppointments();
+      const appt = storedAppts.find(a => a.id === apptId);
       if (appt) {
+        // A multi-day booking is billed as a whole: every (non-cancelled) day
+        // goes on this one invoice, each line tagged with its day.
+        const bookingDays = appt.bookingGroupId
+          ? storedAppts
+              .filter(a => a.bookingGroupId === appt.bookingGroupId && a.status !== "cancelled" && a.status !== "no-show")
+              .sort((a, b) => (a.dayNumber ?? 0) - (b.dayNumber ?? 0) || a.date.localeCompare(b.date))
+          : [appt];
+        const isMultiDay = bookingDays.length > 1;
         // Set client
         const client = allClients.find(c => c.id === appt.clientId);
         if (client) setSelectedClient(client);
@@ -147,11 +158,13 @@ export default function POSPage() {
         if (appt.staffId) setSelectedStaffId(appt.staffId);
 
         // Build cart from appointment services
-        const cartEntries: CartEntry[] = appt.serviceIds
+        const cartEntries: CartEntry[] = bookingDays.flatMap(day => day.serviceIds
           .map((svcId, idx) => {
             const svc = allServices.find(s => s.id === svcId);
-            const name = svc?.name ?? appt.serviceNames[idx] ?? "Service";
-            const price = svc?.price ?? appt.totalAmount;
+            const baseName = svc?.name ?? day.serviceNames[idx] ?? "Service";
+            const name = isMultiDay ? `${baseName} (Day ${day.dayNumber ?? idx + 1} · ${day.date})` : baseName;
+            // The price agreed at booking wins over the current catalog price.
+            const price = day.servicePrices?.[idx] ?? svc?.price ?? day.totalAmount;
             return {
               cartId:    crypto.randomUUID(),
               itemId:    svcId,
@@ -159,18 +172,25 @@ export default function POSPage() {
               name,
               qty:       1,
               unitPrice: price,
-              basePrice: price,
+              basePrice: svc?.price ?? price,
               total:     price,
             };
-          })
+          }))
           .filter(e => e.unitPrice > 0);
 
         if (cartEntries.length > 0) setCart(cartEntries);
 
         // Note the source appointment
-        setSaleNotes(`Appointment checkout${appt.date ? ` · ${appt.date}` : ""}`);
-        setApptBanner(`Checking out: ${appt.clientName} · ${appt.serviceNames.join(", ")} · ${appt.date}`);
+        if (isMultiDay) {
+          const range = `${bookingDays[0].date} to ${bookingDays[bookingDays.length - 1].date}`;
+          setSaleNotes(`${bookingDays.length}-day booking · ${range}`);
+          setApptBanner(`Checking out: ${appt.clientName} · ${bookingDays.length}-day booking · ${range}`);
+        } else {
+          setSaleNotes(`Appointment checkout${appt.date ? ` · ${appt.date}` : ""}`);
+          setApptBanner(`Checking out: ${appt.clientName} · ${appt.serviceNames.join(", ")} · ${appt.date}`);
+        }
         setCheckoutAppointmentId(appt.id);
+        setCheckoutGroupIds(bookingDays.map(a => a.id));
         // Booked from the appointment form before the client has come in — the
         // point of checking out now is to take the advance.
         if (params.get("advance") === "1") setIsAdvance(true);
@@ -408,6 +428,9 @@ export default function POSPage() {
     setSelectedClient(null); setClientQ(""); setSelectedStaffId("");
     setCompleted(false); setLastInvoice(null); setWaStatus("idle"); setIsCredit(false);
     setSyncFailed(false);
+    // Otherwise the next, unrelated sale would be linked to (and complete) the
+    // appointment this page was opened for.
+    setCheckoutAppointmentId(null); setCheckoutGroupIds([]); setApptBanner(null);
   }
 
   // ── Complete sale ─────────────────────────────────────────────────────────
@@ -460,11 +483,19 @@ export default function POSPage() {
       if (checkoutAppointmentId) {
         const advanceOnly = !isCredit && isAdvance;
         const freshAppointments = getStoredAppointments();
-        const updatedAppointments = freshAppointments.map(a =>
-          a.id === checkoutAppointmentId
-            ? advanceOnly ? { ...a, totalAmount: total } : { ...a, status: "completed" as const, totalAmount: total }
-            : a
-        );
+        const updatedAppointments = checkoutGroupIds.length > 1
+          // Multi-day: each day keeps its own amount (the invoice carries the
+          // total). Paying in full completes the days already reached; later
+          // days stay booked until they happen.
+          ? freshAppointments.map(a =>
+              !advanceOnly && checkoutGroupIds.includes(a.id) && a.date <= today && a.status !== "cancelled" && a.status !== "no-show"
+                ? { ...a, status: "completed" as const }
+                : a)
+          : freshAppointments.map(a =>
+              a.id === checkoutAppointmentId
+                ? advanceOnly ? { ...a, totalAmount: total } : { ...a, status: "completed" as const, totalAmount: total }
+                : a
+            );
         saveAppointments(updatedAppointments);
       }
 
