@@ -15,6 +15,7 @@ import { settingsStore } from "@/lib/settings-store";
 import { syncFromDB } from "@/lib/turso-sync";
 import SalonInvoicePrint from "@/components/salon-invoice-print";
 import SalonInvoiceEdit from "@/components/salon-invoice-edit";
+import { queueInvoiceReceipt } from "@/lib/whatsapp-receipt";
 import MobilePageHeader from "@/components/mobile-page-header";
 import PageTitle from "@/components/page-title";
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -79,6 +80,8 @@ export default function InvoicesPage() {
   const [search, setSearch]             = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "paid" | "unpaid">("all");
   const [viewingInvoice, setViewingInvoice] = useState<SalonInvoice | null>(null);
+  /** Outcome of re-sending an edited invoice on WhatsApp, shown briefly as a toast. */
+  const [resendNotice, setResendNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm]   = useState<string | null>(null);
   const [markPaidPromptId, setMarkPaidPromptId] = useState<string | null>(null);
   const [markPaidDate, setMarkPaidDate] = useState(() => localDateKey());
@@ -190,6 +193,26 @@ export default function InvoicesPage() {
   function handleInvoiceSaved(updated: SalonInvoice) {
     reload();
     if (viewingInvoice?.id === updated.id) setViewingInvoice(updated);
+    void resendEditedInvoice(updated);
+  }
+
+  // The client already has the old copy on WhatsApp, so every edit sends the
+  // revised invoice again (one message per invoice, replacing any still queued).
+  async function resendEditedInvoice(updated: SalonInvoice) {
+    const client = updated.clientId ? getStoredClients().find((c) => c.id === updated.clientId) : undefined;
+    const phone = updated.clientPhone || client?.phone || "";
+    const name = updated.clientName || client?.name || "";
+    if (!phone) {
+      setResendNotice({ ok: false, text: "Invoice updated — no phone number on it, so it wasn't sent on WhatsApp." });
+    } else {
+      const result = await queueInvoiceReceipt(updated, { name, phone }, { resend: true });
+      setResendNotice(
+        result === "queued" ? { ok: true, text: `Updated invoice ${updated.number} will be sent to ${name || phone} on WhatsApp shortly.` }
+        : result === "skipped" ? { ok: false, text: "Invoice updated — WhatsApp automation is off, so it wasn't sent." }
+        : { ok: false, text: `Invoice updated, but it couldn't be queued on WhatsApp. Check Settings → WhatsApp.` }
+      );
+    }
+    setTimeout(() => setResendNotice(null), 6000);
   }
 
   function handleDelete(id: string) {
@@ -229,6 +252,12 @@ export default function InvoicesPage() {
 
   return (
     <div className="dashboard-polish" style={{ background: "#f4f5f7", minHeight: "100vh" }}>
+
+      {resendNotice && (
+        <div role="status" style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 200, maxWidth: "calc(100vw - 32px)", padding: "12px 18px", borderRadius: 12, background: resendNotice.ok ? "#ecfdf5" : "#fffbeb", border: `1px solid ${resendNotice.ok ? "#a7f3d0" : "#fde68a"}`, color: resendNotice.ok ? "#065f46" : "#92400e", fontSize: 13, fontWeight: 600, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+          {resendNotice.text}
+        </div>
+      )}
 
       {/* Mobile header */}
       <MobilePageHeader

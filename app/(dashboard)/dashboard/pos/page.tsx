@@ -24,6 +24,7 @@ import {
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, fillTemplate } from "@/lib/whatsapp-scheduler";
+import { queueInvoiceReceipt } from "@/lib/whatsapp-receipt";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
 import { getSectionOptions, getActiveSection, inSection } from "@/lib/sections";
@@ -572,36 +573,10 @@ export default function POSPage() {
   // ── WhatsApp PDF invoice ──────────────────────────────────────────────────
   async function sendReceiptWA(invoice: SalonInvoice, client: Client | null) {
     if (!client?.phone) { setWaStatus("idle"); return; }
-    const ws = settingsStore.wasender as { enabled?: boolean; autoPosThankYou?: boolean };
-    if (ws.enabled === false) {
-      setWaStatus("idle");
-      return;
-    }
+    if ((settingsStore.wasender as { enabled?: boolean }).enabled === false) { setWaStatus("idle"); return; }
     setWaStatus("sending");
-    const normalizedPhone = normalizePhone(client.phone);
-    try {
-      // The thank-you text is prepended to the invoice caption so the client gets
-      // one WhatsApp message (PDF + caption), not two separate texts back to back.
-      const thankYouTpl = (settingsStore.whatsapp as { posThankYou?: string }).posThankYou;
-      const thankYouText = ws.autoPosThankYou !== false && thankYouTpl
-        ? fillTemplate(thankYouTpl, { name: client.name, salon_name: salon.name })
-        : "";
-      const response = await fetch("/api/whatsapp/queue-pos-receipt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invoice,
-          salon,
-          phone: normalizedPhone,
-          providerConfig: settingsStore.wasender,
-          thankYouText,
-        }),
-      });
-      const result = await response.json() as { ok?: boolean; error?: string };
-      setWaStatus(result.ok && response.ok ? "queued" : "failed");
-    } catch {
-      setWaStatus("failed");
-    }
+    const result = await queueInvoiceReceipt(invoice, client);
+    setWaStatus(result === "queued" ? "queued" : result === "skipped" ? "idle" : "failed");
   }
 
   // ── WhatsApp thank-you fallback (Starter/Free plans — no automated WhatsApp) ─

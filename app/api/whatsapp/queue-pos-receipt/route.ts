@@ -11,6 +11,8 @@ interface RequestBody {
   phone: string;
   providerConfig: WhatsAppProviderConfig & WhatsAppSafetyConfig;
   thankYouText?: string;
+  /** The invoice was edited after it went out — send it again even if already sent. */
+  resend?: boolean;
 }
 
 /**
@@ -76,6 +78,11 @@ export async function POST(request: NextRequest) {
     // transaction to close — two simultaneous checkouts simply insert two rows.
     const scheduledAt = new Date(Date.now() + posReceiptDelayMs()).toISOString();
 
+    // Normally a receipt that already went out is left alone, so a repeated
+    // checkout can never message the client twice. An edited invoice is the
+    // exception: the client is holding the old figures, so the row goes back
+    // to pending with the new invoice.
+    const keepSent = body.resend ? "0" : "wa_pos_receipt_queue.status = 'sent'";
     await db.execute({
       sql: `INSERT INTO wa_pos_receipt_queue
               (id, user_id, invoice_id, invoice_number, phone, client_name, invoice_json, salon_json, thank_you_text, scheduled_at, status, attempts, created_at)
@@ -87,23 +94,23 @@ export async function POST(request: NextRequest) {
               salon_json = excluded.salon_json,
               thank_you_text = excluded.thank_you_text,
               scheduled_at = CASE
-                WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.scheduled_at
+                WHEN ${keepSent} THEN wa_pos_receipt_queue.scheduled_at
                 ELSE excluded.scheduled_at
               END,
               status = CASE
-                WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.status
+                WHEN ${keepSent} THEN wa_pos_receipt_queue.status
                 ELSE 'pending'
               END,
               attempts = CASE
-                WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.attempts
+                WHEN ${keepSent} THEN wa_pos_receipt_queue.attempts
                 ELSE 0
               END,
               last_error = CASE
-                WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.last_error
+                WHEN ${keepSent} THEN wa_pos_receipt_queue.last_error
                 ELSE NULL
               END,
               sent_at = CASE
-                WHEN wa_pos_receipt_queue.status = 'sent' THEN wa_pos_receipt_queue.sent_at
+                WHEN ${keepSent} THEN wa_pos_receipt_queue.sent_at
                 ELSE NULL
               END`,
       args: [
