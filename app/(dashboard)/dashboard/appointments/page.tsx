@@ -1138,12 +1138,16 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       let staffId = f.staffId;
       if (team) {
         staffId = team.assignedStaffIds[0];
-      } else if (selected.length > 0) {
+      } else if (selected.length === 0) {
+        staffId = "";
+      } else if (!staffId) {
+        // Suggest a stylist only when nobody's picked yet, and only when
+        // exactly one is usually assigned to everything selected. Any stylist
+        // can be picked by hand (see the dropdown below) — a manual choice is
+        // never cleared just because a newly toggled service isn't in their
+        // usual list.
         const eligible = staffList.filter((s) => s.isActive && selected.every((sv) => sv.assignedStaffIds.includes(s.id))).map((s) => s.id);
         if (eligible.length === 1) staffId = eligible[0];
-        else if (!eligible.includes(f.staffId)) staffId = "";
-      } else {
-        staffId = "";
       }
       return { ...f, serviceIds, guests, staffId, extraStaffIds: f.extraStaffIds.filter((id) => id !== staffId) };
     });
@@ -1482,8 +1486,15 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
                 style={selectStyle}
               >
                 <option value="">Select a stylist…</option>
-                {staffList.filter((s) => s.isActive && (selectedServices.length === 0 || eligibleStaffIds.includes(s.id))).map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} · {s.role.replace(/-/g, " ")}</option>
+                {/* Every active stylist can be picked — assignment to a service is a
+                    hint for auto-selecting one when it's unambiguous, not a lock on
+                    who's allowed to do the work. A stylist not usually assigned to
+                    this service is still selectable, just labelled as such. */}
+                {staffList.filter((s) => s.isActive).map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} · {s.role.replace(/-/g, " ")}
+                    {selectedServices.length > 0 && !eligibleStaffIds.includes(s.id) ? " (not usually assigned)" : ""}
+                  </option>
                 ))}
               </select>
             )}
