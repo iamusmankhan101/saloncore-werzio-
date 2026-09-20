@@ -381,10 +381,10 @@ export default function SalonInvoicePrint({
           <div className="sip-no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: "#fff", opacity: 0.9 }}>{invoice.number} · {invoice.clientName}</span>
             <div style={{ display: "flex", gap: 8 }}>
-              {invoice.status === "unpaid" && onMarkPaid && (
+              {(invoice.status === "unpaid" || invoice.status === "partial") && onMarkPaid && (
                 <button onClick={e => { e.stopPropagation(); onMarkPaid(); }}
                   style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid #6ee7b7", background: "rgba(5,150,105,0.25)", fontSize: 12, fontWeight: 700, color: "#6ee7b7", cursor: "pointer" }}>
-                  <CheckCircle size={13} /> Mark Paid
+                  <CheckCircle size={13} /> {invoice.status === "partial" ? `Collect ${fmt(balanceDue(invoice))}` : "Mark Paid"}
                 </button>
               )}
               {printer.enabled && (

@@ -6,7 +6,7 @@ import {
   ReceiptText, ShoppingCart, TrendingUp, Users,
 } from "lucide-react";
 import {
-  getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid, updateSalonInvoice, localDateKey,
+  getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid, updateSalonInvoice, localDateKey, balanceDue,
   type SalonInvoice,
 } from "@/lib/salon-invoices";
 import type { PaymentMethod } from "@/lib/types";
@@ -161,12 +161,19 @@ export default function InvoicesPage() {
   function confirmMarkPaid(method: PaymentMethod) {
     if (!markPaidPromptId) return;
     const id = markPaidPromptId;
+    const wasPartial = invoices.find((inv) => inv.id === id)?.status === "partial";
     markSalonInvoicePaid(id, method, markPaidDate);
     reload();
     if (viewingInvoice?.id === id) {
       setViewingInvoice((prev) => prev ? { ...prev, status: "paid", paymentMethod: method, paidDate: markPaidDate } : prev);
     }
     setMarkPaidPromptId(null);
+    // Collecting the balance settles an invoice the client already has a copy
+    // of, so send the paid-in-full version the same way an edit does.
+    if (wasPartial) {
+      const settled = getSalonInvoices().find((inv) => inv.id === id);
+      if (settled) void resendEditedInvoice(settled);
+    }
   }
 
   function openEditDate(inv: SalonInvoice) {
@@ -370,8 +377,27 @@ export default function InvoicesPage() {
             <div style={{ width: 52, height: 52, borderRadius: 14, background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
               <CheckCircle size={22} color="#059669" />
             </div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 6 }}>How was this paid?</div>
-            <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 16 }}>Select a payment method to mark this invoice paid.</div>
+            {(() => {
+              const promptInvoice = invoices.find((inv) => inv.id === markPaidPromptId);
+              const balance = promptInvoice ? balanceDue(promptInvoice) : 0;
+              return promptInvoice?.status === "partial" ? (
+                <>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 6 }}>Collect the balance</div>
+                  <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 12 }}>
+                    Advance of {fmt(promptInvoice.advanceAmount ?? 0)} already received on {promptInvoice.number}.
+                  </div>
+                  <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 14, fontWeight: 800, color: "#b45309" }}>
+                    Balance due {fmt(balance)}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 16 }}>How was the balance paid?</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 6 }}>How was this paid?</div>
+                  <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 16 }}>Select a payment method to mark this invoice paid.</div>
+                </>
+              );
+            })()}
             <div style={{ textAlign: "left", marginBottom: 16 }}>
               <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#9898b0", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
                 Date paid
@@ -577,10 +603,10 @@ export default function InvoicesPage() {
                       >
                         <FileEdit size={14} color="#9898b0" />
                       </button>
-                      {inv.status === "unpaid" && (
+                      {(inv.status === "unpaid" || inv.status === "partial") && (
                         <button
                           onClick={() => setMarkPaidPromptId(inv.id)}
-                          title="Mark Paid"
+                          title={inv.status === "partial" ? `Collect balance ${fmt(balanceDue(inv))}` : "Mark Paid"}
                           style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #bbf7d0", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
                           className="hover-scale"
                         >
