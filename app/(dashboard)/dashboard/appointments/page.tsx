@@ -552,7 +552,14 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
               {appt.clientName.charAt(0)}
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 18, color: "#1a1a2e" }}>{appt.clientName}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontWeight: 800, fontSize: 18, color: "#1a1a2e" }}>{appt.clientName}</div>
+                {(appt.guests?.length ?? 0) > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "#be185d", background: "#fdf2f8", border: "1px solid #fbcfe8", padding: "3px 9px", borderRadius: 20, letterSpacing: "0.04em" }}>
+                    Family booking · {appt.guests!.length + 1} people
+                  </span>
+                )}
+              </div>
               <div style={{ fontSize: 12, color: "#9898b0", marginTop: 2 }}>
                 {client?.phone && <span>{client.phone} · </span>}
                 {fmtDate(appt.date)} · {fmtTime(appt.startTime)}–{fmtTime(appt.endTime)}
@@ -857,7 +864,7 @@ type DayForm = {
   date: string; startTime: string; staffId: string; extraStaffIds: string[];
   serviceIds: string[]; prices: Record<string, string>;
   /** Related people seen in the same visit and billed together with the main client. */
-  guests: { key: string; clientId?: string; name: string; serviceIds: string[]; prices: Record<string, string> }[];
+  guests: { key: string; clientId?: string; name: string; phone: string; serviceIds: string[]; prices: Record<string, string> }[];
   /** Whose services the checklist is picking — "" is the main client. */
   activeGuestKey: string;
 };
@@ -1043,12 +1050,14 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   const addGuest = () =>
     updateDay((d) => {
       const key = `g_${Date.now()}_${d.guests.length}`;
-      return { ...d, guests: [...d.guests, { key, name: "", serviceIds: [], prices: {} }], activeGuestKey: key };
+      return { ...d, guests: [...d.guests, { key, name: "", phone: "", serviceIds: [], prices: {} }], activeGuestKey: key };
     });
   const removeGuest = (key: string) =>
     updateDay((d) => ({ ...d, guests: d.guests.filter((g) => g.key !== key), activeGuestKey: d.activeGuestKey === key ? "" : d.activeGuestKey }));
   const setGuestName = (key: string, name: string) =>
     updateDay((d) => ({ ...d, guests: d.guests.map((g) => (g.key === key ? { ...g, name, clientId: clients.find((c) => c.name.toLowerCase() === name.trim().toLowerCase())?.id } : g)) }));
+  const setGuestPhone = (key: string, phone: string) =>
+    updateDay((d) => ({ ...d, guests: d.guests.map((g) => (g.key === key ? { ...g, phone } : g)) }));
   const setActivePerson = (key: string) => updateDay((d) => ({ ...d, activeGuestKey: key }));
 
   // Stylist eligibility and duration cover everyone seen in the same visit.
@@ -1471,18 +1480,33 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
             {day.guests.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
                 {day.guests.map((g) => (
-                  <div key={g.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <input
-                      value={g.name}
-                      onChange={(e) => setGuestName(g.key, e.target.value)}
-                      onFocus={() => setActivePerson(g.key)}
-                      list="appt-guest-clients"
-                      placeholder="Name (e.g. daughter, or pick a saved client)"
-                      style={{ ...selectStyle, flex: 1 }} />
-                    <button type="button" onClick={() => removeGuest(g.key)} aria-label={`Remove ${g.name || "person"}`}
-                      style={{ border: "1px solid #f0e9ff", background: "#fff", borderRadius: 9, width: 38, height: 38, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <X size={14} color="#9898b0" />
-                    </button>
+                  <div key={g.key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        value={g.name}
+                        onChange={(e) => setGuestName(g.key, e.target.value)}
+                        onFocus={() => setActivePerson(g.key)}
+                        list="appt-guest-clients"
+                        placeholder="Name (e.g. daughter, or pick a saved client)"
+                        style={{ ...selectStyle, flex: 1 }} />
+                      <button type="button" onClick={() => removeGuest(g.key)} aria-label={`Remove ${g.name || "person"}`}
+                        style={{ border: "1px solid #f0e9ff", background: "#fff", borderRadius: 9, width: 38, height: 38, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <X size={14} color="#9898b0" />
+                      </button>
+                    </div>
+                    {/* An existing client already has a phone on file — only ask for one
+                        when this name doesn't match anybody, since it's about to become
+                        a new client record. */}
+                    {g.name.trim() && !g.clientId ? (
+                      <input
+                        value={g.phone}
+                        onChange={(e) => setGuestPhone(g.key, e.target.value)}
+                        onFocus={() => setActivePerson(g.key)}
+                        placeholder="Phone number (optional)"
+                        style={{ ...selectStyle, marginLeft: 0 }} />
+                    ) : g.clientId ? (
+                      <div style={{ fontSize: 11, color: "#059669", fontWeight: 600 }}>✓ Existing client</div>
+                    ) : null}
                   </div>
                 ))}
                 <datalist id="appt-guest-clients">
@@ -2418,7 +2442,12 @@ export default function AppointmentsPage() {
                     {appt.clientName.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e", letterSpacing: "-0.01em" }}>{appt.clientName}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e", letterSpacing: "-0.01em" }}>{appt.clientName}</span>
+                      {(appt.guests?.length ?? 0) > 0 && (
+                        <span title={`Also billed: ${appt.guests!.map((g) => g.name).join(", ")}`} style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#be185d", background: "#fdf2f8", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em", flexShrink: 0 }}>Family +{appt.guests!.length}</span>
+                      )}
+                    </div>
                     <div style={{ fontSize: 11, color: "#9898b0", marginTop: 2, textTransform: "capitalize", fontWeight: 500 }}>{appt.source}</div>
                   </div>
                 </div>
@@ -2492,7 +2521,12 @@ export default function AppointmentsPage() {
                       {appt.clientName.charAt(0).toUpperCase()}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e", letterSpacing: "-0.01em" }}>{appt.clientName}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 750, color: "#1a1a2e", letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{appt.clientName}</span>
+                        {(appt.guests?.length ?? 0) > 0 && (
+                          <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: "#be185d", background: "#fdf2f8", padding: "2px 6px", borderRadius: 20, letterSpacing: "0.04em", flexShrink: 0 }}>Family +{appt.guests!.length}</span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 11, color: "#9898b0", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{appt.serviceNames.join(", ")}</div>
                     </div>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, color: cfg.color, background: cfg.bg, padding: "3px 8px", borderRadius: 20, whiteSpace: "nowrap", flexShrink: 0 }}>

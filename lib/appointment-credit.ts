@@ -1,5 +1,6 @@
 import type { Appointment, Client } from "@/lib/types";
 import { getDefaultLocationId } from "@/lib/locations";
+import { normalizePhone } from "@/lib/whatsapp-scheduler";
 
 /**
  * A client record for a guest typed by name only, with nothing already in the
@@ -7,11 +8,11 @@ import { getDefaultLocationId } from "@/lib/locations";
  * been in, so anyone billed on a visit gets a real record, not just a name on
  * an invoice line.
  */
-export function newGuestClient(name: string, createdAt: string): Client {
+export function newGuestClient(name: string, createdAt: string, phone?: string): Client {
   return {
     id: "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     name: name.trim(),
-    phone: "",
+    phone: phone?.trim() ? normalizePhone(phone) : "",
     locationId: getDefaultLocationId(),
     tags: ["New"],
     source: "walk-in",
@@ -27,7 +28,7 @@ export function newGuestClient(name: string, createdAt: string): Client {
  * occurrence — the same person typed on two different days, or rung up twice
  * at the till, becomes one client record, not two.
  */
-export function resolveGuestClientIds<G extends { clientId?: string; name: string }>(
+export function resolveGuestClientIds<G extends { clientId?: string; name: string; phone?: string }>(
   guestsList: G[],
   createdAt: string,
 ): { guests: G[]; newClients: Client[] } {
@@ -37,7 +38,7 @@ export function resolveGuestClientIds<G extends { clientId?: string; name: strin
     const key = g.name.trim().toLowerCase();
     let client = created.get(key);
     if (!client) {
-      client = newGuestClient(g.name, createdAt);
+      client = newGuestClient(g.name, createdAt, g.phone);
       created.set(key, client);
     }
     return { ...g, clientId: client.id };

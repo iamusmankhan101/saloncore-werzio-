@@ -132,10 +132,11 @@ export default function POSPage() {
    * The main customer is not in this list; the whole sale is billed, credited and
    * given loyalty points as theirs — the names only split the invoice lines.
    */
-  const [guests, setGuests] = useState<{ name: string; clientId?: string }[]>([]);
+  const [guests, setGuests] = useState<{ name: string; clientId?: string; phone?: string }[]>([]);
   /** Whose services are being rung up — "" is the main customer. */
   const [activeGuest, setActiveGuest] = useState("");
   const [guestInput, setGuestInput] = useState("");
+  const [guestPhoneInput, setGuestPhoneInput] = useState("");
 
   useEffect(() => {
     const allServices  = getStoredServices().filter(s => s.isActive);
@@ -364,16 +365,17 @@ export default function POSPage() {
     const existingGuest = guests.find(g => g.name.toLowerCase() === name.toLowerCase());
     if (name.toLowerCase() === mainName.toLowerCase() || existingGuest) {
       setActiveGuest(existingGuest?.name ?? "");
-      setGuestInput("");
+      setGuestInput(""); setGuestPhoneInput("");
       return;
     }
     // Matched against a saved client now, so their history is credited at
     // checkout even if they're never picked from the suggestion list directly.
     const clientId = clients.find(c => c.name.toLowerCase() === name.toLowerCase())?.id;
-    setGuests(gs => [...gs, { name, clientId }]);
+    setGuests(gs => [...gs, { name, clientId, phone: clientId ? undefined : guestPhoneInput.trim() || undefined }]);
     setActiveGuest(name);
-    setGuestInput("");
+    setGuestInput(""); setGuestPhoneInput("");
   }
+  const guestInputMatchesClient = !!clients.find(c => c.name.toLowerCase() === guestInput.trim().toLowerCase());
 
   const addBarcodeToCart = useCallback((rawCode: string) => {
     const code = rawCode.trim();
@@ -578,7 +580,7 @@ export default function POSPage() {
           if (existing) {
             clientId = existing.id;
           } else {
-            const created = newGuestClient(g.name, today);
+            const created = newGuestClient(g.name, today, g.phone);
             clientId = created.id;
             updatedClients = [created, ...updatedClients];
           }
@@ -1080,18 +1082,29 @@ export default function POSPage() {
                 <input
                   value={guestInput}
                   onChange={e => setGuestInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addGuest(); } }}
+                  onKeyDown={e => { if (e.key === "Enter" && guestInputMatchesClient) { e.preventDefault(); addGuest(); } }}
                   list="pos-guest-clients"
                   placeholder="Add family member / friend…"
                   style={{ flex: 1, height: 34, padding: "0 10px", borderRadius: 9, border: "1.5px solid #e8e8f4", fontSize: 12, color: "#1d1d2f", outline: "none", background: "#fafafe", boxSizing: "border-box" }} />
                 <datalist id="pos-guest-clients">
                   {clients.slice(0, 200).map(c => <option key={c.id} value={c.name} />)}
                 </datalist>
+                {!guestInputMatchesClient && (
+                  <input
+                    value={guestPhoneInput}
+                    onChange={e => setGuestPhoneInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addGuest(); } }}
+                    placeholder="Phone (optional)"
+                    style={{ width: 110, height: 34, padding: "0 10px", borderRadius: 9, border: "1.5px solid #e8e8f4", fontSize: 12, color: "#1d1d2f", outline: "none", background: "#fafafe", boxSizing: "border-box" }} />
+                )}
                 <button type="button" onClick={addGuest} disabled={!guestInput.trim()}
                   style={{ padding: "0 14px", height: 34, borderRadius: 9, border: "none", background: guestInput.trim() ? "#7C3AED" : "#eceaf6", color: guestInput.trim() ? "#fff" : "#b0b0c8", fontSize: 12, fontWeight: 700, cursor: guestInput.trim() ? "pointer" : "not-allowed" }}>
                   Add
                 </button>
               </div>
+              {!guestInputMatchesClient && guestInput.trim() && (
+                <div style={{ fontSize: 10.5, color: "#7C3AED", marginTop: 4 }}>New client — a phone number is optional but helps find them again later.</div>
+              )}
               <div style={{ fontSize: 10.5, color: "#b0b0c8", marginTop: 5, lineHeight: 1.5 }}>
                 Pick a saved client or type any name, then tap a name to ring up their services. Everything is billed to the main customer.
               </div>
