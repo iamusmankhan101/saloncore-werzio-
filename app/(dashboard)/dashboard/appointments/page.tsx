@@ -8,7 +8,7 @@ import { getSalonInvoices, saveSalonInvoices } from "@/lib/salon-invoices";
 import { recordDeletions } from "@/lib/turso-sync";
 import type { Appointment, AppointmentFeedback, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
 import { Search, Filter, X, Clock, User, Users, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2, Upload, Download, FileSpreadsheet, Check, Star, AlertTriangle, MessageSquare } from "lucide-react";
-import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert, purgeQueuedAppointmentMessages, normalizePhone } from "@/lib/whatsapp-scheduler";
+import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert, purgeQueuedAppointmentMessages, normalizePhone, resendWhatsAppConfirmation } from "@/lib/whatsapp-scheduler";
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
 import { getCurrentPlan, isAtLimit, thisMonthCount } from "@/lib/plan-limits";
@@ -483,6 +483,8 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
   onSaveFeedback: (apptId: string, feedback: AppointmentFeedback | undefined) => void;
 }) {
   const [currentStatus, setCurrentStatus] = useState<AppointmentStatus>(appt.status);
+  const [confirmSendStatus, setConfirmSendStatus] = useState<"idle" | "sending" | "sent" | "info" | "error">("idle");
+  const [confirmSendNote, setConfirmSendNote] = useState("");
   const [rating, setRating] = useState(appt.feedback?.rating ?? 0);
   const [review, setReview] = useState(appt.feedback?.review ?? "");
   const [complaint, setComplaint] = useState(appt.feedback?.complaint ?? "");
@@ -565,6 +567,56 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
                 {fmtDate(appt.date)} · {fmtTime(appt.startTime)}–{fmtTime(appt.endTime)}
               </div>
             </div>
+          </div>
+
+          {/* Manual booking-confirmation send — for when staff want it sent
+              right now rather than waiting on (or in place of) the automatic
+              one already queued at booking time. On a multi-day booking this
+              sends each day's own confirmation, one WhatsApp message per day,
+              matching how they were queued when the booking was made. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              disabled={confirmSendStatus === "sending"}
+              onClick={async () => {
+                setConfirmSendStatus("sending");
+                setConfirmSendNote("");
+                const groupIds = appt.bookingGroupId
+                  ? getStoredAppointments().filter((a) => a.bookingGroupId === appt.bookingGroupId).map((a) => a.id)
+                  : [appt.id];
+                const results = await Promise.all(groupIds.map((id) => resendWhatsAppConfirmation(id)));
+                const queued = results.filter((r) => r === "queued").length;
+                const already = results.filter((r) => r === "already-sent").length;
+                if (queued > 0) {
+                  setConfirmSendStatus("sent");
+                  setConfirmSendNote(
+                    groupIds.length > 1
+                      ? `Sending ${queued} of ${groupIds.length} day${groupIds.length > 1 ? "s" : ""}${already > 0 ? ` (${already} already sent)` : ""} shortly.`
+                      : "Will send shortly."
+                  );
+                } else if (already === results.length) {
+                  setConfirmSendStatus("info");
+                  setConfirmSendNote("Already sent.");
+                } else {
+                  const reason = results.find((r) => r !== "queued" && r !== "already-sent");
+                  setConfirmSendStatus("error");
+                  setConfirmSendNote(
+                    reason === "no-phone" ? "No phone number on file."
+                    : reason === "disabled" ? "WhatsApp automation is off in Settings."
+                    : reason === "not-found" ? "Appointment not found."
+                    : "Couldn't send — check Settings → WhatsApp."
+                  );
+                }
+              }}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 9, border: "1px solid #ddd6fe", background: "#f5f3ff", color: "#7C3AED", fontSize: 12, fontWeight: 700, cursor: confirmSendStatus === "sending" ? "default" : "pointer", opacity: confirmSendStatus === "sending" ? 0.6 : 1 }}>
+              <MessageSquare size={13} />
+              {confirmSendStatus === "sending" ? "Sending…" : (appt.totalDays ?? 1) > 1 ? `Send Confirmation (${appt.totalDays} days)` : "Send Confirmation"}
+            </button>
+            {confirmSendNote && (
+              <span style={{ fontSize: 11, fontWeight: 600, color: confirmSendStatus === "error" ? "#dc2626" : confirmSendStatus === "info" ? "#9898b0" : "#059669" }}>
+                {confirmSendNote}
+              </span>
+            )}
           </div>
 
           {/* Linear stepper */}

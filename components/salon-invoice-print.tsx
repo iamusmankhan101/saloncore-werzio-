@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Printer, CheckCircle, Pencil } from "lucide-react";
+import { X, Printer, CheckCircle, Pencil, MessageSquare } from "lucide-react";
 import { ADVANCE_NON_REFUNDABLE_NOTE, PAYMENT_NON_REFUNDABLE_NOTE, balanceDue, invoiceItemsByPerson, type SalonInvoice } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
 import SalonCentralWordmark from "@/components/salon-central-wordmark";
@@ -268,11 +268,13 @@ interface Props {
   onClose: () => void;
   onMarkPaid?: () => void;
   onEdit?: () => void;
+  onSendWhatsApp?: () => void;
+  sendingWhatsApp?: boolean;
 }
 
 export default function SalonInvoicePrint({
   invoice, salonName, salonPhone, salonAddress,
-  onClose, onMarkPaid, onEdit,
+  onClose, onMarkPaid, onEdit, onSendWhatsApp, sendingWhatsApp,
 }: Props) {
   const [mounted, setMounted]           = useState(false);
   const [thermalStatus, setThermalStatus] = useState<"idle" | "printing" | "ok" | "error">("idle");
@@ -402,6 +404,12 @@ export default function SalonInvoicePrint({
                 <span style={{ fontSize: 11, color: "#fca5a5", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={thermalError}>
                   {thermalError}
                 </span>
+              )}
+              {onSendWhatsApp && (
+                <button onClick={e => { e.stopPropagation(); onSendWhatsApp(); }} disabled={sendingWhatsApp}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", fontSize: 12, fontWeight: 700, color: "#fff", cursor: sendingWhatsApp ? "default" : "pointer", opacity: sendingWhatsApp ? 0.6 : 1 }}>
+                  <MessageSquare size={14} /> {sendingWhatsApp ? "Sending…" : "Send WhatsApp"}
+                </button>
               )}
               {onEdit && (
                 <button onClick={e => { e.stopPropagation(); onEdit(); }}

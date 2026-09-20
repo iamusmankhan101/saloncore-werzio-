@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Search, Eye, Trash2, CheckCircle, Clock, Pencil, FileEdit,
-  ReceiptText, ShoppingCart, TrendingUp, Users,
+  ReceiptText, ShoppingCart, TrendingUp, Users, MessageSquare,
 } from "lucide-react";
 import {
   getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid, updateSalonInvoice, localDateKey, balanceDue,
@@ -82,6 +82,8 @@ export default function InvoicesPage() {
   const [viewingInvoice, setViewingInvoice] = useState<SalonInvoice | null>(null);
   /** Outcome of re-sending an edited invoice on WhatsApp, shown briefly as a toast. */
   const [resendNotice, setResendNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  /** Invoice id currently sending on WhatsApp via the manual "Send WhatsApp" button. */
+  const [sendingWaId, setSendingWaId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm]   = useState<string | null>(null);
   const [markPaidPromptId, setMarkPaidPromptId] = useState<string | null>(null);
   const [markPaidDate, setMarkPaidDate] = useState(() => localDateKey());
@@ -222,6 +224,29 @@ export default function InvoicesPage() {
     setTimeout(() => setResendNotice(null), 6000);
   }
 
+  // Manual "Send WhatsApp" button — for when staff want this exact invoice sent
+  // (or sent again) right now, rather than relying on the automatic send made
+  // at checkout. Uses the same resend path as an edit, since it's the same
+  // ask: get this invoice, as it stands, onto the client's WhatsApp.
+  async function sendInvoiceOnWhatsApp(inv: SalonInvoice) {
+    setSendingWaId(inv.id);
+    const client = inv.clientId ? getStoredClients().find((c) => c.id === inv.clientId) : undefined;
+    const phone = inv.clientPhone || client?.phone || "";
+    const name = inv.clientName || client?.name || "";
+    if (!phone) {
+      setResendNotice({ ok: false, text: `${inv.number} has no phone number on it, so it can't be sent on WhatsApp.` });
+    } else {
+      const result = await queueInvoiceReceipt(inv, { name, phone }, { resend: true });
+      setResendNotice(
+        result === "queued" ? { ok: true, text: `${inv.number} will be sent to ${name || phone} on WhatsApp shortly.` }
+        : result === "skipped" ? { ok: false, text: "WhatsApp automation is off in Settings, so it wasn't sent." }
+        : { ok: false, text: `Couldn't send ${inv.number} on WhatsApp. Check Settings → WhatsApp.` }
+      );
+    }
+    setSendingWaId(null);
+    setTimeout(() => setResendNotice(null), 6000);
+  }
+
   function handleDelete(id: string) {
     const invoice = getSalonInvoices().find((item) => item.id === id);
     deleteSalonInvoice(id);
@@ -347,6 +372,8 @@ export default function InvoicesPage() {
           onClose={() => setViewingInvoice(null)}
           onMarkPaid={() => setMarkPaidPromptId(viewingInvoice.id)}
           onEdit={() => setEditingInvoice(viewingInvoice)}
+          onSendWhatsApp={() => sendInvoiceOnWhatsApp(viewingInvoice)}
+          sendingWhatsApp={sendingWaId === viewingInvoice.id}
         />
       )}
       {editingInvoice && (
@@ -587,6 +614,15 @@ export default function InvoicesPage() {
 
                     {/* Actions */}
                     <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => sendInvoiceOnWhatsApp(inv)}
+                        disabled={sendingWaId === inv.id}
+                        title="Send on WhatsApp"
+                        style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #bbf7d0", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", cursor: sendingWaId === inv.id ? "default" : "pointer", opacity: sendingWaId === inv.id ? 0.5 : 1, transition: "all 0.15s" }}
+                        className="hover-scale"
+                      >
+                        <MessageSquare size={14} color="#059669" />
+                      </button>
                       <button
                         onClick={() => setViewingInvoice(inv)}
                         title="View / Print"

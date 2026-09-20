@@ -18,6 +18,8 @@ interface QueueConfirmationBody {
     guests?: { name: string; serviceNames: string[] }[];
   };
   phone: string;
+  /** A person deliberately asked for this send — bypass the "already sent"/"already queued" dedupe guards (still subject to every config check). */
+  force?: boolean;
 }
 
 async function ensureTable() {
@@ -116,12 +118,14 @@ export async function POST(req: NextRequest) {
   try {
     await ensureTable();
 
-    const sentLog = await db.execute({
-      sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND appt_id = ? AND type = 'confirmation' AND status = 'sent' LIMIT 1",
-      args: [actor.userId, appointment.id],
-    });
-    if (sentLog.rows.length > 0) {
-      return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent" });
+    if (!body.force) {
+      const sentLog = await db.execute({
+        sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND appt_id = ? AND type = 'confirmation' AND status = 'sent' LIMIT 1",
+        args: [actor.userId, appointment.id],
+      });
+      if (sentLog.rows.length > 0) {
+        return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent" });
+      }
     }
     // Guards against a duplicate appointment record (or a client re-booked twice
     // for the same visit) resulting in two confirmations for what is really the
@@ -136,19 +140,21 @@ export async function POST(req: NextRequest) {
           .map((p) => `${p.name}: ${p.serviceNames.join(", ")}`)
           .join("; ")
       : appointment.serviceNames.join(", ");
-    const sameVisitLog = await db.execute({
-      sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND phone = ? AND type = 'confirmation' AND appt_date = ? AND service = ? AND status = 'sent' LIMIT 1",
-      args: [actor.userId, phone, appointment.date, service],
-    });
-    if (sameVisitLog.rows.length > 0) {
-      return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent-same-visit" });
-    }
-    const existingQueue = await db.execute({
-      sql: "SELECT status FROM wa_booking_send_queue WHERE user_id = ? AND id = ? AND status IN ('pending', 'sent') LIMIT 1",
-      args: [actor.userId, appointment.id],
-    });
-    if (existingQueue.rows.length > 0) {
-      return Response.json({ ok: true, queued: false, skipped: true, reason: `already-${existingQueue.rows[0].status}` });
+    if (!body.force) {
+      const sameVisitLog = await db.execute({
+        sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND phone = ? AND type = 'confirmation' AND appt_date = ? AND service = ? AND status = 'sent' LIMIT 1",
+        args: [actor.userId, phone, appointment.date, service],
+      });
+      if (sameVisitLog.rows.length > 0) {
+        return Response.json({ ok: true, queued: false, skipped: true, reason: "already-sent-same-visit" });
+      }
+      const existingQueue = await db.execute({
+        sql: "SELECT status FROM wa_booking_send_queue WHERE user_id = ? AND id = ? AND status IN ('pending', 'sent') LIMIT 1",
+        args: [actor.userId, appointment.id],
+      });
+      if (existingQueue.rows.length > 0) {
+        return Response.json({ ok: true, queued: false, skipped: true, reason: `already-${existingQueue.rows[0].status}` });
+      }
     }
 
     const settingsRow = await db.execute({
@@ -195,8 +201,11 @@ export async function POST(req: NextRequest) {
     });
 
     const now = new Date().toISOString();
+    // REPLACE, not IGNORE — a forced resend must actually overwrite a queue row
+    // left over from an earlier "sent" or still-"pending" attempt, or nothing
+    // would happen at all (the whole point of asking for it deliberately).
     await db.execute({
-      sql: `INSERT OR IGNORE INTO wa_booking_send_queue
+      sql: `INSERT OR REPLACE INTO wa_booking_send_queue
               (id, user_id, kind, phone, text, client_name, appt_date, appt_time, service, scheduled_at, status, attempts, created_at)
             VALUES (?, ?, 'confirmation', ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
       args: [

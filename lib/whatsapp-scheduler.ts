@@ -523,6 +523,42 @@ export async function enqueueWhatsAppConfirmation(apptId: string): Promise<void>
   if (!response.ok) throw new Error(`Queue confirmation failed: HTTP ${response.status}`);
 }
 
+export type ResendConfirmationResult = "queued" | "already-sent" | "no-phone" | "not-found" | "disabled" | "failed";
+
+/**
+ * Manually (re)sends a booking confirmation — the "Send Confirmation" button in
+ * the appointment detail view, for when staff want it sent right now rather
+ * than waiting on (or in place of) the automatic one queued at booking time.
+ * Unlike enqueueWhatsAppConfirmation, this bypasses the "already sent" /
+ * "already queued" guards, which exist to stop automation duplicating a send,
+ * not to stop a person from deliberately asking for one — but it still honors
+ * the salon's own WhatsApp Automation off-switch and every config check
+ * (missing credentials, no template, etc.).
+ */
+export async function resendWhatsAppConfirmation(apptId: string): Promise<ResendConfirmationResult> {
+  if (typeof window === "undefined") return "failed";
+  if ((settingsStore.wasender as { enabled?: boolean }).enabled === false) return "disabled";
+  const appt = getStoredAppointments().find(a => a.id === apptId);
+  if (!appt) return "not-found";
+  const clients = getStoredClients();
+  const client = clients.find(c => c.id === appt.clientId);
+  const phone = client?.phone ? normalizePhone(client.phone) : "";
+  if (!phone) return "no-phone";
+  try {
+    const response = await fetch("/api/whatsapp/queue-confirmation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ appointment: appt, phone, force: true }),
+    });
+    const data = await response.json().catch(() => ({})) as { ok?: boolean; queued?: boolean; reason?: string };
+    if (!response.ok || !data.ok) return "failed";
+    if (data.queued) return "queued";
+    return data.reason === "already-sent" || data.reason === "already-sent-same-visit" ? "already-sent" : "disabled";
+  } catch {
+    return "failed";
+  }
+}
+
 /** Call when an appointment is marked completed — sends follow-up after the configured delay. */
 export function enqueueWhatsAppFollowup(apptId: string) {
   if (typeof window === "undefined") return;
