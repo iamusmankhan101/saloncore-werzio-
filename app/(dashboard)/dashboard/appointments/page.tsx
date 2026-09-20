@@ -1,6 +1,7 @@
 "use client";
 
 import { appointmentStaffIds } from "@/lib/appointment-staff";
+import { resolveGuestClientIds, creditsFromAppointments, applyClientCredits } from "@/lib/appointment-credit";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients, getStoredStaff, getStoredServices } from "@/lib/storage";
 import { getSalonInvoices, saveSalonInvoices } from "@/lib/salon-invoices";
@@ -886,7 +887,7 @@ function dayServicePrice(day: DayForm, svc: Service): number {
   return Number.isFinite(n) && n >= 0 ? n : svc.price;
 }
 
-function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onClose: () => void; onAdd: (appts: Appointment[], newClientObj?: Client) => void; clients: Client[]; staffList: Staff[]; allServices: Service[] }) {
+function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onClose: () => void; onAdd: (appts: Appointment[], newClients: Client[]) => void; clients: Client[]; staffList: Staff[]; allServices: Service[] }) {
   const [form, setForm] = useState({ clientId: "", notes: "" });
   const [days, setDays] = useState<DayForm[]>(() => [emptyDay()]);
   const [activeDay, setActiveDay] = useState(0);
@@ -1108,6 +1109,8 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
 
     if (newClient) {
       const newId = "c_" + Date.now();
+      // Zero-initialized — credited below through the same map that credits an
+      // existing main client and every guest, so nothing is counted twice.
       newClientObj = {
         id: newId,
         name: newClientForm.name.trim(),
@@ -1118,9 +1121,8 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
         tags: ["New"],
         source: "walk-in",
         createdAt: days[0].date || new Date().toISOString().split("T")[0],
-        totalVisits: days.length,
-        totalSpend: grandTotal,
-        lastVisitDate: days.reduce((latest, d) => (d.date > latest ? d.date : latest), ""),
+        totalVisits: 0,
+        totalSpend: 0,
         averageRating: 5.0,
       };
       finalClientId = newId;
@@ -1135,6 +1137,14 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
     const source = newClient ? "walk-in" : (clients.find((c) => c.id === form.clientId)?.source ?? "walk-in");
     const createdAt = new Date().toISOString();
 
+    // Every guest across every day resolves to a client id in one pass, so the
+    // same person typed on two different days becomes one client record, not
+    // two — dayIndex tags each entry so it can be matched back to its day below.
+    const flatGuests = days.flatMap((d, di) => d.guests
+      .filter((g) => g.name.trim() && g.serviceIds.length > 0)
+      .map((g) => ({ ...g, dayIndex: di })));
+    const { guests: resolvedGuests, newClients: newGuestClients } = resolveGuestClientIds(flatGuests, days[0].date || new Date().toISOString().split("T")[0]);
+
     const appts: Appointment[] = days.map((d, i) => {
       const staffObj = staffList.find((s) => s.id === d.staffId);
       // A team service already names its team through the service; extra
@@ -1144,12 +1154,12 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
         : d.extraStaffIds.map((id) => staffList.find((s) => s.id === id)).filter((s): s is Staff => Boolean(s));
       const svcs = servicesForDay(d);
       const prices = svcs.map((s) => personServicePrice(d.prices, s));
-      const guests = d.guests
-        .filter((g) => g.name.trim() && g.serviceIds.length > 0)
+      const guests = resolvedGuests
+        .filter((g) => g.dayIndex === i)
         .map((g) => {
           const gsvcs = lookupServices(g.serviceIds);
           return {
-            ...(g.clientId ? { clientId: g.clientId } : {}),
+            clientId: g.clientId!,
             name: g.name.trim(),
             serviceIds: gsvcs.map((s) => s.id),
             serviceNames: gsvcs.map((s) => s.name),
@@ -1185,7 +1195,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
     });
 
     try {
-      onAdd(appts, newClientObj);
+      onAdd(appts, [...(newClientObj ? [newClientObj] : []), ...newGuestClients]);
       setCreatedApptId(appts[0].id);
       setDone(true);
     } catch (error) {
@@ -1952,14 +1962,10 @@ export default function AppointmentsPage() {
     // Booking an appointment credits the client with a visit/spend right away (see
     // onAdd above), so deleting it must reverse that same credit — otherwise the
     // client's totals stay inflated forever, exactly like the invoice-delete bug.
+    // Reverses every guest's own credit too, the same way it was applied.
     setClients((prev) => {
-      const updated = prev.map((c) => {
-        const apptsForClient = deletedAppts.filter((a) => a.clientId === c.id);
-        if (apptsForClient.length === 0) return c;
-        const visitsToRemove = apptsForClient.length;
-        const spendToRemove = apptsForClient.reduce((sum, a) => sum + (a.totalAmount || 0), 0);
-        return { ...c, totalVisits: Math.max(0, c.totalVisits - visitsToRemove), totalSpend: Math.max(0, c.totalSpend - spendToRemove) };
-      });
+      const credits = creditsFromAppointments(deletedAppts);
+      const updated = applyClientCredits(prev, credits, -1);
       saveClients(updated);
       return updated;
     });
@@ -2042,7 +2048,7 @@ export default function AppointmentsPage() {
           clients={clients}
           staffList={staffList}
           allServices={services}
-          onAdd={(newAppts, newClientObj) => {
+          onAdd={(newAppts, newClients) => {
             // Computed and persisted directly (not via setState updater callbacks) so
             // saveClients() has actually run — and getStoredClients() can see the new
             // client — before enqueueWhatsAppConfirmation reads it below. React defers
@@ -2059,18 +2065,12 @@ export default function AppointmentsPage() {
             saveAppointments(updatedAppts);
             setAppointments(updatedAppts);
 
-            const storedClients = getStoredClients();
-            const updatedClients = newClientObj
-              ? [newClientObj, ...storedClients]
-              : storedClients.map((c) => c.id === newAppts[0].clientId
-                  ? {
-                      ...c,
-                      // One visit per day, matching the per-appointment reversal in deleteChecked.
-                      totalVisits: c.totalVisits + newAppts.length,
-                      totalSpend: c.totalSpend + newAppts.reduce((sum, a) => sum + a.totalAmount, 0),
-                      lastVisitDate: newAppts.reduce((latest, a) => (a.date > latest ? a.date : latest), c.lastVisitDate ?? ""),
-                    }
-                  : c);
+            // One map credits the main client (in full, for every day) and every
+            // guest (their own share only) — new clients and existing ones alike,
+            // so nothing here is baked in twice.
+            const pool = [...newClients, ...getStoredClients()];
+            const credits = creditsFromAppointments(newAppts);
+            const updatedClients = applyClientCredits(pool, credits, 1);
             saveClients(updatedClients);
             setClients(updatedClients);
 

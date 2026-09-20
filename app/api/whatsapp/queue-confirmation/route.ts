@@ -14,6 +14,8 @@ interface QueueConfirmationBody {
     date: string;
     startTime: string;
     totalAmount?: number;
+    /** Related people seen in the same visit and billed together. */
+    guests?: { name: string; serviceNames: string[] }[];
   };
   phone: string;
 }
@@ -125,7 +127,15 @@ export async function POST(req: NextRequest) {
     // for the same visit) resulting in two confirmations for what is really the
     // same client + service + date — the appt_id check above only catches a retry
     // of the *same* appointment record, not a second, distinct one for the same visit.
-    const service = appointment.serviceNames.join(", ");
+    // A booking covering several related people names each of them with their
+    // own services — "Facial" alone would tell the mother nothing about what
+    // her daughter is booked for.
+    const service = appointment.guests?.length
+      ? [{ name: appointment.clientName, serviceNames: appointment.serviceNames }, ...appointment.guests]
+          .filter((p) => p.serviceNames.length > 0)
+          .map((p) => `${p.name}: ${p.serviceNames.join(", ")}`)
+          .join("; ")
+      : appointment.serviceNames.join(", ");
     const sameVisitLog = await db.execute({
       sql: "SELECT 1 FROM wa_message_logs WHERE user_id = ? AND phone = ? AND type = 'confirmation' AND appt_date = ? AND service = ? AND status = 'sent' LIMIT 1",
       args: [actor.userId, phone, appointment.date, service],

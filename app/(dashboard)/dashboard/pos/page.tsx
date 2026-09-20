@@ -24,6 +24,7 @@ import {
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
 import { normalizePhone, fillTemplate } from "@/lib/whatsapp-scheduler";
+import { newGuestClient } from "@/lib/appointment-credit";
 import { queueInvoiceReceipt } from "@/lib/whatsapp-receipt";
 import { getCurrentPlan } from "@/lib/plan-limits";
 import { getDefaultLocationId } from "@/lib/locations";
@@ -131,7 +132,7 @@ export default function POSPage() {
    * The main customer is not in this list; the whole sale is billed, credited and
    * given loyalty points as theirs — the names only split the invoice lines.
    */
-  const [guests, setGuests] = useState<string[]>([]);
+  const [guests, setGuests] = useState<{ name: string; clientId?: string }[]>([]);
   /** Whose services are being rung up — "" is the main customer. */
   const [activeGuest, setActiveGuest] = useState("");
   const [guestInput, setGuestInput] = useState("");
@@ -195,8 +196,10 @@ export default function POSPage() {
             };
           }))
           .filter(e => e.unitPrice > 0);
-        const bookedGuestNames = Array.from(new Set(bookingDays.flatMap(d => (d.guests ?? []).map(g => g.name)).filter(Boolean)));
-        if (bookedGuestNames.length > 0) setGuests(bookedGuestNames);
+        const bookedGuests = Array.from(
+          new Map(bookingDays.flatMap(d => (d.guests ?? []).map(g => [g.name, { name: g.name, clientId: g.clientId }] as const))).values()
+        );
+        if (bookedGuests.length > 0) setGuests(bookedGuests);
 
         if (cartEntries.length > 0) setCart(cartEntries);
 
@@ -306,7 +309,7 @@ export default function POSPage() {
   // back-bar consumption stays countable after a rename (lib/inventory-usage.ts).
   // Grouped by person so the invoice prints each person's services together.
   const cartLineItems: SalonInvoiceItem[] = [...cart]
-    .sort((a, b) => ["", ...guests].indexOf(a.guestName ?? "") - ["", ...guests].indexOf(b.guestName ?? ""))
+    .sort((a, b) => ["", ...guests.map(g => g.name)].indexOf(a.guestName ?? "") - ["", ...guests.map(g => g.name)].indexOf(b.guestName ?? ""))
     .map(e => ({
       id: e.cartId, type: e.type, sourceId: e.itemId, description: e.name,
       qty: e.qty, unitPrice: wholePkr(e.unitPrice), total: wholePkr(e.total),
@@ -358,12 +361,16 @@ export default function POSPage() {
     const name = guestInput.trim();
     if (!name) return;
     const mainName = selectedClient?.name || "Walk-in Customer";
-    if (name.toLowerCase() === mainName.toLowerCase() || guests.some(g => g.toLowerCase() === name.toLowerCase())) {
-      setActiveGuest(guests.find(g => g.toLowerCase() === name.toLowerCase()) ?? "");
+    const existingGuest = guests.find(g => g.name.toLowerCase() === name.toLowerCase());
+    if (name.toLowerCase() === mainName.toLowerCase() || existingGuest) {
+      setActiveGuest(existingGuest?.name ?? "");
       setGuestInput("");
       return;
     }
-    setGuests(gs => [...gs, name]);
+    // Matched against a saved client now, so their history is credited at
+    // checkout even if they're never picked from the suggestion list directly.
+    const clientId = clients.find(c => c.name.toLowerCase() === name.toLowerCase())?.id;
+    setGuests(gs => [...gs, { name, clientId }]);
     setActiveGuest(name);
     setGuestInput("");
   }
@@ -556,9 +563,35 @@ export default function POSPage() {
         saveInventory(updated);
       }
 
+      // Read fresh from localStorage so we never map over stale React state.
+      let updatedClients = getStoredClients();
+
+      // Guests actually rung up (not just added and then never given a
+      // service) get their own visit and spend — a name matching a saved
+      // client credits that client; an unmatched name becomes one, deduped
+      // so ringing the same person up twice never creates two records.
+      const guestsWithLines = guests.filter(g => cart.some(e => e.guestName === g.name));
+      for (const g of guestsWithLines) {
+        let clientId = g.clientId;
+        if (!clientId) {
+          const existing = updatedClients.find(c => c.name.toLowerCase() === g.name.toLowerCase());
+          if (existing) {
+            clientId = existing.id;
+          } else {
+            const created = newGuestClient(g.name, today);
+            clientId = created.id;
+            updatedClients = [created, ...updatedClients];
+          }
+        }
+        const amount = cart.filter(e => e.guestName === g.name).reduce((sum, e) => sum + e.total, 0);
+        updatedClients = updatedClients.map(c => c.id === clientId
+          ? { ...c, totalVisits: c.totalVisits + 1, totalSpend: c.totalSpend + amount, lastVisitDate: today }
+          : c);
+      }
+
       if (selectedClient?.id) {
         let updatedClient: Client = {
-          ...selectedClient,
+          ...(updatedClients.find(c => c.id === selectedClient.id) ?? selectedClient),
           totalVisits: selectedClient.totalVisits + 1,
           totalSpend:  selectedClient.totalSpend + total,
           lastVisitDate: today,
@@ -571,20 +604,17 @@ export default function POSPage() {
           updatedClient = awardPoints(updatedClient, total, loyaltySettings, invoice.id);
         }
         console.log("[POS loyalty] pts after awardPoints:", updatedClient.loyaltyPoints ?? 0);
-        // Read fresh from localStorage so we never map over stale React state
-        const freshClients = getStoredClients();
-        console.log("[POS loyalty] freshClients count:", freshClients.length, "| found client in LS:", freshClients.some(c => c.id === selectedClient.id));
-        const found = freshClients.some(c => c.id === selectedClient.id);
-        const updatedClients = found
-          ? freshClients.map(c => c.id === selectedClient.id ? updatedClient : c)
-          : [updatedClient, ...freshClients]; // client was quick-added and not yet in localStorage
-        setClients(updatedClients);
+        const found = updatedClients.some(c => c.id === selectedClient.id);
+        updatedClients = found
+          ? updatedClients.map(c => c.id === selectedClient.id ? updatedClient : c)
+          : [updatedClient, ...updatedClients]; // client was quick-added and not yet in localStorage
         setSelectedClient(updatedClient); // keep selectedClient fresh in the current session
-        saveClients(updatedClients);
         console.log("[POS loyalty] saved. pts in saved client:", updatedClients.find(c => c.id === selectedClient.id)?.loyaltyPoints ?? 0);
       } else {
         console.log("[POS loyalty] SKIPPED — selectedClient?.id is falsy:", selectedClient?.id);
       }
+      setClients(updatedClients);
+      saveClients(updatedClients);
 
       setLastInvoice(invoice);
       setPrintInvoice(invoice);
@@ -1022,7 +1052,7 @@ export default function POSPage() {
                 People on this bill
               </label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                {[{ name: "", label: `${selectedClient?.name || "Walk-in Customer"} (main)` }, ...guests.map(g => ({ name: g, label: g }))].map(person => {
+                {[{ name: "", label: `${selectedClient?.name || "Walk-in Customer"} (main)` }, ...guests.map(g => ({ name: g.name, label: g.name }))].map(person => {
                   const on = activeGuest === person.name;
                   return (
                     <button key={person.name || "__main"} type="button" onClick={() => setActiveGuest(person.name)}
@@ -1033,11 +1063,11 @@ export default function POSPage() {
                         <span role="button" tabIndex={0} aria-label={`Remove ${person.name}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setGuests(gs => gs.filter(g => g !== person.name));
+                            setGuests(gs => gs.filter(g => g.name !== person.name));
                             setCart(prev => prev.filter(en => en.guestName !== person.name));
                             setActiveGuest(a => (a === person.name ? "" : a));
                           }}
-                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setGuests(gs => gs.filter(g => g !== person.name)); setCart(prev => prev.filter(en => en.guestName !== person.name)); setActiveGuest(a => (a === person.name ? "" : a)); } }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setGuests(gs => gs.filter(g => g.name !== person.name)); setCart(prev => prev.filter(en => en.guestName !== person.name)); setActiveGuest(a => (a === person.name ? "" : a)); } }}
                           style={{ display: "inline-flex", cursor: "pointer", color: "#9999b0" }}>
                           <X size={11} />
                         </span>

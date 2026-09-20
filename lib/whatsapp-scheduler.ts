@@ -425,6 +425,7 @@ export async function sendGroupBookingAlert(appt: {
   date: string;
   startTime: string;
   totalAmount?: number;
+  guests?: { name: string; serviceNames: string[] }[];
 }): Promise<void> {
   if (typeof window === "undefined") return;
 
@@ -774,15 +775,37 @@ function to12h(time24: string): string {
   return `${h12}:${m} ${suffix}`;
 }
 
+/**
+ * What {{service}} reads as. One person's booking names the service they came
+ * for; a booking covering several related people names each of them with their
+ * own services, since "Facial" alone tells the mother nothing about what her
+ * daughter is booked for.
+ */
+function serviceText(appt: {
+  clientName: string;
+  serviceNames: string[];
+  guests?: { name: string; serviceNames: string[] }[];
+}): string {
+  if (!appt.guests?.length) return appt.serviceNames[0] || "";
+  return [
+    { name: appt.clientName, serviceNames: appt.serviceNames },
+    ...appt.guests,
+  ]
+    .filter((p) => p.serviceNames.length > 0)
+    .map((p) => `${p.name}: ${p.serviceNames.join(", ")}`)
+    .join("; ");
+}
+
 function buildVars(appt: {
   clientName: string;
   serviceNames: string[];
   date: string;
   startTime: string;
+  guests?: { name: string; serviceNames: string[] }[];
 }, salonName: string): Record<string, string> {
   return {
     name: appt.clientName,
-    service: appt.serviceNames[0] || "",
+    service: serviceText(appt),
     date: appt.date,
     time: to12h(appt.startTime),
     salon_name: salonName,
@@ -1075,8 +1098,8 @@ async function runSchedulerInternal(): Promise<void> {
       const serviceNames = appt.serviceNames;
       const date = appt.date;
       const startTime = appt.startTime;
-      const text = fillTemplate(waTpl.confirmation, buildVars({ clientName, serviceNames, date, startTime }, salonName));
-      const ok = await callSendApi(phone, text, { type: "confirmation", clientName, apptId: item.id, apptDate: date, service: serviceNames.join(", ") });
+      const text = fillTemplate(waTpl.confirmation, buildVars({ clientName, serviceNames, date, startTime, guests: appt.guests }, salonName));
+      const ok = await callSendApi(phone, text, { type: "confirmation", clientName, apptId: item.id, apptDate: date, service: serviceText({ clientName, serviceNames, guests: appt.guests }) });
       if (ok) {
         markSent(sentKey);
       } else if (item.retries < MAX_RETRIES - 1) {

@@ -82,6 +82,8 @@ export default function ClientProfilePage() {
 
   const [client, setClient] = useState<Client | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  /** Appointments where this client was seen as a related person on someone else's booking. */
+  const [guestAppts, setGuestAppts] = useState<Appointment[]>([]);
   const [posInvoices, setPosInvoices] = useState<SalonInvoice[]>([]);
   const [visitPhotos, setVisitPhotos] = useState<Record<string, { before?: string; after?: string }>>({});
   const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
@@ -130,6 +132,7 @@ export default function ClientProfilePage() {
     }
     const appts = allAppts.filter((a) => a.clientId === clientId);
     setAppointments(appts);
+    setGuestAppts(allAppts.filter((a) => a.guests?.some((g) => g.clientId === clientId)));
     const invoices = allInvoices.filter((inv) => inv.clientId === clientId && inv.source === "pos");
     setPosInvoices(invoices);
 
@@ -205,6 +208,10 @@ export default function ClientProfilePage() {
   const completedAppts = appointments.filter((a) => a.status === "completed").sort((a, b) => b.date.localeCompare(a.date));
   const upcomingAppts  = appointments.filter((a) => !["completed", "cancelled", "no-show"].includes(a.status)).sort((a, b) => a.date.localeCompare(b.date));
   const cancelledAppts = appointments.filter((a) => a.status === "cancelled" || a.status === "no-show").sort((a, b) => b.date.localeCompare(a.date));
+  /** This client's own line on a booking where they were the guest, not the payer. */
+  const asGuest = (a: Appointment) => a.guests!.find((g) => g.clientId === clientId)!;
+  const completedGuestAppts = guestAppts.filter((a) => a.status === "completed").sort((a, b) => b.date.localeCompare(a.date));
+  const upcomingGuestAppts  = guestAppts.filter((a) => !["completed", "cancelled", "no-show"].includes(a.status)).sort((a, b) => a.date.localeCompare(b.date));
 
   // Use stored accumulated values (include POS + all devices) — they're always >= local appointment count
   const totalVisits = Math.max(client.totalVisits ?? 0, completedAppts.length);
@@ -321,15 +328,13 @@ export default function ClientProfilePage() {
             {(() => {
               type HistoryEntry =
                 | { kind: "appt"; data: Appointment }
-                | { kind: "pos";  data: SalonInvoice };
+                | { kind: "pos";  data: SalonInvoice }
+                | { kind: "guestAppt"; data: Appointment };
               const entries: HistoryEntry[] = [
                 ...completedAppts.map((a): HistoryEntry => ({ kind: "appt", data: a })),
                 ...posInvoices.map((inv): HistoryEntry => ({ kind: "pos", data: inv })),
-              ].sort((a, b) => {
-                const da = a.kind === "appt" ? a.data.date : a.data.date;
-                const db = b.kind === "appt" ? b.data.date : b.data.date;
-                return db.localeCompare(da);
-              });
+                ...completedGuestAppts.map((a): HistoryEntry => ({ kind: "guestAppt", data: a })),
+              ].sort((a, b) => b.data.date.localeCompare(a.data.date));
               return (
                 <SectionCard
                   title="Visit History"
@@ -377,6 +382,26 @@ export default function ClientProfilePage() {
                                   </div>
                                 </div>
                               )}
+                            </div>
+                          );
+                        }
+
+                        if (entry.kind === "guestAppt") {
+                          const appt = entry.data;
+                          const guest = asGuest(appt);
+                          const guestTotal = guest.servicePrices.reduce((sum, p) => sum + p, 0);
+                          return (
+                            <div key={`guest-${appt.id}`} style={{ border: "1px solid #f0f0f8", borderRadius: 12, padding: "13px 16px", display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#7C3AED", background: "#f5f3ff", padding: "2px 8px", borderRadius: 20, border: "1px solid #ddd6fe" }}>With {appt.clientName}</span>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{guest.serviceNames.join(", ")}</span>
+                                </div>
+                                <div style={{ fontSize: 11, color: "#9898b0" }}>
+                                  {fmtDate(appt.date)} · {fmtTime(appt.startTime)} · {appt.staffName || "—"}
+                                </div>
+                              </div>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: "#7C3AED", whiteSpace: "nowrap" }}>{fmt(guestTotal)}</div>
                             </div>
                           );
                         }
@@ -551,25 +576,40 @@ export default function ClientProfilePage() {
               );
             })()}
 
-            {/* Upcoming appointments */}
-            <SectionCard title="Upcoming" sub={upcomingAppts.length > 0 ? `${upcomingAppts.length} scheduled` : undefined}>
-              {upcomingAppts.length === 0 ? (
-                <div style={{ padding: "24px 20px", textAlign: "center", color: "#b0b0c8", fontSize: 13 }}>No upcoming appointments.</div>
-              ) : (
-                <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                  {upcomingAppts.map((appt) => {
-                    const sc = STATUS_CFG[appt.status] ?? { label: appt.status, color: "#6b7280", bg: "#f9fafb" };
-                    return (
-                      <div key={appt.id} style={{ padding: "12px 14px", borderRadius: 12, background: sc.bg, border: `1px solid ${sc.color}22` }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{appt.serviceNames.join(", ")}</div>
-                        <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3 }}>{fmtDate(appt.date)} · {fmtTime(appt.startTime)}</div>
-                        <span style={{ display: "inline-block", marginTop: 7, fontSize: 10, fontWeight: 700, color: sc.color, background: "rgba(255,255,255,0.85)", padding: "2px 9px", borderRadius: 20, border: `1px solid ${sc.color}33` }}>{sc.label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </SectionCard>
+            {/* Upcoming appointments — own bookings, plus anywhere this client is a
+                related person on someone else's. */}
+            {(() => {
+              const upcoming = [
+                ...upcomingAppts.map((a) => ({ appt: a, guestOf: null as string | null })),
+                ...upcomingGuestAppts.map((a) => ({ appt: a, guestOf: a.clientName })),
+              ].sort((a, b) => a.appt.date.localeCompare(b.appt.date));
+              return (
+                <SectionCard title="Upcoming" sub={upcoming.length > 0 ? `${upcoming.length} scheduled` : undefined}>
+                  {upcoming.length === 0 ? (
+                    <div style={{ padding: "24px 20px", textAlign: "center", color: "#b0b0c8", fontSize: 13 }}>No upcoming appointments.</div>
+                  ) : (
+                    <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                      {upcoming.map(({ appt, guestOf }) => {
+                        const sc = STATUS_CFG[appt.status] ?? { label: appt.status, color: "#6b7280", bg: "#f9fafb" };
+                        const serviceNames = guestOf ? asGuest(appt).serviceNames : appt.serviceNames;
+                        return (
+                          <div key={`${guestOf ? "guest-" : ""}${appt.id}`} style={{ padding: "12px 14px", borderRadius: 12, background: sc.bg, border: `1px solid ${sc.color}22` }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                              {guestOf && (
+                                <span style={{ fontSize: 10, fontWeight: 700, color: "#7C3AED", background: "#f5f3ff", padding: "2px 8px", borderRadius: 20, border: "1px solid #ddd6fe" }}>With {guestOf}</span>
+                              )}
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a2e" }}>{serviceNames.join(", ")}</div>
+                            </div>
+                            <div style={{ fontSize: 11, color: "#9898b0", marginTop: 3 }}>{fmtDate(appt.date)} · {fmtTime(appt.startTime)}</div>
+                            <span style={{ display: "inline-block", marginTop: 7, fontSize: 10, fontWeight: 700, color: sc.color, background: "rgba(255,255,255,0.85)", padding: "2px 9px", borderRadius: 20, border: `1px solid ${sc.color}33` }}>{sc.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </SectionCard>
+              );
+            })()}
 
             {/* Client notes */}
             <SectionCard
