@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Printer, CheckCircle, Pencil } from "lucide-react";
-import { ADVANCE_NON_REFUNDABLE_NOTE, PAYMENT_NON_REFUNDABLE_NOTE, balanceDue, type SalonInvoice } from "@/lib/salon-invoices";
+import { ADVANCE_NON_REFUNDABLE_NOTE, PAYMENT_NON_REFUNDABLE_NOTE, balanceDue, invoiceItemsByPerson, type SalonInvoice } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
 import SalonCentralWordmark from "@/components/salon-central-wordmark";
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -286,6 +286,7 @@ export default function SalonInvoicePrint({
   useEffect(() => { setMounted(true); }, []);
   if (!mounted) return null;
 
+  const itemGroups = invoiceItemsByPerson(invoice);
   const isPaid   = invoice.status === "paid";
   const isAdvance = invoice.status === "partial";
   const logo     = (settingsStore.salon as { logo?: string }).logo || "";
@@ -496,13 +497,25 @@ export default function SalonInvoicePrint({
                   </tr>
                 </thead>
                 <tbody>
-                  {invoice.items.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #e8e8e8" }}>
-                      <td style={{ padding: "11px 12px", fontSize: 12, color: "#111" }}>{item.description}</td>
-                      <td style={{ padding: "11px 12px", fontSize: 12, color: "#555", textAlign: "right" }}>{item.qty}</td>
-                      <td style={{ padding: "11px 12px", fontSize: 12, color: "#555", textAlign: "right" }}><Money n={item.unitPrice} /></td>
-                      <td style={{ padding: "11px 12px", fontSize: 12, color: "#111", fontWeight: 600, textAlign: "right" }}><Money n={item.total} /></td>
-                    </tr>
+                  {itemGroups.map((group, gi) => (
+                    <Fragment key={group.name ?? `g${gi}`}>
+                      {/* One bill covering several people gets a heading per person. */}
+                      {group.name && (
+                        <tr>
+                          <td colSpan={4} style={{ padding: "12px 12px 6px", fontSize: 11, fontWeight: 800, color: "#111", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                            {group.name}{gi === 0 ? " (main)" : ""}
+                          </td>
+                        </tr>
+                      )}
+                      {group.items.map((item) => (
+                        <tr key={item.id} style={{ borderBottom: "1px solid #e8e8e8" }}>
+                          <td style={{ padding: "11px 12px", fontSize: 12, color: "#111" }}>{item.description}</td>
+                          <td style={{ padding: "11px 12px", fontSize: 12, color: "#555", textAlign: "right" }}>{item.qty}</td>
+                          <td style={{ padding: "11px 12px", fontSize: 12, color: "#555", textAlign: "right" }}><Money n={item.unitPrice} /></td>
+                          <td style={{ padding: "11px 12px", fontSize: 12, color: "#111", fontWeight: 600, textAlign: "right" }}><Money n={item.total} /></td>
+                        </tr>
+                      ))}
+                    </Fragment>
                   ))}
                   {invoice.items.length === 0 && (
                     <tr><td colSpan={4} style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#aaa" }}>No items</td></tr>

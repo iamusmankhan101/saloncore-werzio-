@@ -37,6 +37,30 @@ export interface SalonInvoiceItem {
   qty: number;
   unitPrice: number;
   total: number;
+  /**
+   * Who this line is for when one bill covers several related people (a mother
+   * and daughter seen together, say). Absent on the main client's own lines,
+   * which is every line on an ordinary single-person invoice.
+   */
+  guestName?: string;
+}
+
+/**
+ * Invoice lines split per person, main client first, for invoices that cover
+ * several related people. A single-person invoice comes back as one group with
+ * no name, which renderers print as a plain list.
+ */
+export function invoiceItemsByPerson(invoice: Pick<SalonInvoice, "items" | "clientName">): { name: string | null; items: SalonInvoiceItem[] }[] {
+  const groups: { name: string | null; items: SalonInvoiceItem[] }[] = [];
+  for (const item of invoice.items) {
+    const name = item.guestName?.trim() ? item.guestName.trim() : null;
+    const existing = groups.find((g) => g.name === name);
+    if (existing) existing.items.push(item);
+    else groups.push({ name, items: [item] });
+  }
+  // Nothing to split — an ordinary invoice.
+  if (groups.length <= 1 && !groups.some((g) => g.name)) return groups;
+  return groups.map((g) => ({ ...g, name: g.name ?? invoice.clientName }));
 }
 
 export interface SalonInvoice {

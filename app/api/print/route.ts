@@ -153,7 +153,19 @@ function buildReceipt(data: ReceiptData): Buffer {
   push(CMD.heavyOn, padLine("ITEM", "TOTAL", W), CMD.heavyOff);
   push(divider("-", W));
 
+  // One bill covering several people prints a heading per person.
+  let currentPerson: string | null = null;
+  const splitByPerson = data.invoice.items.some((i) => i.guestName?.trim());
   for (const item of data.invoice.items) {
+    if (splitByPerson) {
+      const person = item.guestName?.trim() || data.invoice.clientName;
+      if (person !== currentPerson) {
+        currentPerson = person;
+        push(CMD.heavyOn);
+        for (const line of wrap(person.toUpperCase(), W)) push(text(line));
+        push(CMD.heavyOff);
+      }
+    }
     const label = item.qty > 1 ? `${item.description} x${item.qty}` : item.description;
     const price  = `${data.currency} ${item.total.toFixed(0)}`;
     // Wrap long labels
@@ -275,7 +287,7 @@ interface ReceiptData {
     clientName: string;
     clientPhone: string;
     staffName: string;
-    items: { description: string; qty: number; total: number }[];
+    items: { description: string; qty: number; total: number; guestName?: string }[];
     subtotal: number;
     discountAmount: number;
     taxAmount: number;

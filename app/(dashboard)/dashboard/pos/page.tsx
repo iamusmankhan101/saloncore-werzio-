@@ -52,6 +52,8 @@ interface CatalogItem {
 
 interface CartEntry {
   cartId: string;
+  /** Set when this line is for someone other than the main customer on the bill. */
+  guestName?: string;
   itemId: string;
   type: "service" | "product";
   name: string;
@@ -124,6 +126,15 @@ export default function POSPage() {
   const [checkoutAppointmentId, setCheckoutAppointmentId] = useState<string | null>(null);
   /** Every day of the booking being checked out — just the one appointment unless it spans several days. */
   const [checkoutGroupIds, setCheckoutGroupIds] = useState<string[]>([]);
+  /**
+   * Related people sharing this bill (a mother and daughter seen together, say).
+   * The main customer is not in this list; the whole sale is billed, credited and
+   * given loyalty points as theirs — the names only split the invoice lines.
+   */
+  const [guests, setGuests] = useState<string[]>([]);
+  /** Whose services are being rung up — "" is the main customer. */
+  const [activeGuest, setActiveGuest] = useState("");
+  const [guestInput, setGuestInput] = useState("");
 
   useEffect(() => {
     const allServices  = getStoredServices().filter(s => s.isActive);
@@ -159,13 +170,18 @@ export default function POSPage() {
         if (appt.staffId) setSelectedStaffId(appt.staffId);
 
         // Build cart from appointment services
-        const cartEntries: CartEntry[] = bookingDays.flatMap(day => day.serviceIds
+        // Each person booked on the appointment keeps their own lines on the bill.
+        const bookedLines = bookingDays.flatMap(day => [
+          { guestName: "", ids: day.serviceIds, names: day.serviceNames, prices: day.servicePrices, day },
+          ...(day.guests ?? []).map(g => ({ guestName: g.name, ids: g.serviceIds, names: g.serviceNames, prices: g.servicePrices, day })),
+        ]);
+        const cartEntries: CartEntry[] = bookedLines.flatMap(line => line.ids
           .map((svcId, idx) => {
             const svc = allServices.find(s => s.id === svcId);
-            const baseName = svc?.name ?? day.serviceNames[idx] ?? "Service";
-            const name = isMultiDay ? `${baseName} (Day ${day.dayNumber ?? idx + 1} · ${day.date})` : baseName;
+            const baseName = svc?.name ?? line.names[idx] ?? "Service";
+            const name = isMultiDay ? `${baseName} (Day ${line.day.dayNumber ?? idx + 1} · ${line.day.date})` : baseName;
             // The price agreed at booking wins over the current catalog price.
-            const price = day.servicePrices?.[idx] ?? svc?.price ?? day.totalAmount;
+            const price = line.prices?.[idx] ?? svc?.price ?? line.day.totalAmount;
             return {
               cartId:    crypto.randomUUID(),
               itemId:    svcId,
@@ -175,9 +191,12 @@ export default function POSPage() {
               unitPrice: price,
               basePrice: svc?.price ?? price,
               total:     price,
+              ...(line.guestName ? { guestName: line.guestName } : {}),
             };
           }))
           .filter(e => e.unitPrice > 0);
+        const bookedGuestNames = Array.from(new Set(bookingDays.flatMap(d => (d.guests ?? []).map(g => g.name)).filter(Boolean)));
+        if (bookedGuestNames.length > 0) setGuests(bookedGuestNames);
 
         if (cartEntries.length > 0) setCart(cartEntries);
 
@@ -285,10 +304,14 @@ export default function POSPage() {
   // ── Totals ────────────────────────────────────────────────────────────────
   // sourceId keeps the Service/InventoryItem this line was rung up from, so
   // back-bar consumption stays countable after a rename (lib/inventory-usage.ts).
-  const cartLineItems: SalonInvoiceItem[] = cart.map(e => ({
-    id: e.cartId, type: e.type, sourceId: e.itemId, description: e.name,
-    qty: e.qty, unitPrice: wholePkr(e.unitPrice), total: wholePkr(e.total),
-  }));
+  // Grouped by person so the invoice prints each person's services together.
+  const cartLineItems: SalonInvoiceItem[] = [...cart]
+    .sort((a, b) => ["", ...guests].indexOf(a.guestName ?? "") - ["", ...guests].indexOf(b.guestName ?? ""))
+    .map(e => ({
+      id: e.cartId, type: e.type, sourceId: e.itemId, description: e.name,
+      qty: e.qty, unitPrice: wholePkr(e.unitPrice), total: wholePkr(e.total),
+      ...(e.guestName ? { guestName: e.guestName } : {}),
+    }));
   const rawSubtotal    = wholePkr(cartLineItems.reduce((s, i) => s + i.total, 0));
   const baseDiscountAmount = discType === "pct" ? wholePkr(rawSubtotal * discount / 100) : wholePkr(discount);
   const discountAmount = Math.min(baseDiscountAmount, rawSubtotal);
@@ -317,15 +340,33 @@ export default function POSPage() {
   // ── Cart ops ──────────────────────────────────────────────────────────────
   const addToCart = useCallback((item: CatalogItem) => {
     setCart(prev => {
-      const hit = prev.find(e => e.itemId === item.id);
-      if (hit) return prev.map(e => e.itemId === item.id ? { ...e, qty: e.qty + 1, total: (e.qty + 1) * e.unitPrice } : e);
+      // Per person: the same service for the mother and the daughter is two
+      // lines on the bill, not one line of two.
+      const hit = prev.find(e => e.itemId === item.id && (e.guestName ?? "") === activeGuest);
+      if (hit) return prev.map(e => e === hit ? { ...e, qty: e.qty + 1, total: (e.qty + 1) * e.unitPrice } : e);
       return [...prev, {
         cartId: crypto.randomUUID(), itemId: item.id, type: item.type, name: item.name, qty: 1,
         unitPrice: item.price, basePrice: item.price, total: item.price, variablePrice: item.variablePrice,
         priceRangeMin: item.priceRangeMin, priceRangeMax: item.priceRangeMax,
+        ...(activeGuest ? { guestName: activeGuest } : {}),
       }];
     });
-  }, []);
+  }, [activeGuest]);
+
+  /** Adds the typed name as another person on this bill and starts ringing up for them. */
+  function addGuest() {
+    const name = guestInput.trim();
+    if (!name) return;
+    const mainName = selectedClient?.name || "Walk-in Customer";
+    if (name.toLowerCase() === mainName.toLowerCase() || guests.some(g => g.toLowerCase() === name.toLowerCase())) {
+      setActiveGuest(guests.find(g => g.toLowerCase() === name.toLowerCase()) ?? "");
+      setGuestInput("");
+      return;
+    }
+    setGuests(gs => [...gs, name]);
+    setActiveGuest(name);
+    setGuestInput("");
+  }
 
   const addBarcodeToCart = useCallback((rawCode: string) => {
     const code = rawCode.trim();
@@ -432,6 +473,7 @@ export default function POSPage() {
     // Otherwise the next, unrelated sale would be linked to (and complete) the
     // appointment this page was opened for.
     setCheckoutAppointmentId(null); setCheckoutGroupIds([]); setApptBanner(null);
+    setGuests([]); setActiveGuest(""); setGuestInput("");
   }
 
   // ── Complete sale ─────────────────────────────────────────────────────────
@@ -974,6 +1016,57 @@ export default function POSPage() {
             {/* Divider */}
             <div style={{ height: 1, background: "#f4f4fc", margin: "2px 0" }} />
 
+            {/* People sharing this bill */}
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#9999b0", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>
+                People on this bill
+              </label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                {[{ name: "", label: `${selectedClient?.name || "Walk-in Customer"} (main)` }, ...guests.map(g => ({ name: g, label: g }))].map(person => {
+                  const on = activeGuest === person.name;
+                  return (
+                    <button key={person.name || "__main"} type="button" onClick={() => setActiveGuest(person.name)}
+                      title={`Ring up items for ${person.label}`}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 20, cursor: "pointer", fontSize: 12, fontWeight: 700, border: `1.5px solid ${on ? "#7C3AED" : "#e8e8f4"}`, background: on ? "#f5f3ff" : "#fff", color: on ? "#7C3AED" : "#6b6b8a" }}>
+                      {person.label}
+                      {person.name && (
+                        <span role="button" tabIndex={0} aria-label={`Remove ${person.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGuests(gs => gs.filter(g => g !== person.name));
+                            setCart(prev => prev.filter(en => en.guestName !== person.name));
+                            setActiveGuest(a => (a === person.name ? "" : a));
+                          }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setGuests(gs => gs.filter(g => g !== person.name)); setCart(prev => prev.filter(en => en.guestName !== person.name)); setActiveGuest(a => (a === person.name ? "" : a)); } }}
+                          style={{ display: "inline-flex", cursor: "pointer", color: "#9999b0" }}>
+                          <X size={11} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  value={guestInput}
+                  onChange={e => setGuestInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addGuest(); } }}
+                  list="pos-guest-clients"
+                  placeholder="Add family member / friend…"
+                  style={{ flex: 1, height: 34, padding: "0 10px", borderRadius: 9, border: "1.5px solid #e8e8f4", fontSize: 12, color: "#1d1d2f", outline: "none", background: "#fafafe", boxSizing: "border-box" }} />
+                <datalist id="pos-guest-clients">
+                  {clients.slice(0, 200).map(c => <option key={c.id} value={c.name} />)}
+                </datalist>
+                <button type="button" onClick={addGuest} disabled={!guestInput.trim()}
+                  style={{ padding: "0 14px", height: 34, borderRadius: 9, border: "none", background: guestInput.trim() ? "#7C3AED" : "#eceaf6", color: guestInput.trim() ? "#fff" : "#b0b0c8", fontSize: 12, fontWeight: 700, cursor: guestInput.trim() ? "pointer" : "not-allowed" }}>
+                  Add
+                </button>
+              </div>
+              <div style={{ fontSize: 10.5, color: "#b0b0c8", marginTop: 5, lineHeight: 1.5 }}>
+                Pick a saved client or type any name, then tap a name to ring up their services. Everything is billed to the main customer.
+              </div>
+            </div>
+
             {/* Staff selector */}
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#9999b0", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Assigned Staff</label>
@@ -1234,6 +1327,11 @@ export default function POSPage() {
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6, marginBottom: 14 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: "#1d1d2f", lineHeight: 1.3 }}>{entry.name}</div>
+                          {entry.guestName && (
+                            <div style={{ display: "inline-block", marginTop: 4, padding: "2px 7px", borderRadius: 20, background: "#f5f3ff", color: "#7C3AED", fontSize: 10, fontWeight: 800 }}>
+                              For {entry.guestName}
+                            </div>
+                          )}
                           {/* Every line is priced at the till — hair volume, length and
                               condition move the real price off the catalog number. */}
                           <div style={{ marginTop: 4 }}>

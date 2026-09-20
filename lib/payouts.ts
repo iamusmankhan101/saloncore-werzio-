@@ -87,10 +87,16 @@ export function staffRevenueFromAppointment(appt: Appointment, staffId: string, 
   const total = appt.totalAmount ?? 0;
   // Weighted by the price charged on this booking when it was priced by hand,
   // otherwise by the catalog price.
-  const apptServices = appt.serviceIds
-    .map((id, idx) => {
+  // Guests billed on the same appointment are part of the work done, and their
+  // money is inside totalAmount, so their services weigh the split too.
+  const bookedLines = [
+    ...appt.serviceIds.map((id, idx) => ({ id, price: appt.servicePrices?.[idx] })),
+    ...(appt.guests ?? []).flatMap((g) => g.serviceIds.map((id, idx) => ({ id, price: g.servicePrices?.[idx] }))),
+  ];
+  const apptServices = bookedLines
+    .map(({ id, price }) => {
       const s = services.find((sv) => sv.id === id);
-      return s ? { s, price: appt.servicePrices?.[idx] ?? s.price ?? 0 } : null;
+      return s ? { s, price: price ?? s.price ?? 0 } : null;
     })
     .filter((x): x is { s: Service; price: number } => Boolean(x));
   // Ordinary services are shared evenly by everyone booked on the appointment.

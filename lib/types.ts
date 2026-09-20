@@ -215,6 +215,23 @@ export interface Appointment {
   staffIds?: string[];
   /** Names matching `staffIds`, for display without a staff lookup. */
   staffNames?: string[];
+  /**
+   * Related people seen in the same visit and billed together (a mother and
+   * daughter, say). Their services are extra to the main client's `serviceIds`,
+   * and `totalAmount` covers everybody. The visit, the spend and the loyalty
+   * points all stay with the main client, who pays.
+   */
+  guests?: AppointmentGuest[];
+}
+
+export interface AppointmentGuest {
+  /** Set when this person is a saved client; absent for a name typed at the desk. */
+  clientId?: string;
+  name: string;
+  serviceIds: string[];
+  serviceNames: string[];
+  /** Index-aligned with `serviceIds`. */
+  servicePrices: number[];
 }
 
 export interface AppointmentFeedback {

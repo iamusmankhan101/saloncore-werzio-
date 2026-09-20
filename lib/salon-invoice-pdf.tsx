@@ -1,5 +1,5 @@
 import { Document, Page, StyleSheet, Text, View, Image, renderToBuffer } from "@react-pdf/renderer";
-import { ADVANCE_NON_REFUNDABLE_NOTE, PAYMENT_NON_REFUNDABLE_NOTE, balanceDue, type SalonInvoice } from "@/lib/salon-invoices";
+import { ADVANCE_NON_REFUNDABLE_NOTE, PAYMENT_NON_REFUNDABLE_NOTE, balanceDue, invoiceItemsByPerson, type SalonInvoice } from "@/lib/salon-invoices";
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash", jazzcash: "JazzCash", easypaisa: "EasyPaisa",
@@ -43,6 +43,7 @@ const styles = StyleSheet.create({
   paidLine: { fontSize: 9, color: "#059669", fontFamily: "Helvetica-Bold", marginTop: 24 },
   advanceNote: { fontSize: 9, color: "#b45309", fontFamily: "Helvetica-Bold", marginTop: 16 },
   notesBlock: { marginTop: 24 },
+  personHeading: { fontSize: 9, fontFamily: "Helvetica-Bold", color: "#111111", textTransform: "uppercase", letterSpacing: 0.6, marginTop: 10, marginBottom: 2 },
   termsBlock: { marginTop: 24 },
   termsText: { fontSize: 9, color: "#555555", lineHeight: 1.6 },
 
@@ -134,12 +135,20 @@ function InvoiceDocument({ invoice, salon }: {
           <Text style={[styles.amount, styles.head]}>Unit Price</Text>
           <Text style={[styles.amount, styles.head]}>Amount</Text>
         </View>
-        {invoice.items.map((item) => (
-          <View key={item.id} style={styles.row}>
-            <Text style={[styles.description, styles.cellMuted]}>{item.description}</Text>
-            <Text style={[styles.qty, styles.cellMuted]}>{item.qty}</Text>
-            <Text style={[styles.amount, styles.cellMuted]}>{money(item.unitPrice)}</Text>
-            <Text style={[styles.amount, styles.cellStrong]}>{money(item.total)}</Text>
+        {invoiceItemsByPerson(invoice).map((group, gi) => (
+          <View key={group.name ?? `g${gi}`}>
+            {/* One bill covering several people gets a heading per person. */}
+            {!!group.name && (
+              <Text style={styles.personHeading}>{gi === 0 ? `${group.name} (main)` : group.name}</Text>
+            )}
+            {group.items.map((item) => (
+              <View key={item.id} style={styles.row}>
+                <Text style={[styles.description, styles.cellMuted]}>{item.description}</Text>
+                <Text style={[styles.qty, styles.cellMuted]}>{item.qty}</Text>
+                <Text style={[styles.amount, styles.cellMuted]}>{money(item.unitPrice)}</Text>
+                <Text style={[styles.amount, styles.cellStrong]}>{money(item.total)}</Text>
+              </View>
+            ))}
           </View>
         ))}
 

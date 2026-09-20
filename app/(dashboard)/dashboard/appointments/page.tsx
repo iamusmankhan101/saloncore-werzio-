@@ -6,7 +6,7 @@ import { getStoredAppointments, saveAppointments, getStoredClients, saveClients,
 import { getSalonInvoices, saveSalonInvoices } from "@/lib/salon-invoices";
 import { recordDeletions } from "@/lib/turso-sync";
 import type { Appointment, AppointmentFeedback, AppointmentStatus, Client, Staff, Service } from "@/lib/types";
-import { Search, Filter, X, Clock, User, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2, Upload, Download, FileSpreadsheet, Check, Star, AlertTriangle, MessageSquare } from "lucide-react";
+import { Search, Filter, X, Clock, User, Users, Scissors, Tag, ChevronDown, Plus, CalendarDays, CheckCircle2, ArrowRight, ShoppingCart, Camera, Trash2, Upload, Download, FileSpreadsheet, Check, Star, AlertTriangle, MessageSquare } from "lucide-react";
 import { enqueueWhatsAppConfirmation, enqueueWhatsAppFollowup, enqueueWhatsAppCancellation, sendGroupBookingAlert, purgeQueuedAppointmentMessages, normalizePhone } from "@/lib/whatsapp-scheduler";
 import { awardPoints } from "@/lib/loyalty";
 import { settingsStore } from "@/lib/settings-store";
@@ -663,6 +663,26 @@ function DetailModal({ appt, onClose, clients, staffList, allServices, onStatusC
             </div>
           </InfoRow>
 
+          {(appt.guests?.length ?? 0) > 0 && (
+            <InfoRow icon={<Users size={14} color="#9898b0" />} label="Also in this booking">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {appt.guests!.map((g, gi) => (
+                  <div key={`${g.name}-${gi}`}>
+                    <div style={{ fontWeight: 700, color: "#1a1a2e" }}>{g.name}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 3 }}>
+                      {g.serviceNames.map((n, i) => (
+                        <div key={`${n}-${i}`} style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span>{n}</span>
+                          <span style={{ color: "#7C3AED", fontWeight: 600 }}>{fmt(g.servicePrices?.[i] ?? 0)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </InfoRow>
+          )}
+
           {(appt.totalDays ?? 1) > 1 && (
             <InfoRow icon={<CalendarDays size={14} color="#9898b0" />} label="Booking">
               Day {appt.dayNumber} of {appt.totalDays}
@@ -832,10 +852,17 @@ function extraStylistsLabel(appt: Appointment): string {
 }
 
 /** One day of a booking. A multi-day booking is saved as one appointment per day. */
-type DayForm = { date: string; startTime: string; staffId: string; extraStaffIds: string[]; serviceIds: string[]; prices: Record<string, string> };
+type DayForm = {
+  date: string; startTime: string; staffId: string; extraStaffIds: string[];
+  serviceIds: string[]; prices: Record<string, string>;
+  /** Related people seen in the same visit and billed together with the main client. */
+  guests: { key: string; clientId?: string; name: string; serviceIds: string[]; prices: Record<string, string> }[];
+  /** Whose services the checklist is picking — "" is the main client. */
+  activeGuestKey: string;
+};
 
 const MAX_BOOKING_DAYS = 30;
-const emptyDay = (): DayForm => ({ date: "", startTime: "", staffId: "", extraStaffIds: [], serviceIds: [], prices: {} });
+const emptyDay = (): DayForm => ({ date: "", startTime: "", staffId: "", extraStaffIds: [], serviceIds: [], prices: {}, guests: [], activeGuestKey: "" });
 
 /** YYYY-MM-DD `n` days after `date`, in local time. */
 function addDaysToDateKey(date: string, n: number): string {
@@ -843,6 +870,13 @@ function addDaysToDateKey(date: string, n: number): string {
   if (Number.isNaN(d.getTime())) return "";
   d.setDate(d.getDate() + n);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** The price typed for a service against one person, or its catalog price when left blank. */
+function personServicePrice(prices: Record<string, string>, svc: Service): number {
+  const raw = prices[svc.id];
+  const n = raw === undefined || raw.trim() === "" ? NaN : Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : svc.price;
 }
 
 /** The price typed for a service on this day, or its catalog price when left blank. */
@@ -902,6 +936,9 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
     return () => document.removeEventListener("mousedown", onDocMouseDown);
   }, [clientDropdownOpen]);
 
+  const clientDisplayName = newClient
+    ? newClientForm.name.trim()
+    : clients.find((c) => c.id === form.clientId)?.name ?? "";
   const clientQueryTrimmed = clientQuery.trim().toLowerCase();
   const clientMatches = (clientQueryTrimmed
     ? clients.filter((c) => c.name.toLowerCase().includes(clientQueryTrimmed) || c.phone.includes(clientQueryTrimmed))
@@ -953,7 +990,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
     }));
 
   const setServicePrice = (serviceId: string, value: string) =>
-    updateDay((d) => ({ ...d, prices: { ...d.prices, [serviceId]: value } }));
+    updateActivePerson((p) => ({ ...p, prices: { ...p.prices, [serviceId]: value } }));
   const setNC = (k: string, v: string) => setNewClientForm((f) => ({ ...f, [k]: v }));
   const canSaveNewClient = newClientForm.name.trim();
 
@@ -980,12 +1017,41 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
     ? availableServices.filter((s) => s.name.toLowerCase().includes(serviceNeedle) || String(s.category ?? "").toLowerCase().includes(serviceNeedle))
     : availableServices;
 
-  const servicesForDay = (d: DayForm) =>
-    d.serviceIds.map((id) => allServices.find((s) => s.id === id)).filter((s): s is Service => Boolean(s));
-  const dayTotal = (d: DayForm) => servicesForDay(d).reduce((sum, s) => sum + dayServicePrice(d, s), 0);
-  const dayIsComplete = (d: DayForm) => !!d.staffId && d.serviceIds.length > 0 && !!d.date && !!d.startTime;
+  const lookupServices = (ids: string[]) =>
+    ids.map((id) => allServices.find((s) => s.id === id)).filter((s): s is Service => Boolean(s));
+  const servicesForDay = (d: DayForm) => lookupServices(d.serviceIds);
+  /** Every service booked that day, the main client's and the guests'. */
+  const allServicesForDay = (d: DayForm) => [...servicesForDay(d), ...d.guests.flatMap((g) => lookupServices(g.serviceIds))];
+  const dayTotal = (d: DayForm) =>
+    servicesForDay(d).reduce((sum, s) => sum + personServicePrice(d.prices, s), 0)
+    + d.guests.reduce((sum, g) => sum + lookupServices(g.serviceIds).reduce((gs, s) => gs + personServicePrice(g.prices, s), 0), 0);
+  const dayServiceCount = (d: DayForm) => d.serviceIds.length + d.guests.reduce((n, g) => n + g.serviceIds.length, 0);
+  const dayIsComplete = (d: DayForm) => !!d.staffId && dayServiceCount(d) > 0 && !!d.date && !!d.startTime
+    && d.guests.every((g) => g.name.trim() && g.serviceIds.length > 0);
 
-  const selectedServices = servicesForDay(day);
+  // The checklist below edits whichever person is selected on this day.
+  const activeGuest = day.guests.find((g) => g.key === day.activeGuestKey);
+  const activeServiceIds = activeGuest ? activeGuest.serviceIds : day.serviceIds;
+  const activePrices = activeGuest ? activeGuest.prices : day.prices;
+  const updateActivePerson = (fn: (p: { serviceIds: string[]; prices: Record<string, string> }) => { serviceIds: string[]; prices: Record<string, string> }) =>
+    updateDay((d) => {
+      if (!d.activeGuestKey) { const next = fn({ serviceIds: d.serviceIds, prices: d.prices }); return { ...d, ...next }; }
+      return { ...d, guests: d.guests.map((g) => (g.key === d.activeGuestKey ? { ...g, ...fn({ serviceIds: g.serviceIds, prices: g.prices }) } : g)) };
+    });
+
+  const addGuest = () =>
+    updateDay((d) => {
+      const key = `g_${Date.now()}_${d.guests.length}`;
+      return { ...d, guests: [...d.guests, { key, name: "", serviceIds: [], prices: {} }], activeGuestKey: key };
+    });
+  const removeGuest = (key: string) =>
+    updateDay((d) => ({ ...d, guests: d.guests.filter((g) => g.key !== key), activeGuestKey: d.activeGuestKey === key ? "" : d.activeGuestKey }));
+  const setGuestName = (key: string, name: string) =>
+    updateDay((d) => ({ ...d, guests: d.guests.map((g) => (g.key === key ? { ...g, name, clientId: clients.find((c) => c.name.toLowerCase() === name.trim().toLowerCase())?.id } : g)) }));
+  const setActivePerson = (key: string) => updateDay((d) => ({ ...d, activeGuestKey: key }));
+
+  // Stylist eligibility and duration cover everyone seen in the same visit.
+  const selectedServices = allServicesForDay(day);
   const teamService = selectedServices.find((s) => s.multiStylist && s.assignedStaffIds.length >= 2);
   const isTeamBooking = !!teamService;
   const teamStaff = isTeamBooking
@@ -1000,8 +1066,12 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
   // or the single eligible stylist when the chosen service(s) narrow it down to one.
   const toggleService = (id: string) =>
     updateDay((f) => {
-      const serviceIds = f.serviceIds.includes(id) ? f.serviceIds.filter((s) => s !== id) : [...f.serviceIds, id];
-      const selected = allServices.filter((s) => serviceIds.includes(s.id));
+      const current = f.activeGuestKey ? (f.guests.find((g) => g.key === f.activeGuestKey)?.serviceIds ?? []) : f.serviceIds;
+      const nextIds = current.includes(id) ? current.filter((s) => s !== id) : [...current, id];
+      const serviceIds = f.activeGuestKey ? f.serviceIds : nextIds;
+      const guests = f.activeGuestKey ? f.guests.map((g) => (g.key === f.activeGuestKey ? { ...g, serviceIds: nextIds } : g)) : f.guests;
+      const everyId = [...serviceIds, ...guests.flatMap((g) => g.serviceIds)];
+      const selected = allServices.filter((s) => everyId.includes(s.id));
       const team = selected.find((s) => s.multiStylist && s.assignedStaffIds.length >= 2);
       let staffId = f.staffId;
       if (team) {
@@ -1013,7 +1083,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
       } else {
         staffId = "";
       }
-      return { ...f, serviceIds, staffId, extraStaffIds: f.extraStaffIds.filter((id) => id !== staffId) };
+      return { ...f, serviceIds, guests, staffId, extraStaffIds: f.extraStaffIds.filter((id) => id !== staffId) };
     });
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.durationMin, 0);
   const totalPrice = dayTotal(day);
@@ -1073,7 +1143,19 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
         ? []
         : d.extraStaffIds.map((id) => staffList.find((s) => s.id === id)).filter((s): s is Staff => Boolean(s));
       const svcs = servicesForDay(d);
-      const prices = svcs.map((s) => dayServicePrice(d, s));
+      const prices = svcs.map((s) => personServicePrice(d.prices, s));
+      const guests = d.guests
+        .filter((g) => g.name.trim() && g.serviceIds.length > 0)
+        .map((g) => {
+          const gsvcs = lookupServices(g.serviceIds);
+          return {
+            ...(g.clientId ? { clientId: g.clientId } : {}),
+            name: g.name.trim(),
+            serviceIds: gsvcs.map((s) => s.id),
+            serviceNames: gsvcs.map((s) => s.name),
+            servicePrices: gsvcs.map((s) => personServicePrice(g.prices, s)),
+          };
+        });
       return {
         id: i === 0 ? `a_${now}` : `a_${now}_${i + 1}`,
         clientId: finalClientId,
@@ -1090,9 +1172,11 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
         servicePrices: prices,
         date: d.date,
         startTime: d.startTime,
-        endTime: addMinutes(d.startTime, svcs.reduce((sum, s) => sum + s.durationMin, 0)),
+        endTime: addMinutes(d.startTime, allServicesForDay(d).reduce((sum, s) => sum + s.durationMin, 0)),
         status: "booked",
-        totalAmount: prices.reduce((sum, p) => sum + p, 0),
+        ...(guests.length > 0 ? { guests } : {}),
+        // Covers everyone on the booking — the main client pays the lot.
+        totalAmount: dayTotal(d),
         source,
         notes: form.notes || undefined,
         createdAt,
@@ -1355,7 +1439,53 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
             </FormField>
           )}
 
-          <FormField label={`Services${day.serviceIds.length > 0 ? ` (${day.serviceIds.length} selected)` : ""}`}>
+          {/* People sharing this appointment and its bill */}
+          <FormField label="People in this appointment">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {[{ key: "", label: `${clientDisplayName || "Main client"} (main)`, count: day.serviceIds.length },
+                ...day.guests.map((g) => ({ key: g.key, label: g.name.trim() || "Unnamed", count: g.serviceIds.length }))].map((person) => {
+                const on = day.activeGuestKey === person.key;
+                return (
+                  <button key={person.key || "__main"} type="button" onClick={() => setActivePerson(person.key)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, cursor: "pointer", fontSize: 12, fontWeight: 600, border: `1px solid ${on ? "#7C3AED" : "#e8e8f0"}`, background: on ? "#F5F3FF" : "#fff", color: on ? "#7C3AED" : "#4a4a6a" }}>
+                    {person.label}
+                    <span style={{ fontSize: 10, color: "#9898b0" }}>{person.count} service{person.count === 1 ? "" : "s"}</span>
+                  </button>
+                );
+              })}
+              <button type="button" onClick={addGuest}
+                style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 20, cursor: "pointer", fontSize: 12, fontWeight: 700, border: "1px dashed #c4b5fd", background: "#fff", color: "#7C3AED" }}>
+                <Plus size={12} /> Add person
+              </button>
+            </div>
+            {day.guests.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+                {day.guests.map((g) => (
+                  <div key={g.key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input
+                      value={g.name}
+                      onChange={(e) => setGuestName(g.key, e.target.value)}
+                      onFocus={() => setActivePerson(g.key)}
+                      list="appt-guest-clients"
+                      placeholder="Name (e.g. daughter, or pick a saved client)"
+                      style={{ ...selectStyle, flex: 1 }} />
+                    <button type="button" onClick={() => removeGuest(g.key)} aria-label={`Remove ${g.name || "person"}`}
+                      style={{ border: "1px solid #f0e9ff", background: "#fff", borderRadius: 9, width: 38, height: 38, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <X size={14} color="#9898b0" />
+                    </button>
+                  </div>
+                ))}
+                <datalist id="appt-guest-clients">
+                  {clients.slice(0, 200).map((c) => <option key={c.id} value={c.name} />)}
+                </datalist>
+                <div style={{ fontSize: 11, color: "#9898b0" }}>
+                  Everyone is seen in this one appointment and billed on one invoice. The visit, spend and loyalty points go to the main client.
+                </div>
+              </div>
+            )}
+          </FormField>
+
+          <FormField label={`Services${activeGuest ? ` for ${activeGuest.name.trim() || "this person"}` : ""}${activeServiceIds.length > 0 ? ` (${activeServiceIds.length} selected)` : ""}`}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {availableServices.length > 0 && (
                 <div style={{ position: "relative", marginBottom: 2 }}>
@@ -1374,8 +1504,8 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
               ) : visibleServices.length === 0 ? (
                 <div style={{ fontSize: 13, color: "#b0b0c8", padding: "8px 0" }}>No services match “{serviceQuery.trim()}”.</div>
               ) : visibleServices.map((sv) => {
-                const checked = day.serviceIds.includes(sv.id);
-                const chargedPrice = dayServicePrice(day, sv);
+                const checked = activeServiceIds.includes(sv.id);
+                const chargedPrice = personServicePrice(activePrices, sv);
                 const isTeam = sv.multiStylist && sv.assignedStaffIds.length >= 2;
                 const teamNames = isTeam ? sv.assignedStaffIds.map((sid) => staffList.find((s) => s.id === sid)?.name).filter(Boolean) : [];
                 return (
@@ -1401,7 +1531,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
                             type="number"
                             min={0}
                             inputMode="numeric"
-                            value={day.prices[sv.id] ?? String(sv.price)}
+                            value={activePrices[sv.id] ?? String(sv.price)}
                             onChange={(e) => setServicePrice(sv.id, e.target.value)}
                             aria-label={`Price for ${sv.name}`}
                             style={{ width: 100, padding: "6px 8px", borderRadius: 8, border: "1px solid #d8d0f8", background: "#fff", textAlign: "right", fontSize: 13, fontWeight: 600, color: "#7C3AED", outline: "none" }}
@@ -1440,7 +1570,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
             <div style={{ background: "#F5F3FF", border: "1px solid #EDE9FE", borderRadius: 10, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
               {days.map((d, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b6b8a" }}>
-                  <span>Day {i + 1}{d.date ? ` · ${d.date}` : ""} · {d.serviceIds.length} service{d.serviceIds.length === 1 ? "" : "s"}</span>
+                  <span>Day {i + 1}{d.date ? ` · ${d.date}` : ""} · {dayServiceCount(d)} service{dayServiceCount(d) === 1 ? "" : "s"}{d.guests.length > 0 ? ` · ${d.guests.length + 1} people` : ""}</span>
                   <span style={{ fontWeight: 600 }}>{fmt(dayTotal(d))}</span>
                 </div>
               ))}
@@ -1449,7 +1579,7 @@ function CreateModal({ onClose, onAdd, clients, staffList, allServices }: { onCl
                 <div style={{ fontSize: 15, fontWeight: 700, color: "#7C3AED" }}>{fmt(grandTotal)}</div>
               </div>
             </div>
-          ) : day.serviceIds.length > 0 && (
+          ) : dayServiceCount(day) > 0 && (
             <div style={{ background: "#F5F3FF", border: "1px solid #EDE9FE", borderRadius: 10, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontSize: 12, color: "#7C3AED" }}>{totalDuration} min total</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#7C3AED" }}>{fmt(totalPrice)}</div>
