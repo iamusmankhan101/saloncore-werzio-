@@ -114,6 +114,13 @@ export function balanceDue(inv: Pick<SalonInvoice, "status" | "total" | "advance
   return inv.status === "partial" ? Math.max(0, inv.total - (inv.advanceAmount ?? 0)) : 0;
 }
 
+/** What fraction of the total the advance is, as a whole number percent (e.g. 50); 0 when there's no advance or no total to divide by. */
+export function advancePercent(inv: Pick<SalonInvoice, "total" | "advanceAmount">): number {
+  const total = inv.total || 0;
+  const advance = inv.advanceAmount ?? 0;
+  return total > 0 && advance > 0 ? Math.round((advance / total) * 100) : 0;
+}
+
 /** Shown on any invoice carrying an advance, on screen and on the PDF. */
 export const ADVANCE_NON_REFUNDABLE_NOTE = "Advance payment is non-refundable.";
 

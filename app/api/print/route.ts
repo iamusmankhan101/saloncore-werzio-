@@ -206,7 +206,8 @@ function buildReceipt(data: ReceiptData): Buffer {
   if (isAdvance) {
     const advance = data.invoice.advanceAmount ?? 0;
     const balance = Math.max(0, data.invoice.total - advance);
-    push(padLine("Advance paid", `${data.currency} ${advance.toFixed(0)}`, W));
+    const advancePct = data.invoice.total > 0 && advance > 0 ? Math.round((advance / data.invoice.total) * 100) : 0;
+    push(padLine(`Advance paid (${advancePct}%)`, `${data.currency} ${advance.toFixed(0)}`, W));
     push(CMD.heavyOn);
     push(padLine("BALANCE DUE", `${data.currency} ${balance.toFixed(0)}`, W));
     push(CMD.heavyOff);

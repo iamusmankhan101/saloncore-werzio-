@@ -6,7 +6,7 @@ import {
   ReceiptText, ShoppingCart, TrendingUp, Users, MessageSquare,
 } from "lucide-react";
 import {
-  getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid, updateSalonInvoice, localDateKey, balanceDue,
+  getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid, updateSalonInvoice, localDateKey, balanceDue, advancePercent,
   type SalonInvoice,
 } from "@/lib/salon-invoices";
 import type { PaymentMethod } from "@/lib/types";
@@ -411,7 +411,7 @@ export default function InvoicesPage() {
                 <>
                   <div style={{ fontWeight: 800, fontSize: 16, color: "#1a1a2e", marginBottom: 6 }}>Collect the balance</div>
                   <div style={{ fontSize: 13, color: "#6b6b8a", marginBottom: 12 }}>
-                    Advance of {fmt(promptInvoice.advanceAmount ?? 0)} already received on {promptInvoice.number}.
+                    Advance of {fmt(promptInvoice.advanceAmount ?? 0)} ({advancePercent(promptInvoice)}%) already received on {promptInvoice.number}.
                   </div>
                   <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 14, fontWeight: 800, color: "#b45309" }}>
                     Balance due {fmt(balance)}
@@ -608,7 +608,7 @@ export default function InvoicesPage() {
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 800, color: "#1a1a2e" }}>{fmt(inv.total)}</div>
                       <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4, padding: "3px 8px", borderRadius: 20, background: sm.bg, fontSize: 10, fontWeight: 750, color: sm.color, textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                        <StatusIcon size={10} /> {sm.label}
+                        <StatusIcon size={10} /> {inv.status === "partial" ? `${sm.label} ${advancePercent(inv)}%` : sm.label}
                       </div>
                     </div>
 

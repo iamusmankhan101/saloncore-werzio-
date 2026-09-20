@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Printer, CheckCircle, Pencil, MessageSquare } from "lucide-react";
-import { ADVANCE_NON_REFUNDABLE_NOTE, PAYMENT_NON_REFUNDABLE_NOTE, balanceDue, invoiceItemsByPerson, type SalonInvoice } from "@/lib/salon-invoices";
+import { ADVANCE_NON_REFUNDABLE_NOTE, PAYMENT_NON_REFUNDABLE_NOTE, balanceDue, advancePercent, invoiceItemsByPerson, type SalonInvoice } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
 import SalonCentralWordmark from "@/components/salon-central-wordmark";
 import { fmtCurrency as fmt } from "@/lib/format";
@@ -559,7 +559,7 @@ export default function SalonInvoicePrint({
                   {isAdvance && (
                     <>
                       <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13, color: "#555" }}>
-                        <span>Advance paid</span><span style={{ fontWeight: 700 }}>{fmt(invoice.advanceAmount ?? 0)}</span>
+                        <span>Advance paid ({advancePercent(invoice)}%)</span><span style={{ fontWeight: 700 }}>{fmt(invoice.advanceAmount ?? 0)}</span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13, color: "#b45309" }}>
                         <span style={{ fontWeight: 800 }}>Balance due</span>
