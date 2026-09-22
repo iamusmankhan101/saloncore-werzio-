@@ -340,6 +340,11 @@ export default function POSPage() {
   // Prices are editable per line, so guard every line — not just the variable-priced ones.
   const hasUnpricedLine = cart.some(e => e.unitPrice <= 0);
   const noPaymentSelected = !isCredit && !payMethod;
+  // An advance invoice is the client's only receipt for the money just taken —
+  // with no phone number it can't reach them and nothing else surfaces that
+  // failure (the row is never even queued), so this is required up front
+  // rather than silently skipped after checkout.
+  const advanceNoPhone = isAdvance && !isCredit && !selectedClient?.phone;
 
   // ── Cart ops ──────────────────────────────────────────────────────────────
   const addToCart = useCallback((item: CatalogItem) => {
@@ -1667,15 +1672,20 @@ export default function POSPage() {
                   <AlertCircle size={13} /> Select a payment method (or Pay Later/Credit) before checkout
                 </div>
               )}
+              {!hasUnpricedLine && !noPaymentSelected && advanceNoPhone && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, color: "#d97706" }}>
+                  <AlertCircle size={13} /> Add a phone number for the client — the advance invoice is sent on WhatsApp and can't reach them without one
+                </div>
+              )}
               {/* Complete button */}
-              <button type="button" onClick={completeSale} disabled={completing || hasUnpricedLine || noPaymentSelected}
+              <button type="button" onClick={completeSale} disabled={completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone}
                 style={{
                   width: "100%", padding: "14px 0", borderRadius: 13, border: "none",
-                  background: (completing || hasUnpricedLine || noPaymentSelected) ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
-                  color: (completing || hasUnpricedLine || noPaymentSelected) ? "#aaaabc" : "#fff",
-                  fontSize: 15, fontWeight: 900, cursor: (completing || hasUnpricedLine || noPaymentSelected) ? "not-allowed" : "pointer",
+                  background: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone) ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
+                  color: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone) ? "#aaaabc" : "#fff",
+                  fontSize: 15, fontWeight: 900, cursor: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone) ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-                  boxShadow: (completing || hasUnpricedLine || noPaymentSelected) ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
+                  boxShadow: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone) ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
                   letterSpacing: "-0.01em", transition: "all 0.15s",
                 }}
                 onMouseEnter={e => { if (!completing) e.currentTarget.style.transform = "translateY(-1px)"; }}
