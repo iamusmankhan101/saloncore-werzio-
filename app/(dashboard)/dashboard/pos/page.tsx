@@ -1447,10 +1447,24 @@ export default function POSPage() {
 
               {/* Summary */}
               <div style={{ marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#9999b0", marginBottom: 4 }}>
-                  <span>{cart.length} line item{cart.length !== 1 ? "s" : ""} · {totalQty} unit{totalQty !== 1 ? "s" : ""}</span>
-                  <span style={{ fontWeight: 700, color: "#4a4a6a" }}>{pkr(rawSubtotal)}</span>
-                </div>
+                {(() => {
+                  const anyDiscount = discountAmount > 0 || discountAmount2 > 0 || loyaltyDiscount > 0;
+                  return (
+                    <div style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      marginBottom: 4, padding: anyDiscount ? "8px 10px" : 0,
+                      borderRadius: anyDiscount ? 9 : 0,
+                      background: anyDiscount ? "#f5f3ff" : "transparent",
+                      border: anyDiscount ? "1px solid #e9e3ff" : "none",
+                    }}>
+                      <span style={{ fontSize: 12, color: anyDiscount ? "#5B21B6" : "#9999b0", fontWeight: anyDiscount ? 700 : 400 }}>
+                        {cart.length} line item{cart.length !== 1 ? "s" : ""} · {totalQty} unit{totalQty !== 1 ? "s" : ""}
+                        {anyDiscount && <span style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#7C3AED", marginTop: 1, textTransform: "uppercase", letterSpacing: "0.04em" }}>Total before discount</span>}
+                      </span>
+                      <span style={{ fontWeight: anyDiscount ? 900 : 700, fontSize: anyDiscount ? 18 : 13, color: anyDiscount ? "#5B21B6" : "#4a4a6a" }}>{pkr(rawSubtotal)}</span>
+                    </div>
+                  );
+                })()}
 
                 {/* Discount row */}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: 9, background: "#fafafe", border: "1px solid #f0f0f8" }}>
