@@ -134,6 +134,9 @@ export default function InvoicesPage() {
     const paid   = invoices.filter((i) => i.status === "paid");
     const unpaid = invoices.filter((i) => i.status === "unpaid");
     const uniqueClients = new Set(invoices.map((i) => i.clientPhone || i.clientName)).size;
+    // Billed amount before any discount is applied — subtotal, not total.
+    const billedAmount = invoices.reduce((s, i) => s + i.subtotal, 0);
+    const totalDiscount = invoices.reduce((s, i) => s + i.discountAmount + (i.discount2Amount ?? 0), 0);
     return {
       total:        invoices.length,
       paidCount:    paid.length,
@@ -141,6 +144,9 @@ export default function InvoicesPage() {
       revenue:      paid.reduce((s, i) => s + i.total, 0),
       outstanding:  unpaid.reduce((s, i) => s + i.total, 0),
       uniqueClients,
+      billedAmount,
+      discountedTotal: invoices.reduce((s, i) => s + i.total, 0),
+      totalDiscount,
     };
   }, [invoices]);
 
@@ -301,6 +307,9 @@ export default function InvoicesPage() {
       <div className="mobile-stat-scroll mobile-only">
         {[
           { label: "Total",     value: String(stats.total),     color: "#7C3AED" },
+          { label: "Total Amount", value: fmt(stats.billedAmount), color: "#4338ca" },
+          { label: "Discounted Price", value: fmt(stats.discountedTotal), color: "#059669" },
+          { label: "Total Discount", value: fmt(stats.totalDiscount), color: "#dc2626" },
           { label: "Revenue",   value: fmt(stats.revenue),      color: "#059669" },
           { label: "Outstanding", value: fmt(stats.outstanding), color: "#d97706" },
           { label: "Clients",   value: String(stats.uniqueClients), color: "#0284c7" },
@@ -502,6 +511,13 @@ export default function InvoicesPage() {
           <StatCard label="Revenue Collected"  value={fmt(stats.revenue)}         icon={<TrendingUp size={22} />} bg="#ecfdf5" color="#059669" />
           <StatCard label="Outstanding"        value={fmt(stats.outstanding)}      sub={`${stats.unpaidCount} unpaid`} icon={<Clock size={22} />} bg="#fffbeb" color="#d97706" />
           <StatCard label="Unique Clients"     value={String(stats.uniqueClients)} icon={<Users size={22} />} bg="#f0f9ff" color="#0284c7" />
+        </div>
+
+        {/* Billing breakdown — total billed before discount, the discounted total clients actually owe, and the amount discounted away */}
+        <div className="stats-grid-4">
+          <StatCard label="Total Amount"    value={fmt(stats.billedAmount)}     sub="Before discount" icon={<ReceiptText size={22} />} bg="#eef2ff" color="#4338ca" />
+          <StatCard label="Discounted Price" value={fmt(stats.discountedTotal)} sub="After discount" icon={<TrendingUp size={22} />} bg="#ecfdf5" color="#059669" />
+          <StatCard label="Total Discount"  value={fmt(stats.totalDiscount)}    sub="Amount saved" icon={<Clock size={22} />} bg="#fef2f2" color="#dc2626" />
         </div>
 
         {/* Table card */}
