@@ -1064,6 +1064,12 @@ async function sendQueuedBirthdayItem(clientId: string, item: QueueItem): Promis
   const ok = await callSendApi(phone, text, { type: "birthday", clientName }, { skipPacing: true });
   if (ok) {
     markBirthdaySent();
+    // Also clear the server-side birthday queue so the cron doesn't send it again.
+    await fetch("/api/whatsapp/birthday-sent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, year: String(today.getFullYear()) }),
+    }).catch(() => { /* the cron's own sent-today check below is the backstop */ });
     return "sent";
   }
   setQueue(BIRTHDAY_QUEUE_KEY, [...getQueue(BIRTHDAY_QUEUE_KEY), { ...item, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() }]);

@@ -28,6 +28,7 @@ import { sendSalonInvoiceWhatsApp } from "@/lib/whatsapp-invoice-send";
 import type { SalonInvoice } from "@/lib/salon-invoices";
 import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppMessageIntent, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
 import { appointmentStartHasPassed, appointmentStartMs, timezoneFromSettings, isWithinSalonHours, nextSalonOpenMs, type SalonHoursDay } from "@/lib/appointment-time";
+import { followupsTimedFromInvoice, INVOICE_FOLLOWUP_DELAY_MS, isInvoiceFollowupId } from "@/lib/salon-overrides";
 
 const BATCH_LIMIT = 50;
 const SEND_LIMIT_PER_RUN = 1;
@@ -607,6 +608,23 @@ async function runBookingQueueCron(): Promise<{ sent: number; failed: number; sk
       await updateItem(item, "expired", "Reminder window missed — too close to appointment time.");
       expired++;
       continue;
+    }
+    if (item.kind === "followup" && followupsTimedFromInvoice(settings)) {
+      if (!isInvoiceFollowupId(item.id)) {
+        await updateItem(item, "expired", "This salon sends follow-ups 24 hours after the invoice, not from appointments.");
+        expired++;
+        continue;
+      }
+      // appt_date/appt_time hold the invoice's creation time in salon time.
+      const createdMs = item.apptDate && item.apptTime
+        ? appointmentStartMs(item.apptDate, item.apptTime, timezoneFromSettings(settings))
+        : null;
+      const earliestMs = createdMs != null ? createdMs + INVOICE_FOLLOWUP_DELAY_MS : null;
+      if (earliestMs != null && Date.now() < earliestMs) {
+        await deferItem(item, earliestMs - Date.now(), "Held until 24 hours after the invoice.");
+        skipped++;
+        continue;
+      }
     }
     if (item.kind === "followup" && followupWindowExpired(item, settings)) {
       await updateItem(item, "expired", "Follow-up window already passed — queued message skipped.");

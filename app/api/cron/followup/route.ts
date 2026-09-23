@@ -12,6 +12,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
 import { appointmentStartMs, isWithinSalonHours, nextSalonOpenMs, timezoneFromSettings, type SalonHoursDay } from "@/lib/appointment-time";
+import { followupsTimedFromInvoice, INVOICE_FOLLOWUP_DELAY_MS } from "@/lib/salon-overrides";
 
 const MINUTE_MS = 60 * 1000;
 
@@ -226,6 +227,17 @@ function invoiceVisitTime(inv: PosInvoice, timezone: string): { date: string; ti
   return { date: inv.date, time: FALLBACK_INVOICE_TIME, completedAt };
 }
 
+/**
+ * Invoice-timed salons (see lib/salon-overrides): the visit time is exactly
+ * when the invoice was created, ignoring its editable `date` field, so the
+ * follow-up lands 24 hours after the bill and not a day early for a backdated one.
+ */
+function invoiceCreatedTime(inv: PosInvoice, timezone: string): { date: string; time: string; completedAt: number } | null {
+  const createdMs = inv.createdAt ? Date.parse(inv.createdAt) : NaN;
+  if (!Number.isFinite(createdMs)) return invoiceVisitTime(inv, timezone);
+  return { ...salonLocalParts(createdMs, timezone), completedAt: createdMs };
+}
+
 /** The {{service}} variable — a product-only sale falls back to the first line. */
 function invoiceServiceName(inv: PosInvoice): string {
   const items = inv.items ?? [];
@@ -305,7 +317,10 @@ async function runFollowupCron() {
         ? JSON.parse(clientsRow.rows[0].data as string)
         : [];
 
-      const eligible = appointments.filter((appt) => {
+      // Invoice-timed salons get follow-ups from invoices only (below).
+      const invoiceTimed = followupsTimedFromInvoice(s);
+
+      const eligible = invoiceTimed ? [] : appointments.filter((appt) => {
         if (appt.status !== "completed") return false;
         const completedAt = appointmentStartMs(appt.date, appt.endTime || appt.startTime, timezone);
         if (completedAt == null) return false;
@@ -358,18 +373,25 @@ async function runFollowupCron() {
       // `queuedPhones` set and the phone+date check below are what actually
       // enforce that, which also means a booking that was never marked
       // completed still gets a follow-up off its receipt.
+      //
+      // This cron only runs once a day, so an invoice-timed salon queues every
+      // invoice that falls due before the next run, scheduled for its exact due
+      // time, instead of waiting until it is already due (which could make a
+      // follow-up almost a day late).
+      const invoiceDelayMs = invoiceTimed ? INVOICE_FOLLOWUP_DELAY_MS : followupDelayMinutes * MINUTE_MS;
+      const lookaheadMs = invoiceTimed ? 24 * 60 * MINUTE_MS : 0;
       const eligibleInvoices = invoices
         .map((inv) => {
-          const visit = invoiceVisitTime(inv, timezone);
+          const visit = invoiceTimed ? invoiceCreatedTime(inv, timezone) : invoiceVisitTime(inv, timezone);
           return visit ? { inv, ...visit } : null;
         })
         .filter((entry): entry is { inv: PosInvoice; date: string; time: string; completedAt: number } => {
           if (!entry) return false;
-          const dueAt = entry.completedAt + followupDelayMinutes * MINUTE_MS;
-          return dueAt <= now.getTime() && now.getTime() - dueAt <= dueLookbackMs;
+          const dueAt = entry.completedAt + invoiceDelayMs;
+          return dueAt <= now.getTime() + lookaheadMs && now.getTime() - dueAt <= dueLookbackMs;
         });
 
-      for (const { inv, date, time } of eligibleInvoices) {
+      for (const { inv, date, time, completedAt } of eligibleInvoices) {
         // Namespaced so an invoice id can never collide with an appointment id.
         const visitId = `inv_${inv.id}`;
         if (await alreadySent(userId, visitId)) { skipped++; continue; }
@@ -393,7 +415,16 @@ async function runFollowupCron() {
           salon_name: salonName,
         });
 
-        scheduleDelayMs += followupSpacingMs();
+        let scheduledAt: string;
+        if (invoiceTimed) {
+          // Never before 24h after the invoice; a few random minutes on top so
+          // invoices billed back-to-back don't fall due in the same minute.
+          const dueAt = completedAt + invoiceDelayMs + Math.round(Math.random() * 15 * MINUTE_MS);
+          scheduledAt = followupScheduledAt(Math.max(dueAt, Date.now()), s, followupSpacingMs());
+        } else {
+          scheduleDelayMs += followupSpacingMs();
+          scheduledAt = followupScheduledAt(Date.now() + scheduleDelayMs, s, scheduleDelayMs);
+        }
         await queueFollowup({
           userId,
           visitId,
@@ -402,7 +433,7 @@ async function runFollowupCron() {
           text,
           visitDate: date,
           visitTime: time,
-          scheduledAt: followupScheduledAt(Date.now() + scheduleDelayMs, s, scheduleDelayMs),
+          scheduledAt,
         });
         queuedPhones.add(phone);
         queued++;

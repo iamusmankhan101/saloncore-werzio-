@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { followupsTimedFromInvoice } from "@/lib/salon-overrides";
 import { resolveActor } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { activeWhatsAppCredential, isFakePlaceholderPhone, type WhatsAppProviderConfig } from "@/lib/whatsapp-provider";
@@ -285,6 +286,11 @@ export async function POST(req: NextRequest) {
     }
     if (body.kind === "reminder" && reminderWindowMissed(settings, body.apptDate, body.apptTime)) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "reminder-window-missed" });
+    }
+    // Invoice-timed salons get follow-ups 24h after the invoice, queued by
+    // /api/cron/followup. This path is appointment completion, so skip it.
+    if (body.kind === "followup" && followupsTimedFromInvoice(settings)) {
+      return Response.json({ ok: true, queued: false, skipped: true, reason: "followup-timed-from-invoice" });
     }
     if (body.kind === "followup" && followupWindowExpired(settings, body.apptDate, body.apptTime)) {
       return Response.json({ ok: true, queued: false, skipped: true, reason: "followup-window-expired" });

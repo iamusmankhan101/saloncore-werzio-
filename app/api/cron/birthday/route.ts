@@ -258,6 +258,22 @@ async function queueBirthdayMessage(input: {
   });
 }
 
+async function birthdayLoggedToday(userId: string, phone: string): Promise<boolean> {
+  const since = new Date(Date.now() - 24 * 60 * MINUTE_MS).toISOString();
+  try {
+    const result = await db.execute({
+      sql: `SELECT 1 FROM wa_message_logs
+            WHERE user_id = ? AND type = 'birthday' AND status = 'sent' AND timestamp >= ?
+              AND replace(replace(phone, '+', ''), ' ', '') = ?
+            LIMIT 1`,
+      args: [userId, since, phone],
+    });
+    return result.rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function queuedAlready(userId: string, clientId: string, year: string): Promise<boolean> {
   const result = await db.execute({
     sql: "SELECT 1 FROM birthday_message_queue WHERE user_id = ? AND client_id = ? AND year = ?",
@@ -463,6 +479,13 @@ async function processDueBirthdayMessages(): Promise<{ sent: number; failed: num
       continue;
     }
     if (await alreadySent(item.userId, item.clientId, item.year)) {
+      await updateQueueAttempt({ ...item, ok: true });
+      deferred++;
+      continue;
+    }
+    // Sent by hand ("Send now") or from an open dashboard since it was queued.
+    if (await birthdayLoggedToday(item.userId, item.phone)) {
+      await markSent(item.userId, item.clientId, item.year);
       await updateQueueAttempt({ ...item, ok: true });
       deferred++;
       continue;
