@@ -731,6 +731,7 @@ async function callSendApi(
   phone: string,
   text: string,
   logMeta: { type: WaMsgType; clientName: string; apptId?: string; apptDate?: string; service?: string },
+  options: { skipPacing?: boolean } = {},
 ): Promise<boolean> {
   if (!phone.trim()) return false;
   const providerConfig = settingsStore.wasender as WhatsAppSafetyConfig & {
@@ -744,7 +745,16 @@ async function callSendApi(
     chakraWhatsappPhoneNumberId?: string;
   };
 
-  await applyPacingGate(providerConfig, logMeta.type);
+  // A manual "Send now" is one message the owner asked for, so it must not sit
+  // behind the 5-7 min automation gap. The server-side safety checks (quiet
+  // hours, opt-in, daily caps) in /api/whatsapp/send still apply. Moving the
+  // pacing clock forward keeps the next automated send spaced after this one.
+  if (options.skipPacing) {
+    lastSentAt = Date.now();
+    sentCount += 1;
+  } else {
+    await applyPacingGate(providerConfig, logMeta.type);
+  }
 
   // Warm-up ramp: never let today's effective daily limit exceed the number's
   // warm-up ceiling, even if the salon's own Safety setting allows more.
@@ -849,6 +859,9 @@ function buildVars(appt: {
 }
 
 const BIRTHDAY_SENT_KEY = "werzio_wa_birthday_sent";
+// Clients whose birthday wish is being sent by hand right now. The background
+// scheduler skips them, so it can't re-queue or double-send them mid-send.
+const birthdaySendsInFlight = new Set<string>();
 
 function birthdaySpreadDelay(index: number, total: number): number {
   const safeTotal = Math.max(1, total);
@@ -911,6 +924,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
       const sentKey = `${client.id}_${year}`;
       if (sent[sentKey]) continue;
       if (queuedIds.has(client.id)) continue;
+      if (birthdaySendsInFlight.has(client.id)) continue;
 
       const phone = normalizePhone(client.phone);
       if (!phone) continue;
@@ -942,6 +956,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
   const todayStartCheck = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
 
   for (const item of queue) {
+    if (birthdaySendsInFlight.has(item.id)) continue;
     const client = clients.find((candidate) => candidate.id === item.id);
     const clientName = client?.name ?? item.clientName ?? "there";
     const phone = item.phone ?? (client?.phone ? normalizePhone(client.phone) : "");
@@ -982,7 +997,11 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
       remaining.push({ ...item, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() });
     }
   }
-  setQueue(BIRTHDAY_QUEUE_KEY, remaining);
+  // Re-read before writing: a manual "Send now" may have removed an item while
+  // this loop was awaiting network calls, and writing the stale snapshot back
+  // would resurrect it.
+  const stillQueued = new Set(getQueue(BIRTHDAY_QUEUE_KEY).map((item) => item.id));
+  setQueue(BIRTHDAY_QUEUE_KEY, remaining.filter((item) => stillQueued.has(item.id) && !birthdaySendsInFlight.has(item.id)));
 }
 
 export type SendBirthdayNowResult = "sent" | "already-sent" | "not-queued" | "no-template" | "failed";
@@ -997,6 +1016,16 @@ export async function sendQueuedBirthdayNow(clientId: string): Promise<SendBirth
   if (typeof window === "undefined") return "failed";
   const item = getQueue(BIRTHDAY_QUEUE_KEY).find((candidate) => candidate.id === clientId);
   if (!item) return "not-queued";
+  if (birthdaySendsInFlight.has(clientId)) return "not-queued";
+  birthdaySendsInFlight.add(clientId);
+  try {
+    return await sendQueuedBirthdayItem(clientId, item);
+  } finally {
+    birthdaySendsInFlight.delete(clientId);
+  }
+}
+
+async function sendQueuedBirthdayItem(clientId: string, item: QueueItem): Promise<SendBirthdayNowResult> {
 
   const bd = settingsStore.birthday as { birthdayDiscountEnabled?: boolean; birthdayDiscount: string };
   const birthdayTemplate = (settingsStore.whatsapp as { birthday: string; birthdayNoDiscount?: string })[
@@ -1032,7 +1061,7 @@ export async function sendQueuedBirthdayNow(clientId: string): Promise<SendBirth
     salon_name: settingsStore.salon.name as string,
     discount: bd.birthdayDiscountEnabled === false ? "" : (bd.birthdayDiscount || "a special treat"),
   });
-  const ok = await callSendApi(phone, text, { type: "birthday", clientName });
+  const ok = await callSendApi(phone, text, { type: "birthday", clientName }, { skipPacing: true });
   if (ok) {
     markBirthdaySent();
     return "sent";

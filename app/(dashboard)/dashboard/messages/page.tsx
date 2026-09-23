@@ -1141,7 +1141,7 @@ function MessagesPageContent() {
                         const waitingUntil = item.sendAfter && item.sendAfter > Date.now() ? item.sendAfter : null;
                         return (
                           <div key={`${item.type}_${item.apptId}_${i}`}
-                            style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 9, background: "#f8f8fc", border: "1px solid #e8e8f0", fontSize: 12 }}>
+                            style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "8px 10px", borderRadius: 9, background: "#f8f8fc", border: "1px solid #e8e8f0", fontSize: 12 }}>
                             <span style={{
                               flexShrink: 0, fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.03em",
                               padding: "3px 7px", borderRadius: 6,
@@ -1150,7 +1150,7 @@ function MessagesPageContent() {
                             }}>
                               {item.type}
                             </span>
-                            <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ flex: "1 1 120px", minWidth: 0 }}>
                               <div style={{ fontWeight: 700, color: "#1d1d2f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {item.clientName || "Unknown client"}
                               </div>
