@@ -29,6 +29,7 @@ import type { SalonInvoice } from "@/lib/salon-invoices";
 import { checkWhatsAppSafety, recordWhatsAppSafetySend, type WhatsAppMessageIntent, type WhatsAppSafetyConfig } from "@/lib/whatsapp-safety";
 import { appointmentStartHasPassed, appointmentStartMs, timezoneFromSettings, isWithinSalonHours, nextSalonOpenMs, type SalonHoursDay } from "@/lib/appointment-time";
 import { followupsTimedFromInvoice, INVOICE_FOLLOWUP_DELAY_MS, isInvoiceFollowupId } from "@/lib/salon-overrides";
+import { ensureBirthdayTables, runBirthdayCron } from "@/lib/birthday-queue";
 
 const BATCH_LIMIT = 50;
 const SEND_LIMIT_PER_RUN = 1;
@@ -868,8 +869,20 @@ export async function GET(req: NextRequest) {
   try {
     await ensureTables();
     const result = await runBookingQueueCron();
-    console.log("[booking-queue] cron complete:", result);
-    return Response.json({ ok: true, ...result });
+    // Birthday wishes also drain here, hourly, so a quiet day's early schedule
+    // is actually met — the birthday cron itself only runs four times a day.
+    // Skipped when this run already sent something, to keep sends apart.
+    let birthday: Awaited<ReturnType<typeof runBirthdayCron>> | null = null;
+    if (result.sent + result.failed + result.posSent + result.posFailed === 0) {
+      try {
+        await ensureBirthdayTables();
+        birthday = await runBirthdayCron();
+      } catch (err) {
+        console.error("[booking-queue] birthday drain error:", err);
+      }
+    }
+    console.log("[booking-queue] cron complete:", result, "birthday:", birthday);
+    return Response.json({ ok: true, ...result, birthday });
   } catch (err) {
     console.error("[booking-queue] cron error:", err);
     return Response.json({ ok: false, error: String(err) }, { status: 500 });

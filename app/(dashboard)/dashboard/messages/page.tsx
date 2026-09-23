@@ -1195,7 +1195,7 @@ function MessagesPageContent() {
                   </div>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 900, color: "#1d1d2f" }}>Birthday Reminders</div>
-                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>Queued from salon opening time and spread randomly across ~6-8 hours</div>
+                    <div style={{ fontSize: 11, color: "#9999b0", marginTop: 1 }}>1-5 birthdays go out early in the day, 35-55 min apart · 6+ are spread across ~6-8 hours</div>
                   </div>
                   {/* Toggle */}
                   <button type="button" onClick={() => setBdEnabled((v) => !v)}

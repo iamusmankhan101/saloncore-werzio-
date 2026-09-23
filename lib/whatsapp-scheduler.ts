@@ -863,6 +863,19 @@ const BIRTHDAY_SENT_KEY = "werzio_wa_birthday_sent";
 // scheduler skips them, so it can't re-queue or double-send them mid-send.
 const birthdaySendsInFlight = new Set<string>();
 
+// Same quiet-day rule as the server (lib/birthday-queue.ts): with 1-5 birthdays,
+// send early — first 10-25 min from now, then 35-55 min between each.
+const BIRTHDAY_EARLY_DAY_MAX = 5;
+function earlyBirthdayOffsets(count: number): number[] {
+  const offsets: number[] = [];
+  let offset = randBetween(10 * 60_000, 25 * 60_000);
+  for (let i = 0; i < count; i++) {
+    offsets.push(offset);
+    offset += randBetween(35 * 60_000, 55 * 60_000);
+  }
+  return offsets;
+}
+
 function birthdaySpreadDelay(index: number, total: number): number {
   const safeTotal = Math.max(1, total);
   const slotMs = getTodaysBirthdaySpreadWindowMs() / safeTotal;
@@ -917,6 +930,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
   let scheduleIndex = 0;
 
   if (queueNewBirthdays) {
+    const earlyOffsets = birthdayClients.length <= BIRTHDAY_EARLY_DAY_MAX ? earlyBirthdayOffsets(birthdayClients.length) : null;
     // Determine the start of today for server log checks
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
     
@@ -939,7 +953,7 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
       newQueueItems.push({
         id: client.id,
         retries: 0,
-        sendAfter: Date.now() + birthdaySpreadDelay(scheduleIndex, birthdayClients.length),
+        sendAfter: Date.now() + (earlyOffsets ? earlyOffsets[scheduleIndex] : birthdaySpreadDelay(scheduleIndex, birthdayClients.length)),
         phone,
         clientName: client.name,
       });
