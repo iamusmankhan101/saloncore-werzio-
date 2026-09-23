@@ -12,7 +12,7 @@ import { saveSettings, settingsStore, SETTINGS_CHANGED_EVENT } from "@/lib/setti
 import { getStoredAppointments, getStoredClients } from "@/lib/storage";
 import { getSalonInvoices } from "@/lib/salon-invoices";
 import { getActiveSection, inSection } from "@/lib/sections";
-import { getWaLogs, WaLogEntry, WaMsgType, checkBirthdayReminders, getPendingWhatsAppQueue, PendingQueueItem } from "@/lib/whatsapp-scheduler";
+import { getWaLogs, WaLogEntry, WaMsgType, checkBirthdayReminders, getPendingWhatsAppQueue, PendingQueueItem, sendQueuedBirthdayNow } from "@/lib/whatsapp-scheduler";
 import { isFakePlaceholderPhone } from "@/lib/whatsapp-provider";
 import { getCurrentUser } from "@/lib/auth";
 import { locationUserKey } from "@/lib/locations";
@@ -610,6 +610,31 @@ function MessagesPageContent() {
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [queueDetails, setQueueDetails] = useState<QueueDetailItem[]>([]);
   const [queueDetailsLoading, setQueueDetailsLoading] = useState(false);
+  const [bdInstantSendingId, setBdInstantSendingId] = useState<string | null>(null);
+  const [bdInstantResult, setBdInstantResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function sendQueuedBirthdayInstant(item: PendingQueueItem) {
+    setBdInstantSendingId(item.apptId);
+    setBdInstantResult(null);
+    const name = item.clientName || "client";
+    try {
+      const result = await sendQueuedBirthdayNow(item.apptId);
+      setBdInstantResult(
+        result === "sent" ? { ok: true, message: `Birthday message sent to ${name}.` }
+        : result === "already-sent" ? { ok: true, message: `${name} already received today's birthday message.` }
+        : result === "not-queued" ? { ok: false, message: `${name} is no longer in the queue.` }
+        : result === "no-template" ? { ok: false, message: "No birthday template is set up." }
+        : { ok: false, message: `Could not send to ${name} — it will retry automatically.` },
+      );
+    } catch {
+      setBdInstantResult({ ok: false, message: `Could not send to ${name}.` });
+    } finally {
+      setBdInstantSendingId(null);
+      setPendingQueue(getPendingWhatsAppQueue());
+      setRefreshKey((k) => k + 1);
+      setTimeout(() => setBdInstantResult(null), 4000);
+    }
+  }
 
   async function openQueueDetails() {
     setShowQueueModal(true);
@@ -1101,11 +1126,16 @@ function MessagesPageContent() {
                   </button>
                 </div>
 
-                {pendingQueue.length > 0 && (
+                {(pendingQueue.length > 0 || bdInstantResult) && (
                   <div style={{ marginTop: 12, borderTop: "1px solid #f0f0f5", paddingTop: 12 }}>
                     <div style={{ fontSize: 11, fontWeight: 800, color: "#7c7c9a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
                       Queued on this device ({pendingQueue.length})
                     </div>
+                    {bdInstantResult && (
+                      <div style={{ marginBottom: 8, padding: "7px 10px", borderRadius: 8, fontSize: 11.5, fontWeight: 600, background: bdInstantResult.ok ? "#ecfdf5" : "#fef2f2", border: `1px solid ${bdInstantResult.ok ? "#a7f3d0" : "#fca5a5"}`, color: bdInstantResult.ok ? "#065f46" : "#991b1b" }}>
+                        {bdInstantResult.message}
+                      </div>
+                    )}
                     <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
                       {pendingQueue.map((item, i) => {
                         const waitingUntil = item.sendAfter && item.sendAfter > Date.now() ? item.sendAfter : null;
@@ -1135,6 +1165,13 @@ function MessagesPageContent() {
                                 ? (waitingUntil ? `retry ${new Date(waitingUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "retrying")
                                 : (waitingUntil ? new Date(waitingUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "due now")}
                             </div>
+                            {item.type === "birthday" && (
+                              <button type="button" onClick={() => void sendQueuedBirthdayInstant(item)} disabled={bdInstantSendingId !== null}
+                                title="Send this birthday message now instead of waiting for its scheduled time"
+                                style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 4, border: "1px solid #fbcfe8", background: "#fff", borderRadius: 7, padding: "4px 8px", fontSize: 11, fontWeight: 700, color: "#db2777", cursor: bdInstantSendingId !== null ? "wait" : "pointer", opacity: bdInstantSendingId !== null && bdInstantSendingId !== item.apptId ? 0.5 : 1 }}>
+                                <Send size={11} /> {bdInstantSendingId === item.apptId ? "Sending…" : "Send now"}
+                              </button>
+                            )}
                           </div>
                         );
                       })}

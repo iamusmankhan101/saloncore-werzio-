@@ -985,6 +985,62 @@ export async function checkBirthdayReminders(force = false, queueNewBirthdays = 
   setQueue(BIRTHDAY_QUEUE_KEY, remaining);
 }
 
+export type SendBirthdayNowResult = "sent" | "already-sent" | "not-queued" | "no-template" | "failed";
+
+/**
+ * Manual "Send now" for one queued birthday wish — skips the remaining spread
+ * delay but still goes through callSendApi, so pacing and safety rules apply.
+ * The item is pulled from the queue before sending so a scheduler tick running
+ * at the same time can't send it a second time; on failure it goes back in.
+ */
+export async function sendQueuedBirthdayNow(clientId: string): Promise<SendBirthdayNowResult> {
+  if (typeof window === "undefined") return "failed";
+  const item = getQueue(BIRTHDAY_QUEUE_KEY).find((candidate) => candidate.id === clientId);
+  if (!item) return "not-queued";
+
+  const bd = settingsStore.birthday as { birthdayDiscountEnabled?: boolean; birthdayDiscount: string };
+  const birthdayTemplate = (settingsStore.whatsapp as { birthday: string; birthdayNoDiscount?: string })[
+    bd.birthdayDiscountEnabled === false ? "birthdayNoDiscount" : "birthday"
+  ] || (settingsStore.whatsapp as { birthday: string }).birthday;
+  if (!birthdayTemplate) return "no-template";
+
+  const client = getStoredClients().find((candidate) => candidate.id === clientId);
+  const clientName = client?.name ?? item.clientName ?? "there";
+  const phone = item.phone ?? (client?.phone ? normalizePhone(client.phone) : "");
+  const today = new Date();
+  const todayKey = today.toISOString().slice(0, 10);
+  const sentKey = `${clientId}_${today.getFullYear()}`;
+  const sent: Record<string, string> = (() => {
+    try { return JSON.parse(localStorage.getItem(locationUserKey(BIRTHDAY_SENT_KEY)) || "{}"); } catch { return {}; }
+  })();
+  const markBirthdaySent = () => {
+    sent[sentKey] = todayKey;
+    localStorage.setItem(locationUserKey(BIRTHDAY_SENT_KEY), JSON.stringify(sent));
+  };
+
+  setQueue(BIRTHDAY_QUEUE_KEY, getQueue(BIRTHDAY_QUEUE_KEY).filter((candidate) => candidate.id !== clientId));
+  if (!phone) return "failed";
+
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+  if (sent[sentKey] || await hasServerSideLogByPhone(phone, "birthday", todayStart)) {
+    markBirthdaySent();
+    return "already-sent";
+  }
+
+  const text = fillTemplate(birthdayTemplate, {
+    name: clientName,
+    salon_name: settingsStore.salon.name as string,
+    discount: bd.birthdayDiscountEnabled === false ? "" : (bd.birthdayDiscount || "a special treat"),
+  });
+  const ok = await callSendApi(phone, text, { type: "birthday", clientName });
+  if (ok) {
+    markBirthdaySent();
+    return "sent";
+  }
+  setQueue(BIRTHDAY_QUEUE_KEY, [...getQueue(BIRTHDAY_QUEUE_KEY), { ...item, retries: item.retries + 1, sendAfter: Date.now() + nextRetryDelayMs() }]);
+  return "failed";
+}
+
 export async function runWhatsAppScheduler(): Promise<void> {
   if (typeof window === "undefined") return;
   if (schedulerRunning) return;
