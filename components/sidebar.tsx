@@ -17,7 +17,7 @@ import { getActiveLocationFilter, getSalonLocations, setActiveLocationFilter, ty
 
 const NAV_GROUPS: {
   label: string;
-  items: { href: string; icon: React.ElementType; label: string; dynamicHref?: boolean }[];
+  items: { href: string; icon: React.ElementType; label: string; dynamicHref?: boolean; newTab?: boolean }[];
 }[] = [
   {
     label: "Overview",
@@ -53,7 +53,7 @@ const NAV_GROUPS: {
     items: [
       { href: "/dashboard/messages", icon: MessageSquare, label: "WhatsApp"       },
       { href: "/dashboard/feedback", icon: Star,          label: "Feedback"       },
-      { href: "/online-booking",     icon: Globe,         label: "Online Booking", dynamicHref: true },
+      { href: "/online-booking",     icon: Globe,         label: "Online Booking", dynamicHref: true, newTab: true },
       { href: "/dashboard/client-app", icon: Smartphone,  label: "Client App"     },
       { href: "/dashboard/try-on",   icon: Wand2,         label: "Virtual Try-On" },
     ],
@@ -156,12 +156,13 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     return user.permissions?.includes(key) ?? false;
   };
 
-  const NavItem = ({ href, icon: Icon, label, active: activeOverride }: { href: string; icon: React.ElementType; label: string; active?: boolean }) => {
+  const NavItem = ({ href, icon: Icon, label, active: activeOverride, newTab }: { href: string; icon: React.ElementType; label: string; active?: boolean; newTab?: boolean }) => {
     const active = activeOverride !== undefined
       ? activeOverride
       : (pathname === href || (href !== "/dashboard" && pathname.startsWith(href)));
     return (
-      <Link href={href} onClick={onClose} className={`sb-item${active ? " sb-active" : ""}`}>
+      <Link href={href} onClick={onClose} className={`sb-item${active ? " sb-active" : ""}`}
+        {...(newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
         <span className="sb-item-icon"><Icon size={15} /></span>
         <span className="sb-item-label">{label}</span>
         {active && <span className="sb-item-dot" />}
@@ -445,6 +446,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                       href={item.dynamicHref && user ? (bookingPath ?? `${item.href}?salon=${encodeURIComponent(user.salonOwnerId || user.id)}`) : item.href}
                       icon={item.icon}
                       label={item.label}
+                      newTab={item.newTab}
                     />
                   ))}
                 </div>

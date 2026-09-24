@@ -291,7 +291,7 @@ function ClientAppInner({ salonId }: { salonId: string }) {
 
         {/* ── Quick actions ───────────────────────────────────────────────── */}
         <section className="ca-quick">
-          <a href={`/online-booking?salon=${encodeURIComponent(salonId)}`} className="ca-quick-item">
+          <a href={`/online-booking?salon=${encodeURIComponent(salonId)}`} target="_blank" rel="noopener noreferrer" className="ca-quick-item">
             <CalendarPlus size={17} className="ca-quick-icon" />
             <span>Book</span>
             <ChevronRight size={15} color="#c4c2d4" style={{ marginLeft: "auto" }} />
@@ -365,7 +365,7 @@ function ClientAppInner({ salonId }: { salonId: string }) {
 
       {/* ── Persistent booking CTA ────────────────────────────────────────── */}
       <div className="ca-cta">
-        <a href={`/online-booking?salon=${encodeURIComponent(salonId)}`} className="ca-cta-btn">
+        <a href={`/online-booking?salon=${encodeURIComponent(salonId)}`} target="_blank" rel="noopener noreferrer" className="ca-cta-btn">
           <CalendarPlus size={17} /> Book appointment
         </a>
       </div>
