@@ -27,6 +27,22 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { resolveActor } from "@/lib/api-auth";
+
+/**
+ * Message logs hold client names and phone numbers, so the caller must be
+ * logged in, and may only use their own salon's id (or their own login id —
+ * staff devices have historically logged under the staff member's id).
+ */
+async function authorizedUserId(req: NextRequest, requested: string | null | undefined): Promise<string | Response> {
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!requested) return Response.json({ ok: false, error: "Missing userId." }, { status: 400 });
+  if (requested !== actor.userId && requested !== actor.actorId) {
+    return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
+  }
+  return requested;
+}
 
 async function ensureTable() {
   await db.execute(`
@@ -52,8 +68,8 @@ async function ensureTable() {
 }
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) return Response.json({ ok: false, error: "Missing userId." }, { status: 400 });
+  const userId = await authorizedUserId(req, req.nextUrl.searchParams.get("userId"));
+  if (userId instanceof Response) return userId;
 
   try {
     await ensureTable();
@@ -155,6 +171,8 @@ export async function POST(req: NextRequest) {
   if (!body?.userId || !body?.entry) {
     return Response.json({ ok: false, error: "Missing userId or entry." }, { status: 400 });
   }
+  const allowed = await authorizedUserId(req, body.userId);
+  if (allowed instanceof Response) return allowed;
 
   try {
     await ensureTable();

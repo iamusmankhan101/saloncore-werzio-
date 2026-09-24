@@ -891,7 +891,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     async function pollNewBookings() {
       if (!user) return;
       try {
-        const res = await fetch(`/api/public/salon?salonId=${encodeURIComponent(user.id)}`);
+        const res = await fetch(`/api/public/salon?salonId=${encodeURIComponent(user.salonOwnerId || user.id)}`);
         if (!res.ok) return;
         const data = await res.json() as { ok: boolean; appointments?: Array<{ id: string; clientName: string; serviceNames: string[]; date: string; startTime: string; totalAmount: number; source?: string }> };
         if (!data.ok || !Array.isArray(data.appointments) || data.appointments.length === 0) return;
