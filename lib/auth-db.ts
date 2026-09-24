@@ -27,10 +27,12 @@ function verifyPassword(plain: string, stored: string): boolean {
     } catch { return false; }
   }
   // Legacy plaintext — accept and caller upgrades on next login
-  return plain === stored;
+  const a = Buffer.from(plain);
+  const b = Buffer.from(stored);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export { hashPassword };
+export { hashPassword, verifyPassword };
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -226,6 +228,8 @@ export async function upsertStaffUser(input: {
         input.phone, input.role || "staff", JSON.stringify(input.permissions), input.locationId, current.id,
       ],
     });
+    // A new password must lock out anyone still signed in with the old one.
+    if (input.password) await revokeAllSessionsForUser(current.id);
     const updated = await getUserById(current.id);
     if (!updated) throw new Error("Failed to update staff login.");
     return withoutPassword(updated);
@@ -394,15 +398,21 @@ export async function updateUser(
 
 // ─── Sessions table ───────────────────────────────────────────────────────────
 
-async function ensureSessionsTable() {
-  await db.execute(`
+let sessionsTableReady: Promise<void> | null = null;
+
+async function ensureSessionsTable(): Promise<void> {
+  sessionsTableReady ||= db.execute(`
     CREATE TABLE IF NOT EXISTS sessions (
       id         TEXT PRIMARY KEY,
       user_id    TEXT NOT NULL,
       expires_at TEXT NOT NULL,
       revoked    INTEGER NOT NULL DEFAULT 0
     )
-  `);
+  `).then(() => undefined).catch((error) => {
+    sessionsTableReady = null;
+    throw error;
+  });
+  return sessionsTableReady;
 }
 
 /** Persist a new session. `id` should be SHA-256(token) — never the raw token. */
@@ -463,7 +473,10 @@ export async function findOrCreateGoogleUser(profile: {
   });
   if (byGoogle.rows.length) return withoutPassword(rowToUser(byGoogle.rows[0]));
 
-  // 2. Find by email (existing account — link google_id)
+  // 2. Find by email (existing account — link google_id). Only when Google
+  // vouches for the address — otherwise anyone could attach a Google account
+  // claiming someone else's email and take over their login.
+  if (!profile.emailVerified) throw new Error("Google email is not verified.");
   const existing = await getUserByEmail(profile.email);
   if (existing) {
     await db.execute({
@@ -499,14 +512,19 @@ export async function findOrCreateGoogleUser(profile: {
   return withoutPassword(user);
 }
 
+// Hash of a random value nobody knows — verified against when the email has no
+// account so a miss costs the same PBKDF2 work as a wrong password.
+// Built on first use so importing this module doesn't pay for a PBKDF2 run.
+let dummyHash: string | null = null;
+
 export async function validateCredentials(
   email: string,
   password: string
 ): Promise<AuthUser> {
   const user = await getUserByEmail(email);
-  // Always run the verify step even when user is null to prevent timing-based
+  // Always run the full hash even when user is null to prevent timing-based
   // user-enumeration (attacker measuring response time to detect valid emails)
-  const valid = user ? verifyPassword(password, user.password) : false;
+  const valid = verifyPassword(password, user?.password ?? (dummyHash ||= hashPassword(randomBytes(32).toString("hex")))) && !!user;
   if (!user || !valid) throw new Error("Invalid email or password.");
   if (user.approvalStatus === "pending") {
     throw new Error("Your account has been created and is waiting for admin approval.");

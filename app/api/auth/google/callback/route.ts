@@ -96,12 +96,17 @@ export async function GET(req: NextRequest) {
       googleId:      profile.sub,
       email:         profile.email,
       name:          profile.name ?? profile.email.split("@")[0],
-      emailVerified: profile.email_verified ?? true,
+      // Treat a missing flag as unverified rather than trusting it.
+      emailVerified: profile.email_verified === true,
     });
   } catch (err) {
+    if (err instanceof Error && err.message === "Google email is not verified.") {
+      return failRedirect(req, "google_unverified_email");
+    }
     console.error("[google/callback] DB error:", err);
     return failRedirect(req, "google_db_error");
   }
+  if (user.accountFrozen) return failRedirect(req, "account_frozen");
 
   if (user.role !== "admin" && user.approvalStatus !== "approved") {
     return failRedirect(req, user.approvalStatus === "rejected" ? "account_rejected" : "account_pending");

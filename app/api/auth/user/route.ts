@@ -1,25 +1,18 @@
 /**
  * GET /api/auth/user
- * Returns user data either by ?userId=... or from the session cookie.
+ * Returns the signed-in user's own profile, taken from the session cookie.
+ * Never accepts a user id from the request — that let anyone read any
+ * account's email, phone and role.
  */
 
 import { NextRequest } from "next/server";
 import { getUserById } from "@/lib/auth-db";
-import { verifySessionToken, COOKIE_NAME } from "@/lib/session";
+import { getSessionUserId } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
-  let userId = req.nextUrl.searchParams.get("userId");
-
-  // If no userId param, derive it from the session cookie
+  const userId = await getSessionUserId(req);
   if (!userId) {
-    const token = req.cookies.get(COOKIE_NAME)?.value;
-    if (!token) {
-      return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
-    }
-    userId = verifySessionToken(token);
-    if (!userId) {
-      return Response.json({ ok: false, error: "Invalid or expired session." }, { status: 401 });
-    }
+    return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
   }
 
   try {

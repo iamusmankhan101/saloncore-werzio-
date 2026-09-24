@@ -1,19 +1,23 @@
 /**
- * GET /api/billing/invoices?userId=xxx
- * Returns the user's real invoice history from the billing database
+ * GET /api/billing/invoices
+ * Returns the signed-in salon's real invoice history from the billing database
  * (the same table the admin-approval flow and the daily cron write to).
+ * A ?userId= is only honored for platform admins viewing another salon.
  */
 
 import { NextRequest } from "next/server";
+import { resolveActor } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { ensureBillingTables, getBillingUser, getOrCreate30DayInvoice } from "@/lib/billing-db";
 import type { Invoice, InvoiceStatus } from "@/lib/invoices";
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return Response.json({ ok: false, error: "Missing userId parameter." }, { status: 400 });
+  const actor = await resolveActor(req);
+  if (!actor) {
+    return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
   }
+  const requested = req.nextUrl.searchParams.get("userId");
+  const userId = actor.role === "admin" && requested ? requested : actor.userId;
 
   try {
     await ensureBillingTables();

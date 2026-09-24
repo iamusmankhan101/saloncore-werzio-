@@ -1,7 +1,12 @@
 import { NextRequest } from "next/server";
+import { resolveActor } from "@/lib/api-auth";
 import { googleWalletConfigured, ensureGoogleWalletLoyaltyClass } from "@/lib/google-wallet";
 
 export async function POST(req: NextRequest) {
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
+  if (actor.role === "staff") return Response.json({ ok: false, error: "Not allowed." }, { status: 403 });
+
   if (!googleWalletConfigured()) {
     return Response.json({ ok: false, error: "Google Wallet credentials not configured in environment variables." }, { status: 501 });
   }

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { resolveActor } from "@/lib/api-auth";
 
 export const maxDuration = 60;
 
@@ -6,6 +7,10 @@ const GEMINI_MODEL = "gemini-2.5-flash-image";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 export async function POST(request: NextRequest) {
+  // Every call spends Gemini credits — signed-in salons only.
+  if (!(await resolveActor(request))) {
+    return Response.json({ error: "Not authenticated." }, { status: 401 });
+  }
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "Gemini API key not configured on server." }, { status: 500 });

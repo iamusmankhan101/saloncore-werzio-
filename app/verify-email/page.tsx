@@ -39,7 +39,7 @@ function VerifyEmailInner() {
         return;
       }
 
-      let data: { ok: boolean; email?: string; userId?: string; error?: string };
+      let data: { ok: boolean; email?: string; error?: string };
       try {
         data = await res.json();
         console.log("[verify-email] Response data:", data);
@@ -59,28 +59,8 @@ function VerifyEmailInner() {
         return;
       }
 
-      // Email verified successfully
-      if (data.userId) {
-        // User exists in database - fetch full user data and set session
-        try {
-          const userRes = await fetch(`/api/auth/user?userId=${data.userId}`);
-          const userData = await userRes.json();
-          
-          if (userData.ok && userData.user) {
-            // Set session in localStorage
-            localStorage.setItem("werzio_auth_session", userData.user.id);
-            localStorage.setItem(`werzio_user_cache_${userData.user.id}`, JSON.stringify(userData.user));
-            
-            setState("success");
-            setTimeout(() => router.replace("/dashboard"), 2500);
-            return;
-          }
-        } catch (fetchErr) {
-          console.error("[verify-email] Failed to fetch user:", fetchErr);
-        }
-      }
-      
-      // Fallback: redirect to sign-in
+      // Verifying an email doesn't sign anyone in — the link could have been
+      // opened by anyone holding it — so send them to sign in with a password.
       setState("success");
       setTimeout(() => router.replace("/sign-in?verified=true"), 2500);
     } catch (err) {

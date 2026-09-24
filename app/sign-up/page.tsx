@@ -120,6 +120,7 @@ export default function SignUpPage() {
           salonName: form.salonName || form.ownerName,
           phone: form.phone,
           adminCode: showAdmin && adminCode ? adminCode : undefined,
+          planId: plan.billingPlanId,
         }),
       });
 
@@ -139,23 +140,6 @@ export default function SignUpPage() {
         router.replace("/dashboard");
         return;
       }
-
-      const billingPlanId = plan.billingPlanId;
-
-      // Register in billing DB (fire-and-forget — don't block sign-up on failure)
-      await fetch("/api/billing/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId:     newUser.id,
-          email:      form.email,
-          ownerName:  form.ownerName,
-          salonName:  form.salonName || form.ownerName,
-          phone:      form.phone,
-          planId:     billingPlanId,
-          trialStart: newUser.createdAt,
-        }),
-      }).catch((e) => console.warn("[billing/register] failed:", e));
 
       setSending(false);
       setStep("pending");

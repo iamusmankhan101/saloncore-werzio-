@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { COOKIE_NAME, tokenId } from "@/lib/session";
+import { COOKIE_NAME, cookieOptions, tokenId } from "@/lib/session";
 import { revokeDbSession } from "@/lib/auth-db";
 
 export async function POST(req: NextRequest) {
@@ -11,6 +11,6 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_NAME, "", { maxAge: 0, path: "/" });
+  res.cookies.set(COOKIE_NAME, "", { ...cookieOptions, maxAge: 0 });
   return res;
 }

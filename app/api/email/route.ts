@@ -1,7 +1,25 @@
 import { NextRequest } from "next/server";
 import { Resend } from "resend";
+import { resolveActor } from "@/lib/api-auth";
+import { getUserById } from "@/lib/auth-db";
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
+// Sends a billing reminder to the signed-in salon's own account email. The
+// recipient is never taken from the request — otherwise this is an open relay
+// for Salon Central-branded mail to any address.
 export async function POST(req: NextRequest) {
+  const actor = await resolveActor(req);
+  if (!actor) {
+    return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
+  }
+  const account = await getUserById(actor.userId);
+  if (!account?.email) {
+    return Response.json({ ok: false, error: "Account not found." }, { status: 404 });
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return Response.json({ ok: false, error: "RESEND_API_KEY not configured." }, { status: 500 });
@@ -9,7 +27,7 @@ export async function POST(req: NextRequest) {
   const resend = new Resend(apiKey);
 
   let body: {
-    to: string;
+    to?: string; // ignored — always sent to the account's own email
     invoiceNumber: string;
     dueDate: string;
     total: number;
@@ -24,10 +42,20 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: false, error: "Invalid request body." }, { status: 400 });
   }
 
-  const { to, invoiceNumber, dueDate, total, planName, salonName, status } = body;
-  if (!to || !invoiceNumber) {
+  const to = account.email;
+  const total = Number(body.total) || 0;
+  const status = body.status;
+  if (!body.invoiceNumber) {
     return Response.json({ ok: false, error: "Missing required fields." }, { status: 400 });
   }
+  const { invoiceNumber, dueDate, planName, salonName } = body;
+  // Escaped copies for the HTML body — these values come from the browser.
+  const h = {
+    invoiceNumber: escapeHtml(invoiceNumber),
+    dueDate: escapeHtml(dueDate),
+    planName: escapeHtml(planName),
+    salonName: escapeHtml(salonName),
+  };
 
   const isOverdue = status === "overdue";
   const accentColor = isOverdue ? "#dc2626" : "#7C3AED";
@@ -49,17 +77,17 @@ export async function POST(req: NextRequest) {
         ${isOverdue ? "⚠️ Your invoice is overdue" : "📄 Your invoice is due"}
       </div>
       <p style="color:#6b6b8a;font-size:14px;line-height:1.7;margin:0 0 24px">
-        Hi <strong>${salonName}</strong> team,<br>
-        Your <strong>${planName} Plan</strong> subscription invoice requires attention.
+        Hi <strong>${h.salonName}</strong> team,<br>
+        Your <strong>${h.planName} Plan</strong> subscription invoice requires attention.
       </p>
       <div style="background:#f8f8fc;border-radius:12px;padding:20px 22px;margin-bottom:24px;border:1px solid #ebebf0">
         <div style="display:flex;justify-content:space-between;margin-bottom:10px">
           <span style="color:#9898b0;font-size:12px">Invoice</span>
-          <span style="color:#1a1a2e;font-size:13px;font-weight:700">${invoiceNumber}</span>
+          <span style="color:#1a1a2e;font-size:13px;font-weight:700">${h.invoiceNumber}</span>
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:10px">
           <span style="color:#9898b0;font-size:12px">Due Date</span>
-          <span style="color:${accentColor};font-size:13px;font-weight:700">${dueDate}</span>
+          <span style="color:${accentColor};font-size:13px;font-weight:700">${h.dueDate}</span>
         </div>
         <div style="display:flex;justify-content:space-between;border-top:1px solid #e8e8f0;padding-top:12px;margin-top:4px">
           <span style="color:#1a1a2e;font-size:14px;font-weight:700">Total Due</span>

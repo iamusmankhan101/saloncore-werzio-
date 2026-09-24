@@ -1,8 +1,8 @@
 /**
  * /api/wa/birthday-settings
  *
- * GET  ?userId=xxx  — fetch birthday reminder settings for a salon
- * POST { userId, settings }  — upsert birthday settings
+ * GET               — fetch the signed-in salon's birthday reminder settings
+ * POST { settings }  — upsert them (the salon always comes from the session)
  *
  * Stored in Turso so the server-side cron can read them without
  * needing access to the salon's localStorage.
@@ -10,6 +10,7 @@
 
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { resolveActor } from "@/lib/api-auth";
 
 export interface BirthdaySettings {
   enabled: boolean;
@@ -30,8 +31,9 @@ async function ensureTable() {
 }
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) return Response.json({ ok: false, error: "Missing userId." }, { status: 400 });
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
+  const userId = actor.userId;
 
   try {
     await ensureTable();
@@ -60,16 +62,20 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { userId: string; settings: BirthdaySettings };
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
+
+  let body: { settings: BirthdaySettings };
   try {
     body = await req.json();
   } catch {
     return Response.json({ ok: false, error: "Invalid body." }, { status: 400 });
   }
 
-  const { userId, settings } = body;
-  if (!userId || !settings) {
-    return Response.json({ ok: false, error: "Missing userId or settings." }, { status: 400 });
+  const { settings } = body;
+  const userId = actor.userId;
+  if (!settings) {
+    return Response.json({ ok: false, error: "Missing settings." }, { status: 400 });
   }
 
   try {

@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { randomBytes } from "crypto";
 import { Resend } from "resend";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
 
 async function ensureTable() {
   await db.execute(`
@@ -14,6 +19,13 @@ async function ensureTable() {
 }
 
 export async function POST(req: NextRequest) {
+  // No session exists yet at signup, so this stays public — cap how often one
+  // IP can make us send mail.
+  const limit = rateLimit("send-verification", clientIp(req), { maxAttempts: 5, windowMs: 60 * 60 * 1000, blockMs: 60 * 60 * 1000 });
+  if (limit.blocked) {
+    return Response.json({ ok: false, error: "Too many requests. Please try again later." }, { status: 429 });
+  }
+
   let email: string, name: string;
   try {
     const body = await req.json() as { email: string; name: string };
@@ -53,6 +65,12 @@ export async function POST(req: NextRequest) {
   // ── No API key → dev mode: return the URL for manual testing ──────────────
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
+    // Handing the link straight back would let anyone verify any address, so
+    // this shortcut is local-development only.
+    if (process.env.NODE_ENV === "production") {
+      console.error("[send-verification] RESEND_API_KEY not set in production.");
+      return Response.json({ ok: false, error: "Email is not configured." }, { status: 500 });
+    }
     console.warn("[send-verification] RESEND_API_KEY not set. Returning dev URL.");
     return Response.json({ ok: true, devUrl: verifyUrl });
   }
@@ -76,7 +94,7 @@ export async function POST(req: NextRequest) {
     <div style="padding:36px">
       <div style="font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:10px">Verify your email address</div>
       <p style="color:#6b6b8a;font-size:14px;line-height:1.75;margin:0 0 28px">
-        Hi ${name || "there"},<br>
+        Hi ${escapeHtml(name || "there")},<br>
         Thanks for signing up for <strong style="color:#7C3AED">Salon Central</strong>!
         Click the button below to verify your email address and activate your account.
       </p>

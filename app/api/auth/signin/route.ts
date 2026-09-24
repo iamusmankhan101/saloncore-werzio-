@@ -35,8 +35,23 @@ export async function POST(req: NextRequest) {
 
   const { email, password } = body;
 
-  if (!email || !password) {
+  if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
     return Response.json({ ok: false, error: "Missing email or password." }, { status: 400 });
+  }
+  if (password.length > 1024) {
+    return Response.json({ ok: false, error: "Invalid email or password." }, { status: 401 });
+  }
+
+  // Per-account limit too: the per-IP one alone lets an attacker spreading
+  // guesses across many IPs keep hammering a single account.
+  const emailKey = email.trim().toLowerCase();
+  const emailLimit = rateLimit("signin-email", emailKey, { maxAttempts: 10, blockMs: BLOCK_MS });
+  if (emailLimit.blocked) {
+    const minutes = Math.ceil((emailLimit.retryAfter ?? BLOCK_MS / 1000) / 60);
+    return Response.json(
+      { ok: false, error: `Too many failed attempts. Try again in ${minutes} minute${minutes !== 1 ? "s" : ""}.`, retryAfter: emailLimit.retryAfter },
+      { status: 429, headers: { "Retry-After": String(emailLimit.retryAfter ?? 0) } },
+    );
   }
 
   try {
@@ -51,6 +66,7 @@ export async function POST(req: NextRequest) {
 
     // Success — clear the rate-limit counter for this IP
     rateLimitClear("signin", ip);
+    rateLimitClear("signin-email", emailKey);
 
     const res = NextResponse.json({
       ok: true,

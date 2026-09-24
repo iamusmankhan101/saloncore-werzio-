@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { COOKIE_NAME, verifySessionToken } from "@/lib/session";
 import { getStaffUsersForOwner, getUserById, upsertStaffUser } from "@/lib/auth-db";
+import { getSessionUserId, MAX_PASSWORD_LENGTH } from "@/lib/api-auth";
 
 const STAFF_PERMISSIONS = ["dashboard", "calendar", "appointments", "clients", "pos", "invoices"];
 const MANAGER_PERMISSIONS = ["*"];
@@ -11,12 +11,14 @@ const ALL_PERMISSION_KEYS = new Set([
 ]);
 
 async function getAuthorizedActor(req: NextRequest) {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-  const actorId = token ? verifySessionToken(token) : null;
+  const actorId = await getSessionUserId(req);
   if (!actorId) return { error: Response.json({ ok: false, error: "Not authenticated." }, { status: 401 }) };
 
   const actor = await getUserById(actorId);
-  if (!actor || !["owner", "manager"].includes(actor.role)) {
+  if (!actor || actor.approvalStatus !== "approved" || actor.accountFrozen) {
+    return { error: Response.json({ ok: false, error: "Not authenticated." }, { status: 401 }) };
+  }
+  if (!["owner", "manager"].includes(actor.role)) {
     return { error: Response.json({ ok: false, error: "Only salon owners or managers can manage staff access." }, { status: 403 }) };
   }
 
@@ -41,6 +43,10 @@ export async function POST(req: NextRequest) {
   };
   if (!body.staffId || !body.name || !body.email || !body.locationId) {
     return Response.json({ ok: false, error: "Staff name, email, ID and assigned location are required." }, { status: 400 });
+  }
+
+  if (body.password && (body.password.length < 8 || body.password.length > MAX_PASSWORD_LENGTH)) {
+    return Response.json({ ok: false, error: `Password must be 8–${MAX_PASSWORD_LENGTH} characters.` }, { status: 400 });
   }
 
   const isManager = body.role === "manager";

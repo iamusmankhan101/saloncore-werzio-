@@ -6,6 +6,7 @@
 
 import { NextRequest } from "next/server";
 import * as net from "net";
+import { resolveActor } from "@/lib/api-auth";
 
 // ── ESC/POS helpers ────────────────────────────────────────────────────────────
 
@@ -304,6 +305,11 @@ interface ReceiptData {
 // ── Route ──────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  // Signed-in users only: this opens a raw TCP connection to whatever
+  // address it's given, so left public it's a free network probe.
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
+
   let body: ReceiptData & { printerIp: string; printerPort?: number };
   try {
     body = await req.json();

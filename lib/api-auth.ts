@@ -9,8 +9,25 @@
  */
 
 import { NextRequest } from "next/server";
-import { COOKIE_NAME, verifySessionToken } from "./session";
-import { getUserById } from "./auth-db";
+import { COOKIE_NAME, tokenId, verifySessionToken } from "./session";
+import { getUserById, isSessionValid } from "./auth-db";
+
+/** Longest password accepted when setting one — bounds the PBKDF2 work per request. */
+export const MAX_PASSWORD_LENGTH = 128;
+
+/**
+ * The caller's login-account id, or null. Checks the cookie's signature AND
+ * the sessions table, so a token that was signed out, revoked by a password
+ * change, or killed by an account freeze stops working immediately instead of
+ * living on until its 7-day expiry. Every API route should authenticate
+ * through this (or resolveActor/requireAdmin, which use it).
+ */
+export async function getSessionUserId(req: NextRequest): Promise<string | null> {
+  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const userId = token ? verifySessionToken(token) : null;
+  if (!userId || !token) return null;
+  return (await isSessionValid(tokenId(token))) ? userId : null;
+}
 
 export interface ResolvedActor {
   /** The salon-owner id that scopes the data (staff resolve to their owner's id). */
@@ -38,8 +55,7 @@ export async function resolveActor(
   req: NextRequest,
   requestedLocationId = "main",
 ): Promise<ResolvedActor | null> {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-  const actorId = token ? verifySessionToken(token) : null;
+  const actorId = await getSessionUserId(req);
   const actor = actorId ? await getUserById(actorId) : null;
   if (!actor) return null;
   if (actor.role !== "admin" && (actor.approvalStatus !== "approved" || actor.accountFrozen)) return null;
@@ -72,8 +88,7 @@ export async function resolveActor(
  * body/query as an explicit admin action, not the caller's own scope.
  */
 export async function requireAdmin(req: NextRequest): Promise<boolean> {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-  const actorId = token ? verifySessionToken(token) : null;
+  const actorId = await getSessionUserId(req);
   const actor = actorId ? await getUserById(actorId) : null;
   return actor?.role === "admin";
 }

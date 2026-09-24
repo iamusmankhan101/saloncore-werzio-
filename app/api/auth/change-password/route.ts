@@ -1,30 +1,12 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getUserById, hashPassword } from "@/lib/auth-db";
-import { verifySessionToken, COOKIE_NAME } from "@/lib/session";
-import { pbkdf2Sync, timingSafeEqual } from "crypto";
+import { createDbSession, getUserById, hashPassword, revokeAllSessionsForUser, verifyPassword } from "@/lib/auth-db";
+import { createSessionToken, COOKIE_NAME, cookieOptions, tokenId } from "@/lib/session";
+import { getSessionUserId, MAX_PASSWORD_LENGTH } from "@/lib/api-auth";
 import { rateLimit, rateLimitClear } from "@/lib/rate-limit";
 
-function verifyPassword(plain: string, stored: string): boolean {
-  if (stored.startsWith("pbkdf2:")) {
-    const parts = stored.split(":");
-    if (parts.length !== 3) return false;
-    const [, salt, expectedHash] = parts;
-    const derived = pbkdf2Sync(plain, salt, 120_000, 64, "sha512").toString("hex");
-    try {
-      return timingSafeEqual(Buffer.from(derived, "hex"), Buffer.from(expectedHash, "hex"));
-    } catch { return false; }
-  }
-  return plain === stored;
-}
-
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-  if (!token) {
-    return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
-  }
-
-  const userId = verifySessionToken(token);
+  const userId = await getSessionUserId(req);
   if (!userId) {
     return Response.json({ ok: false, error: "Invalid or expired session." }, { status: 401 });
   }
@@ -49,8 +31,8 @@ export async function POST(req: NextRequest) {
   if (!currentPassword || !newPassword) {
     return Response.json({ ok: false, error: "Missing required fields." }, { status: 400 });
   }
-  if (newPassword.length < 8) {
-    return Response.json({ ok: false, error: "New password must be at least 8 characters." }, { status: 400 });
+  if (typeof newPassword !== "string" || newPassword.length < 8 || newPassword.length > MAX_PASSWORD_LENGTH) {
+    return Response.json({ ok: false, error: `New password must be 8–${MAX_PASSWORD_LENGTH} characters.` }, { status: 400 });
   }
 
   try {
@@ -68,8 +50,17 @@ export async function POST(req: NextRequest) {
       args: [hashPassword(newPassword), userId],
     });
 
+    // Sign out every other device — if the password changed because it
+    // leaked, sessions opened with the old one must not survive. Then issue
+    // this browser a fresh session so the person changing it stays signed in.
+    await revokeAllSessionsForUser(userId);
+    const token = createSessionToken(userId);
+    await createDbSession(tokenId(token), userId, new Date(Date.now() + cookieOptions.maxAge * 1000));
+
     rateLimitClear("change-password", userId);
-    return Response.json({ ok: true });
+    const res = NextResponse.json({ ok: true });
+    res.cookies.set(COOKIE_NAME, token, cookieOptions);
+    return res;
   } catch (err) {
     console.error("[auth/change-password] Error:", err);
     return Response.json({ ok: false, error: "Failed to update password." }, { status: 500 });

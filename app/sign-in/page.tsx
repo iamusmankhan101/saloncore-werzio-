@@ -28,6 +28,8 @@ export default function SignInPage() {
       if (oauthErr === "google_cancelled") setError("Google sign-in was cancelled.");
       else if (oauthErr === "account_pending") setError("Your account has been created and is waiting for admin approval.");
       else if (oauthErr === "account_rejected") setError("Your account request was not approved. Please contact Salon Central support.");
+      else if (oauthErr === "account_frozen") setError("Your account has been frozen by Salon Central. Please contact support to resolve this.");
+      else if (oauthErr === "google_unverified_email") setError("Your Google account's email isn't verified. Verify it with Google, or sign in with your password.");
       else if (oauthErr) setError("Google sign-in failed. Please try again.");
       else if (params.get("expired") === "1") setError("Your session expired. Please sign in again to keep your data syncing.");
     });

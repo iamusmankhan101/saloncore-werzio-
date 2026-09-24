@@ -11,6 +11,7 @@
 
 import { createHash, randomBytes } from "crypto";
 import { db } from "./db";
+import { getUserById } from "./auth-db";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 
 export interface McpKeyActor {
@@ -68,6 +69,11 @@ export async function verifyMcpToken(_req: Request, bearerToken?: string): Promi
   });
   if (result.rows.length === 0) return undefined;
   const row = result.rows[0] as Record<string, unknown>;
+
+  // A key must stop working when its salon is frozen or loses approval, the
+  // same as a dashboard session does in resolveActor.
+  const owner = await getUserById(String(row.user_id));
+  if (!owner || (owner.role !== "admin" && (owner.approvalStatus !== "approved" || owner.accountFrozen))) return undefined;
 
   // Fire-and-forget — bookkeeping only, must not add latency to every tool call.
   // Only refreshed when stale by >5 min since a single Poke turn can fire several

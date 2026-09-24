@@ -41,12 +41,10 @@ export async function GET(req: NextRequest) {
     const email = row.email as string;
 
     // ── 3. Mark email as verified in database (if user exists) ────────────────
-    let userId: string | null = null;
     try {
       const user = await getUserByEmail(email);
       if (user) {
         await verifyUserEmail(email);
-        userId = user.id;
       } else {
         // User doesn't exist in database yet (created in localStorage)
         // This is okay - they'll need to sign in with localStorage auth
@@ -66,7 +64,7 @@ export async function GET(req: NextRequest) {
 
     // ── 5. Return success ─────────────────────────────────────────────────────
     console.log(`[verify-email] ✓ Verified email=${email}`);
-    return Response.json({ ok: true, email, userId });
+    return Response.json({ ok: true, email });
 
   } catch (err) {
     console.error("[verify-email] DB error:", err);

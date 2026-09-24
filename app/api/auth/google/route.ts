@@ -38,7 +38,7 @@ export async function GET() {
   );
 
   // Short-lived HTTP-only cookies hold the state + PKCE verifier
-  const cookieOpts = { httpOnly: true, sameSite: "lax" as const, maxAge: 600, path: "/" };
+  const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, maxAge: 600, path: "/" };
   res.cookies.set("g_oauth_state",    state,    cookieOpts);
   res.cookies.set("g_pkce_verifier",  verifier, cookieOpts);
   return res;

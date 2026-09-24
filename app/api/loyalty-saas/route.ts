@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { resolveActor } from "@/lib/api-auth";
 
 const DEFAULT_API_URL = "https://www.trydecidr.xyz/api/loyalty";
 
@@ -23,6 +24,11 @@ function apiUrl(action: string) {
 }
 
 export async function POST(req: NextRequest) {
+  // Falls back to the server's own LOYALTY_SAAS_API_KEY below, so left public
+  // anyone could stamp or redeem cashback on our account.
+  const actor = await resolveActor(req);
+  if (!actor) return Response.json({ ok: false, error: "Not authenticated." }, { status: 401 });
+
   let body: LoyaltySaasBody;
   try {
     body = await req.json();
