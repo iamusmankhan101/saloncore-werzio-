@@ -89,6 +89,18 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const [locations, setLocations] = useState<SalonLocation[]>([]);
   const [activeLocationId, setActiveLocationId] = useState("main");
   const [multiLocationEnabled, setMultiLocationEnabled] = useState(false);
+  // Short /book/<slug> link; the old ?salon=<id> link is the fallback until it loads.
+  const [bookingPath, setBookingPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetch("/api/booking-link", { cache: "no-store" })
+      .then((res) => res.json() as Promise<{ ok?: boolean; slug?: string }>)
+      .then((data) => { if (!cancelled && data.ok && data.slug) setBookingPath(`/book/${data.slug}`); })
+      .catch(() => { /* keep the fallback link */ });
+    return () => { cancelled = true; };
+  }, [user]);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -430,7 +442,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                   {visibleItems.map((item) => (
                     <NavItem
                       key={item.href}
-                      href={item.dynamicHref && user ? `${item.href}?salon=${encodeURIComponent(user.salonOwnerId || user.id)}` : item.href}
+                      href={item.dynamicHref && user ? (bookingPath ?? `${item.href}?salon=${encodeURIComponent(user.salonOwnerId || user.id)}`) : item.href}
                       icon={item.icon}
                       label={item.label}
                     />

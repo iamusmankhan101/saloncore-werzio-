@@ -408,7 +408,103 @@ function SalonProfile() {
         </div>
       )}
       <SaveButton onClick={save} label={saving ? "Saving…" : "Save Changes"} disabled={saving} />
+      <BookingLinkCard />
     </section>
+  );
+}
+
+/** The salon's short online-booking link (/book/<slug>) — copy or change it. */
+function BookingLinkCard() {
+  const [url, setUrl] = useState("");
+  const [slug, setSlug] = useState("");
+  const [draft, setDraft] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/booking-link", { cache: "no-store" })
+      .then((res) => res.json() as Promise<{ ok?: boolean; slug?: string; url?: string }>)
+      .then((data) => { if (data.ok && data.slug && data.url) { setSlug(data.slug); setUrl(data.url); } })
+      .catch(() => {});
+  }, []);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setMessage({ ok: true, text: "Link copied." });
+    } catch {
+      setMessage({ ok: false, text: "Could not copy — select the link and copy it by hand." });
+    }
+  }
+
+  async function saveSlug() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/booking-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: draft }),
+      });
+      const data = await res.json() as { ok?: boolean; slug?: string; url?: string; error?: string };
+      if (!data.ok || !data.slug || !data.url) throw new Error(data.error || "Could not save the link.");
+      setSlug(data.slug);
+      setUrl(data.url);
+      setEditing(false);
+      setMessage({ ok: true, text: "Booking link updated." });
+    } catch (error) {
+      setMessage({ ok: false, text: error instanceof Error ? error.message : "Could not save the link." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const prefix = url ? url.slice(0, url.length - slug.length) : "";
+
+  return (
+    <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid #eeeaf6" }}>
+      <div style={{ color: "#29263d", fontSize: 12, fontWeight: 800, marginBottom: 8 }}>Online Booking Link</div>
+      {!url ? (
+        <div style={{ fontSize: 12, color: "#9995ad" }}>Loading…</div>
+      ) : editing ? (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: "#9995ad", marginRight: 4 }}>{prefix}</span>
+            <input style={{ ...inputStyle, flex: "1 1 180px" }} value={draft} autoFocus
+              onChange={(e) => setDraft(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} />
+          </div>
+          <div style={{ fontSize: 11, color: "#b45309", marginTop: 6, lineHeight: 1.5 }}>
+            The old link and any QR codes already printed with it will stop working.
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button type="button" onClick={() => void saveSlug()} disabled={busy || !draft.trim()}
+              style={{ border: "none", background: "#6d28d9", color: "#fff", borderRadius: 9, padding: "8px 14px", fontSize: 12, fontWeight: 800, cursor: busy ? "wait" : "pointer" }}>
+              {busy ? "Saving…" : "Save link"}
+            </button>
+            <button type="button" onClick={() => { setEditing(false); setMessage(null); }} disabled={busy}
+              style={{ border: "1px solid #e4e0ee", background: "#fff", color: "#6b6b8a", borderRadius: 9, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <a href={url} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 700, color: "#6d28d9", wordBreak: "break-all", flex: "1 1 220px" }}>{url}</a>
+          <button type="button" onClick={() => void copy()}
+            style={{ border: "1px solid #e4e0ee", background: "#fff", color: "#29263d", borderRadius: 9, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Copy
+          </button>
+          <button type="button" onClick={() => { setDraft(slug); setEditing(true); setMessage(null); }}
+            style={{ border: "1px solid #e4e0ee", background: "#fff", color: "#29263d", borderRadius: 9, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Change
+          </button>
+        </div>
+      )}
+      {message && (
+        <div style={{ fontSize: 12, fontWeight: 700, marginTop: 8, color: message.ok ? "#059669" : "#dc2626" }}>{message.text}</div>
+      )}
+    </div>
   );
 }
 

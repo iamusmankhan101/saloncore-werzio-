@@ -23,6 +23,8 @@ const OWNER_SCOPED_TABLES = [
 const WHATSAPP_TABLES = [
   "wa_followup_sent", "birthday_sent", "birthday_message_queue",
   "wa_lowstock_sent", "wa_message_logs", "wa_birthday_settings",
+  // Not WhatsApp, but scoped the same way: frees the salon's short booking link.
+  "booking_slugs",
 ] as const;
 
 export interface DeleteAccountResult {

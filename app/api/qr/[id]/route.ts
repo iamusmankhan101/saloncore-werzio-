@@ -21,6 +21,7 @@
  */
 
 import { NextRequest } from "next/server";
+import { getOrCreateBookingSlug } from "@/lib/booking-slug";
 import { resolveActor } from "@/lib/api-auth";
 import {
   buildQrTargetUrl,
@@ -85,12 +86,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return Response.json({ ok: false, error: `type=${rawType} needs an id in the path` }, { status: 400 });
   }
 
-  const targetUrl = buildQrTargetUrl({
-    origin: publicOrigin(req),
-    salonId: actor.userId,
-    type: rawType,
-    targetId,
-  });
+  // Booking codes print the short /book/<slug> link when one can be made.
+  const bookingSlug = rawType === "booking" ? await getOrCreateBookingSlug(actor.userId).catch(() => null) : null;
+  const targetUrl = bookingSlug
+    ? `${publicOrigin(req)}/book/${bookingSlug}`
+    : buildQrTargetUrl({
+        origin: publicOrigin(req),
+        salonId: actor.userId,
+        type: rawType,
+        targetId,
+      });
 
   const size   = Number(sp.get("size") ?? 320);
   const format = (sp.get("format") ?? "dataurl").toLowerCase();
