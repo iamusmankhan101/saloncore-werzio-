@@ -251,14 +251,23 @@ function OnlineBookingInner({ salonIdOverride }: { salonIdOverride?: string }) {
   const salonName = salonId
     ? ((remoteSettings?.salon as { name?: string })?.name ?? "Salon")
     : (settingsStore.salon.name as string);
+  const salonLogo = salonId
+    ? ((remoteSettings?.salon as { logo?: string })?.logo ?? "")
+    : ((settingsStore.salon as { logo?: string }).logo ?? "");
 
   return (
     <div className="pageWrapper">
       {/* Navbar */}
       <header className="topNavbar">
-        <div className="brandLogoArea">
-          <div className="brandLogoText" suppressHydrationWarning>{salonName}</div>
-          <div className="brandPoweredBy">powered by <span className="brandPoweredByName">Salon Central</span></div>
+        <div className="brandRow">
+          {salonLogo && (
+            // eslint-disable-next-line @next/next/no-img-element -- salon-uploaded data URL
+            <img className="brandLogoImg" src={salonLogo} alt={`${salonName} logo`} suppressHydrationWarning />
+          )}
+          <div className="brandLogoArea">
+            <div className="brandLogoText" suppressHydrationWarning>{salonName}</div>
+            <div className="brandPoweredBy">powered by <span className="brandPoweredByName">Salon Central</span></div>
+          </div>
         </div>
       </header>
 

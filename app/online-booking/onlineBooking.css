@@ -22,7 +22,10 @@
   background: linear-gradient(to bottom, rgba(17,17,26,0.7), transparent);
 }
 
-.brandLogoArea  { display: flex; flex-direction: column; }
+.brandRow      { display: flex; align-items: center; gap: 16px; min-width: 0; }
+/* White tile so dark or transparent logos stay visible on the dark header. */
+.brandLogoImg   { width: 64px; height: 64px; flex-shrink: 0; object-fit: contain; background: #fff; border-radius: 14px; padding: 6px; box-shadow: 0 4px 18px rgba(0,0,0,0.35); }
+.brandLogoArea  { display: flex; flex-direction: column; min-width: 0; }
 .brandLogoText  { font-family: 'Cinzel', serif; font-size: 26px; font-weight: 500; color: #fff; letter-spacing: 5px; }
 .brandPoweredBy { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 1px; }
 .brandPoweredByName { font-weight: 700; color: #fff; font-size: 11px; margin-left: 4px; }
@@ -606,6 +609,8 @@
 /* ─── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .topNavbar    { padding: 24px 20px; }
+  .brandRow     { gap: 12px; }
+  .brandLogoImg { width: 48px; height: 48px; border-radius: 11px; padding: 4px; }
   .heroSection  { height: 55vh; min-height: 380px; }
   .heroBrandName    { font-size: 36px; letter-spacing: 8px; margin-right: -8px; }
   .heroBrandSubtitle { font-size: 10px; letter-spacing: 5px; margin-right: -5px; }
