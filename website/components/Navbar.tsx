@@ -8,10 +8,8 @@ import DemoModal from "./DemoModal";
 
 const CONTACT_SALES_URL = "https://wa.me/+923029646928?text=Hi%2C%20I%27m%20interested%20in%20a%20Salon%20Central%20plan.";
 
-// Pointly is the sibling POS product — this is the one line to change once
-// it has its own site; every other CTA on this site points at WhatsApp too,
-// so an enquiry link is the consistent placeholder rather than a dead href.
-const POINTLY_URL = "https://wa.me/+923029646928?text=Hi%2C%20I%27d%20like%20to%20know%20more%20about%20Pointly%20POS.";
+// Pointly is the sibling POS product, with its own site.
+const POINTLY_URL = "https://pointlypos.saloncentral.xyz/";
 
 const featureLinks = [
   { label: "Appointment Scheduling", desc: "Calendar, bookings & reminders", href: "/features/appointment-scheduling", Icon: CalendarDays },
