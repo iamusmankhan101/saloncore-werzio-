@@ -197,6 +197,31 @@ export default function POSPage() {
             };
           }))
           .filter(e => e.unitPrice > 0);
+        // On a multi-day booking the same service booked on several days is one
+        // line with qty = number of days, e.g. "Glam Makeup (Day 1 · 2026-11-06,
+        // Day 2 · 2026-11-07)" × 2. Only lines for the same person at the same
+        // agreed price are combined, so a different per-day price stays separate.
+        if (isMultiDay) {
+          const merged = new Map<string, { entry: CartEntry; baseName: string; dayLabels: string[] }>();
+          for (const entry of cartEntries) {
+            const match = entry.name.match(/^(.*) \((Day .*)\)$/);
+            const baseName = match?.[1] ?? entry.name;
+            const dayLabel = match?.[2] ?? "";
+            const key = `${entry.guestName ?? ""}|${entry.itemId}|${entry.unitPrice}`;
+            const existing = merged.get(key);
+            if (existing) {
+              existing.entry.qty += 1;
+              existing.entry.total = existing.entry.unitPrice * existing.entry.qty;
+              if (dayLabel) existing.dayLabels.push(dayLabel);
+            } else {
+              merged.set(key, { entry: { ...entry }, baseName, dayLabels: dayLabel ? [dayLabel] : [] });
+            }
+          }
+          cartEntries.splice(0, cartEntries.length, ...Array.from(merged.values()).map(({ entry, baseName, dayLabels }) => ({
+            ...entry,
+            name: dayLabels.length ? `${baseName} (${dayLabels.join(", ")})` : baseName,
+          })));
+        }
         const bookedGuests = Array.from(
           new Map(bookingDays.flatMap(d => (d.guests ?? []).map(g => [g.name, { name: g.name, clientId: g.clientId }] as const))).values()
         );
