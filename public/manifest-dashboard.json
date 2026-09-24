@@ -4,7 +4,7 @@
   "short_name": "Salon Central",
   "description": "Run your salon: appointments, POS, clients and stock. Works offline.",
   "start_url": "/dashboard",
-  "scope": "/",
+  "scope": "/dashboard",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "background_color": "#ffffff",
