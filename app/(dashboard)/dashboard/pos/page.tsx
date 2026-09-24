@@ -64,6 +64,8 @@ interface CartEntry {
   basePrice: number;
   total: number;
   variablePrice?: boolean;
+  /** Per-day prices for a service combined across the days of a multi-day booking. */
+  dayBreakdown?: { label: string; amount: number }[];
   priceRangeMin?: number;
   priceRangeMax?: number;
 }
@@ -217,10 +219,11 @@ export default function POSPage() {
               merged.set(key, { entry: { ...entry }, baseName, dayLabels: dayLabel ? [dayLabel] : [] });
             }
           }
-          cartEntries.splice(0, cartEntries.length, ...Array.from(merged.values()).map(({ entry, baseName, dayLabels }) => ({
-            ...entry,
-            name: dayLabels.length ? `${baseName} (${dayLabels.join(", ")})` : baseName,
-          })));
+          cartEntries.splice(0, cartEntries.length, ...Array.from(merged.values()).map(({ entry, baseName, dayLabels }) => (
+            dayLabels.length > 1
+              ? { ...entry, name: baseName, dayBreakdown: dayLabels.map(label => ({ label, amount: entry.unitPrice })) }
+              : { ...entry, name: dayLabels.length ? `${baseName} (${dayLabels[0]})` : baseName }
+          )));
         }
         const bookedGuests = Array.from(
           new Map(bookingDays.flatMap(d => (d.guests ?? []).map(g => [g.name, { name: g.name, clientId: g.clientId }] as const))).values()
@@ -340,6 +343,10 @@ export default function POSPage() {
       id: e.cartId, type: e.type, sourceId: e.itemId, description: e.name,
       qty: e.qty, unitPrice: wholePkr(e.unitPrice), total: wholePkr(e.total),
       ...(e.guestName ? { guestName: e.guestName } : {}),
+      // Only while it still matches the line — a changed qty makes it stale.
+      ...(e.dayBreakdown && e.dayBreakdown.length === e.qty
+        ? { dayBreakdown: e.dayBreakdown.map(d => ({ label: d.label, amount: wholePkr(e.unitPrice) })) }
+        : {}),
     }));
   const rawSubtotal    = wholePkr(cartLineItems.reduce((s, i) => s + i.total, 0));
   const baseDiscountAmount = discType === "pct" ? wholePkr(rawSubtotal * discount / 100) : wholePkr(discount);
@@ -1400,6 +1407,13 @@ export default function POSPage() {
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6, marginBottom: 14 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: "#1d1d2f", lineHeight: 1.3 }}>{entry.name}</div>
+                          {entry.dayBreakdown && entry.dayBreakdown.length === entry.qty && (
+                            <div style={{ fontSize: 11, color: "#7c7c9a", lineHeight: 1.45, marginTop: 2 }}>
+                              {entry.dayBreakdown.map(d => (
+                                <div key={d.label}>{d.label} — PKR {Math.round(entry.unitPrice).toLocaleString()}</div>
+                              ))}
+                            </div>
+                          )}
                           {entry.guestName && (
                             <div style={{ display: "inline-block", marginTop: 4, padding: "2px 7px", borderRadius: 20, background: "#f5f3ff", color: "#7C3AED", fontSize: 10, fontWeight: 800 }}>
                               For {entry.guestName}

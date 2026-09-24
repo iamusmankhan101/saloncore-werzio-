@@ -28,6 +28,7 @@ const styles = StyleSheet.create({
   tableHeader: { flexDirection: "row", backgroundColor: "#f0f0f0", borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#cccccc", padding: 8 },
   row: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#e8e8e8", padding: 8 },
   description: { width: "46%" },
+  dayBreakdown: { fontSize: 8, color: "#666666", marginTop: 2 },
   qty: { width: "10%", textAlign: "right" },
   amount: { width: "22%", textAlign: "right" },
   head: { fontFamily: "Helvetica-Bold", fontSize: 8 },
@@ -143,7 +144,12 @@ function InvoiceDocument({ invoice, salon }: {
             )}
             {group.items.map((item) => (
               <View key={item.id} style={styles.row}>
-                <Text style={[styles.description, styles.cellMuted]}>{item.description}</Text>
+                <View style={styles.description}>
+                  <Text style={styles.cellMuted}>{item.description}</Text>
+                  {item.dayBreakdown?.map((d) => (
+                    <Text key={d.label} style={styles.dayBreakdown}>{d.label} — {money(d.amount)}</Text>
+                  ))}
+                </View>
                 <Text style={[styles.qty, styles.cellMuted]}>{item.qty}</Text>
                 <Text style={[styles.amount, styles.cellMuted]}>{money(item.unitPrice)}</Text>
                 <Text style={[styles.amount, styles.cellStrong]}>{money(item.total)}</Text>

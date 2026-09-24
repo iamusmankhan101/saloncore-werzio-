@@ -517,7 +517,14 @@ export default function SalonInvoicePrint({
                       )}
                       {group.items.map((item) => (
                         <tr key={item.id} style={{ borderBottom: "1px solid #e8e8e8" }}>
-                          <td style={{ padding: "11px 12px", fontSize: 12, color: "#111" }}>{item.description}</td>
+                          <td style={{ padding: "11px 12px", fontSize: 12, color: "#111" }}>
+                            {item.description}
+                            {item.dayBreakdown?.map((d) => (
+                              <div key={d.label} style={{ fontSize: 11, color: "#666", marginTop: 3 }}>
+                                {d.label} — <Money n={d.amount} />
+                              </div>
+                            ))}
+                          </td>
                           <td style={{ padding: "11px 12px", fontSize: 12, color: "#555", textAlign: "right" }}>{item.qty}</td>
                           <td style={{ padding: "11px 12px", fontSize: 12, color: "#555", textAlign: "right" }}><Money n={item.unitPrice} /></td>
                           <td style={{ padding: "11px 12px", fontSize: 12, color: "#111", fontWeight: 600, textAlign: "right" }}><Money n={item.total} /></td>

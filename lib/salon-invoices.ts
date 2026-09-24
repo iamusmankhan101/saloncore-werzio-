@@ -43,6 +43,11 @@ export interface SalonInvoiceItem {
    * which is every line on an ordinary single-person invoice.
    */
   guestName?: string;
+  /**
+   * Per-day prices when one line covers the same service on several days of a
+   * multi-day booking (qty = number of days). Printed under the description.
+   */
+  dayBreakdown?: { label: string; amount: number }[];
 }
 
 /**
