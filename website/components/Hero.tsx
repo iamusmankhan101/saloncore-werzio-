@@ -1,9 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import styles from "./Hero.module.css";
-import DemoVideoModal from "./DemoVideoModal";
 
 /* ── decorative salon-tool line icons ─────────────────────── */
 const iconProps = {
@@ -39,10 +37,7 @@ function HairdryerIcon() {
 }
 
 export default function Hero() {
-  const [demoOpen, setDemo] = useState(false);
-
   return (
-    <>
     <section className={styles.hero} id="home">
 
       {/* ── floating salon-tool icon chips ── */}
@@ -74,13 +69,9 @@ export default function Hero() {
         </p>
         <div className={styles.btns}>
           <Link href="/#pricing" className={styles.btnPrimary}>View Pricing</Link>
-          <button type="button" onClick={() => setDemo(true)} className={styles.btnOutline}>View Demo</button>
         </div>
       </div>
 
     </section>
-
-    <DemoVideoModal open={demoOpen} onClose={() => setDemo(false)} />
-    </>
   );
 }
