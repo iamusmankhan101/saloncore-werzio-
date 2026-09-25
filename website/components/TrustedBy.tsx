@@ -42,6 +42,15 @@ export default function TrustedBy() {
             className={styles.logoImage}
           />
         </div>
+        <div className={styles.logoCard} data-animate data-delay="0.40">
+          <Image
+            src="/makeup-by-sara-logo.jpg"
+            alt="Makeup by Sara"
+            width={420}
+            height={420}
+            className={styles.logoImage}
+          />
+        </div>
       </div>
     </div>
   );
