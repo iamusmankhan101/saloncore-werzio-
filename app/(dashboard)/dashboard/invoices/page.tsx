@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import {
   getSalonInvoices, deleteSalonInvoice, markSalonInvoicePaid, updateSalonInvoice, localDateKey, balanceDue, advancePercent,
-  type SalonInvoice,
+  paymentMethodLabel, type SalonInvoice,
 } from "@/lib/salon-invoices";
 import type { PaymentMethod } from "@/lib/types";
 import { getStoredAppointments, saveAppointments, getStoredClients, saveClients } from "@/lib/storage";
@@ -618,7 +618,10 @@ export default function InvoicesPage() {
                     <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{inv.items.length} item{inv.items.length !== 1 ? "s" : ""}</div>
 
                     {/* Payment method */}
-                    <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>{METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod}</div>
+                    <div style={{ fontSize: 12, color: "#6b6b8a", fontWeight: 500 }}>
+                      {paymentMethodLabel(inv, METHOD_LABELS)}
+                      {inv.cardApprovalCode && <div style={{ fontSize: 10.5, color: "#9999b0" }}>Approval {inv.cardApprovalCode}{inv.cardLast4 ? ` · ••${inv.cardLast4}` : ""}</div>}
+                    </div>
 
                     {/* Amount */}
                     <div>

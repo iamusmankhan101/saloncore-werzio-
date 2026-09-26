@@ -19,7 +19,7 @@ import {
 import {
   createSalonInvoice, calcTotals,
   localDateKey, getSalonInvoices, saveSalonInvoices,
-  ADVANCE_NON_REFUNDABLE_NOTE,
+  ADVANCE_NON_REFUNDABLE_NOTE, CARD_TERMINALS,
   type SalonInvoice, type SalonInvoiceItem,
 } from "@/lib/salon-invoices";
 import { settingsStore } from "@/lib/settings-store";
@@ -95,6 +95,8 @@ function catColor(category: string, type: "service" | "product") {
   if (type === "product") return CATEGORY_COLORS.product;
   return CATEGORY_COLORS[category?.toLowerCase()] || CATEGORY_COLORS.other;
 }
+
+const CARD_TERMINAL_KEY = "werzio_pos_card_terminal";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -283,6 +285,14 @@ export default function POSPage() {
   // No default — staff must actively pick a method (or Pay Later/Credit) before checkout,
   // otherwise sales were silently defaulting to "cash" even when no one confirmed that.
   const [payMethod,     setPayMethod]     = useState<PaymentMethod | null>(null);
+  // Card sales: the machine isn't connected, so the cashier notes which one took
+  // the payment plus the slip's approval code, for matching against bank statements.
+  // The machine is remembered per device — a counter almost always uses the same one.
+  const [cardTerminal,  setCardTerminal]  = useState<string>(() => {
+    try { return localStorage.getItem(CARD_TERMINAL_KEY) ?? ""; } catch { return ""; }
+  });
+  const [cardApproval,  setCardApproval]  = useState("");
+  const [cardLast4,     setCardLast4]     = useState("");
 
   // ── Mobile tab ───────────────────────────────────────────────────────────
   const [posTab, setPosTab] = useState<"customer" | "catalog" | "cart">("catalog");
@@ -377,6 +387,8 @@ export default function POSPage() {
   // failure (the row is never even queued), so this is required up front
   // rather than silently skipped after checkout.
   const advanceNoPhone = isAdvance && !isCredit && !selectedClient?.phone;
+  const isCard = !isCredit && payMethod === "card";
+  const cardNoTerminal = isCard && !cardTerminal;
 
   // ── Cart ops ──────────────────────────────────────────────────────────────
   const addToCart = useCallback((item: CatalogItem) => {
@@ -512,6 +524,7 @@ export default function POSPage() {
   // ── New sale reset ────────────────────────────────────────────────────────
   function startNewSale() {
     setCart([]); setDiscount(0); setDiscount2(0); setLoyaltyRedeem(0); setSaleNotes(""); setPayMethod(null);
+    setCardApproval(""); setCardLast4("");
     setIsAdvance(false); setAdvanceValue(50); setAdvanceType("pct");
     setSelectedClient(null); setClientQ(""); setSelectedStaffId("");
     setCompleted(false); setLastInvoice(null); setWaStatus("idle"); setIsCredit(false);
@@ -528,6 +541,7 @@ export default function POSPage() {
     // Mirrors the Complete Sale button's disabled condition — a payment method (or
     // explicit Pay Later/Credit) must be chosen, never silently defaulted.
     if (!isCredit && !payMethod) return;
+    if (cardNoTerminal) return;
     setCompleting(true);
     try {
       const today = localDateKey();
@@ -554,6 +568,11 @@ export default function POSPage() {
         items:         cartLineItems,
         subtotal, discountAmount: wholePkr(discountAmount + loyaltyDiscount), discount2Amount: discountAmount2, taxAmount, total,
         paymentMethod: isCredit ? "" : (payMethod as PaymentMethod),
+        ...(isCard ? {
+          cardTerminal,
+          cardApprovalCode: cardApproval.trim() || undefined,
+          cardLast4: cardLast4 || undefined,
+        } : {}),
         date: today,
         status: isCredit ? "unpaid" : isAdvance ? "partial" : "paid",
         advanceAmount: !isCredit && isAdvance ? advanceAmount : undefined,
@@ -1638,6 +1657,36 @@ export default function POSPage() {
                 </div>
               </div>
 
+              {/* Card slip details — only while Card is the chosen method */}
+              {isCard && (
+                <div style={{ marginBottom: 12, padding: "10px 11px", borderRadius: 10, background: "#eef2ff", border: "1px solid #c7d2fe" }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#4338ca", marginBottom: 6 }}>Which card machine?</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 5, marginBottom: 8 }}>
+                    {CARD_TERMINALS.map(t => {
+                      const sel = cardTerminal === t;
+                      return (
+                        <button key={t} type="button"
+                          onClick={() => { setCardTerminal(t); try { localStorage.setItem(CARD_TERMINAL_KEY, t); } catch {} }}
+                          style={{ padding: "7px 4px", borderRadius: 8, border: `1.5px solid ${sel ? "#6366f1" : "#c7d2fe"}`, background: sel ? "#6366f1" : "#fff", color: sel ? "#fff" : "#4338ca", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input value={cardApproval} onChange={e => setCardApproval(e.target.value.toUpperCase().slice(0, 12))}
+                      placeholder="Approval code"
+                      style={{ flex: 1, minWidth: 0, height: 30, padding: "0 8px", borderRadius: 8, border: "1.5px solid #c7d2fe", fontSize: 12, outline: "none", background: "#fff", fontWeight: 700 }} />
+                    <input value={cardLast4} onChange={e => setCardLast4(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      placeholder="Last 4" inputMode="numeric"
+                      style={{ width: 70, height: 30, padding: "0 8px", borderRadius: 8, border: "1.5px solid #c7d2fe", fontSize: 12, outline: "none", background: "#fff", fontWeight: 700 }} />
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "#4f46e5", marginTop: 6, lineHeight: 1.5 }}>
+                    Copy these from the machine&apos;s slip. They help match card sales to the bank statement.
+                  </div>
+                </div>
+              )}
+
               {/* Pay Later toggle */}
               <button
                 type="button"
@@ -1711,6 +1760,11 @@ export default function POSPage() {
                   <AlertCircle size={13} /> Select a payment method (or Pay Later/Credit) before checkout
                 </div>
               )}
+              {!hasUnpricedLine && !noPaymentSelected && cardNoTerminal && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, color: "#d97706" }}>
+                  <AlertCircle size={13} /> Pick which card machine took the payment
+                </div>
+              )}
               {!hasUnpricedLine && !noPaymentSelected && advanceNoPhone && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, color: "#d97706" }}>
                   <AlertCircle size={13} /> Add a phone number for the client — the advance invoice is sent on WhatsApp and can't reach them without one
@@ -1720,11 +1774,11 @@ export default function POSPage() {
               <button type="button" onClick={completeSale} disabled={completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone}
                 style={{
                   width: "100%", padding: "14px 0", borderRadius: 13, border: "none",
-                  background: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone) ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
-                  color: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone) ? "#aaaabc" : "#fff",
-                  fontSize: 15, fontWeight: 900, cursor: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone) ? "not-allowed" : "pointer",
+                  background: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone || cardNoTerminal) ? "#e8e8f0" : isCredit ? "linear-gradient(135deg,#d97706,#f59e0b)" : "linear-gradient(135deg,#5B21B6,#9333EA)",
+                  color: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone || cardNoTerminal) ? "#aaaabc" : "#fff",
+                  fontSize: 15, fontWeight: 900, cursor: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone || cardNoTerminal) ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-                  boxShadow: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone) ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
+                  boxShadow: (completing || hasUnpricedLine || noPaymentSelected || advanceNoPhone || cardNoTerminal) ? "none" : isCredit ? "0 5px 20px rgba(217,119,6,0.40)" : "0 5px 20px rgba(91,33,182,0.42)",
                   letterSpacing: "-0.01em", transition: "all 0.15s",
                 }}
                 onMouseEnter={e => { if (!completing) e.currentTarget.style.transform = "translateY(-1px)"; }}

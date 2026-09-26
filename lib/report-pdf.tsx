@@ -13,6 +13,7 @@ export interface ReportInvoice {
   discountAmount: number;
   total: number;
   paymentMethod: string;
+  cardTerminal?: string;
   status: "paid" | "unpaid";
 }
 
@@ -164,7 +165,8 @@ function DailyReportPDF({ data }: { data: DailyReportData }) {
   // Payment method breakdown
   const byMethod: Record<string, { count: number; amount: number }> = {};
   for (const inv of paid) {
-    const m = inv.paymentMethod || "other";
+    // Card sales split per machine so each can be checked against that bank's statement.
+    const m = inv.paymentMethod === "card" && inv.cardTerminal ? `Card · ${inv.cardTerminal}` : inv.paymentMethod || "other";
     if (!byMethod[m]) byMethod[m] = { count: 0, amount: 0 };
     byMethod[m].count++;
     byMethod[m].amount += inv.total;

@@ -86,6 +86,14 @@ export interface SalonInvoice {
   taxAmount: number;        // 0 for now; ready for future
   total: number;
   paymentMethod: PaymentMethod | "";
+  /**
+   * Card sales only. The card machine isn't connected to the POS, so the cashier
+   * copies these off the machine's slip — they're what lets a day's card sales be
+   * matched against each bank's settlement statement.
+   */
+  cardTerminal?: string;      // which machine took it, e.g. "HBL" (one of CARD_TERMINALS)
+  cardApprovalCode?: string;  // approval / auth code printed on the slip
+  cardLast4?: string;         // last 4 digits of the customer's card
   date: string;             // YYYY-MM-DD — when the invoice was issued
   paidDate?: string;        // YYYY-MM-DD — when it was actually marked paid; unset while unpaid
   status: SalonInvoiceStatus;
@@ -124,6 +132,15 @@ export function advancePercent(inv: Pick<SalonInvoice, "total" | "advanceAmount"
   const total = inv.total || 0;
   const advance = inv.advanceAmount ?? 0;
   return total > 0 && advance > 0 ? Math.round((advance / total) * 100) : 0;
+}
+
+/** The card machines the salon has. Card sales record which one took the payment. */
+export const CARD_TERMINALS = ["Meezan Bank", "Bank Alfalah", "HBL", "Keenu"] as const;
+
+/** "Card · HBL" for a card sale with a known machine, otherwise just the method's own label. */
+export function paymentMethodLabel(inv: Pick<SalonInvoice, "paymentMethod" | "cardTerminal">, labels: Record<string, string>): string {
+  const base = labels[inv.paymentMethod] ?? inv.paymentMethod;
+  return inv.paymentMethod === "card" && inv.cardTerminal ? `${base} · ${inv.cardTerminal}` : base;
 }
 
 /** Shown on any invoice carrying an advance, on screen and on the PDF. */
